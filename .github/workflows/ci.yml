@@ -34,11 +34,18 @@ jobs:
               run: uv sync
 
             - name: Run tests with coverage
-              run: uv run coverage run -m pytest
+              run: |
+                  set -o pipefail
+                  uv run coverage run -m pytest | tee pytest.log
 
-            - name: Generate Coverage Report
+            - name: Generate Reports
               if: success() || failure()
               run: |
+                  echo "## Test Summary (Python ${{ matrix.python-version }})" >> $GITHUB_STEP_SUMMARY
+                  echo '```' >> $GITHUB_STEP_SUMMARY
+                  cat pytest.log >> $GITHUB_STEP_SUMMARY
+                  echo '```' >> $GITHUB_STEP_SUMMARY
+
                   echo "## Coverage Summary (Python ${{ matrix.python-version }})" >> $GITHUB_STEP_SUMMARY
                   echo '```' >> $GITHUB_STEP_SUMMARY
                   uv run coverage report >> $GITHUB_STEP_SUMMARY
