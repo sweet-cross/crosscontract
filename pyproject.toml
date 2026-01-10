@@ -26,6 +26,18 @@ dev = [
     "types-pyyaml>=6.0.12.20250915",
 ]
 
+#-------- Build System Configuration --------#
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/crosscontract"]
+
+# Hatch usually includes py.typed automatically if it's in the package,
+# but if it doesn't, you can force it like this:
+[tool.hatch.build]
+include = ["src/crosscontract/py.typed"]
 
 #-------- Ruff Configuration --------#
 [tool.ruff.lint]
