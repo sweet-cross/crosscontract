@@ -1,0 +1,39 @@
+# ----------------------------------------------------------------------------
+#                           GENERAL METADATA
+# ----------------------------------------------------------------------------
+name: gdp_schema_full
+title: Full GDP Schema
+description: |
+  Full GDP schema including all fields and constraints for the GDP data.
+  This schema is used to validate and describe the structure of GDP data
+  associated with various scenarios and years.
+
+# ----------------------------------------------------------------------------
+#                          FRICTIONLESS FIELDS/COLUMNS
+# ----------------------------------------------------------------------------
+fields:
+  - name: name
+    type: string
+    title: Scenario Name
+    description: Name of the specific scenario this GDP data is associated with
+    constraints:
+      required: true
+      maxLength: 100
+      minLength: 3
+
+  - name: year
+    type: integer
+    title: Year
+    description: Year of the GDP data
+    constraints:
+      required: true
+      minimum: 2000
+      maximum: 2010
+
+  - name: measure
+    type: number
+    title: Important measure
+    description: Very important measure
+    constraints:
+      required: false
+
