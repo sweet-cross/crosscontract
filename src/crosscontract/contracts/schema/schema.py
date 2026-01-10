@@ -57,7 +57,11 @@ class TableSchema(BaseModel):
     )
     fieldDescriptors: FieldDescriptors | None = None
 
-    def __iter__(self) -> Iterator[FieldUnion]:
+    # def __iter__(self) -> Iterator[FieldUnion]:
+    #     return iter(self.fields)
+
+    def field_iterator(self) -> Iterator[FieldUnion]:
+        """Returns an iterator over the fields in the schema."""
         return iter(self.fields)
 
     def __getitem__(self, key: int | str) -> FieldUnion:

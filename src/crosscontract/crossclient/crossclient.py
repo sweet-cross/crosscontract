@@ -99,7 +99,7 @@ class CrossClient:
         # try to get a new token if unauthorized
         if response.status_code == 401:
             # Token expired: Refresh and retry
-            self._token = self.authenticate()
+            self.authenticate()
 
             # Re-issue the request with the new header (handled by self._client update)
             # We must recreate the request to pick up the new headers from the

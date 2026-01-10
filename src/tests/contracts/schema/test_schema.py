@@ -54,13 +54,15 @@ class TestSchema:
 
     def test_iteration(self, sample_schema: TableSchema):
         """Test iterating over the schema fields."""
-        field_names = [field.name for field in sample_schema]
+        field_names = [field.name for field in sample_schema.field_iterator()]
         assert field_names == ["field_one", "field_two", "field_three"]
 
     def test_field_types(self, sample_schema: TableSchema):
         """Test that the field types are as expected."""
         expected_types = [StringField, IntegerField, NumberField]
-        for field, expected_type in zip(sample_schema, expected_types, strict=False):
+        for field, expected_type in zip(
+            sample_schema.field_iterator(), expected_types, strict=False
+        ):
             assert isinstance(field, expected_type)
 
 

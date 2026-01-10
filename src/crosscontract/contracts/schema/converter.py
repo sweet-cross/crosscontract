@@ -14,12 +14,14 @@ from .schema import TableSchema
 def convert_schema_to_pydantic(
     schema: TableSchema,
     name: str = "ConvertedModel",
-    base_class: type[BaseModel] = BaseModel,
+    base_class: type[BaseModel] | None = None,
 ) -> type[BaseModel]:
     """Convert the schema to a Pydantic model."""
+    if base_class is None:
+        base_class = BaseModel
     field_definitions: dict[str, Any] = {}
 
-    for field in schema:
+    for field in schema.field_iterator():
         # Extract the type
         field_type = field.get_type_hint()
 
@@ -50,7 +52,8 @@ def convert_schema_to_pandera(
     """
 
     columns: dict[str, pa.Column] = {
-        field.name: pa.Column(**field.get_pandera_kwargs()) for field in schema
+        field.name: pa.Column(**field.get_pandera_kwargs())
+        for field in schema.field_iterator()
     }
 
     return pa.DataFrameSchema(
@@ -83,5 +86,7 @@ def convert_schema_to_sqlalchemy(
             "Schema cannot have a field named '_id' as it uses it as primary key."
         )
     id_column = Column("_id", Integer, primary_key=True)
-    columns = [id_column] + [field.to_sqlalchemy_column() for field in schema]
+    columns = [id_column] + [
+        field.to_sqlalchemy_column() for field in schema.field_iterator()
+    ]
     return Table(table_name, metadata, *columns, extend_existing=True)

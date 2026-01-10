@@ -106,12 +106,12 @@ def _get_primary_key_check(
         is_internally_unique = ~df_sub.duplicated(subset=pk_fields, keep=False)
 
         # 2. Check values against existing primary key values
-        is_externally_unique = True
         if existing_pk_set:
             current_keys = pd.MultiIndex.from_frame(df_sub[pk_fields])
             is_externally_unique = ~current_keys.isin(existing_pk_set)
+            return is_internally_unique & is_externally_unique
 
-        return is_internally_unique & is_externally_unique
+        return is_internally_unique
 
     return pa.Check(
         check_primary_key,

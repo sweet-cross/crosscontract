@@ -78,7 +78,7 @@ class BaseContract(BaseMetaData):
         serialization_alias="schema",
     )
 
-    @property
+    @property  # type: ignore[override]
     def schema(self) -> TableSchema:
         """
         Access the underlying schema definition.

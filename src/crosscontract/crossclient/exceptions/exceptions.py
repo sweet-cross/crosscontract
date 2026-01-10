@@ -12,7 +12,7 @@ class CrossClientError(Exception):
     def __init__(
         self,
         message: str | None = None,
-        validation_errors: list[dict[str, Any]] | None = None,
+        validation_errors: list[dict[Hashable, Any]] | None = None,
         status_code: int | None = None,
     ):
         self.message = message or self._default_message
@@ -49,11 +49,11 @@ class ValidationError(CrossClientError):
         self._error_list = validation_errors or []
         super().__init__(my_message, validation_errors, status_code)
 
-    def to_list(self) -> list[dict[str, Any]]:
+    def to_list(self) -> list[dict[Hashable, Any]]:
         """Return the validation errors as a list of dictionaries.
 
         Returns:
-            list[dict[str, Any]]: List of validation error details.
+            list[dict[Hashable, Any]]: List of validation error details.
         """
         return self._error_list
 
