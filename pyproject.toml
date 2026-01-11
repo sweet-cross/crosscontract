@@ -25,6 +25,11 @@ dev = [
     "respx>=0.22.0",
     "types-pyyaml>=6.0.12.20250915",
 ]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.1",
+    "mkdocstrings[python]>=1.0.0",
+]
 
 #-------- Build System Configuration --------#
 [build-system]
