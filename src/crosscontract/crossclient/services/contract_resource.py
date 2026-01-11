@@ -191,7 +191,7 @@ class ContractResource:
         Raises:
             ValidationError: If the DataFrame does not conform to the schema.
         """
-        schema = self.contract.schema
+        schema = self.contract.tableschema
 
         # get the existing primary key values from the platform if needed
         if skip_primary_key_validation:
@@ -238,7 +238,7 @@ class ContractResource:
                 values. Returns None if the contract does not have a primary key defined
                 or if there are no existing primary key values.
         """
-        schema = self.contract.schema
+        schema = self.contract.tableschema
 
         # if there is no primary key defined, return None
         if not schema.primaryKey:
@@ -274,7 +274,7 @@ class ContractResource:
                 contract does not have foreign keys defined or if there are no existing
                 foreign key values.
         """
-        schema = self.contract.schema
+        schema = self.contract.tableschema
 
         # if there are no foreign keys defined, return None
         if not schema.foreignKeys:

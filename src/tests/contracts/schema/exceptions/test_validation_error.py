@@ -121,6 +121,12 @@ class TestSchemaValidationError:
         # The code looks up values from data and returns them as a tuple
         assert err["failure_case"] == ("val_a", "val_b")
 
+    def test_no_schema_errors(self):
+        """Test behavior when no schema_errors are provided."""
+        error = SchemaValidationError("No Schema Errors")
+        parsed = error.errors
+        assert parsed == []
+
     def test_lookup_key_error(self):
         """Test handling of KeyError during value lookup."""
         # Scenario: Index in failure_cases does not exist in data

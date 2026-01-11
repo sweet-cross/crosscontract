@@ -145,7 +145,7 @@ class TestAddData:
         # Use object.__setattr__ to bypass Pydantic's immutability/field checks
         # when mocking a method on an instance
         object.__setattr__(
-            contract_resource.contract.schema,
+            contract_resource.contract.tableschema,
             "validate_dataframe",
             Mock(return_value=None),
         )
@@ -165,7 +165,7 @@ class TestAddData:
             validation_errors=[{"field": "col1", "error": "Invalid value"}],
         )
         object.__setattr__(
-            contract_resource.contract.schema,
+            contract_resource.contract.tableschema,
             "validate_dataframe",
             Mock(side_effect=my_validation_error),
         )
@@ -203,7 +203,7 @@ class TestValidation:
         # Mock schema.validate_dataframe
         validate_mock = Mock(return_value=None)
         object.__setattr__(
-            contract_resource.contract.schema, "validate_dataframe", validate_mock
+            contract_resource.contract.tableschema, "validate_dataframe", validate_mock
         )
 
         # Mock internal methods to ensure they are NOT called
@@ -234,7 +234,7 @@ class TestValidation:
 
         validate_mock = Mock(return_value=None)
         object.__setattr__(
-            contract_resource.contract.schema, "validate_dataframe", validate_mock
+            contract_resource.contract.tableschema, "validate_dataframe", validate_mock
         )
 
         with (
@@ -266,7 +266,7 @@ class TestValidation:
 
         validate_mock = Mock(return_value=None)
         object.__setattr__(
-            contract_resource.contract.schema, "validate_dataframe", validate_mock
+            contract_resource.contract.tableschema, "validate_dataframe", validate_mock
         )
 
         with (
@@ -300,7 +300,7 @@ class TestValidation:
 
         validate_mock = Mock(side_effect=schema_error)
         object.__setattr__(
-            contract_resource.contract.schema, "validate_dataframe", validate_mock
+            contract_resource.contract.tableschema, "validate_dataframe", validate_mock
         )
 
         with pytest.raises(ValidationError) as exc:
@@ -317,7 +317,7 @@ class TestGetKeyValues:
     def test_get_primary_key_values_no_pk(self, contract_resource: ContractResource):
         """Test get_primary_key_values when no primary key is defined."""
         # Mock schema.primaryKey as None
-        object.__setattr__(contract_resource.contract.schema, "primaryKey", None)
+        object.__setattr__(contract_resource.contract.tableschema, "primaryKey", None)
 
         assert contract_resource.get_primary_key_values() is None
 
@@ -328,7 +328,9 @@ class TestGetKeyValues:
         # Mock schema.primaryKey
         pk_mock = Mock()
         pk_mock.root = ["id"]
-        object.__setattr__(contract_resource.contract.schema, "primaryKey", pk_mock)
+        object.__setattr__(
+            contract_resource.contract.tableschema, "primaryKey", pk_mock
+        )
 
         # Mock get_data to return empty DataFrame
         with patch.object(
@@ -342,7 +344,9 @@ class TestGetKeyValues:
         # Mock schema.primaryKey
         pk_mock = Mock()
         pk_mock.root = ["id", "version"]
-        object.__setattr__(contract_resource.contract.schema, "primaryKey", pk_mock)
+        object.__setattr__(
+            contract_resource.contract.tableschema, "primaryKey", pk_mock
+        )
 
         # Mock get_data
         df = pd.DataFrame({"id": [1, 2], "version": [1, 1]})
@@ -358,7 +362,7 @@ class TestGetKeyValues:
     def test_get_foreign_key_values_no_fk(self, contract_resource: ContractResource):
         """Test get_foreign_key_values when no foreign keys are defined."""
         # Mock schema.foreignKeys as None
-        object.__setattr__(contract_resource.contract.schema, "foreignKeys", None)
+        object.__setattr__(contract_resource.contract.tableschema, "foreignKeys", None)
 
         assert contract_resource.get_foreign_key_values() is None
 
@@ -378,7 +382,9 @@ class TestGetKeyValues:
         # Mock schema.foreignKeys
         fks_mock = Mock()
         fks_mock.root = [fk1, fk2]
-        object.__setattr__(contract_resource.contract.schema, "foreignKeys", fks_mock)
+        object.__setattr__(
+            contract_resource.contract.tableschema, "foreignKeys", fks_mock
+        )
 
         # Mock get_data
         df1 = pd.DataFrame({"id": [101, 102]})

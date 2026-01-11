@@ -45,7 +45,7 @@ class BaseContract(BaseMetaData):
         name (str): A unique identifier for the data contract.
             Must contain only alphanumeric characters, underscores, or hyphens.
             Maximum length is 100 characters.
-        schema (Schema): The schema defining the structure of the contract
+        tableschema (TableSchema): The schema defining the structure of the contract
             (fields, primary keys, foreign keys, field descriptors).
 
     Example:
@@ -64,30 +64,11 @@ class BaseContract(BaseMetaData):
         ```
     """
 
-    model_config = ConfigDict(
-        populate_by_name=True, extra="forbid", serialize_by_alias=True
-    )
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
-    # schema is a reserved word in Pydantic but deprecated.
-    # We use 'schema_' (trailing underscore) as the backing field to avoid
-    # Pydantic's private attribute behavior (leading underscore) while
-    # keeping it distinct from the 'schema' property.
-    schema_: TableSchema = Field(
+    tableschema: TableSchema = Field(
         description="The Frictionless Table Schema definition.",
-        validation_alias="schema",
-        serialization_alias="schema",
     )
-
-    @property  # type: ignore[override]
-    def schema(self) -> TableSchema:
-        """
-        Access the underlying schema definition.
-        """
-        return self.schema_
-
-    @schema.setter
-    def schema(self, value: TableSchema) -> None:
-        self.schema_ = value
 
     @classmethod
     def from_file(cls, file_path: str | Path) -> Self:
@@ -112,7 +93,7 @@ class BaseContract(BaseMetaData):
         """Validate that self-referencing foreign keys are given as None on the
         resource field. Raise if a reference has the same name as the contract itself.
         """
-        for fk in self.schema.foreignKeys:
+        for fk in self.tableschema.foreignKeys:
             if fk.reference.resource == self.name:
                 raise ValueError(
                     f"Foreign key reference resource '{fk.reference.resource}' "

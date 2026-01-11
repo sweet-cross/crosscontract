@@ -7,7 +7,7 @@ from crosscontract.contracts import BaseContract, CrossContract, TableSchema
 
 data_base_contract = {
     "name": "data_base_contract",
-    "schema": {
+    "tableschema": {
         "primaryKey": ["id"],
         "foreignKeys": [
             {
@@ -34,8 +34,8 @@ class TestBaseContract:
         contract = BaseContract.model_validate(data_base_contract)
         assert contract.name == "data_base_contract"
 
-        assert contract.schema.primaryKey.root == ["id"]
-        assert len(contract.schema.fields) == 4
+        assert contract.tableschema.primaryKey.root == ["id"]
+        assert len(contract.tableschema.fields) == 4
 
         # setting the schema is possible through the property
         other_schema = {
@@ -43,9 +43,9 @@ class TestBaseContract:
                 {"name": "location", "type": "string"},
             ]
         }
-        contract.schema = TableSchema.model_validate(other_schema)
-        assert len(contract.schema.fields) == 1
-        assert contract.schema.primaryKey.root == []
+        contract.tableschema = TableSchema.model_validate(other_schema)
+        assert len(contract.tableschema.fields) == 1
+        assert contract.tableschema.primaryKey.root == []
 
     def test_from_json_file(self, tmp_path):
         import json
@@ -56,7 +56,7 @@ class TestBaseContract:
 
         contract = BaseContract.from_file(file_path)
         assert contract.name == "data_base_contract"
-        assert len(contract.schema.fields) == 4
+        assert len(contract.tableschema.fields) == 4
 
     def test_from_yaml_file(self, tmp_path):
         import yaml
@@ -67,12 +67,12 @@ class TestBaseContract:
 
         contract = BaseContract.from_file(file_path)
         assert contract.name == "data_base_contract"
-        assert len(contract.schema.fields) == 4
+        assert len(contract.tableschema.fields) == 4
 
     def test_self_reference_error(self):
         # Test that self-referencing schema raises an error
         invalid_data = deepcopy(data_base_contract)
-        invalid_data["schema"].update(
+        invalid_data["tableschema"].update(
             {
                 "foreignKeys": [
                     {

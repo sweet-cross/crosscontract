@@ -52,7 +52,7 @@ class CrossContractFactory(ModelFactory[CrossContract]):
     # OPTIONAL: If references cause noise, you can set defaults here
     # even while keeping the rest dynamic.
     @classmethod
-    def schema_(cls):
+    def tableschema(cls):
         # Force empty foreign keys to avoid 'validate_self_reference' issues entirely
         return TableSchema(fields=[{"name": "id", "type": "string"}], foreignKeys=[])
 

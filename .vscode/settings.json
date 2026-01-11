@@ -11,5 +11,5 @@
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "githubPullRequests.ignoredPullRequestBranches": ["main"],
-  "cSpell.words": ["crossclient", "crosscontract", "respx"]
+  "cSpell.words": ["crossclient", "crosscontract", "respx", "tableschema"]
 }
