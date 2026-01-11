@@ -76,7 +76,7 @@ class CrossClient:
         self._client.headers["Authorization"] = f"Bearer {self._token}"
         return token
 
-    def request(self, method: str, endpoint: str, **kwargs) -> httpx.Response:
+    def request(self, method: str, endpoint: str, **kwargs: dict) -> httpx.Response:
         """Send an HTTP request to the specified endpoint.
 
         Args:

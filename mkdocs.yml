@@ -1,0 +1,51 @@
+site_name: CrossContracts
+site_description: Documentation for data contracts and client libraries in the CROSS ecosystem.
+site_author: Sweet Cross Team
+repo_url: https://sweet-cross.github.io/crosscontract
+repo_name: sweet-cross/crosscontract
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+
+nav:
+  - Introduction: index.md
+  - CrossContract: contracts/index.md
+  - CrossClient: client/index.md
+  - API Reference:
+      - CrossContract: reference/contracts.md
+      - CrossClient: reference/client.md
+  - About: about.md

@@ -1,0 +1,19 @@
+# Orchestrator workflow for the main branch.
+# 1. Runs tests on every push, PR to main, or manual trigger.
+# 2. Deploys docs ONLY if tests pass AND the event is NOT a pull request.
+name: Release Main Branch
+
+on:
+    workflow_dispatch:
+    pull_request:
+        branches:
+            - main
+
+jobs:
+    test_and_coverage:
+        uses: ./.github/workflows/test_and_coverage.yml
+
+    deploy_docs:
+        needs: test_and_coverage
+        if: success() && github.event_name != 'pull_request'
+        uses: ./.github/workflows/deploy_docs.yml
