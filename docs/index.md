@@ -36,8 +36,21 @@ uv venv
 # Linux/MacOS
 source .venv/bin/activate
 
+uv pip install git+https://github.com/sweet-cross/crosscontract.git
+```
+
+Alternatively, if you use a project-based approach with uv:
+
+```bash
+uv init
+# Windows
+.venv\Scripts\activate
+# Linux/MacOS
+source .venv/bin/activate
+
 uv add git+https://github.com/sweet-cross/crosscontract.git
 ```
+
 
 ### Using poetry
 
