@@ -18,7 +18,6 @@ class ContractService:
     """
 
     _api_version_prefix = "/api/v1"
-    _route = f"{_api_version_prefix}/contract/"
 
     def __init__(self, client: "CrossClient"):
         """Initialize the ContractService. The ContractService is responsible for
@@ -29,6 +28,7 @@ class ContractService:
             client (CrossClient): The CrossClient instance to use for API calls.
         """
         self._client = client
+        self._route = f"{self._client._base_url}{self._api_version_prefix}/contract/"
 
     def create(
         self, contract: CrossContract, activate: bool = False

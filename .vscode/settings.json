@@ -6,10 +6,22 @@
       "source.organizeImports": "never"
     }
   },
-  "ruff.lint.ignore": ["F401"],
-  "python.testing.pytestArgs": ["tests"],
+  "ruff.lint.ignore": [
+    "F401"
+  ],
+  "python.testing.pytestArgs": [
+    "tests"
+  ],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
-  "githubPullRequests.ignoredPullRequestBranches": ["main"],
-  "cSpell.words": ["crossclient", "crosscontract", "respx", "tableschema"]
+  "githubPullRequests.ignoredPullRequestBranches": [
+    "main"
+  ],
+  "cSpell.words": [
+    "crossclient",
+    "crosscontract",
+    "respx",
+    "tableschema"
+  ],
+  "python.REPL.enableREPLSmartSend": false
 }
