@@ -46,6 +46,9 @@ class CrossClient:
         # ---- include services ----
         self.contracts: ContractService = ContractService(client=self)
 
+        # authenticate upon initialization
+        self.authenticate()
+
     def __enter__(self):
         return self
 
