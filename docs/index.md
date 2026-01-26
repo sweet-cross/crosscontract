@@ -9,7 +9,7 @@ The package consists of two main components:
 
 ## Requirements
 
-*   **Python:** 3.12 or higher
+*   **Python:** 3.10 or higher
 
 ## Installation
 
