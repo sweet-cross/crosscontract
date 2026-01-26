@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from polyfactory.factories.pydantic_factory import ModelFactory
 
@@ -25,7 +27,8 @@ def login_url():
 @pytest.fixture
 def client():
     """Fixture to provide a fresh (unauthenticated) client."""
-    return CrossClient(USERNAME, PASSWORD, BASE_URL)
+    with patch("crosscontract.crossclient.crossclient.CrossClient.authenticate"):
+        return CrossClient(USERNAME, PASSWORD, BASE_URL)
 
 
 @pytest.fixture
