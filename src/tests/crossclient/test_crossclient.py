@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import httpx
 import pytest
 import respx
@@ -83,7 +85,7 @@ def test_token_refresh_flow(client: CrossClient, login_url):
 
 def test_context_manager():
     """Test that the context manager closes the client."""
-    with respx.mock:
+    with patch("crosscontract.crossclient.crossclient.CrossClient.authenticate"):
         # Just ensure it doesn't crash
         with CrossClient("user", "pass", "https://api.example.com") as c:
             assert isinstance(c, CrossClient)

@@ -1,5 +1,10 @@
 from pathlib import Path
-from typing import Self
+
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
+
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
