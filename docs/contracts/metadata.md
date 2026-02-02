@@ -2,7 +2,7 @@
 
 ## CROSS Metadata
 
-The CROSS metadata are the metadata standard defined for CrossContracts. They are 
+The CROSS metadata are the metadata standard defined for CrossContracts. They are
 compliant with the [DCAT-CH v.2](https://www.dcat-ap.ch/) vocabulary which itself
 is compliant with [DCAT-AC](https://op.europa.eu/en/web/eu-vocabularies/dcat-ap).
 
@@ -28,14 +28,14 @@ of your own standard is simple and comes in two steps:
 ### Create your metadata standard
 
 To create your own standard, create a class that inherits from the `BaseMetaData` class.
-The `BaseMetaData` is a pydantic model that defines only attribute, i.e., metadata entry, 
+The `BaseMetaData` is a pydantic model that defines only attribute, i.e., metadata entry,
 that must be implemented by all contract: the *name* attribute.
 
 ``` py
 from crosscontract.contracts.contracts import BaseMetaData
 
 class MyMetaData(BaseMetaData):
-    """My MetaData standard. The name attribute is already inherited from 
+    """My MetaData standard. The name attribute is already inherited from
     BaseMetaData
     """
 
@@ -59,5 +59,5 @@ class MyContract(BaseContract, MyMetaData):
 ```
 
 That's it. You now have an contract blueprint `MyContract` that enforces that each
-contract must have a name, description, and owner attribute and, in addition, a 
+contract must have a name, description, and owner attribute and, in addition, a
 tableschema entry that enforces the frictionless table schema.

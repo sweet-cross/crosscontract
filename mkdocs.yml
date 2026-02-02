@@ -57,12 +57,12 @@ markdown_extensions:
 
 nav:
   - Introduction: index.md
-  - CrossContract: 
+  - CrossContract:
       - Overview: contracts/index.md
       - Tutorial: notebooks/contract_tutorial.ipynb
       - Metadata: contracts/metadata.md
       - Schema: contracts/schema.md
-  - CrossClient: 
+  - CrossClient:
       - Overview: client/index.md
       - Tutorial: notebooks/client_tutorial.ipynb
   - API Reference:

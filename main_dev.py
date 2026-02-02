@@ -2,7 +2,7 @@ import os
 
 from dotenv import load_dotenv
 
-from crosscontract import CrossClient, CrossContract
+from crosscontract import CrossContract
 
 
 def get_user_credentials(env_file="notebooks/.env"):
