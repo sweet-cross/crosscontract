@@ -32,19 +32,39 @@ theme:
     - content.code.copy
     - content.code.annotate
     - content.tabs.link
+hooks:
+  - scripts/copy_notebooks_to_docs.py
 
 plugins:
   - search
+  - macros
   - mkdocstrings:
       handlers:
         python:
           options:
             show_source: true
+  - mkdocs-jupyter:
+      include: ["notebooks/*.ipynb"] # Matches the virtual dest_path
+      execute: false
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
 
 nav:
   - Introduction: index.md
-  - CrossContract: contracts/index.md
-  - CrossClient: client/index.md
+  - CrossContract:
+      - Overview: contracts/index.md
+      - Tutorial: notebooks/contract_tutorial.ipynb
+      - Metadata: contracts/metadata.md
+      - Schema: contracts/schema.md
+  - CrossClient:
+      - Overview: client/index.md
+      - Tutorial: notebooks/client_tutorial.ipynb
   - API Reference:
       - CrossContract: reference/contracts.md
       - CrossClient: reference/client.md

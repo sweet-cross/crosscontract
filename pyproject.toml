@@ -30,9 +30,12 @@ dev = [
     "types-pyyaml>=6.0.12.20250915",
 ]
 docs = [
+    "mkdocs-jupyter>=0.25.1",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.1",
     "mkdocstrings[python]>=1.0.0",
+    "pymdown-extensions>=10.20",
+    "mkdocs-macros-plugin>=1.5.0",
 ]
 
 #-------- Build System Configuration --------#
