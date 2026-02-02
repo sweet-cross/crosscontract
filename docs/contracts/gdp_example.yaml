@@ -1,0 +1,31 @@
+name: contract_gdp
+title: Gross Domestic Product (GDP)
+description: |
+  Gross Domestic Product (GDP) by country and years.
+
+tableschema:
+  fields:
+    - name: country
+      type: string
+      title: Country Name
+      description: Name of the country
+      constraints:
+        required: true
+        maxLength: 100
+
+    - name: year
+      type: integer
+      title: Year
+      description: Year of the GDP data
+      constraints:
+        required: true
+        minimum: 2000
+        maximum: 2050
+
+    - name: gdp
+      type: number
+      title: GDP Value
+      description: Gross Domestic Product value in USD
+      constraints:
+        required: true
+        minimum: 0
