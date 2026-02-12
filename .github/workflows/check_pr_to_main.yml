@@ -15,5 +15,4 @@ jobs:
     lint_pr_title:
         uses: ./.github/workflows/check_pr_title.yml
     test_and_coverage:
-        if: github.event.action != 'edited'
         uses: ./.github/workflows/test_and_coverage.yml
