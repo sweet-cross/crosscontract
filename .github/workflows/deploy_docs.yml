@@ -3,46 +3,51 @@
 name: Build and Deploy Docs
 
 on:
-    workflow_call:
-    workflow_dispatch:
-
+  workflow_call:
+    inputs:
+      ref:
+        description: "The git ref to check out (tag, branch, or SHA)"
+        required: false
+        type: string
+        default: ""
+  workflow_dispatch:
 permissions:
-    contents: write
-    pages: write
-    id-token: write
+  contents: write
+  pages: write
+  id-token: write
 
 jobs:
-    deploy:
-        environment:
-            name: github-pages
-            url: ${{ steps.deployment.outputs.page_url }}
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v6
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-            - name: Install uv
-              uses: astral-sh/setup-uv@v7
-              with:
-                  enable-cache: true
-                  cache-dependency-glob: "uv.lock"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
-            - name: Set up Python
-              run: uv python install 3.12
+      - name: Set up Python
+        run: uv python install 3.12
 
-            - name: Install dependencies
-              run: uv sync --group docs
+      - name: Install dependencies
+        run: uv sync --group docs
 
-            - name: Build Docs
-              # Change 'gh-deploy' to 'build'. This creates the 'site' folder.
-              run: uv run mkdocs build
+      - name: Build Docs
+        # Change 'gh-deploy' to 'build'. This creates the 'site' folder.
+        run: uv run mkdocs build
 
-            - name: Upload artifact
-              uses: actions/upload-pages-artifact@v3
-              with:
-                  # MkDocs builds to the 'site' directory by default
-                  path: "./site"
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # MkDocs builds to the 'site' directory by default
+          path: "./site"
 
-            - name: Deploy to GitHub Pages
-              id: deployment
-              uses: actions/deploy-pages@v4
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

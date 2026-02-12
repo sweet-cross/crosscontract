@@ -7,10 +7,10 @@ on:
     workflow_dispatch:
     pull_request:
         branches:
-        - main
+            - main
     push:
         branches:
-        - main
+            - main
 
 jobs:
     test_and_coverage:
