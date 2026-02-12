@@ -38,6 +38,7 @@ docs = [
     "mkdocs-macros-plugin>=1.5.0",
 ]
 
+
 #-------- Build System Configuration --------#
 [build-system]
 requires = ["hatchling"]
@@ -50,6 +51,12 @@ packages = ["src/crosscontract"]
 # but if it doesn't, you can force it like this:
 [tool.hatch.build]
 include = ["src/crosscontract/py.typed"]
+
+#-------- Versioning Configuration --------#
+version_toml = ["pyproject.toml:project.version"]
+version_variables = ["src/crosscontract/__init__.py:__version__"] # Optional: if you keep version in code
+branch = "main"
+build_command = "uv build"
 
 #-------- Ruff Configuration --------#
 [tool.ruff.lint]

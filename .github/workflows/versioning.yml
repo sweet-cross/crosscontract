@@ -1,0 +1,31 @@
+name: Versioning
+
+on:
+  workflow_call:
+    outputs:
+      released:
+        description: "True if a release was created"
+        value: ${{ jobs.versioning.outputs.released }}
+      tag:
+        description: "The tag created (e.g. v1.0.1)"
+        value: ${{ jobs.versioning.outputs.tag }}
+
+jobs:
+  versioning:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to push the new version commit and tag
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      tag: ${{ steps.release.outputs.tag }}
+    
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Python Semantic Release
+        id: release
+        uses: python-semantic-release/python-semantic-release@v10.5.3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
