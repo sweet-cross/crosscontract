@@ -1,13 +1,10 @@
-# Orchestrator workflow for the main branch.
-# 1. Runs tests on every push, PR to main, or manual trigger.
-# 2. Deploys docs ONLY if tests pass AND the event is NOT a pull request.
+# Orchestrator workflow to deploy a new release when changes are pushed to the
+# main branch. It runs tests, creates a release if needed, and deploys docs if
+#the release was successful.
 name: Release Main Branch
 
 on:
     workflow_dispatch:
-    pull_request:
-        branches:
-            - main
     push:
         branches:
             - main
@@ -18,7 +15,7 @@ jobs:
 
     release:
         needs: test_and_coverage
-        if: success() && github.event_name != 'pull_request'
+        if: success()
         uses: ./.github/workflows/versioning.yml
         permissions:
             contents: write
@@ -27,8 +24,8 @@ jobs:
     deploy_docs:
         needs: release
         if: >-
-            always() && needs.test_and_coverage.result == 'success' &&
-            (needs.release.outputs.released == 'true' || (github.event_name == 'push' && needs.release.result == 'success'))
+            success() &&
+            (needs.release.outputs.released == 'true' || needs.release.result == 'success')
         uses: ./.github/workflows/deploy_docs.yml
         with:
             ref: ${{ needs.release.outputs.released == 'true' && needs.release.outputs.tag || github.ref }}
