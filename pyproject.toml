@@ -53,15 +53,12 @@ packages = ["src/crosscontract"]
 include = ["src/crosscontract/py.typed"]
 
 #-------- Versioning Configuration --------#
-version_toml = ["pyproject.toml:project.version"]
-version_variables = [
-    "src/crosscontract/__init__.py:__version__",
-] # Optional: if you keep version in code
-branch = "main"
-build_command = "uv build"
-
 [tool.semantic_release]
 major_on_zero = false
+version_toml = ["pyproject.toml:project.version"]
+version_variables = ["src/crosscontract/__init__.py:__version__"]
+branch = "main"
+build_command = "uv build"
 
 #-------- Ruff Configuration --------#
 [tool.ruff.lint]
