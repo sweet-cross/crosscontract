@@ -1,0 +1,14 @@
+# Orchestrator workflow for the main branch.
+# Runs tests on every PR to the main branch.
+name: Check PR Main Branch
+
+on:
+    pull_request:
+        branches:
+            - main
+
+jobs:
+    lint_pr_title:
+        uses: ./.github/workflows/check_pr_title.yml
+    test_and_coverage:
+        uses: ./.github/workflows/test_and_coverage.yml
