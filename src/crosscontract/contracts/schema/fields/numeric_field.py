@@ -1,4 +1,4 @@
-from typing import Literal, TypeVar
+from typing import Generic, Literal, TypeVar
 
 import pandera.pandas as pa
 from pydantic import Field
@@ -10,7 +10,7 @@ from .base import BaseConstraint, BaseField
 T = TypeVar("T", int, float)
 
 
-class NumericConstraint[T](BaseConstraint):
+class NumericConstraint(BaseConstraint, Generic[T]):
     minimum: T | None = None
     maximum: T | None = None
     enum: list[T] | None = Field(default=None, min_length=1)
