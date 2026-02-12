@@ -83,7 +83,7 @@ class ListField(BaseField):
     )
 
     constraints: ListConstraint = Field(
-        default_factory=lambda: ListConstraint(),
+        default_factory=ListConstraint,
         description="Constraints for the list field",
     )
 

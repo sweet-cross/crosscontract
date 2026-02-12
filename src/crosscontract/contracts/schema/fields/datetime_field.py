@@ -77,7 +77,7 @@ class DateTimeField(BaseField):
         ),
     )
     constraints: DateTimeConstraint = Field(
-        default_factory=lambda: DateTimeConstraint(),
+        default_factory=DateTimeConstraint,
         description="Constraints for the datetime field.",
     )
 

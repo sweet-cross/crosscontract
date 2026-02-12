@@ -52,9 +52,7 @@ class IntegerField(BaseField):
         description="The type of the field, which is 'integer' for this class.",
     )
 
-    constraints: NumericConstraint[int] = Field(
-        default_factory=lambda: NumericConstraint[int]()
-    )
+    constraints: NumericConstraint[int] = Field(default_factory=NumericConstraint[int])
 
     @property
     def python_type(self) -> type:  # type: ignore
@@ -86,7 +84,7 @@ class NumberField(BaseField):
     )
 
     constraints: NumericConstraint[float] = Field(
-        default_factory=lambda: NumericConstraint[float]()
+        default_factory=NumericConstraint[float]
     )
 
     @property
