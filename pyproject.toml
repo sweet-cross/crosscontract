@@ -55,6 +55,7 @@ include = ["src/crosscontract/py.typed"]
 #-------- Versioning Configuration --------#
 [tool.semantic_release]
 major_on_zero = false
+allow_zero_version = true
 version_toml = ["pyproject.toml:project.version"]
 version_variables = ["src/crosscontract/__init__.py:__version__"]
 branch = "main"
