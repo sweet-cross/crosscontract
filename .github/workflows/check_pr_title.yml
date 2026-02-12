@@ -1,11 +1,7 @@
-name: "Lint PR Title"
+name: Lint PR Title
 
 on:
-  pull_request:
-    types:
-      - opened
-      - edited
-      - synchronize
+  workflow_call:
 
 jobs:
   validate_title:
