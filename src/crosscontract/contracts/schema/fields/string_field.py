@@ -78,7 +78,7 @@ class StringField(BaseField):
         description="The type of the field, which is 'string' for this class.",
     )
     constraints: StringConstraint = Field(
-        default_factory=lambda: StringConstraint(),
+        default_factory=StringConstraint,
         description="Constraints for the `string` field",
     )
 

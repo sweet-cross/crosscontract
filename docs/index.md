@@ -75,11 +75,10 @@ The key libraries powering CrossContract are:
 We follow a structured development workflow to ensure stability:
 
 *   **Branch Strategy**:
-    *   `main`: Reserved for stable production releases.
-    *   `dev`: The active development branch.
+    *   `main`: Main branch released.
 *   **Contribution Workflow**:
     1.  [Create an Issue](https://github.com/sweet-cross/crosscontract/issues/new) to discuss the change.
-    2.  Clone the repository and branch out from `dev`:
+    2.  Clone the repository and branch out from `main`:
         ```bash
         git clone https://github.com/sweet-cross/crosscontract.git
         cd crosscontract
@@ -87,7 +86,7 @@ We follow a structured development workflow to ensure stability:
         git checkout -b feature/your-feature-name
         ```
     3.  Implement your changes.
-    4.  Submit a Pull Request targeting the `dev` branch.
+    4.  Submit a Pull Request targeting the `main` branch.
 
 ## License
 
