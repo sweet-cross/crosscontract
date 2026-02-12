@@ -6,6 +6,10 @@ on:
     pull_request:
         branches:
             - main
+        types:
+            - opened
+            - edited
+            - synchronize
 
 jobs:
     lint_pr_title:
