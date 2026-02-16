@@ -2,13 +2,15 @@ import httpx
 
 from .services import ContractService
 
+DEFAULT_URL = "https://backend.sweet-cross.ch"
+
 
 class CrossClient:
     def __init__(
         self,
         username: str,
         password: str,
-        base_url: str,
+        base_url: str = DEFAULT_URL,
         verify: bool = True,
     ) -> None:
         """Initialize the client with authentication.
@@ -17,16 +19,18 @@ class CrossClient:
             username (str): The username for authentication.
             password (str): The password for authentication.
             base_url (str): If provided, use this domain instead of the default
-                BASE_URL. The debug option is ignored if base_url is set.
+                DEFAULT_URL.
                 The domain must include the protocol (e.g., http:// or https://).
-                Example: "http://example.com/"
+                Example: "http://example.com".
+                Defaults to DEFAULT_URL: "https://backend.sweet-cross.ch".
+                Trailing slashes are stripped internally.
             verify (bool): Whether to verify SSL certificates.
                 Defaults to True.
 
         Returns:
             CrossClient: An instance of the authenticated client.
         """
-        self._base_url = base_url
+        self._base_url = base_url.rstrip("/")  # Ensure no trailing slash
         self._username = username
         self._password = password
         self._verify = verify
