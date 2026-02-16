@@ -1,12 +1,7 @@
 from collections.abc import Iterator
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal
-
-try:
-    from typing import Self
-except ImportError:
-    from typing_extensions import Self
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Self
 
 import pandera.pandas as pa
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -21,9 +16,6 @@ from .fields import (
     StringField,
 )
 from .reference import ForeignKeys, PrimaryKey
-
-if TYPE_CHECKING:  # pragma: no cover
-    pass
 
 FieldUnion = Annotated[
     IntegerField | NumberField | StringField | DateTimeField,
