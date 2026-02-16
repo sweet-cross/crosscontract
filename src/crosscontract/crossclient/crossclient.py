@@ -21,8 +21,9 @@ class CrossClient:
             base_url (str): If provided, use this domain instead of the default
                 DEFAULT_URL.
                 The domain must include the protocol (e.g., http:// or https://).
-                Example: "http://example.com/"
-                Defaults to DEFAULT_URL: "https://backend.sweet-cross.ch/".
+                Example: "http://example.com".
+                Defaults to DEFAULT_URL: "https://backend.sweet-cross.ch".
+                Trailing slashes are stripped internally.
             verify (bool): Whether to verify SSL certificates.
                 Defaults to True.
 
