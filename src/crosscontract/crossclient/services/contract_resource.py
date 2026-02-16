@@ -145,7 +145,6 @@ class ContractResource:
         """Get data for the contract from the CROSS platform.
 
         Args:
-            name (str): The name of the contract to get data for.
             columns (list[str] | None): Optional list of columns to retrieve.
                 If None, all columns are retrieved.
             filters (dict[str, str] | None): Optional dictionary of filters to apply.
@@ -168,7 +167,8 @@ class ContractResource:
         skip_foreign_key_validation: bool = True,
         lazy: bool = True,
     ):
-        """Validate a DataFrame against a schema. It allows to provide existing primary
+        """Validate a DataFrame against the schema of the contract.
+        It allows to provide existing primary
         key and foreign key values for validation. If provided, the primary key
         uniqueness is checked against the union of the existing and the DataFrame
         values. Similarly, foreign key integrity is checked against the union of
@@ -178,7 +178,6 @@ class ContractResource:
         that may require fetching existing key values from the CROSS platform.
 
         Args:
-            schema (Schema): The schema to validate against.
             df (pd.DataFrame): The DataFrame to validate.
             skip_primary_key_validation (bool): If True, skip primary key validation.
                 Default is False.
