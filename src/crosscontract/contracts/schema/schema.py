@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
 import pandera.pandas as pa
 from pydantic import BaseModel, ConfigDict, Field, model_validator

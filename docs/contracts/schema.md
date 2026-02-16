@@ -14,8 +14,8 @@ available field are (check the API references for the most updated versions).
 | --- | --- | --- |
 | IntegerField | Restricts type to be an integer number | minimum, maximum, enum |
 | FloatField | Restricts type to be float number | minimum, maximum, enum |
-| StringField | Restricts type to a string | minLength, maxLength, pattern, enum | 
-| DateTimeField | Restricts type to a valid datetime with a given format | minimum, maximum, enum | 
-| ListField | Restricts type to a valid list of a certain item type | minLength, maxLength | 
+| StringField | Restricts type to a string | minLength, maxLength, pattern, enum |
+| DateTimeField | Restricts type to a valid datetime with a given format | minimum, maximum, enum |
+| ListField | Restricts type to a valid list of a certain item type | minLength, maxLength |
 
 
