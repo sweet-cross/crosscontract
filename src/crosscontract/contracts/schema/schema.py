@@ -151,7 +151,7 @@ class TableSchema(BaseModel):
     def to_pydantic_model(
         self, model_name: str | None = None, base_class: type[BaseModel] | None = None
     ) -> type[BaseModel]:
-        from .converter import convert_schema_to_pydantic
+        from .adapters import convert_schema_to_pydantic
 
         if model_name is None:
             model_name = getattr(self, "name", "ContractModel")

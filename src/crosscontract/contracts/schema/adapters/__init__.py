@@ -3,3 +3,7 @@ For example, the PydanticAdapter converts a schema into a corresponding pydantic
 model that allows to validate a single row of data against the schema. Likewise,
 the PanderaAdapter converts a schema into a corresponding pandera schema that allows
 to validate a dataframe against the schema."""
+
+from .pydantic_adapter import PydanticAdapter, convert_schema_to_pydantic
+
+__all__ = ["PydanticAdapter", "convert_schema_to_pydantic"]
