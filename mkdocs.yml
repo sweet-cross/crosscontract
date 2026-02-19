@@ -43,6 +43,9 @@ plugins:
         python:
           options:
             show_source: true
+            heading_level: 3
+            show_root_heading: false
+            show_root_toc_entry: false
   - mkdocs-jupyter:
       include: ["notebooks/*.ipynb"] # Matches the virtual dest_path
       execute: false

@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.1.2 (2026-02-16)
+
+### Bug Fixes
+
+- Introduce base url ([#14](https://github.com/sweet-cross/crosscontract/pull/14),
+  [`9b9c951`](https://github.com/sweet-cross/crosscontract/commit/9b9c951c28c11375fcd2dff00a3f1420ebce4c69))
+
+
 ## v0.1.1 (2026-02-12)
 
 ### Bug Fixes
