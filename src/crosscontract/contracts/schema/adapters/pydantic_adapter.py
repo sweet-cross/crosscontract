@@ -70,7 +70,7 @@ class PydanticAdapter:
         for field in self.schema.field_iterator():
             match field:
                 case IntegerField() | NumberField():
-                    python_type, field_info = self._convert_number_field(field)
+                    python_type, field_info = self._convert_numeric_field(field)
                 case StringField():
                     python_type, field_info = self._convert_string_field(field)
                 case DateTimeField():
@@ -128,7 +128,7 @@ class PydanticAdapter:
 
         return _validate
 
-    def _convert_number_field(
+    def _convert_numeric_field(
         self, field: NumberField | IntegerField
     ) -> tuple[type, FieldInfo]:
         """Convert a NumberField to a pydantic field definition.
