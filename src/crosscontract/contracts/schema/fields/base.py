@@ -1,7 +1,5 @@
-from abc import ABC, abstractmethod
-from typing import Any, Literal
+from abc import ABC
 
-import pandera.pandas as pa
 from pydantic import BaseModel, ConfigDict, Field
 
 from crosscontract.contracts.valid_items import (
@@ -32,30 +30,6 @@ class BaseConstraint(BaseModel, ABC):
         description="When `true`, each value for the property `MUST` be unique.",
     )
 
-    @abstractmethod
-    def get_pandera_kwargs(self) -> dict[str, Any]:
-        """Returns the keyword arguments to create a pandera Column for this
-        constraint."""
-        kwargs: dict[str, Any] = {}
-        kwargs["checks"] = []
-
-        kwargs["required"] = self.required if self.required is not None else False
-
-        # Handle required constraint
-        if not kwargs["required"]:
-            kwargs["nullable"] = True
-
-        # Handle unique constraint
-        if self.unique is True:
-            kwargs["unique"] = True
-
-        # Handle enum constraint
-        enum_constraint = getattr(self, "enum", None)
-        if enum_constraint is not None:
-            kwargs["checks"].append(pa.Check.isin(enum_constraint))
-
-        return kwargs
-
 
 class BaseField(BaseModel, ABC):
     """
@@ -85,48 +59,3 @@ class BaseField(BaseModel, ABC):
     constraints: BaseConstraint = Field(
         description="Constraints for the field",
     )
-
-    @property
-    @abstractmethod
-    def python_type(self) -> type:
-        """Returns the Python type of the field. This is used in the
-        derivation of the pydantic model"""
-        raise NotImplementedError("Subclasses must implement this method.")
-
-    @property
-    def pandera_type(self) -> type | str:
-        """Returns the Pandera type of the field. This is used in the
-        derivation of the Pandera schema."""
-        return self.python_type
-
-    def get_type_hint(self) -> Any:
-        """Returns the type hint for the field based on the constraints."""
-        enum_constraint = getattr(self.constraints, "enum", None)
-        if enum_constraint is not None:
-            return (
-                Literal[*enum_constraint]
-                if self.constraints.required
-                else Literal[*enum_constraint] | None
-            )
-        else:
-            return (
-                self.python_type
-                if self.constraints.required
-                else self.python_type | None
-            )
-
-    def get_pandera_kwargs(self) -> dict[str, Any]:
-        """Returns the keyword arguments to create a pandera Column for this
-        field."""
-        kwargs = {
-            "name": self.name,
-            "dtype": self.pandera_type,
-            "title": self.title,
-            "description": self.description,
-            # "dtype": map_pandera_type_hints.get(self.get_type_hint()),
-        }
-
-        # get the additional kwargs from the constraints
-        kwargs.update(self.constraints.get_pandera_kwargs())
-
-        return kwargs

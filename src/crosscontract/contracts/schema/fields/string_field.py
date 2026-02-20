@@ -1,6 +1,5 @@
-from typing import Any, Literal
+from typing import Literal
 
-import pandera.pandas as pa
 from pydantic import Field
 
 from .base import BaseConstraint, BaseField
@@ -32,23 +31,6 @@ class StringConstraint(BaseConstraint):
 
     enum: list[str] | None = Field(default=None, min_length=1)
 
-    def get_pandera_kwargs(self) -> dict[str, Any]:
-        """Returns the keyword arguments to create a pandera Column for
-        this constraint."""
-        kwargs = super().get_pandera_kwargs()
-
-        # Handle pattern constraint
-        if self.pattern is not None:
-            kwargs["regex"] = self.pattern
-
-        # Handle minLength and maxLength constraints
-        if self.minLength or self.maxLength:
-            kwargs["checks"] = kwargs.get("checks", [])
-            kwargs["checks"].append(
-                pa.Check.str_length(min_value=self.minLength, max_value=self.maxLength)
-            )
-        return kwargs
-
 
 class StringField(BaseField):
     """
@@ -64,8 +46,3 @@ class StringField(BaseField):
         default_factory=StringConstraint,
         description="Constraints for the `string` field",
     )
-
-    @property
-    def python_type(self) -> type:  # type: ignore
-        """Returns the Python type of the field."""
-        return str

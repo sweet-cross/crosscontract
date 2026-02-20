@@ -1,6 +1,5 @@
 from typing import Literal
 
-import pandera.pandas as pa
 from pydantic import Field
 
 from .base import BaseConstraint, BaseField
@@ -34,21 +33,6 @@ class ListConstraint(BaseConstraint):
         ge=0,  # Ensure maxLength is non-negative
     )
 
-    def get_pandera_kwargs(self):
-        kwargs = super().get_pandera_kwargs()
-        # Handle minLength and maxLength constraints
-        if self.minLength is not None:
-            min_len = self.minLength
-            kwargs["checks"].append(
-                pa.Check(lambda s: s.apply(lambda lst: len(lst) >= min_len))
-            )
-        if self.maxLength is not None:
-            max_len = self.maxLength
-            kwargs["checks"].append(
-                pa.Check(lambda s: s.apply(lambda lst: len(lst) <= max_len))
-            )
-        return kwargs
-
 
 class ListField(BaseField):
     """ListFields store items into a list-like structure. All items in the list
@@ -69,7 +53,3 @@ class ListField(BaseField):
         default_factory=ListConstraint,
         description="Constraints for the list field",
     )
-
-    @property
-    def python_type(self) -> type:  # type: ignore
-        return list[MAP_ITEM_TYPES_PYTHON[self.itemType]]  # type: ignore
