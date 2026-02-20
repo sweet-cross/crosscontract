@@ -1,39 +1,10 @@
 """Converters take a schema as input and convert it into to different formats
 such as Pydantic models, Pandera DataFrames, or SQLAlchemy columns."""
 
-from typing import Any
-
 import pandera.pandas as pa
-from pydantic import BaseModel, Field
-from pydantic import create_model as create_pydantic_model
 from sqlalchemy import Column, Integer, MetaData, Table
 
 from .schema import TableSchema
-
-
-def convert_schema_to_pydantic(
-    schema: TableSchema,
-    name: str = "ConvertedModel",
-    base_class: type[BaseModel] | None = None,
-) -> type[BaseModel]:
-    """Convert the schema to a Pydantic model."""
-    if base_class is None:
-        base_class = BaseModel
-    field_definitions: dict[str, Any] = {}
-
-    for field in schema.field_iterator():
-        # Extract the type
-        field_type = field.get_type_hint()
-
-        # Extract the field args
-        field_kwargs = field.get_pydantic_field_kwargs()
-        field_definitions[field.name] = (field_type, Field(**field_kwargs))
-
-    return create_pydantic_model(  # type: ignore[call-overload]
-        name,
-        __base__=base_class,
-        **field_definitions,
-    )
 
 
 def convert_schema_to_pandera(

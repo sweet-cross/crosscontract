@@ -1,5 +1,3 @@
-from typing import Any
-
 import pandera as pa
 from sqlalchemy import Float, Integer
 
@@ -13,99 +11,13 @@ from crosscontract.contracts.schema.fields.numeric_field import (
 class MyNumericConstraint(NumericConstraint[int]):
     """Concrete implementation for testing purposes."""
 
-    def get_pydantic_field_kwargs(self) -> dict[str, Any]:
-        return super().get_pydantic_field_kwargs()
-
-
-class TestNumericConstraint:
-    def test_neither_minimum_nor_maximum_constraint(self):
-        constraint = MyNumericConstraint()
-        kwargs = constraint.get_pydantic_field_kwargs()
-        assert "ge" not in kwargs
-        assert "le" not in kwargs
-
-    def test_minimum_constraint(self):
-        constraint = MyNumericConstraint(minimum=5)
-        kwargs = constraint.get_pydantic_field_kwargs()
-        assert kwargs["ge"] == 5
-        assert "le" not in kwargs
-
-    def test_maximum_constraint(self):
-        constraint = MyNumericConstraint(maximum=10)
-        kwargs = constraint.get_pydantic_field_kwargs()
-        assert kwargs["le"] == 10
-        assert "ge" not in kwargs
-
-    def test_both_minimum_and_maximum_constraint(self):
-        constraint = MyNumericConstraint(minimum=5, maximum=10)
-        kwargs = constraint.get_pydantic_field_kwargs()
-        assert kwargs["ge"] == 5
-        assert kwargs["le"] == 10
-
-
-class TestIntegerField:
-    def test_neither_minimum_nor_maximum_constraint(self):
-        field = IntegerField(name="test_field")
-        kwargs = field.get_pydantic_field_kwargs()
-        assert "ge" not in kwargs
-        assert "le" not in kwargs
-
-    def test_minimum_constraint(self):
-        constraint = MyNumericConstraint(minimum=5)
-        field = IntegerField(name="test_field", constraints=constraint)
-        kwargs = field.get_pydantic_field_kwargs()
-        assert kwargs["ge"] == 5
-        assert "le" not in kwargs
-
-    def test_maximum_constraint(self):
-        constraint = MyNumericConstraint(maximum=10)
-        field = IntegerField(name="test_field", constraints=constraint)
-        kwargs = field.get_pydantic_field_kwargs()
-        assert kwargs["le"] == 10
-        assert "ge" not in kwargs
-
-    def test_both_minimum_and_maximum_constraint(self):
-        constraint = MyNumericConstraint(minimum=5, maximum=10)
-        field = IntegerField(name="test_field", constraints=constraint)
-        kwargs = field.get_pydantic_field_kwargs()
-        assert kwargs["ge"] == 5
-        assert kwargs["le"] == 10
+    pass
 
 
 class MyFloatConstraint(NumericConstraint[float]):
     """Concrete implementation for testing purposes."""
 
-    def get_pydantic_field_kwargs(self) -> dict[str, Any]:
-        return super().get_pydantic_field_kwargs()
-
-
-class TestNumberField:
-    def test_neither_minimum_nor_maximum_constraint(self):
-        field = NumberField(name="test_field")
-        kwargs = field.get_pydantic_field_kwargs()
-        assert "ge" not in kwargs
-        assert "le" not in kwargs
-
-    def test_minimum_constraint(self):
-        constraint = MyFloatConstraint(minimum=5.5)
-        field = NumberField(name="test_field", constraints=constraint)
-        kwargs = field.get_pydantic_field_kwargs()
-        assert kwargs["ge"] == 5.5
-        assert "le" not in kwargs
-
-    def test_maximum_constraint(self):
-        constraint = MyFloatConstraint(maximum=10.5)
-        field = NumberField(name="test_field", constraints=constraint)
-        kwargs = field.get_pydantic_field_kwargs()
-        assert kwargs["le"] == 10.5
-        assert "ge" not in kwargs
-
-    def test_both_minimum_and_maximum_constraint(self):
-        constraint = MyFloatConstraint(minimum=5.5, maximum=10.5)
-        field = NumberField(name="test_field", constraints=constraint)
-        kwargs = field.get_pydantic_field_kwargs()
-        assert kwargs["ge"] == 5.5
-        assert kwargs["le"] == 10.5
+    pass
 
 
 class TestPanderaKwargs:
@@ -166,7 +78,7 @@ class TestToColumn:
 
     def test_float_field_to_column_required(self):
         field = NumberField(
-            name="test_field", constraints=MyNumericConstraint(required=True)
+            name="test_field", constraints=MyFloatConstraint(required=True)
         )
         column = field.to_sqlalchemy_column()
         assert column.name == "test_field"

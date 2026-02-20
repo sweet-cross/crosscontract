@@ -7,47 +7,6 @@ from crosscontract.contracts.schema.fields.string_field import (
 )
 
 
-class TestStringConstraint:
-    def test_given_pattern(self):
-        constraint = StringConstraint(pattern=r"^[A-Z]+$")
-        kwargs = constraint.get_pydantic_field_kwargs()
-        assert kwargs["regex"] == r"^[A-Z]+$"
-
-    def test_minLength_constraint(self):
-        constraint = StringConstraint(minLength=5)
-        kwargs = constraint.get_pydantic_field_kwargs()
-        assert kwargs["min_length"] == 5
-        assert "max_length" not in kwargs
-
-    def test_maxLength_constraint(self):
-        constraint = StringConstraint(maxLength=10)
-        kwargs = constraint.get_pydantic_field_kwargs()
-        assert kwargs["max_length"] == 10
-        assert "min_length" not in kwargs
-
-
-class TestStringField:
-    def test_given_pattern(self):
-        constraint = StringConstraint(pattern=r"^[A-Z]+$")
-        field = StringField(name="test_field", constraints=constraint)
-        kwargs = field.get_pydantic_field_kwargs()
-        assert kwargs["regex"] == r"^[A-Z]+$"
-
-    def test_minLength_constraint(self):
-        constraint = StringConstraint(minLength=5)
-        field = StringField(name="test_field", constraints=constraint)
-        kwargs = field.get_pydantic_field_kwargs()
-        assert kwargs["min_length"] == 5
-        assert "max_length" not in kwargs
-
-    def test_maxLength_constraint(self):
-        constraint = StringConstraint(maxLength=10)
-        field = StringField(name="test_field", constraints=constraint)
-        kwargs = field.get_pydantic_field_kwargs()
-        assert kwargs["max_length"] == 10
-        assert "min_length" not in kwargs
-
-
 class TestPanderaStringField:
     def test_given_pattern(self):
         constraint = StringConstraint(pattern=r"^[A-Z]+$")

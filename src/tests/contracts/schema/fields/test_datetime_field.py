@@ -27,34 +27,6 @@ def test_parse_datetime():
         parse_datetime(12, "%Y-%m-%d %H:%M")
 
 
-class TestDateTimeField:
-    def test_datetime_field(self):
-        field = DateTimeField(name="test_datetime")
-        assert field.python_type == datetime
-        assert field.name == "test_datetime"
-        assert field.format == "%Y-%m-%d %H:%M"
-        assert field.constraints == DateTimeConstraint()
-        kwargs = field.get_pydantic_field_kwargs()
-        assert "ge" not in kwargs
-        assert "le" not in kwargs
-        assert "parse_datetime" in field.get_pydantic_validators()
-
-    def test_minimum_constraint(self):
-        constraint = DateTimeConstraint(
-            minimum="2023-01-01 00:00", maximum="2023-10-10 00:00"
-        )
-        field = DateTimeField(name="test_datetime", constraints=constraint)
-        kwargs = field.get_pydantic_field_kwargs()
-        assert "ge" in kwargs
-        assert kwargs["ge"] == datetime.strptime(
-            "2023-01-01 00:00", field.format
-        ).replace(tzinfo=UTC)
-        assert "le" in kwargs
-        assert kwargs["le"] == datetime.strptime(
-            "2023-10-10 00:00", field.format
-        ).replace(tzinfo=UTC)
-
-
 class TestPanderaKwargs:
     def test_pandera_kwargs(self):
         constraint = DateTimeConstraint(

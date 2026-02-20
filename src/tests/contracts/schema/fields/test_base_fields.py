@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Literal
 
 import pandera.pandas as pa
 from pydantic import Field
@@ -13,9 +13,6 @@ class MyStringConstraint(BaseConstraint):
     """Concrete implementation for testing purposes."""
 
     enum: set[str] | None = Field(default=None, min_length=1)
-
-    def get_pydantic_field_kwargs(self) -> dict[str, Any]:
-        return super().get_pydantic_field_kwargs()
 
     def get_pandera_kwargs(self):
         return super().get_pandera_kwargs()
@@ -65,29 +62,6 @@ class TestFieldTypeHints:
         type_hint = field.get_type_hint()
         expected = Literal["option1", "option2"]
         assert type_hint == expected
-
-
-class TestFieldKwargs:
-    def test_required_is_true(self):
-        constraint = MyStringConstraint(required=True)
-        kwargs = constraint.get_pydantic_field_kwargs()
-        assert kwargs.get("default") is None
-
-    def test_required_is_false(self):
-        constraint = MyStringConstraint(required=False)
-        kwargs = constraint.get_pydantic_field_kwargs()
-        assert kwargs["default"] is None
-
-    def test_enum_is_given(self):
-        constraint = MyStringConstraint(enum={"option1", "option2"})
-        kwargs = constraint.get_pydantic_field_kwargs()
-        expected_enum = {"option1", "option2"}
-        assert set(kwargs["json_schema_extra"]["enum"]) == expected_enum
-
-    def test_unique_is_true(self):
-        constraint = MyStringConstraint(unique=True)
-        kwargs = constraint.get_pydantic_field_kwargs()
-        assert kwargs["json_schema_extra"]["unique"] is True
 
 
 class TestPanderaKwargs:

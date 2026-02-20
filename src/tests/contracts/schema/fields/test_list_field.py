@@ -9,30 +9,6 @@ from crosscontract.contracts.schema.fields.list_field import (
 
 
 class TestListConstraint:
-    def test_neither_min_nor_max_length_constraint(self):
-        constraint = ListConstraint()
-        kwargs = constraint.get_pydantic_field_kwargs()
-        assert "min_length" not in kwargs
-        assert "max_length" not in kwargs
-
-    def test_min_length_constraint(self):
-        constraint = ListConstraint(minLength=2)
-        kwargs = constraint.get_pydantic_field_kwargs()
-        assert kwargs["min_length"] == 2
-        assert "max_length" not in kwargs
-
-    def test_max_length_constraint(self):
-        constraint = ListConstraint(maxLength=10)
-        kwargs = constraint.get_pydantic_field_kwargs()
-        assert kwargs["max_length"] == 10
-        assert "min_length" not in kwargs
-
-    def test_both_min_and_max_length_constraint(self):
-        constraint = ListConstraint(minLength=2, maxLength=10)
-        kwargs = constraint.get_pydantic_field_kwargs()
-        assert kwargs["min_length"] == 2
-        assert kwargs["max_length"] == 10
-
     def test_pandera_kwargs_no_length_constraints(self):
         constraint = ListConstraint()
         kwargs = constraint.get_pandera_kwargs()
@@ -62,12 +38,6 @@ class TestListConstraint:
 
 
 class TestListField:
-    def test_neither_min_nor_max_length_constraint(self):
-        field = ListField(name="test_field")
-        kwargs = field.get_pydantic_field_kwargs()
-        assert "min_length" not in kwargs
-        assert "max_length" not in kwargs
-
     def test_type_hints(self):
         # by default values are not required
         for item_type, python_type in MAP_ITEM_TYPES_PYTHON.items():
@@ -81,27 +51,6 @@ class TestListField:
                 constraints=ListConstraint(required=True),
             )
             assert field.get_type_hint() == list[python_type]
-
-    def test_min_length_constraint(self):
-        constraint = ListConstraint(minLength=2)
-        field = ListField(name="test_field", constraints=constraint)
-        kwargs = field.get_pydantic_field_kwargs()
-        assert kwargs["min_length"] == 2
-        assert "max_length" not in kwargs
-
-    def test_max_length_constraint(self):
-        constraint = ListConstraint(maxLength=10)
-        field = ListField(name="test_field", constraints=constraint)
-        kwargs = field.get_pydantic_field_kwargs()
-        assert kwargs["max_length"] == 10
-        assert "min_length" not in kwargs
-
-    def test_both_min_and_max_length_constraint(self):
-        constraint = ListConstraint(minLength=2, maxLength=10)
-        field = ListField(name="test_field", constraints=constraint)
-        kwargs = field.get_pydantic_field_kwargs()
-        assert kwargs["min_length"] == 2
-        assert kwargs["max_length"] == 10
 
     def test_list_field_to_column(self):
         field = ListField(name="test_field")

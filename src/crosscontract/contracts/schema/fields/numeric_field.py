@@ -15,18 +15,6 @@ class NumericConstraint(BaseConstraint, Generic[T]):
     maximum: T | None = None
     enum: list[T] | None = Field(default=None, min_length=1)
 
-    def get_pydantic_field_kwargs(self):
-        """Returns the pydantic field kwargs for the numeric constraint."""
-        kwargs = super().get_pydantic_field_kwargs()
-
-        # Handle minimum and maximum constraints
-        if self.minimum is not None:
-            kwargs["ge"] = self.minimum  # Greater than or equal to
-        if self.maximum is not None:
-            kwargs["le"] = self.maximum  # Less than or equal to
-
-        return kwargs
-
     def get_pandera_kwargs(self):
         """Returns the keyword arguments to create a pandera Column for
         this constraint."""

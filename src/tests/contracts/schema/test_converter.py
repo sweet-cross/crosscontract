@@ -2,13 +2,11 @@ import pandas as pd
 import pandera.pandas as pa
 import pytest
 from pandera.errors import SchemaErrors
-from pydantic import BaseModel, ValidationError
 from sqlalchemy import MetaData
 
 from crosscontract.contracts import TableSchema
 from crosscontract.contracts.schema.converter import (
     convert_schema_to_pandera,
-    convert_schema_to_pydantic,
     convert_schema_to_sqlalchemy,
 )
 
@@ -34,52 +32,6 @@ def sample_schema():
         },
     ]
     return TableSchema.model_validate({"fields": fields})
-
-
-class TestPydanticFromSchema:
-    """Test class for generating Pydantic models from DataContract."""
-
-    def test_simple_contract_with_three_fields(self, sample_schema: TableSchema):
-        """Test creating a Pydantic model from a contract with three fields."""
-
-        # Convert to Pydantic model
-        generated_model = convert_schema_to_pydantic(
-            sample_schema, name="test_contract"
-        )
-
-        # Test that the model was created successfully
-        assert generated_model.__name__ == "test_contract"
-        assert issubclass(generated_model, BaseModel)
-
-        # 1. Valid instantiation
-        valid_instance = generated_model(value=50.0, year=2022, country="US")
-        assert valid_instance.value == 50.0
-        assert valid_instance.year == 2022
-        assert valid_instance.country == "US"
-
-        # 2. Error as value is below zero
-        with pytest.raises(ValidationError):
-            generated_model(value=-10.0, year=2022, country="US")
-
-        # 3. Error as value is above 100
-        with pytest.raises(ValidationError):
-            generated_model(value=150.0, year=2022, country="US")
-
-        # 4. Error as year is below 2000
-        with pytest.raises(ValidationError):
-            generated_model(value=50.0, year=1999, country="US")
-
-        # 5. Error as year is above 2030
-        with pytest.raises(ValidationError):
-            generated_model(value=50.0, year=2031, country="US")
-
-        # 6. Error as country is only one character
-        with pytest.raises(ValidationError):
-            generated_model(value=50.0, year=2022, country="A")
-
-        # 7. Error as country has 10 characters
-        with pytest.raises(ValidationError):
-            generated_model(value=50.0, year=2022, country="ABCDEFGHIJ")
 
 
 class TestPanderaFromSchema:

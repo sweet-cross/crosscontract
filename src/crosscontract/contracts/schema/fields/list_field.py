@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Literal
 
 import pandera.pandas as pa
 from pydantic import Field
@@ -41,18 +41,6 @@ class ListConstraint(BaseConstraint):
         ),
         ge=0,  # Ensure maxLength is non-negative
     )
-
-    def get_pydantic_field_kwargs(self) -> dict[str, Any]:
-        """Returns the pydantic field kwargs for the array constraint."""
-        kwargs = super().get_pydantic_field_kwargs()
-
-        # Handle minLength and maxLength constraints
-        if self.minLength is not None:
-            kwargs["min_length"] = self.minLength
-        if self.maxLength is not None:
-            kwargs["max_length"] = self.maxLength
-
-        return kwargs
 
     def get_pandera_kwargs(self):
         kwargs = super().get_pandera_kwargs()
