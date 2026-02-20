@@ -1,11 +1,11 @@
-from datetime import datetime
+from datetime import UTC
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover
     from crosscontract.contracts.schema import TableSchema
 
 import pandera.pandas as pa
-from pandas import Int64Dtype
+from pandera.engines import pandas_engine
 
 from crosscontract.contracts.schema.fields import (
     DateTimeField,
@@ -140,7 +140,7 @@ class PanderaPandasAdapter(AbstractAdapter):
         """
         pandera_type: type | str | None = None
         if isinstance(field, IntegerField):
-            pandera_type = Int64Dtype
+            pandera_type = "Int64"
         elif isinstance(field, NumberField):
             pandera_type = float
         else:
@@ -197,7 +197,7 @@ class PanderaPandasAdapter(AbstractAdapter):
         # determine the pandera type for the list items
         type_mapping: dict[str, type | str] = {
             "string": list[str],
-            "integer": list[Int64Dtype],
+            "integer": list[int],
             "number": list[float],
             "boolean": list[bool],
         }
@@ -239,7 +239,10 @@ class PanderaPandasAdapter(AbstractAdapter):
         Returns:
             pa.Column: A pandera Column representing the DateTimeField.
         """
-        kwargs = self._init_pandera_kwargs(field, datetime)
+        kwargs = self._init_pandera_kwargs(
+            field,
+            pandas_engine.DateTime(tz=UTC, to_datetime_kwargs={"format": field.format}),
+        )
 
         # Handle minimum and maximum constraints
         if field.constraints.minimum is not None:
