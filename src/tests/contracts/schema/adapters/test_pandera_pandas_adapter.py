@@ -1,5 +1,6 @@
 import pytest
-from pandera import DateTime, Float64, Int64
+from pandas import Int64Dtype
+from pandera import DateTime
 
 from crosscontract.contracts.schema import TableSchema
 from crosscontract.contracts.schema.adapters.pandera_adapter import (
@@ -76,9 +77,9 @@ class TestInitPanderaKwargs:
 
     def test_name_and_dtype_are_set(self, adapter: PanderaPandasAdapter):
         field = IntegerField(name="age")
-        kwargs = adapter._init_pandera_kwargs(field, Int64)
+        kwargs = adapter._init_pandera_kwargs(field, Int64Dtype)
         assert kwargs["name"] == "age"
-        assert kwargs["dtype"] is Int64
+        assert kwargs["dtype"] is Int64Dtype
 
     def test_enum_constraint_adds_isin_check(self, adapter: PanderaPandasAdapter):
         field = StringField(
@@ -99,12 +100,12 @@ class TestConvertNumericField:
     def test_integer_field_uses_int64(self, adapter: PanderaPandasAdapter):
         field = IntegerField(name="age")
         col = adapter._convert_numeric_field(field)
-        assert isinstance(col.dtype, Int64)
+        assert str(col.dtype) == "Int64"
 
     def test_number_field_uses_float64(self, adapter: PanderaPandasAdapter):
         field = NumberField(name="score")
         col = adapter._convert_numeric_field(field)
-        assert isinstance(col.dtype, Float64)
+        assert str(col.dtype) == "float64"
 
     def test_no_constraints_produces_no_checks(self, adapter: PanderaPandasAdapter):
         field = IntegerField(name="age")

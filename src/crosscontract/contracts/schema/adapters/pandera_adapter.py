@@ -5,7 +5,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from crosscontract.contracts.schema import TableSchema
 
 import pandera.pandas as pa
-from pandera import Float64, Int64
+from pandas import Int64Dtype
 
 from crosscontract.contracts.schema.fields import (
     DateTimeField,
@@ -138,11 +138,11 @@ class PanderaPandasAdapter(AbstractAdapter):
         Returns:
             pa.Column: A pandera Column representing the numeric field.
         """
-        pandera_type: type | None = None
+        pandera_type: type | str | None = None
         if isinstance(field, IntegerField):
-            pandera_type = Int64
+            pandera_type = Int64Dtype
         elif isinstance(field, NumberField):
-            pandera_type = Float64
+            pandera_type = float
         else:
             raise ValueError("Field must be an IntegerField or NumberField")
 
@@ -197,8 +197,8 @@ class PanderaPandasAdapter(AbstractAdapter):
         # determine the pandera type for the list items
         type_mapping: dict[str, type | str] = {
             "string": list[str],
-            "integer": list[Int64],
-            "number": list[Float64],
+            "integer": list[Int64Dtype],
+            "number": list[float],
             "boolean": list[bool],
         }
         pandera_type = type_mapping.get(field.itemType)

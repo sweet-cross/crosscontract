@@ -134,7 +134,7 @@ class TableSchema(BaseModel):
         self,
         name: str | None = None,
     ) -> pa.DataFrameSchema:
-        from .converter import convert_schema_to_pandera
+        from .adapters import convert_schema_to_pandera
 
         if name is None:
             name = getattr(self, "name", "contract_schema")
