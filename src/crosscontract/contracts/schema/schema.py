@@ -144,7 +144,7 @@ class TableSchema(BaseModel):
         return pandera_schema
 
     def to_pydantic_model(
-        self, model_name: str | None = None, base_class: type[BaseModel] | None = None
+        self, model_name: str | None = None, base_class: type[BaseModel] = BaseModel
     ) -> type[BaseModel]:
         from .adapters import convert_schema_to_pydantic
 

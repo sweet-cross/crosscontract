@@ -25,6 +25,7 @@ def convert_schema_to_pydantic(
     """Convert the schema into a corresponding pydantic model.
 
     Args:
+        schema (TableSchema): The schema to convert.
         name (str): The name of the resulting pydantic model.
         base_class (type[BaseModel]): The base class for the resulting pydantic
             model.
@@ -234,20 +235,18 @@ class PydanticAdapter:
             tuple[type, FieldInfo]: A tuple containing the Python type and the pydantic
                 FieldInfo for the field.
         """
-        item_type_mapping: dict[str, type] = {
-            "string": str,
-            "integer": int,
-            "number": float,
-            "boolean": bool,
+        type_mapping: dict[str, type] = {
+            "string": list[str],
+            "integer": list[int],
+            "number": list[float],
+            "boolean": list[bool],
         }
 
-        item_python_type = item_type_mapping.get(field.itemType)
-        if item_python_type is None:  # pragma: no cover
+        python_type = type_mapping.get(field.itemType)
+        if python_type is None:  # pragma: no cover
             # this is already validated at the schema level, so this should never
             # happen but we add this check for type safety
             raise ValueError(f"Unsupported itemType: {field.itemType}")
-
-        python_type = list[item_python_type]
 
         kwargs = self._setup_kwargs(field)
 
