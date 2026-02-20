@@ -2,7 +2,6 @@ from typing import Literal
 
 import pandera.pandas as pa
 from pydantic import Field
-from sqlalchemy import Boolean, Float, Integer, String
 
 from .base import BaseConstraint, BaseField
 
@@ -11,13 +10,6 @@ MAP_ITEM_TYPES_PYTHON: dict[str, type] = {
     "integer": int,
     "number": float,
     "boolean": bool,
-}
-
-MAP_ITEM_TYPES_SQL: dict[str, type] = {
-    "string": String,
-    "integer": Integer,
-    "number": Float,
-    "boolean": Boolean,
 }
 
 
