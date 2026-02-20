@@ -134,12 +134,14 @@ class TableSchema(BaseModel):
         self,
         name: str | None = None,
     ) -> pa.DataFrameSchema:
-        from .adapters import convert_schema_to_pandera
+        from .adapters import PanderaPandasAdapter
 
         if name is None:
             name = getattr(self, "name", "contract_schema")
 
-        pandera_schema: pa.DataFrameSchema = convert_schema_to_pandera(self, name=name)
+        pandera_schema: pa.DataFrameSchema = PanderaPandasAdapter.convert_schema(
+            self, name=name
+        )
 
         return pandera_schema
 
