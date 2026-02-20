@@ -9,16 +9,11 @@ from sqlalchemy import MetaData, Table
 
 from ..utils import read_yaml_or_json_file
 from .field_descriptors import FieldDescriptors
-from .fields import (
-    DateTimeField,
-    IntegerField,
-    NumberField,
-    StringField,
-)
+from .fields import DateTimeField, IntegerField, ListField, NumberField, StringField
 from .reference import ForeignKeys, PrimaryKey
 
 FieldUnion = Annotated[
-    IntegerField | NumberField | StringField | DateTimeField,
+    IntegerField | NumberField | StringField | DateTimeField | ListField,
     Field(discriminator="type"),
 ]
 

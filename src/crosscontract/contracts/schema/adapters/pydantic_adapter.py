@@ -7,6 +7,7 @@ from pydantic.fields import FieldInfo
 from crosscontract.contracts.schema.fields import (
     DateTimeField,
     IntegerField,
+    ListField,
     NumberField,
     StringField,
 )
@@ -35,7 +36,7 @@ def convert_schema_to_pydantic(
         NotImplementedError: If the schema contains a field type that is not yet
             supported.
     """
-    return PydanticAdapter(schema).to_pydantic_model(name=name, base_class=base_class)
+    return PydanticAdapter(schema).convert(name=name, base_class=base_class)
 
 
 class PydanticAdapter:
@@ -48,7 +49,7 @@ class PydanticAdapter:
         self._field_definitions: dict[str, Any] = {}
         self._validators: dict[str, Any] = {}
 
-    def to_pydantic_model(
+    def convert(
         self, name: str = "ConvertedModel", base_class: type[BaseModel] = BaseModel
     ) -> type[BaseModel]:
         """Convert the schema into a corresponding pydantic model.
@@ -73,6 +74,8 @@ class PydanticAdapter:
                     python_type, field_info = self._convert_string_field(field)
                 case DateTimeField():
                     python_type, field_info = self._convert_datetime_field(field)
+                case ListField():
+                    python_type, field_info = self._convert_list_field(field)
                 case _:
                     raise NotImplementedError(
                         f"Field type '{field.type}' not yet supported"
@@ -216,6 +219,43 @@ class PydanticAdapter:
         self._validators[f"check_datetime_format_{field.name}"] = field_validator(
             field.name, mode="before"
         )(lambda x, fmt=field.format: parse_datetime(x, fmt))  # type: ignore[arg-type]
+
+        return self._create_field_definition(
+            python_type, field.constraints.required, kwargs
+        )
+
+    def _convert_list_field(self, field: ListField) -> tuple[type, FieldInfo]:
+        """Convert a ListField to a pydantic field definition.
+
+        Args:
+            field (ListField): The field to convert.
+
+        Returns:
+            tuple[type, FieldInfo]: A tuple containing the Python type and the pydantic
+                FieldInfo for the field.
+        """
+        item_type_mapping: dict[str, type] = {
+            "string": str,
+            "integer": int,
+            "number": float,
+            "boolean": bool,
+        }
+
+        item_python_type = item_type_mapping.get(field.itemType)
+        if item_python_type is None:  # pragma: no cover
+            # this is already validated at the schema level, so this should never
+            # happen but we add this check for type safety
+            raise ValueError(f"Unsupported itemType: {field.itemType}")
+
+        python_type = list[item_python_type]
+
+        kwargs = self._setup_kwargs(field)
+
+        # Handle constraints
+        if field.constraints.minLength is not None:
+            kwargs["min_length"] = field.constraints.minLength
+        if field.constraints.maxLength is not None:
+            kwargs["max_length"] = field.constraints.maxLength
 
         return self._create_field_definition(
             python_type, field.constraints.required, kwargs

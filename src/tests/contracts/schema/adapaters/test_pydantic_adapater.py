@@ -12,6 +12,7 @@ from crosscontract.contracts.schema.adapters.pydantic_adapter import (
 from crosscontract.contracts.schema.fields import (
     DateTimeField,
     IntegerField,
+    ListField,
     NumberField,
     StringField,
 )
@@ -440,46 +441,153 @@ class TestDatetimeFieldConversion:
         assert datetime(2020, 1, 1, 0, 0, tzinfo=UTC) in ge_values
 
 
+class TestListFieldConversion:
+    """Test class for the list field conversion in PydanticAdapter."""
+
+    @pytest.fixture
+    def adapter(self, sample_schema):
+        return PydanticAdapter(sample_schema)
+
+    # --- Type mapping ---
+
+    def test_returns_list_of_str_type(self, adapter: PydanticAdapter):
+        field = ListField(
+            name="tags", itemType="string", constraints={"required": True}
+        )
+        python_type, _ = adapter._convert_list_field(field)
+        assert python_type == list[str]
+
+    def test_returns_list_of_int_type(self, adapter: PydanticAdapter):
+        field = ListField(
+            name="counts", itemType="integer", constraints={"required": True}
+        )
+        python_type, _ = adapter._convert_list_field(field)
+        assert python_type == list[int]
+
+    def test_returns_list_of_float_type(self, adapter: PydanticAdapter):
+        field = ListField(
+            name="scores", itemType="number", constraints={"required": True}
+        )
+        python_type, _ = adapter._convert_list_field(field)
+        assert python_type == list[float]
+
+    def test_returns_list_of_bool_type(self, adapter: PydanticAdapter):
+        field = ListField(
+            name="flags", itemType="boolean", constraints={"required": True}
+        )
+        python_type, _ = adapter._convert_list_field(field)
+        assert python_type == list[bool]
+
+    # --- Required / optional ---
+
+    def test_required_field_has_no_default(self, adapter: PydanticAdapter):
+        field = ListField(
+            name="tags", itemType="string", constraints={"required": True}
+        )
+        _, field_info = adapter._convert_list_field(field)
+        assert field_info.is_required()
+
+    def test_optional_field_defaults_to_none(self, adapter: PydanticAdapter):
+        field = ListField(
+            name="tags", itemType="string", constraints={"required": False}
+        )
+        _, field_info = adapter._convert_list_field(field)
+        assert field_info.default is None
+        assert not field_info.is_required()
+
+    # --- minLength / maxLength constraints ---
+
+    def test_min_length_constraint(self, adapter: PydanticAdapter):
+        field = ListField(
+            name="tags",
+            itemType="string",
+            constraints={"required": True, "minLength": 1},
+        )
+        _, field_info = adapter._convert_list_field(field)
+        min_lengths = [
+            m.min_length for m in field_info.metadata if hasattr(m, "min_length")
+        ]
+        assert 1 in min_lengths
+
+    def test_max_length_constraint(self, adapter: PydanticAdapter):
+        field = ListField(
+            name="tags",
+            itemType="string",
+            constraints={"required": True, "maxLength": 10},
+        )
+        _, field_info = adapter._convert_list_field(field)
+        max_lengths = [
+            m.max_length for m in field_info.metadata if hasattr(m, "max_length")
+        ]
+        assert 10 in max_lengths
+
+    def test_both_min_and_max_length_constraints(self, adapter: PydanticAdapter):
+        field = ListField(
+            name="tags",
+            itemType="string",
+            constraints={"required": True, "minLength": 1, "maxLength": 10},
+        )
+        _, field_info = adapter._convert_list_field(field)
+        min_lengths = [
+            m.min_length for m in field_info.metadata if hasattr(m, "min_length")
+        ]
+        max_lengths = [
+            m.max_length for m in field_info.metadata if hasattr(m, "max_length")
+        ]
+        assert 1 in min_lengths
+        assert 10 in max_lengths
+
+    def test_no_constraints_omits_min_max_length(self, adapter: PydanticAdapter):
+        field = ListField(
+            name="tags", itemType="string", constraints={"required": True}
+        )
+        _, field_info = adapter._convert_list_field(field)
+        min_lengths = [m for m in field_info.metadata if hasattr(m, "min_length")]
+        max_lengths = [m for m in field_info.metadata if hasattr(m, "max_length")]
+        assert min_lengths == []
+        assert max_lengths == []
+
+
 class TestToPydanticModel:
     """Test class for the to_pydantic_model method of PydanticAdapter."""
 
     # --- Model creation ---
 
     def test_returns_a_basemodel_subclass(self, sample_schema):
-        Model = PydanticAdapter(sample_schema).to_pydantic_model()
+        Model = PydanticAdapter(sample_schema).convert()
         assert issubclass(Model, BaseModel)
 
     def test_default_model_name(self, sample_schema):
-        Model = PydanticAdapter(sample_schema).to_pydantic_model()
+        Model = PydanticAdapter(sample_schema).convert()
         assert Model.__name__ == "ConvertedModel"
 
     def test_custom_model_name(self, sample_schema):
-        Model = PydanticAdapter(sample_schema).to_pydantic_model(name="MyModel")
+        Model = PydanticAdapter(sample_schema).convert(name="MyModel")
         assert Model.__name__ == "MyModel"
 
     def test_custom_base_class(self, sample_schema):
         class CustomBase(BaseModel):
             pass
 
-        Model = PydanticAdapter(sample_schema).to_pydantic_model(base_class=CustomBase)
+        Model = PydanticAdapter(sample_schema).convert(base_class=CustomBase)
         assert issubclass(Model, CustomBase)
 
     # --- Field registration ---
 
     def test_all_supported_fields_registered(self, sample_schema):
-        Model = PydanticAdapter(sample_schema).to_pydantic_model()
+        Model = PydanticAdapter(sample_schema).convert()
         assert set(Model.model_fields.keys()) == {"value", "year", "country"}
 
     def test_integer_field_registered(self, sample_schema):
-        Model = PydanticAdapter(sample_schema).to_pydantic_model()
+        Model = PydanticAdapter(sample_schema).convert()
         assert "year" in Model.model_fields
 
     def test_number_field_registered(self, sample_schema):
-        Model = PydanticAdapter(sample_schema).to_pydantic_model()
+        Model = PydanticAdapter(sample_schema).convert()
         assert "value" in Model.model_fields
 
     def test_string_field_registered(self, sample_schema):
-        Model = PydanticAdapter(sample_schema).to_pydantic_model()
+        Model = PydanticAdapter(sample_schema).convert()
         assert "country" in Model.model_fields
 
     def test_datetime_field_registered(self):
@@ -494,8 +602,24 @@ class TestToPydanticModel:
                 ]
             }
         )
-        Model = PydanticAdapter(schema).to_pydantic_model()
+        Model = PydanticAdapter(schema).convert()
         assert "created_at" in Model.model_fields
+
+    def test_list_field_registered(self):
+        schema = TableSchema.model_validate(
+            {
+                "fields": [
+                    {
+                        "name": "tags",
+                        "type": "list",
+                        "itemType": "string",
+                        "constraints": {"required": True},
+                    }
+                ]
+            }
+        )
+        Model = PydanticAdapter(schema).convert()
+        assert "tags" in Model.model_fields
 
     # --- Validators passed through ---
 
@@ -512,7 +636,7 @@ class TestToPydanticModel:
             }
         )
         adapter = PydanticAdapter(schema)
-        adapter.to_pydantic_model()
+        adapter.convert()
         assert "validate_enum_status" in adapter._validators
 
     def test_datetime_validator_attached(self):
@@ -528,7 +652,7 @@ class TestToPydanticModel:
             }
         )
         adapter = PydanticAdapter(schema)
-        adapter.to_pydantic_model()
+        adapter.convert()
         assert "check_datetime_format_ts" in adapter._validators
 
     # --- convert_schema_to_pydantic pass-through ---
@@ -556,4 +680,4 @@ class TestToPydanticModel:
 
         with patch.object(TableSchema, "field_iterator", return_value=[fake_field]):
             with pytest.raises(NotImplementedError, match="boolean"):
-                adapter.to_pydantic_model()
+                adapter.convert()

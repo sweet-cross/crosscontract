@@ -71,7 +71,10 @@ class ListConstraint(BaseConstraint):
 
 
 class ListField(BaseField):
-    """ListFields store items into a list-like structure."""
+    """ListFields store items into a list-like structure. All items in the list
+    must be of the same type. List fields can have constraints on the length of
+    the list.
+    """
 
     type: Literal["list"] = Field(
         default="list",
