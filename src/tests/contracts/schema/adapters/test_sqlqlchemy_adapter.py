@@ -193,3 +193,9 @@ class TestConvert:
         adapter = SQLAlchemyPostgresAdapter(schema)
         with pytest.raises(ValueError, match="_id"):
             adapter.convert(table_name="t")
+
+    def test_schema_field_names_present_classmethod(self, sample_schema):
+        schema = TableSchema.model_validate(sample_schema)
+        table = SQLAlchemyPostgresAdapter.convert_schema(schema, table_name="my_table")
+        col_names = {col.name for col in table.columns}
+        assert {"value", "year", "country"}.issubset(col_names)

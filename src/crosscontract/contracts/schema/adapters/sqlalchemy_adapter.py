@@ -21,6 +21,8 @@ from crosscontract.contracts.schema.fields import (
     StringField,
 )
 
+from .abstract_adapter import AbstractAdapter
+
 if TYPE_CHECKING:  # pragma: no cover
     from crosscontract.contracts.schema import TableSchema
 
@@ -45,17 +47,21 @@ def convert_schema_to_sqlalchemy(
     Returns:
         Table: The SQLAlchemy table representation of the TableSchema.
     """
-    return SQLAlchemyPostgresAdapter(schema).convert(
-        table_name=table_name, metadata=metadata, extend_existing=extend_existing
+    return SQLAlchemyPostgresAdapter.convert_schema(
+        schema,
+        table_name=table_name,
+        metadata=metadata,
+        extend_existing=extend_existing,
     )
 
 
-class SQLAlchemyPostgresAdapter:
+class SQLAlchemyPostgresAdapter(AbstractAdapter):
     """Adapter to convert a schema into a SQLAlchemy table. Currently,
     only supports the postgres dialect"""
 
     def __init__(self, schema: "TableSchema"):
-        self.schema = schema
+        """Initialize the adapter with the given schema."""
+        super().__init__(schema)
 
     def convert(
         self,
@@ -93,6 +99,33 @@ class SQLAlchemyPostgresAdapter:
 
         # create and return the table
         return Table(table_name, metadata, *columns, extend_existing=extend_existing)
+
+    @classmethod
+    def convert_schema(
+        cls,
+        schema: "TableSchema",
+        table_name: str,
+        metadata: MetaData | None = None,
+        extend_existing: bool = True,
+    ) -> Table:
+        """Convert the TableSchema to a SQLAlchemy Table.
+
+        Args:
+            schema ("TableSchema"): The Schema instance to convert.
+            table_name (str): The name of the table to create.
+            metadata (MetaData | None): SQLAlchemy MetaData instance to use for the
+                table. If None, a new/dummy MetaData instance will be created.
+            extend_existing (bool): Whether to extend an existing table if it exists.
+
+        Returns:
+            Table: The SQLAlchemy table representation of the TableSchema.
+        """
+        return super().convert_schema(
+            schema,
+            table_name=table_name,
+            metadata=metadata,
+            extend_existing=extend_existing,
+        )
 
     def _create_column(self, field: FieldUnion) -> Column:
         """Create a SQLAlchemy Column for the given field."""

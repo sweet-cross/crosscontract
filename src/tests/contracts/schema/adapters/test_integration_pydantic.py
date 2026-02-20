@@ -13,7 +13,7 @@ def make_model():
 
     def _make(fields: list[dict]) -> type:
         schema = TableSchema.model_validate({"fields": fields})
-        return PydanticAdapter(schema).convert()
+        return PydanticAdapter.convert_schema(schema, name="TestModel")
 
     return _make
 

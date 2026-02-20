@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field, create_model, field_validator
 from pydantic.fields import FieldInfo
@@ -12,20 +12,23 @@ from crosscontract.contracts.schema.fields import (
     StringField,
 )
 from crosscontract.contracts.schema.fields.base import BaseField
-from crosscontract.contracts.schema.schema import TableSchema
 
+if TYPE_CHECKING:  # pragma: no cover
+    from crosscontract.contracts.schema import TableSchema
+
+from .abstract_adapter import AbstractAdapter
 from .utils import parse_datetime
 
 
 def convert_schema_to_pydantic(
-    schema: TableSchema,
+    schema: "TableSchema",
     name: str = "ConvertedModel",
     base_class: type[BaseModel] = BaseModel,
 ) -> type[BaseModel]:
     """Convert the schema into a corresponding pydantic model.
 
     Args:
-        schema (TableSchema): The schema to convert.
+        schema ("TableSchema"): The schema to convert.
         name (str): The name of the resulting pydantic model.
         base_class (type[BaseModel]): The base class for the resulting pydantic
             model.
@@ -40,11 +43,11 @@ def convert_schema_to_pydantic(
     return PydanticAdapter(schema).convert(name=name, base_class=base_class)
 
 
-class PydanticAdapter:
+class PydanticAdapter(AbstractAdapter):
     """Adapter to convert a schema into a pydantic model."""
 
-    def __init__(self, schema: TableSchema):
-        self.schema = schema
+    def __init__(self, schema: "TableSchema"):
+        super().__init__(schema)
 
         # collectors for the field definitions and validators
         self._field_definitions: dict[str, Any] = {}
@@ -88,6 +91,30 @@ class PydanticAdapter:
             __validators__=self._validators,
             **self._field_definitions,
         )
+
+    @classmethod
+    def convert_schema(
+        cls,
+        schema: "TableSchema",
+        name: str = "ConvertedModel",
+        base_class: type[BaseModel] = BaseModel,
+    ) -> type[BaseModel]:
+        """Convert the schema into a corresponding pydantic model.
+
+        Args:
+            schema ("TableSchema"): The schema to convert.
+            name (str): The name of the resulting pydantic model.
+            base_class (type[BaseModel]): The base class for the resulting pydantic
+                model.
+
+        Returns:
+            type[BaseModel]: The resulting pydantic model.
+
+        Raises:
+            NotImplementedError: If the schema contains a field type that is not yet
+                supported.
+        """
+        return cls(schema).convert(name=name, base_class=base_class)
 
     @staticmethod
     def _create_field_definition(
