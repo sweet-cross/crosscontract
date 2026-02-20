@@ -4,7 +4,6 @@ from typing import Any, Literal
 import pandera.pandas as pa
 from pandera.engines import pandas_engine
 from pydantic import Field
-from sqlalchemy import Column, DateTime
 
 from .base import BaseConstraint, BaseField
 
@@ -107,11 +106,3 @@ class DateTimeField(BaseField):
             )
         # kwargs["to_datetime_kwargs"] = {"format": self.format, "utc": True}
         return kwargs
-
-    def to_sqlalchemy_column(self):
-        """Return SQLAlchemy column representation of the field."""
-        return Column(
-            self.name,
-            DateTime(timezone=True),
-            nullable=not self.constraints.required if self.constraints else True,
-        )

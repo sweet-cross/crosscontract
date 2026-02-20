@@ -3,7 +3,6 @@ from datetime import UTC, datetime
 import pandas as pd
 import pandera.pandas as pa
 import pytest
-from sqlalchemy import DateTime
 
 from crosscontract.contracts.schema.fields.datetime_field import (
     DateTimeConstraint,
@@ -173,22 +172,3 @@ class TestPanderaKwargs:
             )
         )
         pd.testing.assert_frame_equal(df, df_expected)
-
-
-class TestToColumn:
-    def test_to_sqlalchemy_column(self):
-        field = DateTimeField(name="test_datetime")
-        column = field.to_sqlalchemy_column()
-        assert column.name == "test_datetime"
-        assert isinstance(column.type, DateTime)
-        assert column.type.timezone is True
-        assert column.nullable is True
-
-    def test_to_sqlalchemy_column_not_nullable(self):
-        constraint = DateTimeConstraint(required=True)
-        field = DateTimeField(name="test_datetime", constraints=constraint)
-        column = field.to_sqlalchemy_column()
-        assert column.name == "test_datetime"
-        assert isinstance(column.type, DateTime)
-        assert column.type.timezone is True
-        assert column.nullable is False

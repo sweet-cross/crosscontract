@@ -53,25 +53,25 @@ class TestNumericFieldConversion:
 
     def test_integer_field_returns_int_type(self, adapter: PydanticAdapter):
         field = IntegerField(name="age", constraints={"required": True})
-        python_type, _ = adapter._convert_number_field(field)
+        python_type, _ = adapter._convert_numeric_field(field)
         assert python_type is int
 
     def test_number_field_returns_float_type(self, adapter: PydanticAdapter):
         field = NumberField(name="score", constraints={"required": True})
-        python_type, _ = adapter._convert_number_field(field)
+        python_type, _ = adapter._convert_numeric_field(field)
         assert python_type is float
 
     # --- Required / optional ---
 
     def test_required_field_has_no_default(self, adapter: PydanticAdapter):
         field = IntegerField(name="year", constraints={"required": True})
-        python_type, field_info = adapter._convert_number_field(field)
+        python_type, field_info = adapter._convert_numeric_field(field)
         assert python_type is int
         assert field_info.is_required()
 
     def test_optional_field_defaults_to_none(self, adapter: PydanticAdapter):
         field = IntegerField(name="year", constraints={"required": False})
-        python_type, field_info = adapter._convert_number_field(field)
+        python_type, field_info = adapter._convert_numeric_field(field)
         # optional fields become Union[int, None]
         assert field_info.default is None
         assert not field_info.is_required()
@@ -82,7 +82,7 @@ class TestNumericFieldConversion:
         field = IntegerField(
             name="year", constraints={"required": True, "minimum": 2000}
         )
-        _, field_info = adapter._convert_number_field(field)
+        _, field_info = adapter._convert_numeric_field(field)
         assert field_info.metadata is not None
         ge_values = [m.ge for m in field_info.metadata if hasattr(m, "ge")]
         assert 2000 in ge_values
@@ -91,7 +91,7 @@ class TestNumericFieldConversion:
         field = IntegerField(
             name="year", constraints={"required": True, "maximum": 2025}
         )
-        _, field_info = adapter._convert_number_field(field)
+        _, field_info = adapter._convert_numeric_field(field)
         le_values = [m.le for m in field_info.metadata if hasattr(m, "le")]
         assert 2025 in le_values
 
@@ -100,7 +100,7 @@ class TestNumericFieldConversion:
             name="value",
             constraints={"required": True, "minimum": 0.0, "maximum": 100.0},
         )
-        _, field_info = adapter._convert_number_field(field)
+        _, field_info = adapter._convert_numeric_field(field)
         ge_values = [m.ge for m in field_info.metadata if hasattr(m, "ge")]
         le_values = [m.le for m in field_info.metadata if hasattr(m, "le")]
         assert 0.0 in ge_values
@@ -108,7 +108,7 @@ class TestNumericFieldConversion:
 
     def test_no_constraints_omits_ge_le(self, adapter: PydanticAdapter):
         field = IntegerField(name="count", constraints={"required": True})
-        _, field_info = adapter._convert_number_field(field)
+        _, field_info = adapter._convert_numeric_field(field)
         ge_values = [m for m in field_info.metadata if hasattr(m, "ge")]
         le_values = [m for m in field_info.metadata if hasattr(m, "le")]
         assert ge_values == []
@@ -118,21 +118,21 @@ class TestNumericFieldConversion:
 
     def test_field_name_stored_in_json_schema_extra(self, adapter: PydanticAdapter):
         field = IntegerField(name="year", constraints={"required": True})
-        _, field_info = adapter._convert_number_field(field)
+        _, field_info = adapter._convert_numeric_field(field)
         assert field_info.json_schema_extra == {"name": "year"}
 
     def test_title_is_propagated(self, adapter: PydanticAdapter):
         field = IntegerField(
             name="year", title="The Year", constraints={"required": True}
         )
-        _, field_info = adapter._convert_number_field(field)
+        _, field_info = adapter._convert_numeric_field(field)
         assert field_info.title == "The Year"
 
     def test_description_is_propagated(self, adapter: PydanticAdapter):
         field = NumberField(
             name="score", description="A numeric score", constraints={"required": True}
         )
-        _, field_info = adapter._convert_number_field(field)
+        _, field_info = adapter._convert_numeric_field(field)
         assert field_info.description == "A numeric score"
 
     # --- Enum constraint ---
@@ -141,12 +141,12 @@ class TestNumericFieldConversion:
         field = IntegerField(
             name="status", constraints={"required": True, "enum": [1, 2, 3]}
         )
-        adapter._convert_number_field(field)
+        adapter._convert_numeric_field(field)
         assert "validate_enum_status" in adapter._validators
 
     def test_no_enum_constraint_skips_validator(self, adapter: PydanticAdapter):
         field = IntegerField(name="year", constraints={"required": True})
-        adapter._convert_number_field(field)
+        adapter._convert_numeric_field(field)
         assert "validate_enum_year" not in adapter._validators
 
     def test_raises_value_error_for_unsupported_field_types(
@@ -154,7 +154,7 @@ class TestNumericFieldConversion:
     ):
         field = StringField(name="name", constraints={"required": True})
         with pytest.raises(ValueError):
-            adapter._convert_number_field(field)
+            adapter._convert_numeric_field(field)
 
 
 class TestEnumValidator:

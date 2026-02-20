@@ -2,7 +2,6 @@ from typing import Any, Literal
 
 import pandera.pandas as pa
 from pydantic import Field
-from sqlalchemy import Column, String
 
 from .base import BaseConstraint, BaseField
 
@@ -70,12 +69,3 @@ class StringField(BaseField):
     def python_type(self) -> type:  # type: ignore
         """Returns the Python type of the field."""
         return str
-
-    def to_sqlalchemy_column(self) -> Column:
-        """Returns the SQLAlchemy Column for the string field."""
-        c = Column(
-            self.name,
-            String,
-            nullable=not self.constraints.required if self.constraints else True,
-        )
-        return c

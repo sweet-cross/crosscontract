@@ -3,7 +3,6 @@ from typing import Any, Literal
 
 import pandera.pandas as pa
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import Column
 
 from crosscontract.contracts.valid_items import (
     ValidFieldName,
@@ -131,8 +130,3 @@ class BaseField(BaseModel, ABC):
         kwargs.update(self.constraints.get_pandera_kwargs())
 
         return kwargs
-
-    @abstractmethod
-    def to_sqlalchemy_column(self) -> Column:
-        """Returns the SQLAlchemy Column for the field."""
-        raise NotImplementedError("Subclasses must implement this method.")

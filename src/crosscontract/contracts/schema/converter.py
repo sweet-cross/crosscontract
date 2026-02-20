@@ -2,7 +2,6 @@
 such as Pydantic models, Pandera DataFrames, or SQLAlchemy columns."""
 
 import pandera.pandas as pa
-from sqlalchemy import Column, Integer, MetaData, Table
 
 from .schema import TableSchema
 
@@ -34,30 +33,3 @@ def convert_schema_to_pandera(
         coerce=True,  # Useful for CSVs (str -> int)
         strict=True,  # Fails if DataFrame contains columns not in Schema
     )
-
-
-def convert_schema_to_sqlalchemy(
-    schema: TableSchema,
-    metadata: MetaData,
-    table_name: str,
-) -> Table:
-    """Convert the DataContract to a SQLAlchemy table.
-
-    Args:
-        schema (Schema): The Schema instance to convert.
-        metadata (MetaData): SQLAlchemy MetaData instance to use for the table.
-        table_name (str): The name of the table to create.
-
-    Returns:
-        Table: The SQLAlchemy table representation of the DataContract.
-    """
-    # always add a primary key field
-    if "_id" in schema.field_names:
-        raise ValueError(
-            "Schema cannot have a field named '_id' as it uses it as primary key."
-        )
-    id_column = Column("_id", Integer, primary_key=True)
-    columns = [id_column] + [
-        field.to_sqlalchemy_column() for field in schema.field_iterator()
-    ]
-    return Table(table_name, metadata, *columns, extend_existing=True)

@@ -1,5 +1,4 @@
 import pandera as pa
-from sqlalchemy import String
 
 from crosscontract.contracts.schema.fields.string_field import (
     StringConstraint,
@@ -43,21 +42,3 @@ class TestPanderaStringField:
         assert isinstance(check, pa.Check)
         assert check._check_kwargs["min_value"] == 5
         assert check._check_kwargs["max_value"] == 10
-
-
-class TestToColumn:
-    def test_field_to_column(self):
-        field = StringField(name="test_field")
-        column = field.to_sqlalchemy_column()
-        assert column.name == "test_field"
-        assert isinstance(column.type, String)
-        assert column.nullable
-
-    def test_string_field_to_column_required(self):
-        field = StringField(
-            name="test_field", constraints=StringConstraint(required=True)
-        )
-        column = field.to_sqlalchemy_column()
-        assert column.name == "test_field"
-        assert isinstance(column.type, String)
-        assert not column.nullable

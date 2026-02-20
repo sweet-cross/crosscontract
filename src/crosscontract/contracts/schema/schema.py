@@ -120,13 +120,13 @@ class TableSchema(BaseModel):
     def to_sa_table(
         self, metadata: MetaData | None = None, table_name: str | None = None
     ) -> Table:
-        from .converter import convert_schema_to_sqlalchemy
+        from .adapters import SQLAlchemyPostgresAdapter
 
         if metadata is None:
             metadata = MetaData()
         if table_name is None:
             table_name = f"dct_{getattr(self, 'name', 'contract_table')}"
-        return convert_schema_to_sqlalchemy(
+        return SQLAlchemyPostgresAdapter.convert_schema(
             self, metadata=metadata, table_name=table_name
         )
 
@@ -146,11 +146,13 @@ class TableSchema(BaseModel):
     def to_pydantic_model(
         self, model_name: str | None = None, base_class: type[BaseModel] = BaseModel
     ) -> type[BaseModel]:
-        from .adapters import convert_schema_to_pydantic
+        from .adapters import PydanticAdapter
 
         if model_name is None:
             model_name = getattr(self, "name", "ContractModel")
-        return convert_schema_to_pydantic(self, name=model_name, base_class=base_class)
+        return PydanticAdapter.convert_schema(
+            self, name=model_name, base_class=base_class
+        )
 
     def validate_dataframe(
         self,
