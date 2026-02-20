@@ -32,7 +32,7 @@ FieldUnion = DateTimeField | IntegerField | ListField | NumberField | StringFiel
 def convert_schema_to_sqlalchemy(
     schema: "TableSchema",
     table_name: str,
-    metadata: MetaData | None,
+    metadata: MetaData | None = None,
     extend_existing: bool = True,
 ) -> Table:
     """Convert the TableSchema to a SQLAlchemy Table.

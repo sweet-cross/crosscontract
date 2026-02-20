@@ -1,6 +1,5 @@
 from typing import Generic, Literal, TypeVar
 
-import pandera.pandas as pa
 from pydantic import Field
 
 from .base import BaseConstraint, BaseField
@@ -13,19 +12,6 @@ class NumericConstraint(BaseConstraint, Generic[T]):
     minimum: T | None = None
     maximum: T | None = None
     enum: list[T] | None = Field(default=None, min_length=1)
-
-    def get_pandera_kwargs(self):
-        """Returns the keyword arguments to create a pandera Column for
-        this constraint."""
-        kwargs = super().get_pandera_kwargs()
-
-        # Handle minimum and maximum constraints
-        if self.minimum is not None:
-            kwargs["checks"].append(pa.Check.ge(self.minimum))
-        if self.maximum is not None:
-            kwargs["checks"].append(pa.Check.le(self.maximum))
-
-        return kwargs
 
 
 class IntegerField(BaseField):
@@ -40,16 +26,6 @@ class IntegerField(BaseField):
     )
 
     constraints: NumericConstraint[int] = Field(default_factory=NumericConstraint[int])
-
-    @property
-    def python_type(self) -> type:  # type: ignore
-        """Returns the Python type of the field."""
-        return int
-
-    @property
-    def pandera_type(self) -> str:  # type: ignore
-        """Returns the Pandera type of the field."""
-        return "Int64"
 
 
 class NumberField(BaseField):
@@ -66,8 +42,3 @@ class NumberField(BaseField):
     constraints: NumericConstraint[float] = Field(
         default_factory=NumericConstraint[float]
     )
-
-    @property
-    def python_type(self) -> type:  # type: ignore
-        """Returns the Python type of the field."""
-        return float

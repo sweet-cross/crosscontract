@@ -12,8 +12,11 @@ Pydantic or Pandera models for data validation and manipulation, as well as into
 SQLAlchemy columns, enabling seamless integration with databases.
 """
 
-from .adapters import convert_schema_to_pydantic, convert_schema_to_sqlalchemy
-from .converter import convert_schema_to_pandera
+from .adapters import (
+    convert_schema_to_pandera,
+    convert_schema_to_pydantic,
+    convert_schema_to_sqlalchemy,
+)
 from .exceptions import SchemaValidationError
 from .schema import TableSchema
 

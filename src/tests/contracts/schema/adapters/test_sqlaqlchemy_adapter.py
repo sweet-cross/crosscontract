@@ -2,7 +2,10 @@ import pytest
 from sqlalchemy import ARRAY, DateTime, Float, Integer, String
 
 from crosscontract.contracts.schema import TableSchema
-from crosscontract.contracts.schema.adapters import SQLAlchemyPostgresAdapter
+from crosscontract.contracts.schema.adapters import (
+    SQLAlchemyPostgresAdapter,
+    convert_schema_to_sqlalchemy,
+)
 from crosscontract.contracts.schema.fields import (
     DateTimeField,
     IntegerField,
@@ -190,9 +193,8 @@ class TestConvert:
     def test_schema_with_id_field_raises(self):
         fields = [{"name": "_id", "type": "integer"}]
         schema = TableSchema.model_validate({"fields": fields})
-        adapter = SQLAlchemyPostgresAdapter(schema)
         with pytest.raises(ValueError, match="_id"):
-            adapter.convert(table_name="t")
+            convert_schema_to_sqlalchemy(schema, table_name="my_table")
 
     def test_schema_field_names_present_classmethod(self, sample_schema):
         table = SQLAlchemyPostgresAdapter.convert_schema(
