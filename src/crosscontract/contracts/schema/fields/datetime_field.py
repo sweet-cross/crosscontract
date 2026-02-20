@@ -3,7 +3,7 @@ from typing import Any, Literal
 
 import pandera.pandas as pa
 from pandera.engines import pandas_engine
-from pydantic import Field, field_validator
+from pydantic import Field
 from sqlalchemy import Column, DateTime
 
 from .base import BaseConstraint, BaseField
@@ -47,12 +47,6 @@ class DateTimeConstraint(BaseConstraint):
         default=None,
         description="The maximal datetime for data values in the format specified.",
     )
-
-    def get_pydantic_field_kwargs(self) -> dict[str, Any]:
-        """Returns the keyword arguments to create a Pydantic Field for
-        this constraint."""
-        # handling in parent to have access to format parameter
-        return super().get_pydantic_field_kwargs()
 
     def get_pandera_kwargs(self) -> dict[str, Any]:
         """Returns the keyword arguments to create a pandera Column for
@@ -113,30 +107,6 @@ class DateTimeField(BaseField):
             )
         # kwargs["to_datetime_kwargs"] = {"format": self.format, "utc": True}
         return kwargs
-
-    def get_pydantic_field_kwargs(self) -> dict[str, Any]:
-        """Returns the pydantic field kwargs for the field."""
-        kwargs = super().get_pydantic_field_kwargs()
-
-        # add the constraints here since we need access to the format option
-        if self.constraints.minimum is not None:
-            kwargs["ge"] = datetime.strptime(
-                self.constraints.minimum, self.format
-            ).replace(tzinfo=UTC)
-        if self.constraints.maximum is not None:
-            kwargs["le"] = datetime.strptime(
-                self.constraints.maximum, self.format
-            ).replace(tzinfo=UTC)
-
-        return kwargs
-
-    def get_pydantic_validators(self) -> dict[str, Any]:
-        """Returns the pydantic validators for the multi-language field."""
-        return {
-            "parse_datetime": field_validator(self.name, mode="before")(
-                lambda x: parse_datetime(x, self.format)
-            )
-        }
 
     def to_sqlalchemy_column(self):
         """Return SQLAlchemy column representation of the field."""

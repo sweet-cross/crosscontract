@@ -9,16 +9,11 @@ from sqlalchemy import MetaData, Table
 
 from ..utils import read_yaml_or_json_file
 from .field_descriptors import FieldDescriptors
-from .fields import (
-    DateTimeField,
-    IntegerField,
-    NumberField,
-    StringField,
-)
+from .fields import DateTimeField, IntegerField, ListField, NumberField, StringField
 from .reference import ForeignKeys, PrimaryKey
 
 FieldUnion = Annotated[
-    IntegerField | NumberField | StringField | DateTimeField,
+    IntegerField | NumberField | StringField | DateTimeField | ListField,
     Field(discriminator="type"),
 ]
 
@@ -149,9 +144,9 @@ class TableSchema(BaseModel):
         return pandera_schema
 
     def to_pydantic_model(
-        self, model_name: str | None = None, base_class: type[BaseModel] | None = None
+        self, model_name: str | None = None, base_class: type[BaseModel] = BaseModel
     ) -> type[BaseModel]:
-        from .converter import convert_schema_to_pydantic
+        from .adapters import convert_schema_to_pydantic
 
         if model_name is None:
             model_name = getattr(self, "name", "ContractModel")

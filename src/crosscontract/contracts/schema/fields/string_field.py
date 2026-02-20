@@ -33,22 +33,6 @@ class StringConstraint(BaseConstraint):
 
     enum: list[str] | None = Field(default=None, min_length=1)
 
-    def get_pydantic_field_kwargs(self) -> dict[str, Any]:
-        """Returns the pydantic field kwargs for the string constraint."""
-        kwargs = super().get_pydantic_field_kwargs()
-
-        # Handle pattern constraint
-        if self.pattern is not None:
-            kwargs["regex"] = self.pattern
-
-        # Handle minLength and maxLength constraints
-        if self.minLength is not None:
-            kwargs["min_length"] = self.minLength
-        if self.maxLength is not None:
-            kwargs["max_length"] = self.maxLength
-
-        return kwargs
-
     def get_pandera_kwargs(self) -> dict[str, Any]:
         """Returns the keyword arguments to create a pandera Column for
         this constraint."""

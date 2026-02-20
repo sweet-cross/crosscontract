@@ -1,3 +1,5 @@
+from typing import Any
+
 import httpx
 
 from .services import ContractService
@@ -83,7 +85,7 @@ class CrossClient:
         self._client.headers["Authorization"] = f"Bearer {self._token}"
         return token
 
-    def request(self, method: str, endpoint: str, **kwargs: dict) -> httpx.Response:
+    def request(self, method: str, endpoint: str, **kwargs: Any) -> httpx.Response:
         """Send an HTTP request to the specified endpoint.
 
         Args:

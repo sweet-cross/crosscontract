@@ -34,28 +34,6 @@ class BaseConstraint(BaseModel, ABC):
     )
 
     @abstractmethod
-    def get_pydantic_field_kwargs(self) -> dict[str, Any]:
-        """Returns the pydantic field kwargs for the constraint."""
-        kwargs: dict[str, Any] = {}
-
-        # Handle required constraint
-        if self.required is False:
-            kwargs["default"] = None  # Optional field
-
-        # Handle unique constraint
-        if self.unique is True:
-            kwargs["json_schema_extra"] = kwargs.get("json_schema_extra", {})
-            kwargs["json_schema_extra"]["unique"] = True
-
-        # Handle enum constraint
-        enum_constraint = getattr(self, "enum", None)
-        if enum_constraint is not None:
-            kwargs["json_schema_extra"] = kwargs.get("json_schema_extra", {})
-            kwargs["json_schema_extra"] = {"enum": list(enum_constraint)}
-
-        return kwargs
-
-    @abstractmethod
     def get_pandera_kwargs(self) -> dict[str, Any]:
         """Returns the keyword arguments to create a pandera Column for this
         constraint."""
@@ -137,20 +115,6 @@ class BaseField(BaseModel, ABC):
                 if self.constraints.required
                 else self.python_type | None
             )
-
-    def get_pydantic_field_kwargs(self) -> dict[str, Any]:
-        """Returns the pydantic field kwargs for the field."""
-        kwargs = {
-            "title": self.title,
-            "description": self.description,
-            "json_schema_extra": {
-                "name": self.name,
-            },
-        }
-        # get the additional kwargs from the constraints
-        kwargs.update(self.constraints.get_pydantic_field_kwargs())
-
-        return kwargs
 
     def get_pandera_kwargs(self) -> dict[str, Any]:
         """Returns the keyword arguments to create a pandera Column for this
