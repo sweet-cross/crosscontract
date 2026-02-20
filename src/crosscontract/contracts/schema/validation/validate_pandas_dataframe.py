@@ -53,7 +53,10 @@ def validate_pandas_dataframe(
         ValueError: If a foreign key cannot be validated due to missing referenced
             values.
     """
-    pandera_schema = schema.to_pandera_schema()
+    pandera_schema = schema.to_pandera_schema(
+        primary_key_values=primary_key_values,
+        skip_primary_key_validation=skip_primary_key_validation,
+    )
     pandera_schema.checks = pandera_schema.checks or []
 
     # Collect dynamic checks in a new list

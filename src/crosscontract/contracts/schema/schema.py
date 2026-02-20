@@ -130,9 +130,12 @@ class TableSchema(BaseModel):
             self, metadata=metadata, table_name=table_name
         )
 
+    # todo remove once adapter is fully equipped with reference key checks
     def to_pandera_schema(
         self,
         name: str | None = None,
+        primary_key_values: list[tuple[Any, ...]] | None = None,
+        skip_primary_key_validation: bool = False,
     ) -> pa.DataFrameSchema:
         from .adapters import PanderaPandasAdapter
 
@@ -140,7 +143,10 @@ class TableSchema(BaseModel):
             name = getattr(self, "name", "contract_schema")
 
         pandera_schema: pa.DataFrameSchema = PanderaPandasAdapter.convert_schema(
-            self, name=name
+            self,
+            name=name,
+            skip_primary_key_validation=skip_primary_key_validation,
+            primary_key_values=primary_key_values,
         )
 
         return pandera_schema

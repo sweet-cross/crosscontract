@@ -111,7 +111,11 @@ class PanderaPandasAdapter(AbstractAdapter):
 
     @classmethod
     def convert_schema(
-        cls, schema: "TableSchema", name: str = "ConvertedSchema"
+        cls,
+        schema: "TableSchema",
+        name: str = "ConvertedSchema",
+        primary_key_values: list[tuple[Any, ...]] | None = None,
+        skip_primary_key_validation: bool = False,
     ) -> pa.DataFrameSchema:
         """Class method to convert a TableSchema into a Pandera DataFrameSchema without
         needing to instantiate the adapter.
@@ -119,12 +123,23 @@ class PanderaPandasAdapter(AbstractAdapter):
         Args:
             schema (TableSchema): The TableSchema to convert.
             name (str): The name of the resulting DataFrameSchema.
+            primary_key_values (list[tuple[Any, ...]] | None): Existing primary key
+                values to check for uniqueness.
+                Note: The uniqueness of the primary key is validated is checked against
+                    the union of the provided values and the values in the DataFrame.
+            skip_primary_key_validation (bool): Whether to skip the validation of
+                primary key uniqueness.
 
         Returns:
             pa.DataFrameSchema: A Pandera DataFrameSchema representing the schema of the
                 data described by the TableSchema.
         """
-        return super().convert_schema(schema, name=name)
+        return super().convert_schema(
+            schema,
+            name=name,
+            primary_key_values=primary_key_values,
+            skip_primary_key_validation=skip_primary_key_validation,
+        )
 
     def _init_pandera_kwargs(
         self, field: BaseField, pandera_type: type | str
