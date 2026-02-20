@@ -2,13 +2,9 @@ import pandas as pd
 import pandera.pandas as pa
 import pytest
 from pandera.errors import SchemaErrors
-from sqlalchemy import MetaData
 
 from crosscontract.contracts import TableSchema
-from crosscontract.contracts.schema.converter import (
-    convert_schema_to_pandera,
-    convert_schema_to_sqlalchemy,
-)
+from crosscontract.contracts.schema.converter import convert_schema_to_pandera
 
 
 @pytest.fixture
@@ -65,42 +61,3 @@ class TestPanderaFromSchema:
         with pytest.raises(SchemaErrors) as exc_info:
             pschema.validate(invalid_df, lazy=True)
         assert len(exc_info.value.schema_errors) == 3
-
-
-class TestTableFromSchema:
-    """Test class for generating SQLAlchemy tables from DataContract."""
-
-    def test_sqlalchemy_table_creation(self, sample_schema: TableSchema):
-        """Test creating a SQLAlchemy table from a contract."""
-        metadata = MetaData()
-        table_name = "test_contract_table"
-
-        table = convert_schema_to_sqlalchemy(
-            sample_schema, metadata=metadata, table_name=table_name
-        )
-
-        assert table.name == table_name
-        assert len(table.columns) == 4
-        column_names = [col.name for col in table.columns]
-        assert "value" in column_names
-        assert "year" in column_names
-        assert "country" in column_names
-        assert "_id" in column_names  # Primary key
-
-    def test_sqlalchemy_table_raise_id_conflict(self):
-        """Test creating a SQLAlchemy table from a contract."""
-        metadata = MetaData()
-        table_name = "test_contract_table"
-        schema = TableSchema.model_validate(
-            {
-                "fields": [
-                    {"name": "value", "type": "integer"},
-                    {"name": "_id", "type": "integer"},  # This should raise an error
-                ]
-            }
-        )
-
-        with pytest.raises(ValueError):
-            convert_schema_to_sqlalchemy(
-                schema, metadata=metadata, table_name=table_name
-            )

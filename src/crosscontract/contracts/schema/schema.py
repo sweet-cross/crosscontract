@@ -120,7 +120,7 @@ class TableSchema(BaseModel):
     def to_sa_table(
         self, metadata: MetaData | None = None, table_name: str | None = None
     ) -> Table:
-        from .converter import convert_schema_to_sqlalchemy
+        from .adapters import convert_schema_to_sqlalchemy
 
         if metadata is None:
             metadata = MetaData()

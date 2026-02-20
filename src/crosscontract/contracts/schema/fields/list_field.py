@@ -2,7 +2,7 @@ from typing import Literal
 
 import pandera.pandas as pa
 from pydantic import Field
-from sqlalchemy import ARRAY, Boolean, Column, Float, Integer, String
+from sqlalchemy import Boolean, Float, Integer, String
 
 from .base import BaseConstraint, BaseField
 
@@ -81,10 +81,3 @@ class ListField(BaseField):
     @property
     def python_type(self) -> type:  # type: ignore
         return list[MAP_ITEM_TYPES_PYTHON[self.itemType]]  # type: ignore
-
-    def to_sqlalchemy_column(self):
-        return Column(
-            self.name,
-            ARRAY(MAP_ITEM_TYPES_SQL[self.itemType]),
-            nullable=not self.constraints.required,
-        )

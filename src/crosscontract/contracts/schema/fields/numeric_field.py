@@ -2,7 +2,6 @@ from typing import Generic, Literal, TypeVar
 
 import pandera.pandas as pa
 from pydantic import Field
-from sqlalchemy import Column, Float, Integer
 
 from .base import BaseConstraint, BaseField
 
@@ -52,13 +51,6 @@ class IntegerField(BaseField):
         """Returns the Pandera type of the field."""
         return "Int64"
 
-    def to_sqlalchemy_column(self):
-        return Column(
-            self.name,
-            Integer,
-            nullable=not self.constraints.required if self.constraints else True,
-        )
-
 
 class NumberField(BaseField):
     """
@@ -79,10 +71,3 @@ class NumberField(BaseField):
     def python_type(self) -> type:  # type: ignore
         """Returns the Python type of the field."""
         return float
-
-    def to_sqlalchemy_column(self):
-        return Column(
-            self.name,
-            Float,
-            nullable=not self.constraints.required if self.constraints else True,
-        )

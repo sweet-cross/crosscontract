@@ -1,5 +1,4 @@
 import pandera as pa
-from sqlalchemy import ARRAY
 
 from crosscontract.contracts.schema.fields.list_field import (
     MAP_ITEM_TYPES_PYTHON,
@@ -51,17 +50,3 @@ class TestListField:
                 constraints=ListConstraint(required=True),
             )
             assert field.get_type_hint() == list[python_type]
-
-    def test_list_field_to_column(self):
-        field = ListField(name="test_field")
-        column = field.to_sqlalchemy_column()
-        assert column.name == "test_field"
-        assert isinstance(column.type, ARRAY)
-        assert column.nullable
-
-    def test_list_field_to_column_required(self):
-        field = ListField(name="test_field", constraints=ListConstraint(required=True))
-        column = field.to_sqlalchemy_column()
-        assert column.name == "test_field"
-        assert isinstance(column.type, ARRAY)
-        assert not column.nullable

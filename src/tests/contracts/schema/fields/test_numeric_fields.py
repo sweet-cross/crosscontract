@@ -1,9 +1,7 @@
 import pandera as pa
-from sqlalchemy import Float, Integer
 
 from crosscontract.contracts.schema.fields.numeric_field import (
     IntegerField,
-    NumberField,
     NumericConstraint,
 )
 
@@ -50,37 +48,3 @@ class TestPanderaKwargs:
         assert len(kwargs["checks"]) == 1
         check = kwargs["checks"][0]
         assert isinstance(check, pa.Check)
-
-
-class TestToColumn:
-    def test_integer_field_to_column(self):
-        field = IntegerField(name="test_field")
-        column = field.to_sqlalchemy_column()
-        assert column.name == "test_field"
-        assert isinstance(column.type, Integer)
-        assert column.nullable
-
-    def test_integer_field_to_column_required(self):
-        field = IntegerField(
-            name="test_field", constraints=MyNumericConstraint(required=True)
-        )
-        column = field.to_sqlalchemy_column()
-        assert column.name == "test_field"
-        assert isinstance(column.type, Integer)
-        assert not column.nullable
-
-    def test_float_field_to_column(self):
-        field = NumberField(name="test_field")
-        column = field.to_sqlalchemy_column()
-        assert column.name == "test_field"
-        assert isinstance(column.type, Float)
-        assert column.nullable
-
-    def test_float_field_to_column_required(self):
-        field = NumberField(
-            name="test_field", constraints=MyFloatConstraint(required=True)
-        )
-        column = field.to_sqlalchemy_column()
-        assert column.name == "test_field"
-        assert isinstance(column.type, Float)
-        assert not column.nullable

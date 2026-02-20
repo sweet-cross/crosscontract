@@ -21,7 +21,7 @@ from crosscontract.contracts.schema.fields import (
     StringField,
 )
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from crosscontract.contracts.schema import TableSchema
 
 FieldUnion = DateTimeField | IntegerField | ListField | NumberField | StringField
