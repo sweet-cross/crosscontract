@@ -1,6 +1,8 @@
 from datetime import UTC
 from typing import TYPE_CHECKING, Any
 
+import pandas as pd
+
 if TYPE_CHECKING:  # pragma: no cover
     from crosscontract.contracts.schema import TableSchema
 
@@ -42,11 +44,22 @@ class PanderaPandasAdapter(AbstractAdapter):
     allows to validate a Pandas DataFrame against the schema.
     """
 
-    def convert(self, name: str = "ConvertedSchema") -> pa.DataFrameSchema:
+    def convert(
+        self,
+        name: str = "ConvertedSchema",
+        primary_key_values: list[tuple[Any, ...]] | None = None,
+        skip_primary_key_validation: bool = False,
+    ) -> pa.DataFrameSchema:
         """Convert the given TableSchema into a Pandera DataFrameSchema.
 
         Args:
             name (str): The name of the resulting DataFrameSchema.
+            primary_key_values (list[tuple[Any, ...]] | None): Existing primary key
+                values to check for uniqueness.
+                Note: The uniqueness of the primary key is validated is checked against
+                    the union of the provided values and the values in the DataFrame.
+            skip_primary_key_validation (bool): Whether to skip the validation of
+                primary key uniqueness.
 
         Returns:
             pa.DataFrameSchema: A Pandera DataFrameSchema representing the schema
@@ -70,13 +83,31 @@ class PanderaPandasAdapter(AbstractAdapter):
                     raise NotImplementedError(
                         f"Field type '{field.type}' not yet supported"
                     )
-        return pa.DataFrameSchema(
+
+        # create the pandera schema with the columns and the name
+        pandera_schema = pa.DataFrameSchema(
             columns=columns,
             index=None,  # Currently we do not support index columns
             name=name,
             coerce=True,  # Useful for CSVs (str -> int)
             strict=True,  # Fails if DataFrame contains columns not in Schema
         )
+
+        # Handle primary key constraints by adding a custom check to the schema
+        additional_checks: list[pa.Check] = []
+        if self.schema.primaryKey and not skip_primary_key_validation:
+            additional_checks.append(
+                self._get_primary_key_check(
+                    pk_fields=self.schema.primaryKey.root,
+                    primary_key_values=primary_key_values,
+                )
+            )
+
+        # add the additional checks to the pandera schema checks, ensuring we
+        # don't overwrite any existing checks
+        pandera_schema.checks = (pandera_schema.checks or []) + additional_checks
+
+        return pandera_schema
 
     @classmethod
     def convert_schema(
@@ -267,3 +298,45 @@ class PanderaPandasAdapter(AbstractAdapter):
             )
 
         return pa.Column(**kwargs)
+
+    @staticmethod
+    def _get_primary_key_check(
+        pk_fields: list[str],
+        primary_key_values: list[tuple[Any, ...]] | None,
+    ) -> pa.Check:
+        """Provide primary key uniqueness checks. The check ensures that primary
+        key values are unique within the DataFrame and against existing primary
+        key values.
+
+        Args:
+            pk_fields (list[str]): The fields that make up the primary key.
+            primary_key_values (list[tuple[Any, ...]] | None): Existing primary
+                key values to check for uniqueness.
+
+        Returns:
+            pa.Check: A Pandera Check object that can be added to a DataFrameSchema.
+        """
+        existing_pk_set = set(primary_key_values) if primary_key_values else set()
+
+        def check_primary_key(df_sub: pd.DataFrame) -> pd.Series:
+            # 1. Ensure no nulls in the columns
+            has_nulls = df_sub[pk_fields].isna().any(axis=1)
+
+            # 2. Check values in the DataFrame are internally unique
+            is_internally_unique = ~df_sub.duplicated(subset=pk_fields, keep=False)
+
+            # 3. Check values against existing primary key values
+            if existing_pk_set:
+                current_keys = pd.MultiIndex.from_frame(df_sub[pk_fields])
+                is_externally_unique = pd.Series(
+                    ~current_keys.isin(existing_pk_set),
+                    index=df_sub.index,
+                )
+                return is_internally_unique & is_externally_unique & ~has_nulls
+            return is_internally_unique & ~has_nulls
+
+        return pa.Check(
+            check_primary_key,
+            name=f"PrimaryKeyError: {list(pk_fields)}",
+            error=f"PrimaryKeyError: Primary key {pk_fields} is not unique/given.",
+        )
