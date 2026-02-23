@@ -237,8 +237,9 @@ class TableSchema(BaseModel):
             backend (Literal["pandas"]): The backend to use for validation.
                 Currently, only "pandas" is supported.
         Raises:
-            pandera.errors.SchemaErrors: If the DataFrame does not conform to the
-            schema.
+            SchemaValidationError: If the DataFrame does not conform to the
+                schema. This exception wraps underlying ``pandera`` validation
+                errors raised during DataFrame validation.
         """
         validate_dataframe(
             schema=self,
