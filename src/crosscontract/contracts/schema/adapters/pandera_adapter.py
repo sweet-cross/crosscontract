@@ -7,6 +7,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from crosscontract.contracts.schema import TableSchema
 
 import pandera.pandas as pa
+from pandera import DataType
 from pandera.engines import pandas_engine
 
 from crosscontract.contracts.schema.fields import (
@@ -185,7 +186,7 @@ class PanderaPandasAdapter(AbstractAdapter):
         )
 
     def _init_pandera_kwargs(
-        self, field: BaseField, pandera_type: type | str
+        self, field: BaseField, pandera_type: type | str | DataType
     ) -> dict[str, Any]:
         """Initialize the keyword arguments for creating a pandera Column based on
         the given field.
@@ -330,7 +331,7 @@ class PanderaPandasAdapter(AbstractAdapter):
         """
         kwargs = self._init_pandera_kwargs(
             field,
-            pandas_engine.DateTime(tz=UTC, to_datetime_kwargs={"format": field.format}),
+            pandas_engine.DateTime(tz=UTC, to_datetime_kwargs={"format": field.format}),  # type: ignore[call-arg]
         )
 
         # Handle minimum and maximum constraints
@@ -491,7 +492,7 @@ class PanderaPandasAdapter(AbstractAdapter):
 
         # 5. Check Existence
         # This returns a boolean Series aligned with df_sub.index
-        is_present = keys_to_check.isin(current_valid)
+        is_present = pd.Series(keys_to_check.isin(current_valid), index=df_sub.index)
 
         # 6. Final Logic: Valid if (Present in Reference) OR (Is Null)
         return is_present | is_null_row
