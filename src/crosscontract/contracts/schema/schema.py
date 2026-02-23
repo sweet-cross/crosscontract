@@ -11,6 +11,7 @@ from ..utils import read_yaml_or_json_file
 from .field_descriptors import FieldDescriptors
 from .fields import DateTimeField, IntegerField, ListField, NumberField, StringField
 from .reference import ForeignKeys, PrimaryKey
+from .validation import validate_dataframe
 
 FieldUnion = Annotated[
     IntegerField | NumberField | StringField | DateTimeField | ListField,
@@ -132,15 +133,56 @@ class TableSchema(BaseModel):
 
     def to_pandera_schema(
         self,
-        name: str | None = None,
+        name: str = "ConvertedSchema",
+        primary_key_values: list[tuple[Any, ...]] | None = None,
+        foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
+        skip_primary_key_validation: bool = False,
+        skip_foreign_key_validation: bool = False,
+        backend: Literal["pandas"] = "pandas",
     ) -> pa.DataFrameSchema:
-        from .adapters import PanderaPandasAdapter
+        """Convert the TableSchema to a Pandera DataFrameSchema. This is used for
+        validating DataFrames against the TableSchema. It allows to provide existing
+        primary key and foreign key values for validation. If provided, the primary key
+        uniqueness is checked against the union of the existing and the DataFrame
+        values. Similarly, foreign key integrity is checked against the union of
+        the existing and the DataFrame values.
 
-        if name is None:
-            name = getattr(self, "name", "contract_schema")
+        Args:
+            name (str): The name of the schema. Defaults to "ConvertedSchema".
+            primary_key_values (list[tuple[Any, ...]] | None): Existing primary key
+                values to check for uniqueness.
+                Note: The uniqueness of the primary key is validated is checked against
+                    the union of the provided values and the values in the DataFrame.
+            foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] | None):
+                Existing foreign key values to check against. This is provided as a
+                dictionary where the keys are the tuples of fields that refer to the
+                referenced values, and the values are lists of tuples representing the
+                existing referenced values.
+                Note: In the case of self-referencing foreign keys, the values in the
+                    DataFrame are considered automatically, i.e., the referring fields
+                    are validated against the union of the provided values and the
+                    values in the DataFrame.
+            skip_primary_key_validation (bool): Whether to skip primary key validation.
+            skip_foreign_key_validation (bool): Whether to skip foreign key validation.
+            backend (Literal["pandas"]): The backend to use for validation.
+                Currently, only "pandas" is supported.
+        """
+        match backend:
+            case "pandas":
+                from .adapters import PanderaPandasAdapter
+            case _:
+                raise ValueError(
+                    f"Unsupported backend '{backend}' for schema conversion."
+                    "Currently, only 'pandas' is supported."
+                )
 
         pandera_schema: pa.DataFrameSchema = PanderaPandasAdapter.convert_schema(
-            self, name=name
+            self,
+            name=name,
+            skip_primary_key_validation=skip_primary_key_validation,
+            skip_foreign_key_validation=skip_foreign_key_validation,
+            primary_key_values=primary_key_values,
+            foreign_key_values=foreign_key_values,
         )
 
         return pandera_schema
@@ -195,24 +237,17 @@ class TableSchema(BaseModel):
             backend (Literal["pandas"]): The backend to use for validation.
                 Currently, only "pandas" is supported.
         Raises:
-            pandera.errors.SchemaErrors: If the DataFrame does not conform to the
-            schema.
+            SchemaValidationError: If the DataFrame does not conform to the
+                schema. This exception wraps underlying ``pandera`` validation
+                errors raised during DataFrame validation.
         """
-        if backend == "pandas":
-            from .validation.validate_pandas_dataframe import (
-                validate_pandas_dataframe,
-            )
-
-            validate_pandas_dataframe(
-                schema=self,
-                df=df,
-                primary_key_values=primary_key_values,
-                foreign_key_values=foreign_key_values,
-                skip_primary_key_validation=skip_primary_key_validation,
-                skip_foreign_key_validation=skip_foreign_key_validation,
-                lazy=lazy,
-            )
-        else:
-            raise ValueError(
-                f"Unsupported backend '{backend}' for DataFrame validation."
-            )
+        validate_dataframe(
+            schema=self,
+            df=df,
+            primary_key_values=primary_key_values,
+            foreign_key_values=foreign_key_values,
+            skip_primary_key_validation=skip_primary_key_validation,
+            skip_foreign_key_validation=skip_foreign_key_validation,
+            lazy=lazy,
+            backend=backend,
+        )

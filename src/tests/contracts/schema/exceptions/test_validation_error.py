@@ -1,16 +1,19 @@
 from unittest.mock import patch
 
 import pandas as pd
+import pandera.pandas as pa
+import pytest
 
 from crosscontract.contracts.schema.exceptions.validation_error import (
     SchemaValidationError,
 )
 
 
-class MockSchemaErrors:
+class MockSchemaErrors(pa.errors.SchemaErrors):
     """Mock object mimicking pandera.errors.SchemaErrors structure."""
 
     def __init__(self, failure_cases: pd.DataFrame, data: pd.DataFrame):
+        # Bypass the real __init__ entirely
         self.failure_cases = failure_cases
         self.data = data
 
@@ -197,6 +200,135 @@ class TestSchemaValidationError:
         assert df.iloc[0]["check"] == "check1"
 
 
+class TestSchemaErrorConversion:
+    """Tests for converting SchemaError (singular) to SchemaErrors (plural)."""
+
+    def test_convert_schema_errors_passthrough(self):
+        """SchemaErrors (plural) is returned as-is."""
+        failure_cases = pd.DataFrame(
+            {
+                "check": ["check1"],
+                "column": ["col1"],
+                "index": [0],
+                "failure_case": ["fail"],
+            }
+        )
+        data = pd.DataFrame({"col1": ["val"]})
+        mock_errors = MockSchemaErrors(failure_cases, data)
+
+        result = SchemaValidationError._convert_schema_error(mock_errors)
+        assert result is mock_errors
+
+    def test_convert_invalid_type_raises(self):
+        """Passing an unsupported type raises TypeError."""
+        with pytest.raises(TypeError, match="Expected SchemaError or SchemaErrors"):
+            SchemaValidationError._convert_schema_error("not_an_error")
+
+    def test_singular_schema_error_is_converted(self):
+        """A real SchemaError (singular) is converted to SchemaErrors with
+        the full failure_cases structure."""
+        import pandera.pandas as pa
+
+        schema = pa.DataFrameSchema({"age": pa.Column(int, pa.Check.in_range(0, 150))})
+        df = pd.DataFrame({"age": [200]})
+
+        with pytest.raises(pa.errors.SchemaError) as exc_info:
+            schema.validate(df, lazy=False)
+
+        singular = exc_info.value
+        converted = SchemaValidationError._convert_schema_error(singular)
+
+        assert isinstance(converted, pa.errors.SchemaErrors)
+        assert "check" in converted.failure_cases.columns
+        assert "column" in converted.failure_cases.columns
+        assert "schema_context" in converted.failure_cases.columns
+        assert len(converted.failure_cases) == 1
+
+    def test_parsing_works_with_singular_error(self):
+        """SchemaValidationError parsing pipeline works end-to-end when
+        initialized with a singular SchemaError."""
+        import pandera.pandas as pa
+
+        schema = pa.DataFrameSchema({"age": pa.Column(int, pa.Check.in_range(0, 150))})
+        df = pd.DataFrame({"age": [200]})
+
+        with pytest.raises(pa.errors.SchemaError) as exc_info:
+            schema.validate(df, lazy=False)
+
+        error = SchemaValidationError("Validation failed", exc_info.value)
+        parsed = error.errors
+
+        assert len(parsed) == 1
+        assert parsed[0]["check"] == "in_range(0, 150)"
+        assert parsed[0]["column"] == "age"
+        assert parsed[0]["failure_case"] == 200
+
+    def test_parsing_equivalent_for_singular_and_plural(self):
+        """Parsing produces the same result regardless of whether the input
+        was a SchemaError or SchemaErrors."""
+        import pandera.pandas as pa
+
+        schema = pa.DataFrameSchema({"age": pa.Column(int, pa.Check.in_range(0, 150))})
+        df = pd.DataFrame({"age": [200]})
+
+        # Singular
+        with pytest.raises(pa.errors.SchemaError) as exc_singular:
+            schema.validate(df, lazy=False)
+
+        # Plural
+        with pytest.raises(pa.errors.SchemaErrors) as exc_plural:
+            schema.validate(df, lazy=True)
+
+        error_from_singular = SchemaValidationError("fail", exc_singular.value)
+        error_from_plural = SchemaValidationError("fail", exc_plural.value)
+
+        assert error_from_singular.errors == error_from_plural.errors
+
+    def test_reference_error_with_no_extractable_cols(self):
+        """Test reference error where check name has no bracketed columns."""
+        check_name = "ForeignKeyError: malformed"  # no brackets
+
+        failure_cases = pd.DataFrame(
+            {
+                "check": [check_name],
+                "column": ["col_a"],
+                "index": [0],
+                "failure_case": ["val_a"],
+            }
+        )
+        data = pd.DataFrame({"col_a": ["val_a"]})
+        mock_errors = MockSchemaErrors(failure_cases, data)
+
+        error = SchemaValidationError("Ref Error", mock_errors)
+        parsed = error.errors
+
+        assert len(parsed) == 1
+        assert parsed[0]["failure_case"] == "val_a"
+
+    def test_reference_error_with_empty_data(self):
+        """Test reference error parsing when the attached data is empty."""
+        check_name = "ForeignKeyError: ['col_a']"
+        failure_cases = pd.DataFrame(
+            {
+                "check": [check_name],
+                "column": ["col_a"],
+                "index": [0],
+                "failure_case": ["val_missing"],
+            }
+        )
+        # Empty dataframe to trigger the `False` branch of the condition
+        data = pd.DataFrame()
+        mock_errors = MockSchemaErrors(failure_cases, data)
+
+        error = SchemaValidationError("Ref Error", mock_errors)
+        parsed = error.errors
+
+        assert len(parsed) == 1
+        # Since data was empty, it skips lookup and retains the original values
+        assert parsed[0]["column"] == "col_a"
+        assert parsed[0]["failure_case"] == "val_missing"
+
+
 class TestExtractCols:
     """Group tests for the static method _extract_cols."""
 
@@ -239,3 +371,7 @@ class TestExtractCols:
         # And it should take the first one because keep="first"
         assert len(result) == 1
         assert result[0] == ("val1",)
+
+    def test_extract_cols_no_match(self):
+        """Test _extract_cols when regex finds no brackets."""
+        assert SchemaValidationError._extract_cols("no_brackets_here") == []

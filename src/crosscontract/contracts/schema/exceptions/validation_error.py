@@ -11,7 +11,7 @@ class SchemaValidationError(Exception):
     def __init__(
         self,
         message: str,
-        schema_errors: pa.errors.SchemaErrors | None = None,
+        schema_errors: pa.errors.SchemaErrors | pa.errors.SchemaError | None = None,
     ):
         """Initialize SchemaValidationError with optional pandera schema errors.
 
@@ -22,8 +22,30 @@ class SchemaValidationError(Exception):
         """
         super().__init__(message)
         self.message = message
-        self._schema_errors = schema_errors
+        self._schema_errors: pa.errors.SchemaErrors | None = (
+            self._convert_schema_error(schema_errors) if schema_errors else None
+        )
         self._parsed_errors: list[dict[Hashable, Any]] | None = None
+
+    @staticmethod
+    def _convert_schema_error(
+        error: pa.errors.SchemaError | pa.errors.SchemaErrors,
+    ) -> pa.errors.SchemaErrors:
+        """Convert a single pandera SchemaError to a SchemaErrors object
+        for consistent parsing."""
+        match error:
+            case pa.errors.SchemaErrors():
+                return error
+            case pa.errors.SchemaError():
+                # Create a SchemaErrors object with a single error case
+                converted = pa.errors.SchemaErrors(
+                    schema=error.schema, schema_errors=[error], data=pd.DataFrame()
+                )
+                return converted
+            case _:
+                raise TypeError(
+                    f"Expected SchemaError or SchemaErrors, got {type(error)}"
+                )
 
     @property
     def errors(self) -> list[dict[Hashable, Any]]:
@@ -79,7 +101,7 @@ class SchemaValidationError(Exception):
         return df_errors
 
     def _parse_reference_errors(
-        self, df_failures: pd.DataFrame, data: pd.DataFrame
+        self, df_failures: pd.DataFrame, data: pd.DataFrame | None
     ) -> pd.DataFrame:
         """Parse pandera SchemaErrors related to foreign key violations by combining
         the error messages for multiple rows into a single message per reference
@@ -93,7 +115,7 @@ class SchemaValidationError(Exception):
         Args:
             df_failure (pd.DataFrame): The DataFrame containing the pandera failure
                 cases.
-            data (pd.DataFrame): The original DataFrame that was validated.
+            data (pd.DataFrame | None): The original DataFrame that was validated.
 
         Returns:
             pd.DataFrame: DataFrame with combined reference error messages.
@@ -105,7 +127,13 @@ class SchemaValidationError(Exception):
             "|".join(reference_errors), regex=True
         )
         df_refs = df_failures[is_ref_error].copy()
+        # relax the type constraints on the dataframe as we collect all failure
+        # cases
         df_others = df_failures[~is_ref_error]
+
+        # relax the type constraints on the dataframe as we collect all failure cases
+        df_refs["failure_case"] = df_refs["failure_case"].astype(object)
+        df_others = df_others.astype(object)
 
         if df_refs.empty:
             return df_failures
@@ -125,22 +153,25 @@ class SchemaValidationError(Exception):
             error_indices = df_refs.loc[mask, "index"]
 
             # Fetch the failure cases from the original data
-            try:
-                # Different handling for pandas and other backends could be
-                # implemented here
-                actual_values = self._lookup_values_pandas(
-                    data, error_indices, target_cols
-                )
+            # that is only possible if the data are available which is not the
+            # case for non-lazy validation where the error is raised immediately
+            # upon the first failure and the data are not attached to the error object.
+            if data is not None and not data.empty:
+                try:
+                    # Different handling for pandas and other backends could be
+                    # implemented here
+                    actual_values = self._lookup_values_pandas(
+                        data, error_indices, target_cols
+                    )
 
-                # Assign back to    the failure report
-                df_refs.loc[mask, "failure_case"] = pd.Series(
-                    actual_values, index=df_refs.loc[mask].index
-                )
-                df_refs.loc[mask, "column"] = ", ".join(target_cols)
-
-            except KeyError:  # pragma: no cover
-                # Fallback if indices/columns are missing (edge cases)
-                continue
+                    # Assign back to  the failure report
+                    df_refs.loc[mask, "failure_case"] = pd.Series(
+                        actual_values, index=df_refs.loc[mask].index
+                    )
+                    df_refs.loc[mask, "column"] = ", ".join(target_cols)
+                except KeyError:  # pragma: no cover
+                    # Fallback if indices/columns are missing (edge cases)
+                    continue
 
         # 4. Recombine with non-reference errors and return
         df_out = pd.concat([df_others, df_refs], ignore_index=True)

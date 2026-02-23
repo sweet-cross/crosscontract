@@ -248,10 +248,16 @@ class TestToPanderaSchema:
 
         pandera_schema = contract.to_pandera_schema()
 
-        assert pandera_schema.name == "contract_schema"
+        assert pandera_schema.name == "ConvertedSchema"
         assert "id" in pandera_schema.columns
         assert "name" in pandera_schema.columns
         assert "ref_id" in pandera_schema.columns
+
+    def test_raises_on_unsupported_backend(self):
+        contract = TableSchema.model_validate({"fields": field_data})
+
+        with pytest.raises(ValueError):
+            contract.to_pandera_schema(backend="unsupported_backend")
 
 
 class TestToPydanticModel:
