@@ -394,7 +394,10 @@ class PanderaPandasAdapter(AbstractAdapter):
         return pa.Check(
             check_primary_key,
             name=f"PrimaryKeyError: {list(pk_fields)}",
-            error=f"PrimaryKeyError: Primary key {pk_fields} is not unique/given.",
+            error=(
+                f"PrimaryKeyError: Primary key {pk_fields} must be non-null and "
+                "unique within the dataset and compared to existing primary key values."
+            ),
         )
 
     @staticmethod
