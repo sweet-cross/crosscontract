@@ -13,14 +13,14 @@ from crosscontract.contracts.schema.reference.primary_key import PrimaryKey
 from crosscontract.contracts.schema.schema import TableSchema
 from crosscontract.contracts.schema.validation import validate_dataframe
 
-# these test the validation logic in validate_pandas_dataframe, which uses the
+# these test the validation logic in validate_dataframe, which uses the
 # PanderaPandasAdapter for the actual validation. The tests in
 # test_integration_pandera_references.py actually test the same but using the
 # adapter directly, so we can be sure that the validation logic in the adapter
-# is correct and that the validate_pandas_dataframe function correctly integrates
-# with it. The difference is that here we raise SchemaValidationError which is
-# the error raised by validate_pandas_dataframe, while in the adapter tests we
-# raise SchemaError which is the error raised by Pandera. This way we can also
+# is correct and that the validate_dataframe function correctly integrates with
+# it. The difference is that here we raise SchemaValidationError, which is
+# the error raised by validate_dataframe, while in the adapter tests we raise
+# SchemaError, which is the error raised by Pandera. This way we can also
 # ensure that the correct errors are raised and propagated through the layers
 # of validation.
 
