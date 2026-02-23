@@ -101,7 +101,7 @@ class SchemaValidationError(Exception):
         return df_errors
 
     def _parse_reference_errors(
-        self, df_failures: pd.DataFrame, data: pd.DataFrame
+        self, df_failures: pd.DataFrame, data: pd.DataFrame | None
     ) -> pd.DataFrame:
         """Parse pandera SchemaErrors related to foreign key violations by combining
         the error messages for multiple rows into a single message per reference
@@ -115,7 +115,7 @@ class SchemaValidationError(Exception):
         Args:
             df_failure (pd.DataFrame): The DataFrame containing the pandera failure
                 cases.
-            data (pd.DataFrame): The original DataFrame that was validated.
+            data (pd.DataFrame | None): The original DataFrame that was validated.
 
         Returns:
             pd.DataFrame: DataFrame with combined reference error messages.
