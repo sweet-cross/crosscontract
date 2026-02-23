@@ -5,6 +5,10 @@ from pandera.errors import SchemaError
 from crosscontract.contracts.schema import TableSchema
 from crosscontract.contracts.schema.adapters import PanderaPandasAdapter
 from crosscontract.contracts.schema.fields import IntegerField, StringField
+from crosscontract.contracts.schema.reference.foreign_key import (
+    ForeignKey,
+    ReferencedField,
+)
 from crosscontract.contracts.schema.reference.primary_key import PrimaryKey
 
 
@@ -49,4 +53,93 @@ class TestPrimaryKeyValidation:
         existing_pks = [(1,)]
         PanderaPandasAdapter.convert_schema(
             schema, primary_key_values=existing_pks
+        ).validate(df)
+
+
+class TestForeignKeyValidation:
+    @pytest.fixture
+    def fk_schema(self):
+        return TableSchema(
+            fields=[
+                IntegerField(name="id"),
+                IntegerField(name="other_id"),
+            ],
+            foreignKeys=[
+                ForeignKey(
+                    fields=["other_id"],
+                    reference=ReferencedField(resource="other_resource", fields=["id"]),
+                )
+            ],
+        )
+
+    @pytest.fixture
+    def self_ref_schema(self):
+        return TableSchema(
+            fields=[
+                IntegerField(name="id"),
+                IntegerField(name="parent_id"),
+            ],
+            primaryKey=PrimaryKey(root=["id"]),
+            foreignKeys=[
+                ForeignKey(
+                    fields=["parent_id"],
+                    reference=ReferencedField(fields=["id"]),  # Self reference
+                )
+            ],
+        )
+
+    def test_valid_external_fk(self, fk_schema):
+        df = pd.DataFrame({"id": [1, 2], "other_id": [10, 11]})
+        # Key is tuple of referring fields
+        fk_values = {("other_id",): [(10,), (11,), (12,)]}
+        PanderaPandasAdapter.convert_schema(
+            fk_schema, foreign_key_values=fk_values
+        ).validate(df)
+
+    def test_valid_missing_reference(self, fk_schema):
+        """If the referring field is nullable, missing values should pass validation."""
+        df = pd.DataFrame({"id": [1, 2], "other_id": [pd.NA, 11]})
+        # Key is tuple of referring fields
+        fk_values = {("other_id",): [(10,), (11,), (12,)]}
+        PanderaPandasAdapter.convert_schema(
+            fk_schema, foreign_key_values=fk_values
+        ).validate(df)
+
+    def test_invalid_external_fk(self, fk_schema):
+        df = pd.DataFrame({"id": [1, 2], "other_id": [10, 99]})
+        fk_values = {("other_id",): [(10,), (11,)]}
+        with pytest.raises(SchemaError):
+            PanderaPandasAdapter.convert_schema(
+                fk_schema, foreign_key_values=fk_values
+            ).validate(df)
+
+        # but passes if we skip foreign key validation
+        PanderaPandasAdapter.convert_schema(
+            fk_schema, skip_foreign_key_validation=True
+        ).validate(df)
+
+    def test_missing_external_values_raises_value_error(self, fk_schema):
+        df = pd.DataFrame({"id": [1], "other_id": [10]})
+        with pytest.raises(ValueError, match="Cannot validate foreign key"):
+            PanderaPandasAdapter.convert_schema(fk_schema).validate(df)
+
+    def test_valid_self_reference(self, self_ref_schema):
+        df = pd.DataFrame({"id": [1, 2], "parent_id": [None, 1]})
+        # Ensure nullable int
+        df["parent_id"] = df["parent_id"].astype("Int64")
+        PanderaPandasAdapter.convert_schema(self_ref_schema).validate(df)
+
+    def test_invalid_self_reference(self, self_ref_schema):
+        df = pd.DataFrame({"id": [1, 2], "parent_id": [None, 99]})
+        df["parent_id"] = df["parent_id"].astype("Int64")
+        with pytest.raises(SchemaError):
+            PanderaPandasAdapter.convert_schema(self_ref_schema).validate(df)
+
+    def test_self_reference_with_external(self, self_ref_schema):
+        # 2 refers to 10 which is external (e.g. from previous batch)
+        df = pd.DataFrame({"id": [2], "parent_id": [10]})
+        df["parent_id"] = df["parent_id"].astype("Int64")
+        fk_values = {("parent_id",): [(10,)]}
+        PanderaPandasAdapter.convert_schema(
+            self_ref_schema, foreign_key_values=fk_values
         ).validate(df)
