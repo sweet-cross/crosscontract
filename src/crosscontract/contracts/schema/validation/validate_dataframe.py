@@ -75,7 +75,7 @@ def validate_dataframe(
     # validate the DataFrame
     try:
         pandera_schema.validate(df, lazy=lazy)
-    except pa.errors.SchemaErrors as e:
+    except (pa.errors.SchemaErrors, pa.errors.SchemaError) as e:
         raise SchemaValidationError(
             message="DataFrame validation against schema failed.", schema_errors=e
         ) from e

@@ -25,6 +25,36 @@ from crosscontract.contracts.schema.validation import validate_dataframe
 # of validation.
 
 
+class TestSimpleValidation:
+    @pytest.fixture
+    def schema(self):
+        return TableSchema.model_validate(
+            {
+                "fields": [
+                    IntegerField.model_validate({"name": "id"}),
+                    StringField.model_validate({"name": "name"}),
+                ]
+            }
+        )
+
+    def test_valid_dataframe(self, schema: TableSchema):
+        df = pd.DataFrame({"id": [1, 2, 3], "name": ["a", "b", "c"]})
+        validate_dataframe(schema, df)
+
+    def test_invalid_dataframe(self, schema: TableSchema):
+        df = pd.DataFrame({"id": [1, 2, "three"], "name": ["a", "b", "c"]})
+        with pytest.raises(SchemaValidationError):
+            validate_dataframe(schema, df)
+
+    def test_invalid_dataframe_non_lazy(self, schema: TableSchema):
+        df = pd.DataFrame({"id": [1, 2, "three"], "name": ["a", "b", 3]})
+        with pytest.raises(SchemaValidationError) as exc_info:
+            validate_dataframe(schema, df, lazy=False)
+        error = exc_info.value
+        # Expect 2 errors: one for the 'id' column and one for the 'name' column
+        assert len(error.to_pandas()) == 1
+
+
 class TestPrimaryKeyValidation:
     @pytest.fixture
     def schema(self):
@@ -61,6 +91,24 @@ class TestPrimaryKeyValidation:
         df = pd.DataFrame({"id": [2, 3], "name": ["b", "c"]})
         existing_pks = [(1,)]
         validate_dataframe(schema, df, primary_key_values=existing_pks)
+
+    def test_invalid_with_external(self, schema):
+        df = pd.DataFrame({"id": [1, 3], "name": ["b", "c"]})
+        existing_pks = [(1,), (3,)]
+        with pytest.raises(SchemaValidationError) as exc_info:
+            validate_dataframe(schema, df, primary_key_values=existing_pks)
+        error = exc_info.value
+        # Expect 1 error for the duplicate '1'
+        assert len(error.to_pandas()) == 2
+
+    def _test_non_lazy_validation(self, schema):
+        df = pd.DataFrame({"id": [1, 2, 3], "name": ["a", "b", "c"]})
+        existing_pks = [(1,), (2,)]
+        # eager validation should raise only the first error (the duplicate '1')
+        with pytest.raises(SchemaValidationError) as exc_info:
+            validate_dataframe(schema, df, primary_key_values=existing_pks, lazy=False)
+        error = exc_info.value
+        assert len(error.to_pandas()) == 1
 
 
 class TestForeignKeyValidation:
@@ -109,10 +157,12 @@ class TestForeignKeyValidation:
         validate_dataframe(fk_schema, df, foreign_key_values=fk_values)
 
     def test_invalid_external_fk(self, fk_schema):
-        df = pd.DataFrame({"id": [1, 2], "other_id": [10, 99]})
+        df = pd.DataFrame({"id": [1, 2], "other_id": [12, 99]})
         fk_values = {("other_id",): [(10,), (11,)]}
-        with pytest.raises(SchemaValidationError):
+        with pytest.raises(SchemaValidationError) as exc_info:
             validate_dataframe(fk_schema, df, foreign_key_values=fk_values)
+        error = exc_info.value
+        assert len(error.to_pandas()) == 2
 
         # but passes if we skip foreign key validation
         validate_dataframe(fk_schema, df, skip_foreign_key_validation=True)

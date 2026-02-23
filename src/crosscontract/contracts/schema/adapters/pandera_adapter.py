@@ -356,6 +356,28 @@ class PanderaPandasAdapter(AbstractAdapter):
         return pa.Column(**kwargs)
 
     @staticmethod
+    def _check_pk_integrity(
+        df_sub: pd.DataFrame,
+        pk_fields: list[str],
+        existing_pk_set: set[tuple[Any, ...]],
+    ) -> pd.Series:
+        # 1. Ensure no nulls in the columns
+        has_nulls = df_sub[pk_fields].isna().any(axis=1)
+
+        # 2. Check values in the DataFrame are internally unique
+        is_internally_unique = ~df_sub.duplicated(subset=pk_fields, keep=False)
+
+        # 3. Check values against existing primary key values
+        if existing_pk_set:
+            current_keys = pd.MultiIndex.from_frame(df_sub[pk_fields])
+            is_externally_unique = pd.Series(
+                ~current_keys.isin(existing_pk_set),
+                index=df_sub.index,
+            )
+            return is_internally_unique & is_externally_unique & ~has_nulls
+        return is_internally_unique & ~has_nulls
+
+    @staticmethod
     def _get_primary_key_check(
         pk_fields: list[str],
         primary_key_values: list[tuple[Any, ...]] | None,
@@ -374,25 +396,15 @@ class PanderaPandasAdapter(AbstractAdapter):
         """
         existing_pk_set = set(primary_key_values) if primary_key_values else set()
 
-        def check_primary_key(df_sub: pd.DataFrame) -> pd.Series:
-            # 1. Ensure no nulls in the columns
-            has_nulls = df_sub[pk_fields].isna().any(axis=1)
-
-            # 2. Check values in the DataFrame are internally unique
-            is_internally_unique = ~df_sub.duplicated(subset=pk_fields, keep=False)
-
-            # 3. Check values against existing primary key values
-            if existing_pk_set:
-                current_keys = pd.MultiIndex.from_frame(df_sub[pk_fields])
-                is_externally_unique = pd.Series(
-                    ~current_keys.isin(existing_pk_set),
-                    index=df_sub.index,
-                )
-                return is_internally_unique & is_externally_unique & ~has_nulls
-            return is_internally_unique & ~has_nulls
+        def check_pk_integrity(df_sub: pd.DataFrame) -> pd.Series:
+            return PanderaPandasAdapter._check_pk_integrity(
+                df_sub=df_sub,
+                pk_fields=pk_fields,
+                existing_pk_set=existing_pk_set,
+            )
 
         return pa.Check(
-            check_primary_key,
+            check_pk_integrity,
             name=f"PrimaryKeyError: {list(pk_fields)}",
             error=(
                 f"PrimaryKeyError: Primary key {pk_fields} must be non-null and "
