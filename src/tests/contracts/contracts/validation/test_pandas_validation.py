@@ -11,9 +11,18 @@ from crosscontract.contracts.schema.reference.foreign_key import (
 )
 from crosscontract.contracts.schema.reference.primary_key import PrimaryKey
 from crosscontract.contracts.schema.schema import TableSchema
-from crosscontract.contracts.schema.validation.validate_pandas_dataframe import (
-    validate_pandas_dataframe,
-)
+from crosscontract.contracts.schema.validation import validate_dataframe
+
+# these test the validation logic in validate_pandas_dataframe, which uses the
+# PanderaPandasAdapter for the actual validation. The tests in
+# test_integration_pandera_references.py actually test the same but using the
+# adapter directly, so we can be sure that the validation logic in the adapter
+# is correct and that the validate_pandas_dataframe function correctly integrates
+# with it. The difference is that here we raise SchemaValidationError which is
+# the error raised by validate_pandas_dataframe, while in the adapter tests we
+# raise SchemaError which is the error raised by Pandera. This way we can also
+# ensure that the correct errors are raised and propagated through the layers
+# of validation.
 
 
 class TestPrimaryKeyValidation:
@@ -31,27 +40,27 @@ class TestPrimaryKeyValidation:
 
     def test_valid_pk(self, schema: TableSchema):
         df = pd.DataFrame({"id": [1, 2, 3], "name": ["a", "b", "c"]})
-        validate_pandas_dataframe(schema, df)
+        validate_dataframe(schema, df)
 
     def test_internal_duplicates(self, schema):
         df = pd.DataFrame({"id": [1, 1, 2], "name": ["a", "b", "c"]})
         # Expect SchemaError (or SchemaErrors if lazy=True)
         with pytest.raises(SchemaValidationError):
-            validate_pandas_dataframe(schema, df)
+            validate_dataframe(schema, df)
 
         # but passes if we skip primary key validation
-        validate_pandas_dataframe(schema, df, skip_primary_key_validation=True)
+        validate_dataframe(schema, df, skip_primary_key_validation=True)
 
     def test_external_duplicates(self, schema):
         df = pd.DataFrame({"id": [1, 2], "name": ["a", "b"]})
         existing_pks = [(1,)]
         with pytest.raises(SchemaValidationError):
-            validate_pandas_dataframe(schema, df, primary_key_values=existing_pks)
+            validate_dataframe(schema, df, primary_key_values=existing_pks)
 
     def test_valid_with_external(self, schema):
         df = pd.DataFrame({"id": [2, 3], "name": ["b", "c"]})
         existing_pks = [(1,)]
-        validate_pandas_dataframe(schema, df, primary_key_values=existing_pks)
+        validate_dataframe(schema, df, primary_key_values=existing_pks)
 
 
 class TestForeignKeyValidation:
@@ -90,44 +99,44 @@ class TestForeignKeyValidation:
         df = pd.DataFrame({"id": [1, 2], "other_id": [10, 11]})
         # Key is tuple of referring fields
         fk_values = {("other_id",): [(10,), (11,), (12,)]}
-        validate_pandas_dataframe(fk_schema, df, foreign_key_values=fk_values)
+        validate_dataframe(fk_schema, df, foreign_key_values=fk_values)
 
     def test_valid_missing_reference(self, fk_schema):
         """If the referring field is nullable, missing values should pass validation."""
         df = pd.DataFrame({"id": [1, 2], "other_id": [pd.NA, 11]})
         # Key is tuple of referring fields
         fk_values = {("other_id",): [(10,), (11,), (12,)]}
-        validate_pandas_dataframe(fk_schema, df, foreign_key_values=fk_values)
+        validate_dataframe(fk_schema, df, foreign_key_values=fk_values)
 
     def test_invalid_external_fk(self, fk_schema):
         df = pd.DataFrame({"id": [1, 2], "other_id": [10, 99]})
         fk_values = {("other_id",): [(10,), (11,)]}
         with pytest.raises(SchemaValidationError):
-            validate_pandas_dataframe(fk_schema, df, foreign_key_values=fk_values)
+            validate_dataframe(fk_schema, df, foreign_key_values=fk_values)
 
         # but passes if we skip foreign key validation
-        validate_pandas_dataframe(fk_schema, df, skip_foreign_key_validation=True)
+        validate_dataframe(fk_schema, df, skip_foreign_key_validation=True)
 
     def test_missing_external_values_raises_value_error(self, fk_schema):
         df = pd.DataFrame({"id": [1], "other_id": [10]})
         with pytest.raises(ValueError, match="Cannot validate foreign key"):
-            validate_pandas_dataframe(fk_schema, df)
+            validate_dataframe(fk_schema, df)
 
     def test_valid_self_reference(self, self_ref_schema):
         df = pd.DataFrame({"id": [1, 2], "parent_id": [None, 1]})
         # Ensure nullable int
         df["parent_id"] = df["parent_id"].astype("Int64")
-        validate_pandas_dataframe(self_ref_schema, df)
+        validate_dataframe(self_ref_schema, df)
 
     def test_invalid_self_reference(self, self_ref_schema):
         df = pd.DataFrame({"id": [1, 2], "parent_id": [None, 99]})
         df["parent_id"] = df["parent_id"].astype("Int64")
         with pytest.raises(SchemaValidationError):
-            validate_pandas_dataframe(self_ref_schema, df)
+            validate_dataframe(self_ref_schema, df)
 
     def test_self_reference_with_external(self, self_ref_schema):
         # 2 refers to 10 which is external (e.g. from previous batch)
         df = pd.DataFrame({"id": [2], "parent_id": [10]})
         df["parent_id"] = df["parent_id"].astype("Int64")
         fk_values = {("parent_id",): [(10,)]}
-        validate_pandas_dataframe(self_ref_schema, df, foreign_key_values=fk_values)
+        validate_dataframe(self_ref_schema, df, foreign_key_values=fk_values)
