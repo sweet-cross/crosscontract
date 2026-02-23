@@ -55,6 +55,14 @@ class TestPrimaryKeyValidation:
             schema, primary_key_values=existing_pks
         ).validate(df)
 
+    @pytest.mark.parametrize("fk_values", ["asdasdasd", [10, 20]])
+    def test_external_wrong_format(self, fk_values, schema):
+        df = pd.DataFrame({"id": [2], "parent_id": [10]})
+        with pytest.raises(ValueError):
+            PanderaPandasAdapter.convert_schema(
+                schema, primary_key_values=fk_values
+            ).validate(df)
+
 
 class TestForeignKeyValidation:
     @pytest.fixture
@@ -143,3 +151,45 @@ class TestForeignKeyValidation:
         PanderaPandasAdapter.convert_schema(
             self_ref_schema, foreign_key_values=fk_values
         ).validate(df)
+
+    @pytest.mark.parametrize(
+        "fk_values",
+        [
+            {("parent_id",): "not a list of tuples"},  # Wrong type
+            {("parent_id",): [10, 20]},  # List of non-tuples
+        ],
+    )
+    def test_external_wrong_format(self, fk_values, self_ref_schema):
+        df = pd.DataFrame({"id": [2], "parent_id": [10]})
+        with pytest.raises(ValueError):
+            PanderaPandasAdapter.convert_schema(
+                self_ref_schema, foreign_key_values=fk_values
+            ).validate(df)
+
+
+@pytest.mark.parametrize(
+    "given, should_raise",
+    [
+        # Valid inputs
+        (None, False),
+        ([(10,), (11,)], False),
+        (((10,), (11,)), False),
+        ({(10,), (11,)}, False),
+        ([(1, 2), (3, 4)], False),
+        ([], False),
+        # Invalid inputs
+        ([10, 11], True),
+        ([[10], [11]], True),
+        ("not a list", True),
+        (123, True),
+        ([10, (11,)], True),
+        ([(10,), [11]], True),
+        ({10, 11}, True),
+    ],
+)
+def test_check_reference_inputs(given, should_raise):
+    if should_raise:
+        with pytest.raises(ValueError, match="Existing references must be"):
+            PanderaPandasAdapter._check_reference_inputs(given)
+    else:
+        PanderaPandasAdapter._check_reference_inputs(given)

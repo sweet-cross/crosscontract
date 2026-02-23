@@ -284,6 +284,50 @@ class TestSchemaErrorConversion:
 
         assert error_from_singular.errors == error_from_plural.errors
 
+    def test_reference_error_with_no_extractable_cols(self):
+        """Test reference error where check name has no bracketed columns."""
+        check_name = "ForeignKeyError: malformed"  # no brackets
+
+        failure_cases = pd.DataFrame(
+            {
+                "check": [check_name],
+                "column": ["col_a"],
+                "index": [0],
+                "failure_case": ["val_a"],
+            }
+        )
+        data = pd.DataFrame({"col_a": ["val_a"]})
+        mock_errors = MockSchemaErrors(failure_cases, data)
+
+        error = SchemaValidationError("Ref Error", mock_errors)
+        parsed = error.errors
+
+        assert len(parsed) == 1
+        assert parsed[0]["failure_case"] == "val_a"
+
+    def test_reference_error_with_empty_data(self):
+        """Test reference error parsing when the attached data is empty."""
+        check_name = "ForeignKeyError: ['col_a']"
+        failure_cases = pd.DataFrame(
+            {
+                "check": [check_name],
+                "column": ["col_a"],
+                "index": [0],
+                "failure_case": ["val_missing"],
+            }
+        )
+        # Empty dataframe to trigger the `False` branch of the condition
+        data = pd.DataFrame()
+        mock_errors = MockSchemaErrors(failure_cases, data)
+
+        error = SchemaValidationError("Ref Error", mock_errors)
+        parsed = error.errors
+
+        assert len(parsed) == 1
+        # Since data was empty, it skips lookup and retains the original values
+        assert parsed[0]["column"] == "col_a"
+        assert parsed[0]["failure_case"] == "val_missing"
+
 
 class TestExtractCols:
     """Group tests for the static method _extract_cols."""
@@ -327,3 +371,7 @@ class TestExtractCols:
         # And it should take the first one because keep="first"
         assert len(result) == 1
         assert result[0] == ("val1",)
+
+    def test_extract_cols_no_match(self):
+        """Test _extract_cols when regex finds no brackets."""
+        assert SchemaValidationError._extract_cols("no_brackets_here") == []

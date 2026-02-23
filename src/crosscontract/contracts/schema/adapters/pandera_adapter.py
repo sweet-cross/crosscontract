@@ -110,6 +110,7 @@ class PanderaPandasAdapter(AbstractAdapter):
         # Handle primary key constraints by adding a custom check to the schema
         additional_checks: list[pa.Check] = []
         if self.schema.primaryKey and not skip_primary_key_validation:
+            self._check_reference_inputs(primary_key_values)  # Validate input format
             additional_checks.append(
                 self._get_primary_key_check(
                     pk_fields=self.schema.primaryKey.root,
@@ -125,6 +126,7 @@ class PanderaPandasAdapter(AbstractAdapter):
                     if foreign_key_values
                     else None
                 )
+                self._check_reference_inputs(valid_values)  # Validate input format
                 additional_checks.append(
                     self._get_foreign_key_check(fk=fk, foreign_key_values=valid_values)
                 )
@@ -354,6 +356,33 @@ class PanderaPandasAdapter(AbstractAdapter):
             )
 
         return pa.Column(**kwargs)
+
+    @staticmethod
+    def _check_reference_inputs(given: Any):
+        """Check that the given input for reference validation is in the correct
+        format, i.e., a list of tuples
+
+        Args:
+            given (Any): The input to check.
+
+        Raises:
+            ValueError: If the input is not a list of tuples.
+        """
+        if given is None:
+            return
+        # check outer structure is a list, set, or tuple:
+        raise_error = False
+        if not isinstance(given, (list, set, tuple)):
+            raise_error = True
+        # check that the inner structure is a tuple:
+        elif not all(isinstance(item, tuple) for item in given):
+            raise_error = True
+        if raise_error:
+            raise ValueError(
+                "Existing references must be must be provided as a list of tuples, "
+                "where each tuple represents a valid referenced key. Example: "
+                "[(10,), (11,)] and not [10, 11] or [[10], [11]]."
+            )
 
     @staticmethod
     def _check_pk_integrity(
