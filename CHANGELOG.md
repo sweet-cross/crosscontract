@@ -2,6 +2,26 @@
 
 <!-- version list -->
 
+## v0.2.0 (2026-02-23)
+
+### Features
+
+- Pandera adapter with foreign key checks
+  ([#19](https://github.com/sweet-cross/crosscontract/pull/19),
+  [`e1ab1c5`](https://github.com/sweet-cross/crosscontract/commit/e1ab1c52e125dc7da515b3066e9366269c6d83b2))
+
+### Refactoring
+
+- Pandera adapter ([#18](https://github.com/sweet-cross/crosscontract/pull/18),
+  [`b6ba131`](https://github.com/sweet-cross/crosscontract/commit/b6ba1319c54ed9ab994682fabf0cadc4b5852be2))
+
+- Pydantic adapter ([#15](https://github.com/sweet-cross/crosscontract/pull/15),
+  [`2ad53cc`](https://github.com/sweet-cross/crosscontract/commit/2ad53ccb26df786e8db583c779efd03c80f91a68))
+
+- Sql adapter ([#17](https://github.com/sweet-cross/crosscontract/pull/17),
+  [`9adabc2`](https://github.com/sweet-cross/crosscontract/commit/9adabc2e4997be35c2406da38ff90d56f6b2aa88))
+
+
 ## v0.1.2 (2026-02-16)
 
 ### Bug Fixes
