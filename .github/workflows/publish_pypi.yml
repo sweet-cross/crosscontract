@@ -1,25 +1,45 @@
-# Reusable workflow that builds and publishes the package to PyPI.
-# Requires 'workflow_call' or 'workflow_dispatch'.
+# Standalone workflow to publish the package to PyPI.
+# Triggered manually. Defaults to the latest release tag.
 name: Publish to PyPI
 
 on:
-  workflow_call:
-    inputs:
-      ref:
-        description: "The git ref to check out (tag, branch, or SHA)"
-        required: false
-        type: string
-        default: ""
   workflow_dispatch:
     inputs:
-      ref:
-        description: "The git ref to check out (tag, branch, or SHA)"
+      version:
+        description: "Version tag to publish (e.g. v0.2.1). Defaults to latest release."
         required: false
         type: string
         default: ""
 
 jobs:
+  resolve_version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - name: Get latest release tag
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "tag=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            LATEST=$(gh release view --repo ${{ github.repository }} --json tagName -q .tagName)
+            echo "tag=$LATEST" >> $GITHUB_OUTPUT
+          fi
+      - name: Validate tag exists
+        if: inputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view ${{ inputs.version }} --repo ${{ github.repository }} > /dev/null 2>&1; then
+            echo "Error: version '${{ inputs.version }}' not found in releases"
+            exit 1
+          fi
+
   publish:
+    needs: resolve_version
     runs-on: ubuntu-latest
     environment:
       name: pypi-test
@@ -29,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.resolve_version.outputs.tag }}
       - uses: astral-sh/setup-uv@v5
       - run: uv build
       - uses: pypa/gh-action-pypi-publish@release/v1
