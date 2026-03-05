@@ -104,3 +104,35 @@ def test_repr(client: CrossClient):
     assert "CrossClient" in repr_str
     assert client._username in repr_str
     assert client._base_url in repr_str
+
+
+def test_del_closes_client():
+    """Test that __del__ closes the client as a best-effort cleanup."""
+    with patch("crosscontract.crossclient.crossclient.CrossClient.authenticate"):
+        c = CrossClient("user", "pass", "https://api.example.com")
+        assert not c._is_closed
+
+        c.__del__()
+
+        assert c._is_closed
+        assert c._client.is_closed
+
+
+def test_del_does_not_raise_on_already_closed():
+    """Test that __del__ swallows exceptions if the client is already closed."""
+    with patch("crosscontract.crossclient.crossclient.CrossClient.authenticate"):
+        c = CrossClient("user", "pass", "https://api.example.com")
+        c.close()
+
+        # Should not raise even though already closed
+        c.__del__()
+
+
+def test_del_swallows_exception_from_close():
+    """Test that __del__ suppresses exceptions raised by close()."""
+    with patch("crosscontract.crossclient.crossclient.CrossClient.authenticate"):
+        c = CrossClient("user", "pass", "https://api.example.com")
+
+        with patch.object(c, "close", side_effect=RuntimeError("boom")):
+            # Should not raise
+            c.__del__()
