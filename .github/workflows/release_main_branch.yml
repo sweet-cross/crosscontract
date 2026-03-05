@@ -21,6 +21,27 @@ jobs:
             contents: write
         secrets: inherit
 
+    publish:
+        needs: release
+        if: >-
+            success() &&
+            needs.release.outputs.released == 'true'
+        runs-on: ubuntu-latest
+        environment:
+            name: pypi-test
+            url: https://test.pypi.org/p/crosscontract
+        permissions:
+            id-token: write
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ needs.release.outputs.tag }}
+            - uses: astral-sh/setup-uv@v5
+            - run: uv build
+            - uses: pypa/gh-action-pypi-publish@release/v1
+              with:
+                  repository-url: https://test.pypi.org/legacy/
+
     deploy_docs:
         needs: release
         if: >-
