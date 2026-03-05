@@ -1,3 +1,4 @@
+import atexit
 from typing import Any
 
 import httpx
@@ -55,19 +56,29 @@ class CrossClient:
         # authenticate upon initialization
         self.authenticate()
 
+        # Register cleanup on interpreter shutdown
+        atexit.register(self.close)
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
+    def __del__(self):
+        # Best-effort cleanup during garbage collection
+        try:
+            self.close()
+        except Exception:
+            pass
+
+    def __repr__(self):
+        return f"CrossClient(base_url={self._base_url}, username={self._username})"
+
     def close(self):
         """Close the HTTPX client."""
         self._client.close()
         self._is_closed = True
-
-    def __repr__(self):
-        return f"CrossClient(base_url={self._base_url}, username={self._username})"
 
     def authenticate(self) -> str:
         """Authenticate with the server and retrieve an access token.
