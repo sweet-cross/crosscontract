@@ -1,0 +1,37 @@
+# Reusable workflow that builds and publishes the package to PyPI.
+# Requires 'workflow_call' or 'workflow_dispatch'.
+name: Publish to PyPI
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "The git ref to check out (tag, branch, or SHA)"
+        required: false
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "The git ref to check out (tag, branch, or SHA)"
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi-test
+      url: https://test.pypi.org/p/crosscontract
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: astral-sh/setup-uv@v5
+      - run: uv build
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
