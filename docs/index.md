@@ -24,7 +24,7 @@ python -m venv .venv
 # Linux/MacOS
 source .venv/bin/activate
 
-pip install git+https://github.com/sweet-cross/crosscontract.git
+pip install crosscontract
 ```
 
 ### Using uv
@@ -36,7 +36,7 @@ uv venv
 # Linux/MacOS
 source .venv/bin/activate
 
-uv pip install git+https://github.com/sweet-cross/crosscontract.git
+uv pip crosscontract
 ```
 
 Alternatively, if you use a project-based approach with uv:
@@ -48,7 +48,7 @@ uv init
 # Linux/MacOS
 source .venv/bin/activate
 
-uv add git+https://github.com/sweet-cross/crosscontract.git
+uv add crosscontract
 ```
 
 
@@ -58,7 +58,7 @@ uv add git+https://github.com/sweet-cross/crosscontract.git
 poetry init
 poetry shell
 
-poetry add git+https://github.com/sweet-cross/crosscontract.git
+poetry add crosscontract
 ```
 
 ## Dependencies
