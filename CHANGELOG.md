@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.2.2 (2026-03-05)
+
+### Bug Fixes
+
+- Publishing
+  ([`c49159d`](https://github.com/sweet-cross/crosscontract/commit/c49159da933ab30c12a0e5e5b40f2bffd2fd6b89))
+
+
 ## v0.2.1 (2026-03-05)
 
 ### Bug Fixes
