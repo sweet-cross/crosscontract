@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.2.1 (2026-03-05)
+
+### Bug Fixes
+
+- Docs ([#22](https://github.com/sweet-cross/crosscontract/pull/22),
+  [`937b76f`](https://github.com/sweet-cross/crosscontract/commit/937b76f8fbf30d4615cdb0178bfc8f72ca66e4ce))
+
+### Chores
+
+- Add PyPI-test publish workflow
+  ([`c852441`](https://github.com/sweet-cross/crosscontract/commit/c85244124aa00a697521ba3b9c1e30577a80fdfa))
+
+
 ## v0.2.0 (2026-02-23)
 
 ### Features

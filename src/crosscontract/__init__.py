@@ -3,7 +3,7 @@
 from .contracts import BaseContract, CrossContract, SchemaValidationError, TableSchema
 from .crossclient import CrossClient
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 __all__ = [
     "CrossClient",
