@@ -5,7 +5,7 @@ import pytest
 from polyfactory.factories.pydantic_factory import ModelFactory
 
 from crosscontract import CrossContract
-from crosscontract.contracts.schema import SchemaValidationError
+from crosscontract.contracts.schema import SchemaValidationError, TableSchema
 from crosscontract.crossclient.exceptions.exceptions import ValidationError
 from crosscontract.crossclient.services.contract_resource import ContractResource
 from crosscontract.crossclient.services.contract_service import ContractService
@@ -174,6 +174,51 @@ class TestAddData:
             match="Validation failed",
         ):
             contract_resource.add_data(self.data, validate=True)
+
+    def test_prepare_csv_data_success(
+        self, contract_factory: type[ModelFactory], service: ContractService
+    ):
+        """Test preparing CSV data successfully."""
+        contract: CrossContract = contract_factory.build(
+            name="contract",
+            tableschema=TableSchema(
+                fields=[
+                    {"name": "timestamp", "type": "datetime"},
+                ],
+                foreignKeys=[],
+            ),
+        )
+        resource = ContractResource(
+            service=service, name=contract.name, contract=contract, status="Draft"
+        )
+        data = pd.DataFrame({"timestamp": pd.to_datetime(["2021-01-01", "2021-01-02"])})
+
+        result = resource._prepare_dataframe_csv_upload(data)
+        for org, val in zip(data["timestamp"], result["timestamp"], strict=True):
+            assert val == org.strftime(
+                resource.contract.tableschema.get("timestamp").format
+            )
+
+    def test_prepare_csv_data_no_datetime_fields(
+        self, contract_factory: type[ModelFactory], service: ContractService
+    ):
+        """Test preparing CSV data when there are no datetime fields."""
+        contract: CrossContract = contract_factory.build(
+            name="contract",
+            tableschema=TableSchema(
+                fields=[
+                    {"name": "timestamp", "type": "string"},
+                ],
+                foreignKeys=[],
+            ),
+        )
+        resource = ContractResource(
+            service=service, name=contract.name, contract=contract, status="Draft"
+        )
+        data = pd.DataFrame({"timestamp": ["a", "b"]})
+
+        result = resource._prepare_dataframe_csv_upload(data)
+        pd.testing.assert_frame_equal(data, result)
 
 
 class TestImmutability:
