@@ -220,6 +220,29 @@ class TestAddData:
         result = resource._prepare_dataframe_csv_upload(data)
         pd.testing.assert_frame_equal(data, result)
 
+    def test_prepare_csv_data_success_as_strings(
+        self, contract_factory: type[ModelFactory], service: ContractService
+    ):
+        """Test preparing CSV data successfully."""
+        contract: CrossContract = contract_factory.build(
+            name="contract",
+            tableschema=TableSchema(
+                fields=[
+                    {"name": "timestamp", "type": "datetime"},
+                ],
+                foreignKeys=[],
+            ),
+        )
+        resource = ContractResource(
+            service=service, name=contract.name, contract=contract, status="Draft"
+        )
+        org = ["2021-01-01 00:00", "2021-01-02 01:00"]
+        data = pd.DataFrame({"timestamp": org})
+
+        result = resource._prepare_dataframe_csv_upload(data)
+        for i, val in enumerate(result["timestamp"]):
+            assert val == org[i]
+
 
 class TestImmutability:
     def test_immutable_name(self, contract_resource: ContractResource):
