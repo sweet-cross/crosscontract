@@ -5,8 +5,7 @@ import pytest
 from polyfactory.factories.pydantic_factory import ModelFactory
 
 from crosscontract import CrossContract
-from crosscontract.contracts.schema import SchemaValidationError
-from crosscontract.contracts.schema.schema import TableSchema
+from crosscontract.contracts.schema import SchemaValidationError, TableSchema
 from crosscontract.crossclient.exceptions.exceptions import ValidationError
 from crosscontract.crossclient.services.contract_resource import ContractResource
 from crosscontract.crossclient.services.contract_service import ContractService

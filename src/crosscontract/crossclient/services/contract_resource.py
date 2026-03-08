@@ -120,8 +120,12 @@ class ContractResource:
         self._contract = contract
 
     def _prepare_dataframe_csv_upload(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Prepares a DataFrame for CSV upload. We convert datetime to string and
-        ensure that all data types are compatible with CSV format.
+        """Prepare a DataFrame for CSV upload by formatting datetime columns.
+
+        This method converts datetime-typed fields defined in the contract's
+        table schema from pandas datetime dtypes to string values using the
+        field's configured format. Columns of other data types are left
+        unchanged.
 
         Args:
             df (pd.DataFrame): The input DataFrame to be prepared for CSV upload.
