@@ -3,6 +3,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import Annotated, Any, Literal, Self
 
+import pandas as pd
 import pandera.pandas as pa
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import MetaData, Table
@@ -207,7 +208,7 @@ class TableSchema(BaseModel):
         skip_foreign_key_validation: bool = False,
         lazy: bool = True,
         backend: Literal["pandas"] = "pandas",
-    ) -> None:
+    ) -> pd.DataFrame:
         """Validate a DataFrame against the schema.
         It allows to provide existing primary key and foreign key values for validation.
         If provided, the primary key uniqueness is checked against the union of the
@@ -240,8 +241,12 @@ class TableSchema(BaseModel):
             SchemaValidationError: If the DataFrame does not conform to the
                 schema. This exception wraps underlying ``pandera`` validation
                 errors raised during DataFrame validation.
+
+        Returns:
+            pd.DataFrame: The validated DataFrame. If validation fails, an exception
+                is raised and this return value is not reached.
         """
-        validate_dataframe(
+        return validate_dataframe(
             schema=self,
             df=df,
             primary_key_values=primary_key_values,
