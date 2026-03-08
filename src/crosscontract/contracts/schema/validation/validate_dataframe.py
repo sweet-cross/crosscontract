@@ -18,7 +18,7 @@ def validate_dataframe(
     skip_foreign_key_validation: bool = False,
     lazy: bool = True,
     backend: Literal["pandas"] = "pandas",
-):
+) -> pd.DataFrame:
     """Validate a DataFrame against a schema. It allows to provide existing primary key
     and foreign key values for validation. If provided, the primary key uniqueness is
     checked against the union of the existing and the DataFrame values. Similarly,
@@ -53,6 +53,10 @@ def validate_dataframe(
         SchemaValidationError: If the DataFrame does not conform to the schema.
         ValueError: If a foreign key cannot be validated due to missing referenced
             values.
+
+    Returns:
+        pd.DataFrame: The validated DataFrame. If validation fails, an exception
+            is raised and this return value is not reached.
     """
     # determine the backend to use for validation
     match backend:
@@ -74,8 +78,9 @@ def validate_dataframe(
     )
     # validate the DataFrame
     try:
-        pandera_schema.validate(df, lazy=lazy)
+        df_out = pandera_schema.validate(df, lazy=lazy)
     except (pa.errors.SchemaErrors, pa.errors.SchemaError) as e:
         raise SchemaValidationError(
             message="DataFrame validation against schema failed.", schema_errors=e
         ) from e
+    return df_out
