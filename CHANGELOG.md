@@ -2,6 +2,20 @@
 
 <!-- version list -->
 
+## v0.2.3 (2026-03-08)
+
+### Bug Fixes
+
+- Correct format in csv upload for datetime fields
+  ([#23](https://github.com/sweet-cross/crosscontract/pull/23),
+  [`9501a14`](https://github.com/sweet-cross/crosscontract/commit/9501a14685e90b176982c6cf51d6bd043898b453))
+
+### Chores
+
+- Rename action
+  ([`ba3822a`](https://github.com/sweet-cross/crosscontract/commit/ba3822a13175809738a1e814ab8beba0d3a06d09))
+
+
 ## v0.2.2 (2026-03-05)
 
 ### Bug Fixes
