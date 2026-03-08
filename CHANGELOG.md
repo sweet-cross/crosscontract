@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.3.0 (2026-03-08)
+
+### Features
+
+- Validation returns validated dataframe
+  ([#24](https://github.com/sweet-cross/crosscontract/pull/24),
+  [`ae6a389`](https://github.com/sweet-cross/crosscontract/commit/ae6a3896abdf2ce3a46fa2b848b449a321ff281f))
+
+
 ## v0.2.3 (2026-03-08)
 
 ### Bug Fixes
