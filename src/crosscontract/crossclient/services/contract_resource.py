@@ -119,6 +119,30 @@ class ContractResource:
             )
         self._contract = contract
 
+    def _prepare_dataframe_csv_upload(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Prepares a DataFrame for CSV upload. We convert datetime to string and
+        ensure that all data types are compatible with CSV format.
+
+        Args:
+            df (pd.DataFrame): The input DataFrame to be prepared for CSV upload.
+
+        Returns:
+            pd.DataFrame: The prepared DataFrame ready for CSV upload.
+        """
+        # convert datetime fields to string with correct format
+        dt_fields = [
+            f
+            for f in self.contract.tableschema.field_iterator()
+            if f.type == "datetime" and f.name in df.columns
+        ]
+        if len(dt_fields) == 0:
+            return df
+        df_out = df.copy(deep=False)
+        for field in dt_fields:
+            if pd.api.types.is_datetime64_any_dtype(df[field.name]):
+                df_out[field.name] = df_out[field.name].dt.strftime(field.format)
+        return df_out
+
     def add_data(self, data: pd.DataFrame, validate: bool = True) -> None:
         """Add data for the contract on in the CROSS platform.
 
@@ -134,7 +158,8 @@ class ContractResource:
         if validate:
             # validate data against contract schema at the client side
             self.validate_dataframe(data)
-        self._service._add_data(self.name, data)
+        data_out = self._prepare_dataframe_csv_upload(data)
+        self._service._add_data(self.name, data_out)
 
     def get_data(
         self,
