@@ -6,7 +6,7 @@ from .data_variable import CrossDataVariable
 from .dimension import CrossDimension
 
 
-class DataRegistry:
+class CrossRegistry:
     """A data registry to interact with the CROSS data platform."""
 
     def __init__(
