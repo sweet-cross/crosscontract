@@ -77,7 +77,7 @@ class CrossBaseVariable(ABC):  # noqa: B024
         """Lazily load and return the data for this variable."""
         if self._data is None:
             self._data = self._fetch_data()
-        return self._data
+        return self._data.copy()
 
     @property
     def fields(self) -> list[BaseField]:

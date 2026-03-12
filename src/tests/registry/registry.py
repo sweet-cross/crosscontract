@@ -2,6 +2,7 @@ from typing import Any
 
 from crosscontract import CrossClient
 
+from .base_variable import CrossBaseVariable
 from .data_variable import CrossDataVariable
 from .dimension import CrossDimension
 
@@ -11,7 +12,7 @@ class CrossRegistry:
 
     def __init__(
         self,
-        username: str | None,
+        username: str | None = None,
         password: str | None = None,
         client: CrossClient | None = None,
     ):
@@ -34,7 +35,7 @@ class CrossRegistry:
             client = CrossClient(username=username, password=password)
 
         self._client = client
-        self._variables: dict[str, CrossDataVariable] = {}
+        self._variables: dict[str, CrossBaseVariable] = {}
 
     def __getattr__(self, name: str) -> CrossDataVariable:
         """Magic method to allow dot notation access with lazy loading."""
@@ -99,11 +100,12 @@ class CrossRegistry:
 
         # todo: make dimensions identifiable by contract
         if name.startswith("dim_"):
-            if filters is not None:
-                raise ValueError("Filters are not applicable for dimension variables.")
             self._variables[name] = CrossDimension.from_client(
                 self._client, name, **kwargs
             )
+            # return as we do now allow dimensions to references other dimensions
+            # TODO: enforce that with dimension contract
+            return
         else:
             self._variables[name] = CrossDataVariable.from_client(
                 self._client, name, filters=filters, **kwargs

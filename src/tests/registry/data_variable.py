@@ -68,11 +68,6 @@ class CrossDataVariable(CrossBaseVariable):
             scenario_group (str, optional): The name of the scenario group to filter
                 results by.
 
-            filters (dict[str, str], optional): Additional filters to apply when
-                fetching data. Keys correspond to dimension names, and values to
-                filter values for those dimensions.
-                The columns for filtering will be dropped from the dataframe
-
         Returns:
             pd.DataFrame: A DataFrame containing the results for the specified contract.
         """
@@ -83,18 +78,18 @@ class CrossDataVariable(CrossBaseVariable):
 
     @staticmethod
     def _get_filter_mask(
-        df: pd.DataFrame, **filters: dict[str, list[str]]
+        df: pd.DataFrame, **filters: dict[str, list[Any]]
     ) -> pd.Series:
         """Construct a boolean mask for filtering the DataFrame based on the
         provided filters.
 
         Args:
-            df: The DataFrame to filter.
-            filters: A dictionary where keys are column names and values are lists
-                of allowed values.
+            df (pd.DataFrame): The DataFrame to filter.
+            filters (dict[str, list[Any]]): A dictionary where keys are column names
+                and values are lists of allowed values.
 
         Returns:
-            A boolean Series that can be used to filter the DataFrame.
+            pd.Series: A boolean Series that can be used to filter the DataFrame.
         """
         # check that all filter keys are valid columns in the dataframe
         invalid = set(filters) - set(df.columns)
@@ -160,8 +155,9 @@ class CrossDataVariable(CrossBaseVariable):
         if dimension is None:
             return df
         label_map = dimension.label_map
-        df[column] = df[column].map(label_map).fillna(df[column])
-        return df
+        df_out = df.copy()
+        df_out[column] = df_out[column].map(label_map).fillna(df_out[column])
+        return df_out
 
     def _aggregate_by_dimension(
         self,
