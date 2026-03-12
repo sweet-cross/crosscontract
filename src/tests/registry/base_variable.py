@@ -94,10 +94,6 @@ class CrossBaseVariable(ABC):  # noqa: B024
         is filtered according to the filters specified when the variable was
         created.
 
-        Args:
-            scenario_group (str, optional): The name of the scenario group to filter
-                results by.
-
         Returns:
             pd.DataFrame: A DataFrame containing the results for the specified contract.
         """
