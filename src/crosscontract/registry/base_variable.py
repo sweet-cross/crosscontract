@@ -22,7 +22,6 @@ class CrossBaseVariable(ABC):  # noqa: B024
     def __init__(
         self,
         contract_resource: ContractResource,
-        **kwargs,
     ):
         self._contract_resource = contract_resource
         self._data: pd.DataFrame | None = None
@@ -32,7 +31,6 @@ class CrossBaseVariable(ABC):  # noqa: B024
         cls,
         client: CrossClient,
         contract_name: str,
-        **kwargs,
     ) -> Self:
         """Build from a contract fetched via the client.
 
@@ -44,7 +42,7 @@ class CrossBaseVariable(ABC):  # noqa: B024
             kwargs: Additional keyword arguments to pass to the constructor.
         """
         cr = client.contracts.get(contract_name)
-        return cls(contract_resource=cr, **kwargs)
+        return cls(contract_resource=cr)
 
     @property
     def contract_resource(self) -> ContractResource:

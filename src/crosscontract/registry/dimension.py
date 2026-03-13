@@ -1,5 +1,3 @@
-from typing import Any
-
 from crosscontract.crossclient.services import ContractResource
 
 from .base_variable import CrossBaseVariable
@@ -15,12 +13,8 @@ class CrossDimension(CrossBaseVariable):
     def __init__(
         self,
         contract_resource: ContractResource,
-        filters: dict[str, Any] | None = None,
-        **kwargs,
     ):
-        if filters is not None:
-            raise ValueError("Filters are not applicable for dimension variables.")
-        super().__init__(contract_resource, **kwargs)
+        super().__init__(contract_resource)
         self._ancestor_maps = None
         self._label_map = None
 
