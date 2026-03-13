@@ -17,7 +17,7 @@ class CrossDataVariable(CrossBaseVariable):
         contract_resource: ContractResource,
         filters: dict[str, Any] | None = None,
     ):
-        """Intialized a data variable with the given contract resource and filters.
+        """Initialized a data variable with the given contract resource and filters.
 
         Args:
             contract_resource: The contract resource associated with this variable.
