@@ -3,7 +3,6 @@
 import pandas as pd
 import pytest
 
-from crosscontract.crossclient import ContractResource
 from crosscontract.registry import CrossBaseVariable
 
 
@@ -13,22 +12,23 @@ class ConcreteVariable(CrossBaseVariable):
     pass
 
 
-test_contract = (
-    {
-        "name": "my_var",
-        "description": "A test contract",
-        "title": "My Variable",
-        "tableschema": {
-            "fields": [{"name": "id"}, {"name": "value"}],
-            "foreignKeys": [
-                {
-                    "fields": ["id"],
-                    "reference": {"resource": "other_resource", "fields": ["other_id"]},
-                }
-            ],
-        },
+test_contract = {
+    "name": "my_var",
+    "description": "A test contract",
+    "title": "My Variable",
+    "tableschema": {
+        "fields": [
+            {"name": "id", "type": "string"},
+            {"name": "value", "type": "integer"},
+        ],
+        "foreignKeys": [
+            {
+                "fields": ["id"],
+                "reference": {"resource": "other_resource", "fields": ["other_id"]},
+            }
+        ],
     },
-)
+}
 
 
 @pytest.fixture
@@ -38,7 +38,7 @@ def sample_df() -> pd.DataFrame:
 
 @pytest.fixture
 def base_variable(make_contract_resource, sample_df) -> ConcreteVariable:
-    cr = make_contract_resource(data=sample_df, name="my_var", title="My Variable")
+    cr = make_contract_resource(data=sample_df, contract_dict=test_contract)
     return ConcreteVariable(contract_resource=cr)
 
 
@@ -59,6 +59,12 @@ class TestProperties:
         self, base_variable: ConcreteVariable, make_contract_resource
     ):
         assert base_variable.contract_resource is not None
+
+    def test_foreign_keys(self, base_variable: ConcreteVariable):
+        fk = list(base_variable.foreign_keys)[0]
+        assert fk.fields == ["id"]
+        assert fk.reference.resource == "other_resource"
+        assert fk.reference.fields == ["other_id"]
 
 
 class TestLazyData:
@@ -87,13 +93,11 @@ class TestFromClient:
     def test_from_client(self, make_contract_resource, sample_df):
         from unittest.mock import MagicMock
 
-        cr: ContractResource = make_contract_resource(
-            data=sample_df, name="from_client_var"
-        )
+        cr = make_contract_resource(data=sample_df, contract_dict=test_contract)
         client = MagicMock()
         client.contracts.get.return_value = cr
 
         var = ConcreteVariable.from_client(client, "from_client_var")
 
         client.contracts.get.assert_called_once_with("from_client_var")
-        assert var.name == "from_client_var"
+        assert var.name == "my_var"  # name comes from contract, not from_client arg
