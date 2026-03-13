@@ -18,6 +18,16 @@ from .adapters import (
     convert_schema_to_sqlalchemy,
 )
 from .exceptions import SchemaValidationError
+from .field_descriptors import FieldDescriptors
+from .fields import (
+    BaseField,
+    DateTimeField,
+    IntegerField,
+    ListField,
+    NumberField,
+    StringField,
+)
+from .reference import ForeignKeys, PrimaryKey
 from .schema import TableSchema
 
 __all__ = [
@@ -26,4 +36,13 @@ __all__ = [
     "convert_schema_to_pandera",
     "convert_schema_to_sqlalchemy",
     "SchemaValidationError",
+    "PrimaryKey",
+    "ForeignKeys",
+    "FieldDescriptors",
+    "StringField",
+    "IntegerField",
+    "NumberField",
+    "DateTimeField",
+    "ListField",
+    "BaseField",
 ]

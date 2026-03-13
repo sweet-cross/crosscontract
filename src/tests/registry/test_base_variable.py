@@ -13,6 +13,24 @@ class ConcreteVariable(CrossBaseVariable):
     pass
 
 
+test_contract = (
+    {
+        "name": "my_var",
+        "description": "A test contract",
+        "title": "My Variable",
+        "tableschema": {
+            "fields": [{"name": "id"}, {"name": "value"}],
+            "foreignKeys": [
+                {
+                    "fields": ["id"],
+                    "reference": {"resource": "other_resource", "fields": ["other_id"]},
+                }
+            ],
+        },
+    },
+)
+
+
 @pytest.fixture
 def sample_df() -> pd.DataFrame:
     return pd.DataFrame({"id": ["a", "b"], "value": [1, 2]})
