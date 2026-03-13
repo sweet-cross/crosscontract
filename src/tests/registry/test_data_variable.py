@@ -232,6 +232,35 @@ class TestGetForeignKeyDimension:
         result = simple_variable._get_foreign_key_dimension("category")
         assert result is None
 
+    def test_multiple_fks_for_same_column_raises(self, make_contract_resource):
+        """If a column has multiple foreign key entries, _get_foreign_key_dimension
+        raises."""
+        contract_dict = {
+            "name": "multi_fk",
+            "description": "Multiple FKs on same field",
+            "title": "Multi FK",
+            "tableschema": {
+                "fields": [
+                    {"name": "region", "type": "string"},
+                    {"name": "value", "type": "number"},
+                ],
+                "foreignKeys": [
+                    {
+                        "fields": ["region"],
+                        "reference": {"resource": "dim_region", "fields": ["id"]},
+                    },
+                    {
+                        "fields": ["region"],
+                        "reference": {"resource": "dim_other", "fields": ["id"]},
+                    },
+                ],
+            },
+        }
+        cr = make_contract_resource(data=var_data, contract_dict=contract_dict)
+        var = CrossDataVariable(contract_resource=cr)
+        with pytest.raises(KeyError, match="Multiple foreign keys found"):
+            var._get_foreign_key_dimension("region")
+
 
 class TestRelabelColumnWithTitle:
     def test_relabels_fk_column(self, data_variable_with_dim: CrossDataVariable):
@@ -321,14 +350,23 @@ class TestGetDataWithAggregation:
 
 
 class TestGetDataUseTitles:
-    def test_use_titles_bug_not_reassigned(
+    def test_use_titles_replaces_ids_with_labels(
         self, data_variable_with_dim: CrossDataVariable
     ):
-        """Known issue: _relabel_column_with_title returns a new df but get_data
-        does not reassign df from the return value (line 268). This test documents
-        the current (buggy) behavior — titles are NOT applied."""
         df = data_variable_with_dim.get_data(use_titles=True)
-        # Because of the bug, region still contains IDs, not labels
+        assert set(df["region"]) == {"Leaf 1", "Leaf 2", "Leaf 3"}
+
+    def test_use_titles_does_not_affect_non_fk_columns(
+        self, data_variable_with_dim: CrossDataVariable
+    ):
+        df = data_variable_with_dim.get_data(use_titles=True)
+        assert set(df["year"]) == {"2024", "2025"}
+
+    def test_use_titles_does_not_mutate_cache(
+        self, data_variable_with_dim: CrossDataVariable
+    ):
+        _ = data_variable_with_dim.get_data(use_titles=True)
+        df = data_variable_with_dim.get_data(use_titles=False)
         assert set(df["region"]) == {"leaf_1", "leaf_2", "leaf_3"}
 
 
