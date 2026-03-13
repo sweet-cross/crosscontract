@@ -74,7 +74,6 @@ class CrossRegistry:
         name: str,
         filters: dict[str, Any] | None = None,
         overwrite: bool = False,
-        **kwargs,
     ):
         """Add a variable to the registry by fetching it from the CROSS platform.
 
@@ -87,7 +86,6 @@ class CrossRegistry:
             overwrite (bool): Whether to overwrite an existing variable with the
                 same name.
                 Defaults to False.
-            kwargs: Additional keyword arguments to pass to the variable constructor.
         """
         if name in self._variables:
             if isinstance(self._variables[name], CrossDimension):
@@ -102,15 +100,13 @@ class CrossRegistry:
 
         # todo: make dimensions identifiable by contract
         if name.startswith("dim_"):
-            self._variables[name] = CrossDimension.from_client(
-                self._client, name, **kwargs
-            )
+            self._variables[name] = CrossDimension.from_client(self._client, name)
             # return as we do not allow dimensions to reference other dimensions
             # TODO: enforce that with dimension contract
             return
         else:
             self._variables[name] = CrossDataVariable.from_client(
-                self._client, name, filters=filters, **kwargs
+                self._client, name, filters=filters
             )
 
         # resolve the foreign key references, fetch the respective contracts, and
@@ -135,7 +131,10 @@ class CrossRegistry:
                         )
                         continue  # skip circular reference
                     self.add_variable(ref_name)
-                self._variables[name].add_dimension(self._variables[ref_name])
+                # if it is a dimension, add it to the variable,
+                # otherwise skip (we only support dimensions as FK targets for now)
+                if isinstance(self._variables[ref_name], CrossDimension):
+                    self._variables[name].add_dimension(self._variables[ref_name])
         finally:
             self._loading.remove(name)
 

@@ -249,31 +249,44 @@ class TestAddVariable:
     def test_self_referencing_fk_skipped(self, registry: CrossRegistry, mock_client):
         """A contract with a self-referencing FK (resource=None) should not
         trigger recursive loading."""
-        self_ref_contract = {
-            "name": "hierarchical",
-            "description": "Self-referencing",
-            "title": "Hierarchical",
-            "tableschema": {
-                "fields": [
-                    {"name": "id", "type": "string"},
-                    {"name": "parent_id", "type": "string"},
-                    {"name": "value", "type": "number"},
-                ],
-                "foreignKeys": [
-                    {
-                        "fields": ["parent_id"],
-                        "reference": {"resource": None, "fields": ["id"]},
-                    }
-                ],
+        from copy import deepcopy
+
+        catalog = deepcopy(_contract_catalog)
+        catalog["hierarchical"] = (
+            {
+                "name": "hierarchical",
+                "description": "Self-referencing",
+                "title": "Hierarchical",
+                "tableschema": {
+                    "fields": [
+                        {"name": "id", "type": "string"},
+                        {"name": "parent_id", "type": "string"},
+                        {"name": "value", "type": "number"},
+                    ],
+                    "foreignKeys": [
+                        {
+                            "fields": ["parent_id"],
+                            "reference": {"resource": None, "fields": ["id"]},
+                        }
+                    ],
+                },
             },
-        }
-        self_ref_data = pd.DataFrame(
-            {"id": ["a", "b"], "parent_id": [None, "a"], "value": [1.0, 2.0]}
+            pd.DataFrame(
+                {"id": ["a", "b"], "parent_id": [None, "a"], "value": [1.0, 2.0]}
+            ),
         )
-        _contract_catalog["hierarchical"] = (self_ref_contract, self_ref_data)
+
+        def _lookup(name):
+            contract_dict, df = catalog[name]
+            contract = CrossContract.model_validate(contract_dict)
+            cr = MagicMock()
+            cr.contract = contract
+            cr.get_data.return_value = df.copy()
+            return cr
+
+        mock_client.contracts.get.side_effect = _lookup
 
         registry.add_variable("hierarchical")
-        # should load without recursion error, and no dimensions added
         var = registry._variables["hierarchical"]
         assert var.dimensions == {}
 
@@ -315,6 +328,59 @@ class TestAddVariable:
         assert len(w) == 1
         assert "Circular foreign key reference" in str(w[0].message)
         assert "var_b" in str(w[0].message)
+
+    def test_non_dimension_fk_target_not_added_as_dimension(
+        self, make_contract_resource
+    ):
+        """FK targets that are not CrossDimension instances are loaded but not
+        added as dimensions on the referencing variable."""
+        contract_a = {
+            "name": "var_a",
+            "description": "References a non-dimension",
+            "title": "A",
+            "tableschema": {
+                "fields": [
+                    {"name": "ref_id", "type": "string"},
+                    {"name": "value", "type": "number"},
+                ],
+                "foreignKeys": [
+                    {
+                        "fields": ["ref_id"],
+                        "reference": {"resource": "var_b", "fields": ["ref_id"]},
+                    }
+                ],
+            },
+        }
+        contract_b = {
+            "name": "var_b",
+            "description": "A plain data variable, not a dimension",
+            "title": "B",
+            "tableschema": {
+                "fields": [
+                    {"name": "ref_id", "type": "string"},
+                    {"name": "score", "type": "number"},
+                ],
+            },
+        }
+
+        df_a = pd.DataFrame({"ref_id": ["x"], "value": [1]})
+        df_b = pd.DataFrame({"ref_id": ["x"], "score": [99]})
+        cr_a = make_contract_resource(data=df_a, contract_dict=contract_a)
+        cr_b = make_contract_resource(data=df_b, contract_dict=contract_b)
+
+        client = MagicMock()
+        client.contracts.get.side_effect = lambda name: (
+            cr_a if name == "var_a" else cr_b
+        )
+
+        reg = CrossRegistry(client=client)
+        reg.add_variable("var_a")
+
+        # var_b was loaded into the registry
+        assert "var_b" in reg._variables
+        assert isinstance(reg._variables["var_b"], CrossDataVariable)
+        # but NOT added as a dimension on var_a
+        assert reg._variables["var_a"].dimensions == {}
 
 
 class TestGetVariable:

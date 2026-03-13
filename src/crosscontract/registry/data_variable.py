@@ -17,6 +17,13 @@ class CrossDataVariable(CrossBaseVariable):
         contract_resource: ContractResource,
         filters: dict[str, Any] | None = None,
     ):
+        """Intialized a data variable with the given contract resource and filters.
+
+        Args:
+            contract_resource: The contract resource associated with this variable.
+            filters: Additional filters to apply when fetching data (optional).
+        """
+
         super().__init__(contract_resource=contract_resource)
         self._filters = filters
         # a dictionary with the references for each dimension, keyed by dimension name
@@ -64,8 +71,7 @@ class CrossDataVariable(CrossBaseVariable):
             pd.DataFrame: A DataFrame containing the results for the specified contract.
         """
         filters = self._filters
-        columns = [f for f in self.field_names if f not in filters] if filters else None
-        df = self.contract_resource.get_data(columns=columns, filters=filters)
+        df = self.contract_resource.get_data(filters=filters)
         return df
 
     @staticmethod
@@ -122,7 +128,8 @@ class CrossDataVariable(CrossBaseVariable):
             raise KeyError(
                 f"Multiple foreign keys found for column '{dimension_col}' "
                 f"in variable '{self.name}'. "
-                f"Aggregation only allowed for multiple columns"
+                "Aggregation only allowed with a single foreign key reference. "
+                f"Found foreign keys: {fk_lst}"
             )
         fk = fk_lst[0]
         dimension = self._dimensions.get(fk.reference.resource)

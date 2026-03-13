@@ -152,9 +152,7 @@ class TestFetchData:
         # trigger lazy load
         _ = var.data
         # get_data should have been called with columns excluding "year" and the filter
-        cr.get_data.assert_called_once_with(
-            columns=["region", "value"], filters={"year": "2024"}
-        )
+        cr.get_data.assert_called_once_with(filters={"year": "2024"})
 
 
 class TestGetFilterMask:
