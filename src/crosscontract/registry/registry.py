@@ -17,7 +17,7 @@ class CrossRegistry:
         password: str | None = None,
         client: CrossClient | None = None,
     ):
-        """Initialize the DataRegistry with either a CrossClient instance or
+        """Initialize the CrossRegistry with either a CrossClient instance or
         username/password.
 
         Args:
