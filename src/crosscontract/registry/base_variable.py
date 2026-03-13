@@ -65,8 +65,8 @@ class CrossBaseVariable(ABC):  # noqa: B024
 
     @property
     def foreign_keys(self) -> ForeignKeys:
-        """A dictionary mapping field names to their corresponding foreign key
-        references."""
+        """Foreign key definitions for this variable as provided by the contract's
+        table schema (`ForeignKeys`)."""
         return self._contract_resource.contract.tableschema.foreignKeys
 
     @property
