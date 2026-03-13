@@ -52,7 +52,7 @@ class CrossDataVariable(CrossBaseVariable):
     @property
     def dimensions(self) -> dict[str, CrossDimension]:
         """Get the dimensions associated with this variable."""
-        return self._dimensions
+        return self._dimensions.copy()
 
     def add_dimension(self, item: CrossDimension):
         """Add a dimension variable to the registry."""

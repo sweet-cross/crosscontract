@@ -77,9 +77,9 @@ class CrossBaseVariable(ABC):  # noqa: B024
         return self._data.copy()
 
     @property
-    def fields(self) -> list[BaseField]:
+    def fields(self) -> tuple[BaseField, ...]:
         """Return the list of fields/columns in the data."""
-        return self.contract_resource.contract.tableschema.fields
+        return tuple(self.contract_resource.contract.tableschema.fields)
 
     @property
     def field_names(self) -> list[str]:
