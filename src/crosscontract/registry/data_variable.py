@@ -265,5 +265,5 @@ class CrossDataVariable(CrossBaseVariable):
             )
         if use_titles:
             for c in df.columns:
-                self._relabel_column_with_title(df, c)
+                df = self._relabel_column_with_title(df, c)
         return df.copy()
