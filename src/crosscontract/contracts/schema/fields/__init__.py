@@ -4,6 +4,7 @@
     pattern, etc.
 """
 
+from .base import BaseField
 from .datetime_field import DateTimeField
 from .list_field import ListField
 from .numeric_field import IntegerField, NumberField
@@ -15,4 +16,5 @@ __all__ = [
     "StringField",
     "DateTimeField",
     "ListField",
+    "BaseField",
 ]

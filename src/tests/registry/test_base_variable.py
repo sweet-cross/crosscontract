@@ -1,0 +1,110 @@
+# test_base_variable.py
+
+import pandas as pd
+import pytest
+
+from crosscontract.registry import CrossBaseVariable
+
+
+class ConcreteVariable(CrossBaseVariable):
+    """Minimal concrete subclass for testing the ABC."""
+
+    pass
+
+
+test_contract = {
+    "name": "my_var",
+    "description": "A test contract",
+    "title": "My Variable",
+    "tableschema": {
+        "fields": [
+            {"name": "id", "type": "string"},
+            {"name": "value", "type": "integer"},
+        ],
+        "foreignKeys": [
+            {
+                "fields": ["id"],
+                "reference": {"resource": "other_resource", "fields": ["other_id"]},
+            }
+        ],
+    },
+}
+
+
+@pytest.fixture
+def sample_df() -> pd.DataFrame:
+    return pd.DataFrame({"id": ["a", "b"], "value": [1, 2]})
+
+
+@pytest.fixture
+def base_variable(make_contract_resource, sample_df) -> ConcreteVariable:
+    cr = make_contract_resource(data=sample_df, contract_dict=test_contract)
+    return ConcreteVariable(contract_resource=cr)
+
+
+class TestProperties:
+    def test_name(self, base_variable: ConcreteVariable):
+        assert base_variable.name == "my_var"
+
+    def test_title(self, base_variable: ConcreteVariable):
+        assert base_variable.title == "My Variable"
+
+    def test_description(self, base_variable: ConcreteVariable):
+        assert base_variable.description == "A test contract"
+
+    def test_field_names(self, base_variable: ConcreteVariable):
+        assert base_variable.field_names == ["id", "value"]
+
+    def test_contract_resource_accessible(
+        self, base_variable: ConcreteVariable, make_contract_resource
+    ):
+        assert base_variable.contract_resource is not None
+
+    def test_foreign_keys(self, base_variable: ConcreteVariable):
+        fk = list(base_variable.foreign_keys)[0]
+        assert fk.fields == ["id"]
+        assert fk.reference.resource == "other_resource"
+        assert fk.reference.fields == ["other_id"]
+
+
+class TestLazyData:
+    def test_data_not_fetched_on_init(self, base_variable: ConcreteVariable):
+        base_variable.contract_resource.get_data.assert_not_called()
+
+    def test_data_fetched_on_first_access(
+        self, base_variable: ConcreteVariable, sample_df: pd.DataFrame
+    ):
+        result = base_variable.data
+        base_variable.contract_resource.get_data.assert_called_once()
+        pd.testing.assert_frame_equal(result, sample_df)
+
+    def test_data_cached_on_second_access(self, base_variable: ConcreteVariable):
+        _ = base_variable.data
+        _ = base_variable.data
+        base_variable.contract_resource.get_data.assert_called_once()
+
+    def test_data_returns_copy(self, base_variable: ConcreteVariable):
+        df1 = base_variable.data
+        df2 = base_variable.data
+        assert df1 is not df2
+
+    def test_clear_data_cache(self, base_variable: ConcreteVariable):
+        _ = base_variable.data
+        base_variable.clear_data_cache()
+        assert base_variable._data is None
+        _ = base_variable.data
+        assert base_variable.contract_resource.get_data.call_count == 2
+
+
+class TestFromClient:
+    def test_from_client(self, make_contract_resource, sample_df):
+        from unittest.mock import MagicMock
+
+        cr = make_contract_resource(data=sample_df, contract_dict=test_contract)
+        client = MagicMock()
+        client.contracts.get.return_value = cr
+
+        var = ConcreteVariable.from_client(client, "from_client_var")
+
+        client.contracts.get.assert_called_once_with("from_client_var")
+        assert var.name == "my_var"  # name comes from contract, not from_client arg
