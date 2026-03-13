@@ -88,6 +88,13 @@ class TestLazyData:
         df2 = base_variable.data
         assert df1 is not df2
 
+    def test_clear_data_cache(self, base_variable: ConcreteVariable):
+        _ = base_variable.data
+        base_variable.clear_data_cache()
+        assert base_variable._data is None
+        _ = base_variable.data
+        assert base_variable.contract_resource.get_data.call_count == 2
+
 
 class TestFromClient:
     def test_from_client(self, make_contract_resource, sample_df):

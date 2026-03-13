@@ -1,3 +1,5 @@
+import numpy as np
+
 from crosscontract.crossclient.services import ContractResource
 
 from .base_variable import CrossBaseVariable
@@ -33,7 +35,8 @@ class CrossDimension(CrossBaseVariable):
         """
         if self._ancestor_maps is None:
             self._ancestor_maps = self._build_ancestor_maps()
-        return self._ancestor_maps
+        # return copy
+        return {level: mapping.copy() for level, mapping in self._ancestor_maps.items()}
 
     @property
     def label_map(self) -> dict[str, str]:
@@ -46,7 +49,12 @@ class CrossDimension(CrossBaseVariable):
             self._label_map = dict(
                 zip(self.data["id"], self.data["label"], strict=True)
             )
-        return self._label_map
+        return self._label_map.copy()
+
+    def clear_data_cache(self):
+        super().clear_data_cache()
+        self._ancestor_maps = None
+        self._label_map = None
 
     def _build_ancestor_maps(self) -> dict[int, dict[str, str]]:
         """Precompute ancestor mappings for all aggregation levels.
@@ -57,16 +65,28 @@ class CrossDimension(CrossBaseVariable):
                 IDs at that level.
         """
         dim = self.data.set_index("id")
-        max_level = dim["level"].max()
+        max_level = int(dim["level"].max())
 
-        # maps[agg_level] = {id: ancestor_at_that_level}
+        ids = dim.index.values
+        levels = dim["level"].values
+        parents = dim["id_parent"].values
+
+        # Map each id to a positional index for fast numpy lookups
+        id_to_pos = {id_val: pos for pos, id_val in enumerate(ids)}
+        parent_pos = np.array([id_to_pos.get(p, i) for i, p in enumerate(parents)])
+
         ancestor_maps = {}
         for agg_level in range(max_level):
-            mapping = {}
-            for rid, _ in dim.iterrows():
-                current = rid
-                while dim.at[current, "level"] > agg_level:
-                    current = dim.at[current, "id_parent"]
-                mapping[rid] = current
-            ancestor_maps[agg_level] = mapping
+            # Start with each node as its own ancestor (by position)
+            anc = np.arange(len(ids))
+
+            # Walk one level at a time, low → high.
+            # Nodes at level <= agg_level keep themselves.
+            # At each higher level, inherit the (already-resolved) parent's ancestor.
+            for lvl in range(agg_level + 1, max_level + 1):
+                mask = levels == lvl
+                anc[mask] = anc[parent_pos[mask]]
+
+            ancestor_maps[agg_level] = dict(zip(ids, ids[anc], strict=True))
+
         return ancestor_maps

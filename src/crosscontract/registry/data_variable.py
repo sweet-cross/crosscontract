@@ -16,9 +16,8 @@ class CrossDataVariable(CrossBaseVariable):
         self,
         contract_resource: ContractResource,
         filters: dict[str, Any] | None = None,
-        **kwargs,
     ):
-        super().__init__(contract_resource=contract_resource, **kwargs)
+        super().__init__(contract_resource=contract_resource)
         self._filters = filters
         # a dictionary with the references for each dimension, keyed by dimension name
         self._dimensions: dict[str, CrossDimension] = {}
@@ -29,7 +28,6 @@ class CrossDataVariable(CrossBaseVariable):
         client: CrossClient,
         contract_name: str,
         filters: dict[str, Any] | None = None,
-        **kwargs,
     ) -> Self:
         """Build from a contract fetched via the client.
 
@@ -40,11 +38,9 @@ class CrossDataVariable(CrossBaseVariable):
             client: An instance of CrossClient to fetch contract details.
             contract_name: The name of the contract to fetch.
             filters: Additional filters to apply when fetching data (optional).
-
-            kwargs: Additional keyword arguments to pass to the constructor.
         """
         cr = client.contracts.get(contract_name)
-        return cls(contract_resource=cr, filters=filters, **kwargs)
+        return cls(contract_resource=cr, filters=filters)
 
     @property
     def dimensions(self) -> dict[str, CrossDimension]:
@@ -73,16 +69,18 @@ class CrossDataVariable(CrossBaseVariable):
         return df
 
     @staticmethod
-    def _get_filter_mask(
-        df: pd.DataFrame, **filters: dict[str, list[Any]]
-    ) -> pd.Series:
+    def _get_filter_mask(df: pd.DataFrame, **filters: list[Any] | None) -> pd.Series:
         """Construct a boolean mask for filtering the DataFrame based on the
         provided filters.
 
         Args:
             df (pd.DataFrame): The DataFrame to filter.
-            filters (dict[str, list[Any]]): A dictionary where keys are column names
-                and values are lists of allowed values.
+            **filters (list[Any]] | None): Keyword arguments with column name as the
+                argument name and a list of allowed values for that column as the value.
+                For example, `year=[2020, 2021]` will filter the DataFrame to include
+                only rows where the 'year' column has values 2020 or 2021. If a filter
+                value is None, it will be ignored (i.e., no filtering will be applied
+                for that column).
 
         Returns:
             pd.Series: A boolean Series that can be used to filter the DataFrame.
@@ -249,12 +247,10 @@ class CrossDataVariable(CrossBaseVariable):
                 (e.g., "sum", "mean").
                 Defaults to "sum".
         """
-        df = self.data
+        df = self.data  # is already copy
         if filters:
             mask = self._get_filter_mask(df, **filters)
             df = df[mask]
-        if columns is not None:
-            df = df[columns]
         for dim, agg_level in (aggregation or {}).items():
             df = self._aggregate_by_dimension(
                 df,
@@ -266,4 +262,6 @@ class CrossDataVariable(CrossBaseVariable):
         if use_titles:
             for c in df.columns:
                 df = self._relabel_column_with_title(df, c)
-        return df.copy()
+        if columns is not None:
+            df = df[columns]
+        return df

@@ -39,7 +39,6 @@ class CrossBaseVariable(ABC):  # noqa: B024
         Args:
             client: An instance of CrossClient to fetch contract details.
             contract_name: The name of the contract to fetch.
-            kwargs: Additional keyword arguments to pass to the constructor.
         """
         cr = client.contracts.get(contract_name)
         return cls(contract_resource=cr)
@@ -86,6 +85,10 @@ class CrossBaseVariable(ABC):  # noqa: B024
     def field_names(self) -> list[str]:
         """Return the list of field/column names in the data."""
         return [field.name for field in self.fields]
+
+    def clear_data_cache(self):
+        """Clear the cached data, forcing a refetch on next access."""
+        self._data = None
 
     def _fetch_data(self) -> pd.DataFrame:
         """Fetch the data for this variable from the CROSS platform. The data

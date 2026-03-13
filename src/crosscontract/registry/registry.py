@@ -37,7 +37,7 @@ class CrossRegistry:
         self._client = client
         self._variables: dict[str, CrossBaseVariable] = {}
 
-    def __getattr__(self, name: str) -> CrossDataVariable:
+    def __getattr__(self, name: str) -> CrossDataVariable | CrossDimension:
         """Magic method to allow dot notation access with lazy loading."""
         # 1. Prevent IDEs and Python internals from triggering API calls!
         if name.startswith("_"):
@@ -53,7 +53,7 @@ class CrossRegistry:
             # internal hasattr() functions still work correctly.
             raise AttributeError(str(e)) from e
 
-    def __getitem__(self, name: str) -> CrossDataVariable:
+    def __getitem__(self, name: str) -> CrossDataVariable | CrossDimension:
         """
         Magic method to allow dictionary-style access.
         Usage: registry["my_variable_name"]
@@ -122,7 +122,7 @@ class CrossRegistry:
                 self.add_variable(ref_name)
             self._variables[name].add_dimension(self._variables[ref_name])
 
-    def get_variable(self, name: str) -> CrossDataVariable:
+    def get_variable(self, name: str) -> CrossDataVariable | CrossDimension:
         """Explicit getter method for retrieving a variable (with lazy loading)."""
         if name not in self._variables:
             try:

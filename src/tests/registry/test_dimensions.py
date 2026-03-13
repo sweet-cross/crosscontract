@@ -76,7 +76,8 @@ class TestLabelMap:
     def test_label_map_cached(self, dimension: CrossDimension):
         map1 = dimension.label_map
         map2 = dimension.label_map
-        assert map1 is map2
+        assert map1 == map2
+        assert map1 is not map2  # copies returned
 
 
 class TestAncestorMaps:
@@ -103,7 +104,8 @@ class TestAncestorMaps:
     def test_ancestor_maps_cached(self, dimension: CrossDimension):
         maps1 = dimension.ancestor_maps
         maps2 = dimension.ancestor_maps
-        assert maps1 is maps2
+        assert maps1 == maps2
+        assert maps1 is not maps2  # copies returned
 
 
 class TestFlatDimension:
@@ -146,3 +148,27 @@ class TestFlatDimension:
         )
         dim = CrossDimension(contract_resource=cr)
         assert dim.label_map == {"a": "A", "b": "B", "c": "C"}
+
+
+class TestDataCaching:
+    def test_data_cached(self, dimension: CrossDimension):
+        df1 = dimension.data
+        df2 = dimension.data
+        assert df1.equals(df2)
+        assert df1 is not df2  # copies returned
+
+    def test_data_cache_independent(self, dimension: CrossDimension):
+        df1 = dimension.data
+        # Modifying the returned DataFrame should not affect the cached version
+        df1["new_col"] = "test"
+        df2 = dimension.data
+        assert "new_col" not in df2.columns
+
+    def test_clear_data_cache(self, dimension: CrossDimension):
+        _ = dimension.data
+        dimension.clear_data_cache()
+        assert dimension._data is None
+        assert dimension._ancestor_maps is None
+        assert dimension._label_map is None
+        _ = dimension.data
+        assert dimension.contract_resource.get_data.call_count == 2
