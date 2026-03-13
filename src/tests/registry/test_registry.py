@@ -1,5 +1,5 @@
 # test_registry.py
-
+import warnings
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -185,6 +185,67 @@ class TestAddVariable:
         calls = [c.args[0] for c in mock_client.contracts.get.call_args_list]
         assert "dim_region" not in calls
 
+    def test_circular_foreign_key_skipped(self, make_contract_resource):
+        """Circular FK references are silently skipped by the loading guard."""
+        from unittest.mock import MagicMock
+
+        contract_a = {
+            "name": "var_a",
+            "description": "Variable A",
+            "title": "A",
+            "tableschema": {
+                "fields": [
+                    {"name": "region", "type": "string"},
+                    {"name": "value", "type": "number"},
+                ],
+                "foreignKeys": [
+                    {
+                        "fields": ["region"],
+                        "reference": {"resource": "var_b", "fields": ["region"]},
+                    }
+                ],
+            },
+        }
+
+        contract_b = {
+            "name": "var_b",
+            "description": "Variable B",
+            "title": "B",
+            "tableschema": {
+                "fields": [
+                    {"name": "region", "type": "string"},
+                    {"name": "value", "type": "number"},
+                ],
+                "foreignKeys": [
+                    {
+                        "fields": ["region"],
+                        "reference": {"resource": "var_a", "fields": ["region"]},
+                    }
+                ],
+            },
+        }
+
+        df = pd.DataFrame({"region": ["r1"], "value": [1]})
+        cr_a = make_contract_resource(data=df, contract_dict=contract_a)
+        cr_b = make_contract_resource(data=df, contract_dict=contract_b)
+
+        client = MagicMock()
+        client.contracts.get.side_effect = lambda name: (
+            cr_a if name == "var_a" else cr_b
+        )
+
+        reg = CrossRegistry(client=client)
+
+        # Should not raise RecursionError
+        reg.add_variable("var_a")
+
+        # Both variables loaded
+        assert "var_a" in reg._variables
+        assert "var_b" in reg._variables
+
+        # Loading sentinel is clean after completion
+        assert reg._loading == set()
+
     def test_self_referencing_fk_skipped(self, registry: CrossRegistry, mock_client):
         """A contract with a self-referencing FK (resource=None) should not
         trigger recursive loading."""
@@ -215,6 +276,45 @@ class TestAddVariable:
         # should load without recursion error, and no dimensions added
         var = registry._variables["hierarchical"]
         assert var.dimensions == {}
+
+    def test_circular_fk_warns(self, make_contract_resource):
+        """Circular FK emits a warning when the loading guard triggers."""
+
+        client = MagicMock()
+        reg = CrossRegistry(client=client)
+
+        # Simulate the condition: ref_name is in _loading but not in _variables
+        reg._loading.add("var_b")
+
+        contract_a = {
+            "name": "var_a",
+            "description": "A",
+            "title": "A",
+            "tableschema": {
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {"name": "value", "type": "number"},
+                ],
+                "foreignKeys": [
+                    {
+                        "fields": ["id"],
+                        "reference": {"resource": "var_b", "fields": ["id"]},
+                    }
+                ],
+            },
+        }
+
+        df = pd.DataFrame({"id": ["x"], "value": [1]})
+        cr_a = make_contract_resource(data=df, contract_dict=contract_a)
+        client.contracts.get.return_value = cr_a
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            reg.add_variable("var_a")
+
+        assert len(w) == 1
+        assert "Circular foreign key reference" in str(w[0].message)
+        assert "var_b" in str(w[0].message)
 
 
 class TestGetVariable:

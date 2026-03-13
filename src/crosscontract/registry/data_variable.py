@@ -75,7 +75,7 @@ class CrossDataVariable(CrossBaseVariable):
 
         Args:
             df (pd.DataFrame): The DataFrame to filter.
-            **filters (list[Any]] | None): Keyword arguments with column name as the
+            **filters (list[Any] | None): Keyword arguments with column name as the
                 argument name and a list of allowed values for that column as the value.
                 For example, `year=[2020, 2021]` will filter the DataFrame to include
                 only rows where the 'year' column has values 2020 or 2021. If a filter
@@ -260,7 +260,10 @@ class CrossDataVariable(CrossBaseVariable):
                 agg_func=agg_func,
             )
         if use_titles:
-            for c in df.columns:
+            cols = [
+                c for c in df.columns if self._get_foreign_key_dimension(c) is not None
+            ]
+            for c in cols:
                 df = self._relabel_column_with_title(df, c)
         if columns is not None:
             df = df[columns]

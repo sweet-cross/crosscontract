@@ -1,3 +1,4 @@
+import warnings
 from typing import Any
 
 from crosscontract import CrossClient
@@ -36,6 +37,7 @@ class CrossRegistry:
 
         self._client = client
         self._variables: dict[str, CrossBaseVariable] = {}
+        self._loading: set[str] = set()
 
     def __getattr__(self, name: str) -> CrossDataVariable | CrossDimension:
         """Magic method to allow dot notation access with lazy loading."""
@@ -103,7 +105,7 @@ class CrossRegistry:
             self._variables[name] = CrossDimension.from_client(
                 self._client, name, **kwargs
             )
-            # return as we do now allow dimensions to references other dimensions
+            # return as we do not allow dimensions to reference other dimensions
             # TODO: enforce that with dimension contract
             return
         else:
@@ -113,14 +115,29 @@ class CrossRegistry:
 
         # resolve the foreign key references, fetch the respective contracts, and
         # hydrate them into the variable
-        fks = self._variables[name].foreign_keys or []
-        for fk in fks:
-            ref_name = fk.reference.resource
-            if ref_name is None:
-                continue  # skip self-reference
-            if ref_name not in self._variables:
-                self.add_variable(ref_name)
-            self._variables[name].add_dimension(self._variables[ref_name])
+        # NOTE: circular foreign key references are assumed to be prevented
+        # upstream by the CROSS platform upon contract injection.
+        # The guard below is a defensive measure only.
+        self._loading.add(name)
+        try:
+            fks = self._variables[name].foreign_keys or []
+            for fk in fks:
+                ref_name = fk.reference.resource
+                if ref_name is None:
+                    continue  # skip self-reference
+                if ref_name not in self._variables:
+                    if ref_name in self._loading:
+                        warnings.warn(
+                            f"Circular foreign key reference detected: "
+                            f"'{ref_name}' is already being loaded while "
+                            f"resolving '{name}'. Skipping.",
+                            stacklevel=2,
+                        )
+                        continue  # skip circular reference
+                    self.add_variable(ref_name)
+                self._variables[name].add_dimension(self._variables[ref_name])
+        finally:
+            self._loading.remove(name)
 
     def get_variable(self, name: str) -> CrossDataVariable | CrossDimension:
         """Explicit getter method for retrieving a variable (with lazy loading)."""

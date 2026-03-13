@@ -11,7 +11,7 @@ from crosscontract.crossclient.services import ContractResource
 
 class CrossBaseVariable(ABC):  # noqa: B024
     """Abstract base for variables obtained from the CROSS data platform.
-    This class provides common functionality for fetching data and and the basic
+    This class provides common functionality for fetching data and the basic
     properties and dunder methods.
 
     Args:
