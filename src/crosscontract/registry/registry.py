@@ -114,8 +114,9 @@ class CrossRegistry:
 
         # todo: make dimensions identifiable by contract
         if name.startswith("dim_"):
-            self._variables[name] = CrossDimension.from_client(self._client, name)
-            return
+            dimension = CrossDimension.from_client(self._client, name)
+            self._variables[name] = dimension
+            return dimension
         else:
             self._variables[name] = CrossDataVariable.from_client(
                 self._client, name, filters=filters
