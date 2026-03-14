@@ -65,6 +65,9 @@ nav:
       - Tutorial: notebooks/contract_tutorial.ipynb
       - Metadata: contracts/metadata.md
       - Schema: contracts/schema.md
+  - CrossRegistry:
+      - Overview: registry/index.md
+      - Tutorial: notebooks/registry_tutorial.ipynb
   - CrossClient:
       - Overview: client/index.md
       - Tutorial: notebooks/client_tutorial.ipynb

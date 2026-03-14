@@ -49,6 +49,9 @@ class CrossDataVariable(CrossBaseVariable):
         cr = client.contracts.get(contract_name)
         return cls(contract_resource=cr, filters=filters)
 
+    def __repr__(self) -> str:
+        return f"CrossDataVariable(name={self.name}, filters={self._filters})"
+
     @property
     def dimensions(self) -> dict[str, CrossDimension]:
         """Get the dimensions associated with this variable."""
