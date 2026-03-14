@@ -137,6 +137,28 @@ class TestInit:
             mock_cls.assert_called_once_with(username="user", password="pass")
             assert reg._client is mock_cls.return_value
 
+    def test_contract_overview_filters_and_returns_expected_columns(self):
+        # Arrange
+        mock_client = MagicMock()
+        mock_client.contracts.overview.return_value = pd.DataFrame(
+            {
+                "name": ["price", "dim_region", "volume"],
+                "title": ["Price", "Region Dimension", "Volume"],
+                "description": ["Price desc", "Region desc", "Volume desc"],
+                "extra_col": ["x", "y", "z"],
+            }
+        )
+
+        registry = CrossRegistry(client=mock_client)
+
+        # Act
+        result = registry.contract_overview
+
+        # Assert
+        assert list(result.columns) == ["name", "title", "description"]
+        assert "dim_region" not in result["name"].values
+        assert set(result["name"].values) == {"price", "volume"}
+
 
 class TestAddVariable:
     def test_add_data_variable(self, registry: CrossRegistry, mock_client):
@@ -159,7 +181,7 @@ class TestAddVariable:
         assert isinstance(registry._variables["dim_region"], CrossDimension)
         # and hydrated into the data variable
         var = registry._variables["my_data"]
-        assert "dim_region" in var.dimensions
+        assert "region" in var.dimensions
 
     def test_duplicate_raises(self, registry: CrossRegistry):
         registry.add_variable("simple_data")
