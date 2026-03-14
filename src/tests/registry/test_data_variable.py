@@ -126,6 +126,18 @@ class TestInit:
     def test_no_filters_by_default(self, data_variable: CrossDataVariable):
         assert data_variable._filters is None
 
+    def test_repr_includes_name_and_filters(self, data_variable: CrossDataVariable):
+        repr_str = repr(data_variable)
+        assert "my_data" in repr_str
+        assert "filters={'year': '2024'}" not in repr_str
+
+        var_with_filters = CrossDataVariable(
+            contract_resource=data_variable._contract_resource, filters={"year": "2024"}
+        )
+        repr_with_filters = repr(var_with_filters)
+        assert "my_data" in repr_with_filters
+        assert "filters={'year': '2024'}" in repr_with_filters
+
 
 class TestAddDimension:
     def test_add_dimension(self, data_variable: CrossDataVariable, dimension):
