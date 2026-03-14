@@ -26,7 +26,8 @@ class CrossDataVariable(CrossBaseVariable):
 
         super().__init__(contract_resource=contract_resource)
         self._filters = filters
-        # a dictionary with the references for each dimension, keyed by dimension name
+        # a dictionary with the references for each dimension, keyed by the name
+        # of the column referring to the dimension (i.e. the foreign key column name)
         self._dimensions: dict[str, CrossDimension] = {}
 
     @classmethod
@@ -54,16 +55,44 @@ class CrossDataVariable(CrossBaseVariable):
 
     @property
     def dimensions(self) -> dict[str, CrossDimension]:
-        """Get the dimensions associated with this variable."""
+        """Get the dimensions associated with this variable. The keys of the returned
+        dictionary are the names of the columns in this variable that refer to
+        dimensions (i.e. the foreign key column names), and the values are the
+        corresponding CrossDimension variables.
+
+        Returns:
+            dict[str, CrossDimension]: A dictionary mapping foreign key column names to
+                CrossDimension variables.
+        """
         return self._dimensions.copy()
 
     def add_dimension(self, item: CrossDimension):
-        """Add a dimension variable to the registry."""
-        if item.name in self._dimensions:
+        """Add a dimension variable to the registry, keyed by the referring
+        foreign key column name(s).
+
+        Args:
+            item (CrossDimension): The CrossDimension variable to add.
+
+        """
+        if item in self._dimensions.values():
+            return
+
+        matching_fks = [
+            fk for fk in self.foreign_keys if fk.reference.resource == item.name
+        ]
+        if not matching_fks:
             raise ValueError(
-                f"Dimension '{item.name}' already exists in the variable's dimensions."
+                f"No foreign key in '{self.name}' references dimension '{item.name}'. "
+                f"Available foreign keys: {self.foreign_keys}"
             )
-        self._dimensions[item.name] = item
+        for fk in matching_fks:
+            if len(fk.fields) != 1:
+                raise ValueError(
+                    f"Foreign key referencing '{item.name}' has multiple fields: "
+                    f"{fk.fields}. Only single-column foreign keys are supported."
+                )
+            # add to dimensions under the name of the referring column
+            self._dimensions[fk.fields[0]] = item
 
     def _fetch_data(self) -> pd.DataFrame:
         """Fetch the data for this variable from the CROSS platform. The data
@@ -108,42 +137,6 @@ class CrossDataVariable(CrossBaseVariable):
                 mask &= df[column].isin(values)
         return mask
 
-    def _get_foreign_key_dimension(self, dimension_col: str) -> CrossDimension | None:
-        """Get the dimension variable corresponding to a foreign key column.
-
-        Args:
-            dimension_col: The name of the column that is a foreign key reference
-                to a dimension.
-
-        Returns:
-            The CrossDimension variable corresponding to the foreign key column.
-            None in case no foreign key reference is found for the specified column.
-
-        Raises:
-            KeyError: If the specified column is not a foreign key or if the referenced
-                dimension variable cannot be found in the registry.
-        """
-        fk_lst = [f for f in self.foreign_keys if f.fields == [dimension_col]]
-        if not fk_lst:
-            return None
-
-        if len(fk_lst) > 1:
-            raise KeyError(
-                f"Multiple foreign keys found for column '{dimension_col}' "
-                f"in variable '{self.name}'. "
-                "Aggregation only allowed with a single foreign key reference. "
-                f"Found foreign keys: {fk_lst}"
-            )
-        fk = fk_lst[0]
-        dimension = self._dimensions.get(fk.reference.resource)
-        if dimension is None:
-            raise KeyError(
-                f"Aggregation Error: Referenced dimension variable "
-                f"'{fk.reference.resource}' not found in registry. "
-                f"Available dimensions: {list(self.dimensions.keys())}"
-            )
-        return dimension
-
     def _relabel_column_with_title(self, df: pd.DataFrame, column: str) -> pd.DataFrame:
         """Replace the ids in the specified column with the corresponding titles
         from the dimension.
@@ -155,7 +148,7 @@ class CrossDataVariable(CrossBaseVariable):
         Returns:
             A DataFrame with the specified column relabeled with titles.
         """
-        dimension = self._get_foreign_key_dimension(column)
+        dimension = self.dimensions.get(column)
         if dimension is None:
             return df
         label_map = dimension.label_map
@@ -187,7 +180,7 @@ class CrossDataVariable(CrossBaseVariable):
         Returns:
             pd.DataFrame: A DataFrame containing the aggregated results.
         """
-        dimension = self._get_foreign_key_dimension(dimension_col)
+        dimension = self.dimensions.get(dimension_col)
         if dimension is None:
             raise KeyError(
                 f"Column '{dimension_col}' is not a foreign key reference to a "
@@ -270,9 +263,7 @@ class CrossDataVariable(CrossBaseVariable):
                 agg_func=agg_func,
             )
         if use_titles:
-            cols = [
-                c for c in df.columns if self._get_foreign_key_dimension(c) is not None
-            ]
+            cols = [c for c in df.columns if self.dimensions.get(c) is not None]
             for c in cols:
                 df = self._relabel_column_with_title(df, c)
         if columns is not None:

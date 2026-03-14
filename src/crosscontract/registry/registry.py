@@ -133,6 +133,10 @@ class CrossRegistry:
                 ref_name = fk.reference.resource
                 if ref_name is None:
                     continue  # skip self-reference
+                # todo: temporary fix for scenario references
+                # fix will be provided upstream with clear dimension definition.
+                if ref_name.startswith("dim_scenario"):
+                    continue
                 if ref_name not in self._variables:
                     if ref_name in self._loading:
                         warnings.warn(

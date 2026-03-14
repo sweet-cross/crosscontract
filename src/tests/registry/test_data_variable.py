@@ -142,15 +142,43 @@ class TestInit:
 class TestAddDimension:
     def test_add_dimension(self, data_variable: CrossDataVariable, dimension):
         data_variable.add_dimension(dimension)
-        assert "dim_region" in data_variable.dimensions
-        assert data_variable.dimensions["dim_region"] is dimension
+        assert "region" in data_variable.dimensions
+        assert data_variable.dimensions["region"] is dimension
 
-    def test_duplicate_dimension_rejected(
+    def test_duplicate_dimension_is_noop(
         self, data_variable: CrossDataVariable, dimension
     ):
         data_variable.add_dimension(dimension)
-        with pytest.raises(ValueError, match="already exists"):
-            data_variable.add_dimension(dimension)
+        data_variable.add_dimension(dimension)
+        assert data_variable.dimensions["region"] is dimension
+
+    def test_no_matching_fk_raises(self, simple_variable, dimension):
+        with pytest.raises(ValueError, match="No foreign key"):
+            simple_variable.add_dimension(dimension)
+
+    def test_multi_field_fk_raises(self, make_contract_resource, dimension):
+        contract = {
+            "name": "multi_fk_data",
+            "description": "Composite FK",
+            "title": "Multi FK",
+            "tableschema": {
+                "fields": [
+                    {"name": "region", "type": "string"},
+                    {"name": "region2", "type": "string"},
+                    {"name": "value", "type": "number"},
+                ],
+                "foreignKeys": [
+                    {
+                        "fields": ["region", "region2"],
+                        "reference": {"resource": "dim_region", "fields": ["id", "id"]},
+                    }
+                ],
+            },
+        }
+        cr = make_contract_resource(data=var_no_fk_data, contract_dict=contract)
+        var = CrossDataVariable(contract_resource=cr)
+        with pytest.raises(ValueError, match="multiple fields"):
+            var.add_dimension(dimension)
 
 
 class TestFetchData:
@@ -221,55 +249,6 @@ class TestGetData:
         _ = data_variable.get_data(filters={"year": ["2024"]})
         df_full = data_variable.get_data()
         assert len(df_full) == 6
-
-
-class TestGetForeignKeyDimension:
-    def test_returns_dimension(self, data_variable_with_dim: CrossDataVariable):
-        dim = data_variable_with_dim._get_foreign_key_dimension("region")
-        assert dim is not None
-        assert dim.name == "dim_region"
-
-    def test_returns_none_for_non_fk(self, data_variable_with_dim: CrossDataVariable):
-        result = data_variable_with_dim._get_foreign_key_dimension("year")
-        assert result is None
-
-    def test_missing_dimension_raises(self, data_variable: CrossDataVariable):
-        """FK exists but dimension not added to the variable."""
-        with pytest.raises(KeyError, match="not found in registry"):
-            data_variable._get_foreign_key_dimension("region")
-
-    def test_no_fk_returns_none(self, simple_variable: CrossDataVariable):
-        result = simple_variable._get_foreign_key_dimension("category")
-        assert result is None
-
-    def test_multiple_fks_for_same_column_raises(self, make_contract_resource):
-        """If a column has multiple foreign key entries, _get_foreign_key_dimension
-        raises."""
-        contract_dict = {
-            "name": "multi_fk",
-            "description": "Multiple FKs on same field",
-            "title": "Multi FK",
-            "tableschema": {
-                "fields": [
-                    {"name": "region", "type": "string"},
-                    {"name": "value", "type": "number"},
-                ],
-                "foreignKeys": [
-                    {
-                        "fields": ["region"],
-                        "reference": {"resource": "dim_region", "fields": ["id"]},
-                    },
-                    {
-                        "fields": ["region"],
-                        "reference": {"resource": "dim_other", "fields": ["id"]},
-                    },
-                ],
-            },
-        }
-        cr = make_contract_resource(data=var_data, contract_dict=contract_dict)
-        var = CrossDataVariable(contract_resource=cr)
-        with pytest.raises(KeyError, match="Multiple foreign keys found"):
-            var._get_foreign_key_dimension("region")
 
 
 class TestRelabelColumnWithTitle:

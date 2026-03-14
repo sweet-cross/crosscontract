@@ -181,7 +181,7 @@ class TestAddVariable:
         assert isinstance(registry._variables["dim_region"], CrossDimension)
         # and hydrated into the data variable
         var = registry._variables["my_data"]
-        assert "dim_region" in var.dimensions
+        assert "region" in var.dimensions
 
     def test_duplicate_raises(self, registry: CrossRegistry):
         registry.add_variable("simple_data")
