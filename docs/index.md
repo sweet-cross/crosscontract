@@ -7,7 +7,7 @@ The package consists of two main components:
 *   [**CrossContract**](contracts/index.md): The core library for defining high-integrity, validation-ready data contracts and schemas using Pydantic and Frictionless standards.
 *   [**CrossRegistry**](registry/index.md): A data registry to conveniently interact with the
 data stored in the CrossPlatform.
-*   [**CrossClient**](client/index.md): An low-level API client to interact seamlessly with the CrossPlatform.
+*   [**CrossClient**](client/index.md): A low-level API client to interact seamlessly with the CrossPlatform.
 
 
 
