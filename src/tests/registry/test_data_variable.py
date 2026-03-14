@@ -180,6 +180,25 @@ class TestAddDimension:
         with pytest.raises(ValueError, match="multiple fields"):
             var.add_dimension(dimension)
 
+    def test_conflicting_dimension_for_same_column_raises(
+        self, make_contract_resource, dimension
+    ):
+        """Two different dimensions both claiming the same FK column should raise."""
+        cr = make_contract_resource(data=var_data, contract_dict=var_contract)
+        var = CrossDataVariable(contract_resource=cr)
+        var.add_dimension(dimension)
+
+        # create a second, different dimension whose name also matches the FK reference
+        other_dim_contract = {**dim_contract, "name": "dim_region"}
+        other_cr = make_contract_resource(
+            data=dim_data, contract_dict=other_dim_contract
+        )
+        other_dimension = CrossDimension(contract_resource=other_cr)
+
+        # bypass the early return (different object, same resource name)
+        with pytest.raises(ValueError, match="Ambiguous foreign key mapping"):
+            var.add_dimension(other_dimension)
+
 
 class TestFetchData:
     def test_fetch_without_filters(self, data_variable: CrossDataVariable):
