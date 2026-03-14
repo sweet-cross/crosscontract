@@ -92,7 +92,16 @@ class CrossDataVariable(CrossBaseVariable):
                     f"{fk.fields}. Only single-column foreign keys are supported."
                 )
             # add to dimensions under the name of the referring column
-            self._dimensions[fk.fields[0]] = item
+            ref_column = fk.fields[0]
+            existing_dimension = self._dimensions.get(ref_column)
+            if existing_dimension is not None and existing_dimension is not item:
+                raise ValueError(
+                    "Ambiguous foreign key mapping for column "
+                    f"'{ref_column}' in '{self.name}': already mapped to "
+                    f"dimension '{existing_dimension.name}', cannot also map to "
+                    f"'{item.name}'."
+                )
+            self._dimensions[ref_column] = item
 
     def _fetch_data(self) -> pd.DataFrame:
         """Fetch the data for this variable from the CROSS platform. The data
