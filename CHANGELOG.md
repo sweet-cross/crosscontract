@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.5.0 (2026-03-14)
+
+### Features
+
+- Registry refinements ([#26](https://github.com/sweet-cross/crosscontract/pull/26),
+  [`0af990f`](https://github.com/sweet-cross/crosscontract/commit/0af990fc65da267ae3fcffa54a64652237a18bfb))
+
+
 ## v0.4.0 (2026-03-13)
 
 ### Features
