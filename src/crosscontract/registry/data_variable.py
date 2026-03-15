@@ -246,7 +246,8 @@ class CrossDataVariable(CrossBaseVariable):
                 "registered dimension foreign key. Available dimensions: "
                 f"{list(self.dimensions.keys())}"
             )
-        return {}  # toDO: implement
+        dim = self.dimensions[col]
+        return dim.get_ancestor_map_by_ids(target_ids)
 
     def _get_aggregation_mapping(
         self,
@@ -326,21 +327,41 @@ class CrossDataVariable(CrossBaseVariable):
                     "registered dimension foreign key. Available dimensions: "
                     f"{list(self.dimensions.keys())}"
                 )
+            # aggregation to single hierarchical level
             if isinstance(spec, int):
                 dim_map = self._get_level_mapping(col, spec)
 
+            # aggregation to specified set of IDs
             elif isinstance(spec, list):
                 dim_map = self._get_ids_mapping(col, spec)
 
+            # aggregation to level with exceptions for sub-categories
             elif isinstance(spec, dict) and spec.keys() & spec_keys:
                 if "keep" in spec and "level" not in spec:
                     raise ValueError(
                         f"Aggregation spec for '{col}' has 'keep' without "
-                        "'level'. 'keep' is only valid together with 'level'."
+                        "'level'. 'keep' is only valid together with 'level'. "
+                        "If you want to specify IDs to aggregate to without using "
+                        " levels, use a list of IDs as the specification instead."
                     )
-                dim_map = self._get_level_mapping(col, spec["level"])
-                for keep_id in spec.get("keep", []):
-                    dim_map[keep_id] = keep_id
+                elif "level" in spec and "keep" not in spec:
+                    # treat as regular level-based aggregation if no exceptions
+                    dim_map = self._get_level_mapping(col, spec["level"])
+                else:
+                    # aggregation to level with exceptions for sub-categories
+                    # combine the level-based mapping with the exceptions specified in
+                    # "keep" and use the id based mapping logic to map to the nearest
+                    # ancestor in the combined set of target IDs
+                    # 1. get the level-based mapping by id
+                    level_map = self._get_level_mapping(col, spec["level"])
+                    # 2. combine the level-based targets with the "keep" exceptions
+                    #    to get the full list of target IDs for id-based aggregation
+                    target_ids = list(
+                        set(level_map.values()) | set(spec.get("keep", []))
+                    )
+                    # 3. call the mapping logic for id-based aggregation with
+                    #    the combined target set
+                    dim_map = self._get_ids_mapping(col, target_ids)
 
             elif isinstance(spec, dict):
                 dim_map = spec
@@ -355,112 +376,90 @@ class CrossDataVariable(CrossBaseVariable):
 
         return mapping
 
-    def _aggregate_by_dimension(
-        self,
-        df: pd.DataFrame,
-        agg_level: int,
-        dimension_col: str,
-        value_col: str = "value",
-        agg_func: str = "sum",
-    ) -> pd.DataFrame:
-        """Aggregate data to a specified dimension level
-
-        Args:
-            df (pd.DataFrame): The DataFrame containing the data to aggregate.
-            agg_level (int): The level of the dimension to aggregate to.
-            dimension_col (str): The name of the dimension column to aggregate by.
-            value_col (str, optional): The name of the column containing the values
-                to aggregate.
-                Defaults to "value".
-            agg_func (str, optional): The aggregation function to use
-                (e.g., "sum", "mean").
-                Defaults to "sum".
-
-        Returns:
-            pd.DataFrame: A DataFrame containing the aggregated results.
-        """
-        dimension = self.dimensions.get(dimension_col)
-        if dimension is None:
-            raise KeyError(
-                f"Column '{dimension_col}' is not a foreign key reference to a "
-                "dimension, or the referenced dimension variable is not available. "
-                "Cannot perform aggregation. Available dimensions: "
-                f"{list(self.dimensions.keys())}"
-            )
-
-        # get the mapping for the specified aggregation level
-        mapping = dimension.ancestor_maps.get(agg_level)
-        if mapping is None:
-            # we have no mapping. likely the dimension is too deep. Thus, nothing
-            # to aggregate, return the df as is
-            return df
-
-        # aggregate the values based on the mapping
-        group_cols = [c for c in df.columns if c != value_col]
-        df_out = (
-            df.assign(
-                **{
-                    dimension_col: df[dimension_col]
-                    .map(mapping)
-                    .fillna(df[dimension_col])
-                }
-            )
-            .groupby(group_cols, as_index=False)[value_col]
-            .agg(agg_func)
-        )
-        return df_out
-
     def get_data(
         self,
         filters: dict[str, list[Any]] | None = None,
         columns: list[str] | None = None,
         use_titles: bool = False,
-        aggregation: dict[str, int] | None = None,
+        aggregation: dict[str, int | list[Any] | dict[Any, Any]] | None = None,
         value_col: str = "value",
         agg_func: str = "sum",
     ) -> pd.DataFrame:
-        """Public method to get the data for this variable. This can be overridden
-        in subclasses to apply additional processing or filtering on top of the
-        raw data fetched from the CROSS platform.
+        """Get the data for this variable, optionally filtered and aggregated.
+
+        This is the main public interface for retrieving data. It applies
+        filtering, aggregation, title relabeling, and column selection in
+        that order. Can be overridden in subclasses to add additional
+        processing.
 
         Args:
-            filters (dict[str, list[Any]], optional): Additional filters to apply
-                to the data. This is a dictionary where keys are column names and
-                values are lists of allowed values for those columns. This filtering
-                is applied on top of any filters that were specified when the
-                variable was created.
-            columns (list[str], optional): A list of columns to include in the
-                returned DataFrame.
-                If None, all columns are included.
-            use_titles (bool, optional): Whether to replace id used in columns
-                referring to dimensions with the respective title from the dimension.
-                Defaults to False.
-            aggregation (dict[str, int], optional): A dictionary specifying how
-                to aggregate the data. The key should be the name of the column/field
-                to be aggregated, and the value should be the aggregation level
-                to use for that column.
-                Note that aggregations are applied sequentially in the order
-                they are specified in the dictionary, and aggregation is only
-                possible for columns that are foreign key references.
-            value_col (str, optional): The name of the column containing the values
-                to aggregate.
-                Defaults to "value".
-            agg_func (str, optional): The aggregation function to use
-                (e.g., "sum", "mean").
-                Defaults to "sum".
+            filters: Additional filters applied on top of any filters
+                specified at variable creation time. Keys are column names,
+                values are lists of allowed values for those columns.
+            columns: Columns to include in the returned DataFrame. If
+                ``None``, all columns are included. Applied last, after
+                all other transformations.
+            use_titles: If ``True``, replace IDs in dimension foreign key
+                columns with the corresponding human-readable labels from
+                the dimension's ``label_map``.
+            aggregation: Per-column aggregation specifications. Keys are
+                dimension foreign key column names. Values control how
+                that dimension is aggregated and accept four forms:
+
+                ``int`` — Aggregate to a hierarchy level::
+
+                    # roll up to level 1 (categories)
+                    var.get_data(aggregation={"region": 1})
+
+                ``list[Any]`` — Aggregate to a target set of IDs. Each
+                node maps to its nearest ancestor in the list::
+
+                    # aggregate to specific nodes
+                    var.get_data(aggregation={"region": ["cat_a", "cat_b"]})
+
+                ``dict`` with ``"level"`` and optional ``"keep"`` — Level-
+                based aggregation with exceptions. Nodes under a kept ID
+                aggregate to that ID instead of rolling up to the level
+                target::
+
+                    # roll up to total, but preserve cat_a breakdown
+                    var.get_data(
+                        aggregation={"region": {"level": 0, "keep": ["cat_a"]}}
+                    )
+
+                ``dict`` without spec keys — Raw mapping passthrough.
+                Keys are original IDs, values are target IDs. Unmapped
+                IDs are kept as-is::
+
+                    var.get_data(
+                        aggregation={"region": {"leaf_1": "x", "leaf_2": "x"}}
+                    )
+
+                Aggregations are applied sequentially in the order they
+                appear in the dictionary.
+            value_col: The column containing numeric values to aggregate.
+            agg_func: The aggregation function (e.g., ``"sum"``,
+                ``"mean"``).
+
+        Returns:
+            A DataFrame with the requested filters, aggregations, title
+            relabeling, and column selection applied.
         """
         df = self.data  # is already copy
         if filters:
             mask = self._get_filter_mask(df, **filters)
             df = df[mask]
-        for dim, agg_level in (aggregation or {}).items():
-            df = self._aggregate_by_dimension(
-                df,
-                agg_level=agg_level,
-                dimension_col=dim,
-                value_col=value_col,
-                agg_func=agg_func,
-            )
+
+        if aggregation is not None:
+            agg_mappings = self._get_aggregation_mapping(aggregation)
+            for col, dim_map in agg_mappings.items():
+                df = self._aggregate(
+                    df,
+                    dimension_col=col,
+                    dimension_map=dim_map,
+                    value_col=value_col,
+                    agg_func=agg_func,
+                )
         if use_titles:
             cols = [c for c in df.columns if self.dimensions.get(c) is not None]
             for c in cols:

@@ -434,74 +434,51 @@ class TestGetAggregationMapping:
         with pytest.raises(TypeError, match="expected int, list, or dict"):
             data_variable_with_dim._get_aggregation_mapping({"region": "invalid"})
 
-
-class TestAggregateByDimension:
-    def test_aggregate_to_level_1(self, data_variable_with_dim: CrossDataVariable):
-        df = data_variable_with_dim.data
-        result = data_variable_with_dim._aggregate_by_dimension(
-            df, agg_level=1, dimension_col="region"
+    def test_keep_preserves_subtree(self, data_variable_with_dim: CrossDataVariable):
+        """Leaves under a kept node should map to that node, not the level target."""
+        result = data_variable_with_dim._get_aggregation_mapping(
+            {"region": {"level": 0, "keep": ["cat_a"]}}
         )
-        # leaf_1 + leaf_2 -> cat_a, leaf_3 -> cat_b, per year
-        row_cat_a_2024 = result[
-            (result["region"] == "cat_a") & (result["year"] == "2024")
-        ]
-        assert row_cat_a_2024["value"].iloc[0] == 30.0  # 10 + 20
+        assert result["region"]["leaf_1"] == "cat_a"
+        assert result["region"]["leaf_2"] == "cat_a"
 
-        row_cat_b_2025 = result[
-            (result["region"] == "cat_b") & (result["year"] == "2025")
-        ]
-        assert row_cat_b_2025["value"].iloc[0] == 300.0
-
-    def test_aggregate_to_level_0(self, data_variable_with_dim: CrossDataVariable):
-        df = data_variable_with_dim.data
-        result = data_variable_with_dim._aggregate_by_dimension(
-            df, agg_level=0, dimension_col="region"
-        )
-        # everything maps to "total"
-        assert (result["region"] == "total").all()
-        row_2024 = result[result["year"] == "2024"]
-        assert row_2024["value"].iloc[0] == 60.0  # 10 + 20 + 30
-
-    def test_aggregate_deep_level_returns_unchanged(
+    def test_keep_does_not_affect_other_subtrees(
         self, data_variable_with_dim: CrossDataVariable
     ):
-        """Aggregation level beyond max returns df as-is."""
-        df = data_variable_with_dim.data
-        result = data_variable_with_dim._aggregate_by_dimension(
-            df, agg_level=99, dimension_col="region"
+        """Nodes outside the kept subtree still roll up to the level target."""
+        result = data_variable_with_dim._get_aggregation_mapping(
+            {"region": {"level": 0, "keep": ["cat_a"]}}
         )
-        pd.testing.assert_frame_equal(result, df)
+        assert result["region"]["leaf_3"] == "total"
+        assert result["region"]["cat_b"] == "total"
+        assert result["region"]["total"] == "total"
 
-    def test_aggregate_non_fk_raises(self, data_variable_with_dim: CrossDataVariable):
-        df = data_variable_with_dim.data
-        with pytest.raises(KeyError, match="not a foreign key reference"):
-            data_variable_with_dim._aggregate_by_dimension(
-                df, agg_level=0, dimension_col="year"
-            )
-
-    def test_aggregate_with_mean(self, data_variable_with_dim: CrossDataVariable):
-        df = data_variable_with_dim.data
-        result = data_variable_with_dim._aggregate_by_dimension(
-            df, agg_level=1, dimension_col="region", agg_func="mean"
+    def test_keep_multiple_ids(self, data_variable_with_dim: CrossDataVariable):
+        """Keeping both categories at level 0 is equivalent to level 1."""
+        result = data_variable_with_dim._get_aggregation_mapping(
+            {"region": {"level": 0, "keep": ["cat_a", "cat_b"]}}
         )
-        row_cat_a_2024 = result[
-            (result["region"] == "cat_a") & (result["year"] == "2024")
-        ]
-        assert row_cat_a_2024["value"].iloc[0] == 15.0  # (10 + 20) / 2
+        by_level = data_variable_with_dim._get_aggregation_mapping({"region": 1})
+        assert result["region"] == by_level["region"]
 
-
-class TestGetDataWithAggregation:
-    def test_aggregation_via_get_data(self, data_variable_with_dim: CrossDataVariable):
-        df = data_variable_with_dim.get_data(aggregation={"region": 1})
-        regions = set(df["region"])
-        assert regions == {"cat_a", "cat_b"}
-
-    def test_filter_then_aggregate(self, data_variable_with_dim: CrossDataVariable):
-        df = data_variable_with_dim.get_data(
-            filters={"year": ["2024"]}, aggregation={"region": 0}
+    def test_keep_leaf_node(self, data_variable_with_dim: CrossDataVariable):
+        """Keeping a leaf at level 0 means that leaf maps to itself."""
+        result = data_variable_with_dim._get_aggregation_mapping(
+            {"region": {"level": 0, "keep": ["leaf_1"]}}
         )
-        assert len(df) == 1
-        assert df["value"].iloc[0] == 60.0
+        assert result["region"]["leaf_1"] == "leaf_1"
+        assert result["region"]["leaf_2"] == "total"
+        assert result["region"]["leaf_3"] == "total"
+
+    def test_keep_at_same_level_as_target(
+        self, data_variable_with_dim: CrossDataVariable
+    ):
+        """Keeping a node already at the target level is a no-op."""
+        result_with_keep = data_variable_with_dim._get_aggregation_mapping(
+            {"region": {"level": 1, "keep": ["cat_a"]}}
+        )
+        result_without = data_variable_with_dim._get_aggregation_mapping({"region": 1})
+        assert result_with_keep["region"] == result_without["region"]
 
 
 class TestGetDataUseTitles:
@@ -537,3 +514,118 @@ class TestFromClient:
 
         client.contracts.get.assert_called_once_with("my_data")
         assert var._filters == {"year": "2024"}
+
+
+class TestGetDataWithAggregation:
+    # --- int (level-based) ---
+
+    def test_aggregation_via_get_data(self, data_variable_with_dim: CrossDataVariable):
+        df = data_variable_with_dim.get_data(aggregation={"region": 1})
+        regions = set(df["region"])
+        assert regions == {"cat_a", "cat_b"}
+
+    def test_level_0_sums_all(self, data_variable_with_dim: CrossDataVariable):
+        df = data_variable_with_dim.get_data(aggregation={"region": 0})
+        assert (df["region"] == "total").all()
+        row_2024 = df[df["year"] == "2024"]
+        assert row_2024["value"].iloc[0] == 60.0
+
+    def test_level_beyond_max_returns_unchanged(
+        self, data_variable_with_dim: CrossDataVariable
+    ):
+        df = data_variable_with_dim.get_data(aggregation={"region": 99})
+        assert len(df) == 6
+
+    def test_filter_then_aggregate(self, data_variable_with_dim: CrossDataVariable):
+        df = data_variable_with_dim.get_data(
+            filters={"year": ["2024"]}, aggregation={"region": 0}
+        )
+        assert len(df) == 1
+        assert df["value"].iloc[0] == 60.0
+
+    def test_aggregate_with_mean(self, data_variable_with_dim: CrossDataVariable):
+        df = data_variable_with_dim.get_data(aggregation={"region": 1}, agg_func="mean")
+        row = df[(df["region"] == "cat_a") & (df["year"] == "2024")]
+        assert row["value"].iloc[0] == 15.0
+
+    # --- list (target IDs) ---
+
+    def test_list_aggregation(self, data_variable_with_dim: CrossDataVariable):
+        df = data_variable_with_dim.get_data(aggregation={"region": ["cat_a", "cat_b"]})
+        assert set(df["region"]) == {"cat_a", "cat_b"}
+        row = df[(df["region"] == "cat_a") & (df["year"] == "2025")]
+        assert row["value"].iloc[0] == 300.0  # 100 + 200
+
+    def test_list_partial_target_keeps_unmapped(
+        self, data_variable_with_dim: CrossDataVariable
+    ):
+        """Targeting only cat_a leaves cat_b subtree unmapped (kept as-is)."""
+        df = data_variable_with_dim.get_data(aggregation={"region": ["cat_a"]})
+        # leaf_1/leaf_2 aggregate to cat_a, leaf_3 stays as leaf_3
+        assert "cat_a" in df["region"].values
+        assert "leaf_3" in df["region"].values
+
+    # --- dict with level + keep ---
+
+    def test_keep_preserves_subtree_values(
+        self, data_variable_with_dim: CrossDataVariable
+    ):
+        df = data_variable_with_dim.get_data(
+            aggregation={"region": {"level": 0, "keep": ["cat_a"]}}
+        )
+        # cat_a subtree: leaf_1 + leaf_2 → cat_a
+        row_cat_a_2024 = df[(df["region"] == "cat_a") & (df["year"] == "2024")]
+        assert row_cat_a_2024["value"].iloc[0] == 30.0
+        # cat_b subtree rolls up to total
+        row_total_2024 = df[(df["region"] == "total") & (df["year"] == "2024")]
+        assert row_total_2024["value"].iloc[0] == 30.0  # leaf_3 only
+
+    def test_keep_leaf_aggregates_rest(self, data_variable_with_dim: CrossDataVariable):
+        df = data_variable_with_dim.get_data(
+            filters={"year": ["2024"]},
+            aggregation={"region": {"level": 0, "keep": ["leaf_1"]}},
+        )
+        row_leaf = df[df["region"] == "leaf_1"]
+        assert row_leaf["value"].iloc[0] == 10.0
+        row_total = df[df["region"] == "total"]
+        assert row_total["value"].iloc[0] == 50.0  # 20 + 30
+
+    def test_keep_all_categories_equivalent_to_level(
+        self, data_variable_with_dim: CrossDataVariable
+    ):
+        df_keep = data_variable_with_dim.get_data(
+            aggregation={"region": {"level": 0, "keep": ["cat_a", "cat_b"]}}
+        )
+        df_level = data_variable_with_dim.get_data(aggregation={"region": 1})
+        sort_cols = df_keep.columns.tolist()
+        pd.testing.assert_frame_equal(
+            df_keep.sort_values(sort_cols).reset_index(drop=True),
+            df_level.sort_values(sort_cols).reset_index(drop=True),
+        )
+
+    # --- dict without spec keys (raw passthrough) ---
+
+    def test_raw_mapping(self, data_variable_with_dim: CrossDataVariable):
+        df = data_variable_with_dim.get_data(
+            aggregation={"region": {"leaf_1": "x", "leaf_2": "x", "leaf_3": "y"}}
+        )
+        assert set(df["region"]) == {"x", "y"}
+        row = df[(df["region"] == "x") & (df["year"] == "2024")]
+        assert row["value"].iloc[0] == 30.0
+
+    # --- combined with titles ---
+
+    def test_aggregate_then_titles(self, data_variable_with_dim: CrossDataVariable):
+        df = data_variable_with_dim.get_data(aggregation={"region": 1}, use_titles=True)
+        assert set(df["region"]) == {"Category A", "Category B"}
+
+    # --- combined with columns ---
+
+    def test_aggregate_then_select_columns(
+        self, data_variable_with_dim: CrossDataVariable
+    ):
+        df = data_variable_with_dim.get_data(
+            aggregation={"region": 0}, columns=["region", "value"]
+        )
+        assert list(df.columns) == ["region", "value"]
+        assert (df["region"] == "total").all()
