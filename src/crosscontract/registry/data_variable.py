@@ -173,15 +173,20 @@ class CrossDataVariable(CrossBaseVariable):
         value_col: str = "value",
         agg_func: str = "sum",
     ) -> pd.DataFrame:
-        """Aggregate the data to a specified dimension level. This is a helper method
-        used by the public `get_data` method to perform aggregation based on the
-        specified aggregation levels for each dimension.
+        """Aggregate data using a dimension value mapping.
+
+        This helper is used by the public `get_data` method to aggregate rows after
+        remapping values in ``dimension_col`` according to ``dimension_map``. The
+        mapping can represent arbitrary groupings (for example, hierarchy levels,
+        explicit ID lists, or custom value-to-group mappings).
 
         Args:
             df (pd.DataFrame): The DataFrame containing the data to aggregate.
-            dimension_col (str): The name of the dimension column to aggregate by.
-            dimension_map (dict[Any, Any]): Dictionary mapping the original dimension
-                values to the aggregated dimension values.
+            dimension_col (str): The name of the dimension column whose values will
+                be remapped before grouping.
+            dimension_map (dict[Any, Any]): Mapping from original dimension values
+                to target aggregation values. Values not present in the mapping
+                are left unchanged.
             value_col: The name of the column containing the values to aggregate.
             agg_func: The aggregation function to use (e.g., "sum", "mean").
         """
