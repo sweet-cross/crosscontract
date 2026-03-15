@@ -165,6 +165,196 @@ class CrossDataVariable(CrossBaseVariable):
         df_out[column] = df_out[column].map(label_map).fillna(df_out[column])
         return df_out
 
+    @staticmethod
+    def _aggregate(
+        df: pd.DataFrame,
+        dimension_col: str,
+        dimension_map: dict[Any, Any],
+        value_col: str = "value",
+        agg_func: str = "sum",
+    ) -> pd.DataFrame:
+        """Aggregate the data to a specified dimension level. This is a helper method
+        used by the public `get_data` method to perform aggregation based on the
+        specified aggregation levels for each dimension.
+
+        Args:
+            df (pd.DataFrame): The DataFrame containing the data to aggregate.
+            dimension_col (str): The name of the dimension column to aggregate by.
+            dimension_map (dict[Any, Any]): Dictionary mapping the original dimension
+                values to the aggregated dimension values.
+            value_col: The name of the column containing the values to aggregate.
+            agg_func: The aggregation function to use (e.g., "sum", "mean").
+        """
+        agg_cols = [c for c in df.columns if c != value_col]
+        df_out = (
+            df.assign(  # is already copy
+                **{
+                    dimension_col: df[dimension_col]
+                    .map(dimension_map)
+                    .fillna(df[dimension_col])
+                }
+            )
+            .groupby(agg_cols, as_index=False)[value_col]
+            .agg(agg_func)
+        )
+        return df_out
+
+    def _get_level_mapping(self, col: str, level: int) -> dict[Any, Any]:
+        """Get the mapping for aggregating a dimension column to a specified level.
+
+        Args:
+            col (str): The name of the dimension column to aggregate.
+            level (int): The hierarchy level to aggregate to.
+
+        Returns:
+            dict[Any, Any]: A dictionary mapping original dimension IDs to their
+            aggregated IDs at the specified level.
+        """
+        dim = self.dimensions.get(col)
+
+        if dim is None:  # pragma: no cover
+            # defensive: already checked in _get_aggregation_mapping
+            raise KeyError(
+                f"Aggregation specified for column '{col}', but it is not a "
+                "registered dimension foreign key. Available dimensions: "
+                f"{list(self.dimensions.keys())}"
+            )
+        dim_map = dim.ancestor_maps.get(level)
+        if dim_map is None:
+            return {}  # level beyond max depth, no aggregation
+        return dim_map
+
+    def _get_ids_mapping(self, col: str, target_ids: list[Any]) -> dict[Any, Any]:
+        """Get the mapping for aggregating a dimension column to a specified set of
+        target IDs.
+
+        Args:
+            col (str): The name of the dimension column to aggregate.
+            target_ids (list[Any]): A list of dimension IDs to aggregate to. Each
+            original ID will
+            be mapped to the nearest ancestor in this list. IDs already in the list
+            map to themselves. IDs with no ancestor in the list are left unmapped.
+
+        Returns:
+            dict[Any, Any]: A dictionary mapping original dimension IDs to their
+            aggregated IDs.
+        """
+        if col not in self.dimensions:  # pragma: no cover
+            # defensive: already checked in _get_aggregation_mapping
+            raise KeyError(
+                f"Aggregation specified for column '{col}', but it is not a "
+                "registered dimension foreign key. Available dimensions: "
+                f"{list(self.dimensions.keys())}"
+            )
+        return {}  # toDO: implement
+
+    def _get_aggregation_mapping(
+        self,
+        aggregation_spec: dict[str, int | list[Any] | dict[Any, Any]],
+    ) -> dict[str, dict[Any, Any]]:
+        """Build aggregation mappings from a user-facing aggregation specification.
+
+        Translates the per-column aggregation specifications into concrete
+        dictionaries that map original dimension values to their aggregated
+        counterparts.  The returned mappings are consumed by ``_aggregate``.
+
+        Each column in *aggregation_spec* accepts one of four forms:
+
+        ``int`` - Aggregate to a hierarchy level.
+            Every node is mapped to its ancestor at the given level via
+            the dimension's precomputed ancestor maps.
+
+            Example::
+
+                {"region": 1}
+
+        ``list[Any]`` - Aggregate to a target set of IDs.
+            Every node is mapped to its nearest ancestor that appears in
+            the provided list.  Nodes already in the list map to
+            themselves.  Nodes with no ancestor in the set are left
+            unmapped (kept as-is by ``_aggregate`` via ``fillna``).
+
+            Example::
+
+                {"region": ["cat_a", "cat_b"]}
+
+        ``dict`` **with spec keys** (``"level"``, ``"keep"``) -
+            Level-based aggregation with exceptions.
+
+            * ``"level"`` (``int``, required): the hierarchy level to
+            aggregate to.
+            * ``"keep"`` (``list[Any]``, optional): IDs that are exempt
+            from the level-based roll-up and map to themselves.
+
+            Example::
+
+                {"region": {"level": 0, "keep": ["cat_a"]}}
+
+        ``dict`` **without spec keys** - Raw mapping passthrough.
+            The dictionary is used as-is.  Unmapped IDs are kept
+            unchanged by ``_aggregate`` (via ``fillna``).
+
+            Example::
+
+                {"region": {"leaf_1": "group_x", "leaf_2": "group_x"}}
+
+        Args:
+            aggregation_spec: Per-column aggregation specifications.  Keys
+                are column names that correspond to registered dimension
+                foreign keys (for level / ids modes) or arbitrary columns
+                (for raw mapping mode).  Values are one of the four forms
+                described above.
+
+        Returns:
+            A dictionary keyed by column name whose values are mappings
+            from original dimension values to aggregated dimension values.
+
+        Raises:
+            TypeError: If a column specification is not ``int``, ``list``,
+                or ``dict``.
+            ValueError: If a spec-dict uses ``"keep"`` without ``"level"``.
+            KeyError: If level-based or id-based aggregation is requested
+                for a column that is not a registered dimension.
+        """
+        spec_keys = {"level", "keep"}
+
+        mapping: dict[str, dict[Any, Any]] = {}
+        for col, spec in aggregation_spec.items():
+            if col not in self.dimensions:
+                raise KeyError(
+                    f"Aggregation specified for column '{col}', but it is not a "
+                    "registered dimension foreign key. Available dimensions: "
+                    f"{list(self.dimensions.keys())}"
+                )
+            if isinstance(spec, int):
+                dim_map = self._get_level_mapping(col, spec)
+
+            elif isinstance(spec, list):
+                dim_map = self._get_ids_mapping(col, spec)
+
+            elif isinstance(spec, dict) and spec.keys() & spec_keys:
+                if "keep" in spec and "level" not in spec:
+                    raise ValueError(
+                        f"Aggregation spec for '{col}' has 'keep' without "
+                        "'level'. 'keep' is only valid together with 'level'."
+                    )
+                dim_map = self._get_level_mapping(col, spec["level"])
+                for keep_id in spec.get("keep", []):
+                    dim_map[keep_id] = keep_id
+
+            elif isinstance(spec, dict):
+                dim_map = spec
+
+            else:
+                raise TypeError(
+                    f"Invalid aggregation spec for '{col}': expected int, "
+                    f"list, or dict, got {type(spec).__name__}."
+                )
+
+            mapping[col] = dim_map
+
+        return mapping
+
     def _aggregate_by_dimension(
         self,
         df: pd.DataFrame,
