@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.6.0 (2026-03-15)
+
+### Features
+
+- Flexible aggregation ([#27](https://github.com/sweet-cross/crosscontract/pull/27),
+  [`52e919b`](https://github.com/sweet-cross/crosscontract/commit/52e919bc80f9a6b6cebcdcdea753088312161a74))
+
+
 ## v0.5.0 (2026-03-14)
 
 ### Features
