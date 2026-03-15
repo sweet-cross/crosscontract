@@ -307,9 +307,8 @@ class CrossDataVariable(CrossBaseVariable):
         Args:
             aggregation_spec: Per-column aggregation specifications.  Keys
                 are column names that correspond to registered dimension
-                foreign keys (for level / ids modes) or arbitrary columns
-                (for raw mapping mode).  Values are one of the four forms
-                described above.
+                foreign keys (for level / ids modes).
+                Values are one of the four forms described above.
 
         Returns:
             A dictionary keyed by column name whose values are mappings

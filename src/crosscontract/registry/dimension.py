@@ -1,6 +1,7 @@
 from typing import Any
 
 import numpy as np
+import pandas as pd
 
 from crosscontract.crossclient.services import ContractResource
 
@@ -110,7 +111,7 @@ class CrossDimension(CrossBaseVariable):
             chain = []
             current = node_id
             seen = set()
-            while current is not None:
+            while current is not None and not pd.isna(current):
                 if current in seen:
                     break
                 chain.append(current)
