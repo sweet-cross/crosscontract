@@ -4,8 +4,8 @@ from typing import Any
 import pandas as pd
 
 from crosscontract import CrossClient
+from crosscontract.contracts.schema.reference import ForeignKeys
 
-from .base_variable import CrossBaseVariable
 from .data_variable import CrossDataVariable
 from .dimension import CrossDimension
 
@@ -38,7 +38,7 @@ class CrossRegistry:
             client = CrossClient(username=username, password=password)
 
         self._client = client
-        self._variables: dict[str, CrossBaseVariable] = {}
+        self._variables: dict[str, CrossDataVariable | CrossDimension] = {}
         self._loading: set[str] = set()
 
     def __getattr__(self, name: str) -> CrossDataVariable | CrossDimension:
@@ -129,7 +129,7 @@ class CrossRegistry:
         # The guard below is a defensive measure only.
         self._loading.add(name)
         try:
-            fks = self._variables[name].foreign_keys or []
+            fks: ForeignKeys | list = self._variables[name].foreign_keys or []
             for fk in fks:
                 ref_name = fk.reference.resource
                 if ref_name is None:
@@ -150,8 +150,12 @@ class CrossRegistry:
                     self.add_variable(ref_name)
                 # if it is a dimension, add it to the variable,
                 # otherwise skip (we only support dimensions as FK targets for now)
-                if isinstance(self._variables[ref_name], CrossDimension):
-                    self._variables[name].add_dimension(self._variables[ref_name])
+                var = self._variables[name]
+                dim = self._variables[ref_name]
+                if isinstance(var, CrossDataVariable) and isinstance(
+                    dim, CrossDimension
+                ):
+                    var.add_dimension(dim)
         finally:
             self._loading.remove(name)
         return self._variables[name]

@@ -191,7 +191,7 @@ class CrossDataVariable(CrossBaseVariable):
             agg_func: The aggregation function to use (e.g., "sum", "mean").
         """
         agg_cols = [c for c in df.columns if c != value_col]
-        df_out = (
+        df_out: pd.DataFrame = (
             df.assign(  # is already copy
                 **{
                     dimension_col: df[dimension_col]
@@ -200,7 +200,7 @@ class CrossDataVariable(CrossBaseVariable):
                 }
             )
             .groupby(agg_cols, as_index=False)[value_col]
-            .agg(agg_func)
+            .agg(agg_func)  # type: ignore[assignment]
         )
         return df_out
 

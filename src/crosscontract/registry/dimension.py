@@ -20,9 +20,9 @@ class CrossDimension(CrossBaseVariable):
         contract_resource: ContractResource,
     ):
         super().__init__(contract_resource)
-        self._ancestor_maps = None
-        self._label_map = None
-        self._ancestry_chains = None
+        self._ancestor_maps: dict[int, dict[str, str]] | None = None
+        self._label_map: dict[str, str] | None = None
+        self._ancestry_chains: dict[Any, list[Any]] | None = None
 
     def __str__(self):
         return f"Dimension(name={self.name})"
