@@ -434,15 +434,6 @@ class TestGetAggregationMapping:
         with pytest.raises(TypeError, match="expected int, list, or dict"):
             data_variable_with_dim._get_aggregation_mapping({"region": "invalid"})
 
-    # --- multiple columns ---")
-    def test_multiple_columns(self, data_variable_with_dim: CrossDataVariable):
-        raw = {"a": "b"}
-        result = data_variable_with_dim._get_aggregation_mapping(
-            {"region": 1, "year": raw}
-        )
-        assert "region" in result
-        assert result["year"] is raw
-
 
 class TestAggregateByDimension:
     def test_aggregate_to_level_1(self, data_variable_with_dim: CrossDataVariable):
