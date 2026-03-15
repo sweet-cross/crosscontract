@@ -172,3 +172,130 @@ class TestDataCaching:
         assert dimension._label_map is None
         _ = dimension.data
         assert dimension.contract_resource.get_data.call_count == 2
+
+
+class TestAncestryChains:
+    def test_leaf_chain(self, dimension: CrossDimension):
+        chains = dimension._build_ancestry_chains()
+        assert chains["leaf_1"] == ["leaf_1", "cat_a", "total"]
+
+    def test_mid_level_chain(self, dimension: CrossDimension):
+        chains = dimension._build_ancestry_chains()
+        assert chains["cat_a"] == ["cat_a", "total"]
+
+    def test_root_chain(self, dimension: CrossDimension):
+        chains = dimension._build_ancestry_chains()
+        assert chains["total"] == ["total"]
+
+    def test_all_nodes_present(self, dimension: CrossDimension):
+        chains = dimension._build_ancestry_chains()
+        assert set(chains.keys()) == {
+            "total",
+            "cat_a",
+            "cat_b",
+            "leaf_1",
+            "leaf_2",
+            "leaf_3",
+        }
+
+    def test_cached_after_first_call(self, dimension: CrossDimension):
+        _ = dimension.get_ancestor_map_by_ids(["total"])
+        assert dimension._ancestry_chains is not None
+
+    def test_cleared_with_cache(self, dimension: CrossDimension):
+        _ = dimension.get_ancestor_map_by_ids(["total"])
+        dimension.clear_data_cache()
+        assert dimension._ancestry_chains is None
+
+
+class TestGetAncestorMapByIds:
+    def test_reuses_cached_chains(self, dimension: CrossDimension):
+        """Second call skips _build_ancestry_chains (covers cached branch)."""
+        _ = dimension.get_ancestor_map_by_ids(["total"])
+        result = dimension.get_ancestor_map_by_ids(["cat_a", "cat_b"])
+        assert result["leaf_1"] == "cat_a"
+
+    def test_target_root(self, dimension: CrossDimension):
+        result = dimension.get_ancestor_map_by_ids(["total"])
+        for node_id in ["total", "cat_a", "cat_b", "leaf_1", "leaf_2", "leaf_3"]:
+            assert result[node_id] == "total"
+
+    def test_target_categories(self, dimension: CrossDimension):
+        result = dimension.get_ancestor_map_by_ids(["cat_a", "cat_b"])
+        assert result["leaf_1"] == "cat_a"
+        assert result["leaf_2"] == "cat_a"
+        assert result["leaf_3"] == "cat_b"
+        assert result["cat_a"] == "cat_a"
+        assert result["cat_b"] == "cat_b"
+
+    def test_target_leaves(self, dimension: CrossDimension):
+        result = dimension.get_ancestor_map_by_ids(["leaf_1", "leaf_2", "leaf_3"])
+        assert result["leaf_1"] == "leaf_1"
+        assert result["leaf_2"] == "leaf_2"
+        assert result["leaf_3"] == "leaf_3"
+
+    def test_mixed_levels(self, dimension: CrossDimension):
+        result = dimension.get_ancestor_map_by_ids(["cat_a", "total"])
+        assert result["leaf_1"] == "cat_a"
+        assert result["leaf_2"] == "cat_a"
+        assert result["cat_a"] == "cat_a"
+        assert result["leaf_3"] == "total"
+        assert result["cat_b"] == "total"
+
+    def test_no_ancestor_in_target_omitted(self, dimension: CrossDimension):
+        result = dimension.get_ancestor_map_by_ids(["cat_a"])
+        assert "leaf_1" in result
+        assert "cat_a" in result
+        assert "leaf_3" not in result
+        assert "cat_b" not in result
+        assert "total" not in result
+
+    def test_empty_target(self, dimension: CrossDimension):
+        assert dimension.get_ancestor_map_by_ids([]) == {}
+
+    def test_single_node(self, dimension: CrossDimension):
+        assert dimension.get_ancestor_map_by_ids(["leaf_1"]) == {"leaf_1": "leaf_1"}
+
+    def test_equivalent_to_level_1(self, dimension: CrossDimension):
+        """Targeting all level-1 nodes plus root should match ancestor_maps[1]."""
+        by_ids = dimension.get_ancestor_map_by_ids(["cat_a", "cat_b", "total"])
+        by_level = dimension.ancestor_maps[1]
+        assert by_ids == by_level
+
+    def test_equivalent_to_level_0(self, dimension: CrossDimension):
+        by_ids = dimension.get_ancestor_map_by_ids(["total"])
+        by_level = dimension.ancestor_maps[0]
+        assert by_ids == by_level
+
+
+class TestAncestryChainsCycleProtection:
+    """Edge case: malformed data with a cycle in the parent chain."""
+
+    def test_cycle_does_not_loop_forever(self, make_contract_resource):
+        contract = {
+            "name": "dim_cycle",
+            "description": "Cyclic dimension",
+            "title": "Cycle",
+            "tableschema": {
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {"name": "label", "type": "string"},
+                    {"name": "level", "type": "integer"},
+                    {"name": "id_parent", "type": "string"},
+                ],
+            },
+        }
+        data = pd.DataFrame(
+            {
+                "id": ["a", "b"],
+                "label": ["A", "B"],
+                "level": [0, 1],
+                "id_parent": ["b", "a"],  # a→b→a cycle
+            }
+        )
+        cr = make_contract_resource(data=data, contract_dict=contract)
+        dim = CrossDimension(contract_resource=cr)
+        chains = dim._build_ancestry_chains()
+        # chain terminates despite cycle
+        assert "a" in chains
+        assert "b" in chains
