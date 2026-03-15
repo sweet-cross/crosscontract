@@ -27,11 +27,11 @@ class CrossDimension(CrossBaseVariable):
         return f"Dimension(name={self.name})"
 
     @property
-    def ancestor_maps(self) -> dict[int, dict[Any, Any]]:
+    def ancestor_maps(self) -> dict[int, dict[str, str]]:
         """Precompute and return ancestor maps for all aggregation levels.
 
         Returns:
-            dict[int, dict[Any, Any]]: A dictionary where keys are aggregation levels
+            dict[int, dict[str, str]]: A dictionary where keys are aggregation levels
                 and values are dictionaries mapping dimension IDs to their ancestor
                 IDs at that level.
 
@@ -42,11 +42,11 @@ class CrossDimension(CrossBaseVariable):
         return {level: mapping.copy() for level, mapping in self._ancestor_maps.items()}
 
     @property
-    def label_map(self) -> dict[Any, Any]:
+    def label_map(self) -> dict[str, str]:
         """Return a mapping from id to label for the dimension.
 
         Returns:
-            dict[Any, Any]: A dictionary mapping dimension IDs to their labels.
+            dict[str, str]: A dictionary mapping dimension IDs to their labels.
         """
         if self._label_map is None:
             self._label_map = dict(
