@@ -1,5 +1,6 @@
 from pydantic import ConfigDict, Field
 
+from ..schema import DimensionSchema, TableSchema, ValueVariableSchema  # noqa: F401
 from .base_contract import BaseContract, BaseMetaData
 
 
