@@ -1,0 +1,15 @@
+# Run test on each PR
+name: Check PR
+
+on:
+    pull_request:
+        branches-ignore:
+            - main
+        types:
+            - opened
+            - edited
+            - synchronize
+
+jobs:
+    test_and_coverage:
+        uses: ./.github/workflows/test_and_coverage.yml

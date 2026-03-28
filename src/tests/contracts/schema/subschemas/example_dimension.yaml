@@ -1,0 +1,9 @@
+# ----------------------------------------------------------------------------
+#                         TABLE DESCRIPTION
+# ----------------------------------------------------------------------------
+name: dim_building
+title: Building Type
+description: |
+  Different building types, e.g., single or multi-family houses, office buildings, etc.
+
+contract_type: Dimension

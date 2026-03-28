@@ -1,6 +1,6 @@
 # Orchestrator workflow for the main branch.
 # Runs tests on every PR to the main branch.
-name: Check PR Main Branch
+name: Check PR Main
 
 on:
     pull_request:
