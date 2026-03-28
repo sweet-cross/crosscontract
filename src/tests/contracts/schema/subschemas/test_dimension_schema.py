@@ -6,17 +6,27 @@ from pydantic import ValidationError
 from crosscontract.contracts import CrossContract
 from crosscontract.contracts.schema import DimensionSchema
 
-# Assuming your imports look something like this:
-# from your_module.schemas import DimensionSchema, DIMENSION_SCHEMA_TEMPLATE
-
 
 class TestDimensionSchema:
     """Test suite for the rigid DimensionSchema auto-generation and validation."""
 
-    def test_dimension_schema_auto_generates_from_empty_dict(self):
+    def test_dimension_schema_auto_generates_from_minimum_dict(self):
         """Ensure an empty dictionary triggers the template injection."""
         # This simulates what CrossContract passes down when a user omits the schema
         input_data = {"table_type": "Dimension"}
+
+        schema = DimensionSchema.model_validate(input_data)
+
+        assert schema.table_type == "Dimension"
+        assert schema.primaryKey.root == ["id"]
+        # Verify a specific field from the template made it in
+        assert schema.fields[0].name == "id"
+        assert schema.fields[0].type == "string"
+
+    def test_dimension_schema_auto_generates_from_empty_dict(self):
+        """Ensure an empty dictionary triggers the template injection."""
+        # This simulates what CrossContract passes down when a user omits the schema
+        input_data = {}
 
         schema = DimensionSchema.model_validate(input_data)
 
