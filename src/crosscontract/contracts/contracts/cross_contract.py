@@ -127,7 +127,7 @@ class CrossContract(BaseContract, CrossMetaData):
         schema_data = data.get("tableschema")
 
         # check existence and type of tableschema before proceeding
-        if not schema_data:
+        if schema_data is None:
             raise ValueError("The 'tableschema' field is required")
         if isinstance(schema_data, TableSchema):
             if schema_data.table_type != contr_type:
