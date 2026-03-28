@@ -1,7 +1,13 @@
-from pydantic import ConfigDict, Field
+from typing import Annotated, Any
+
+from pydantic import ConfigDict, Field, model_validator
 
 from ..schema import DimensionSchema, TableSchema, ValueVariableSchema  # noqa: F401
 from .base_contract import BaseContract, BaseMetaData
+
+AnyTableSchema = Annotated[
+    DimensionSchema | ValueVariableSchema, Field(discriminator="contract_type")
+]
 
 
 class CrossMetaData(BaseMetaData):
@@ -63,3 +69,28 @@ class CrossContract(BaseContract, CrossMetaData):
         extra="forbid",
         serialize_by_alias=True,
     )
+
+    tableschema: AnyTableSchema = Field(
+        description="The Frictionless Table Schema definition."
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _inject_routing_key(cls, data: Any) -> Any:
+        """We inject the contract_type into the tableschema to make the discriminator
+        on the tableschema work."""
+        if isinstance(data, dict):
+            ct = data.get("contract_type")
+            ts = data.get("tableschema")
+
+            if ct and isinstance(ts, dict):
+                # Fail fast if the user tries to be too clever
+                if "contract_type" in ts:
+                    raise ValueError(
+                        "Do not define 'contract_type' inside the tableschema. "
+                        "It is automatically inferred from the root contract level."
+                    )
+
+                ts_copy = dict(ts)
+                ts_copy["contract_type"] = ct
+                # ... rest of the logic ...
