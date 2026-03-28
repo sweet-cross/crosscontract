@@ -62,7 +62,8 @@ class TestContractTypeDifferentiation:
 
         errors = exc_info.value.errors()
         assert any(
-            error.get("loc") == ("contract_type",) and error.get("type") == "literal_error"
+            error.get("loc") == ("contract_type",)
+            and error.get("type") == "literal_error"
             for error in errors
         )
 
