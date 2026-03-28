@@ -60,8 +60,10 @@ class TestContractTypeDifferentiation:
         with pytest.raises(ValidationError) as exc_info:
             CrossContract.model_validate(data)
 
-        assert "Input should be 'General', 'Dimension' or 'ValueVariable'" in str(
-            exc_info.value
+        errors = exc_info.value.errors()
+        assert any(
+            error.get("loc") == ("contract_type",) and error.get("type") == "literal_error"
+            for error in errors
         )
 
     def test_non_dict_input_raises_type_error(self):
