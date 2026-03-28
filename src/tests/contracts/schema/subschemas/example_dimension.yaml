@@ -1,0 +1,53 @@
+# ----------------------------------------------------------------------------
+#                         TABLE DESCRIPTION
+# ----------------------------------------------------------------------------
+name: dim_building
+title: Building Type
+description: |
+  Different building types, e.g., single or multi-family houses, office buildings, etc.
+
+# ----------------------------------------------------------------------------
+#                ----- Frictionless Table Schema -----
+# ----------------------------------------------------------------------------
+tableschema:
+  # ----------------------------------------------------------------------------
+  #                  FRICTIONLESS FIELDS/COLUMNS
+  # ----------------------------------------------------------------------------
+  primaryKey: id
+
+  foreignKeys:
+    - fields: id_parent
+      reference:
+        fields: id
+
+  fields:
+    - name: id
+      type: string
+      description: Unique name of the element, should be lower case separated by underscores
+      constraints:
+        required: true
+        maxLength: 100
+
+    - name: level
+      type: integer
+      title: Hierarchical level
+      description: The level within the classification hierarchy
+      constraints:
+        required: true
+        minimum: 0
+
+    - name: id_parent
+      type: string
+      title: Link to parent
+      constraints:
+        maxLength: 100
+
+    - name: label
+      type: string
+      description: Labels used in graphs etc. to denote the element
+      constraints:
+        maxLength: 255
+
+    - name: description
+      type: string
+      description: Description of a single element
