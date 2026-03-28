@@ -32,10 +32,9 @@ class TestContractTypeDifferentiation:
                 "General",
                 TableSchema,
             ),  # Tests the default fallback when key is omitted
-            ("Dimension", "Dimension", DimensionSchema),
             ("ValueVariable", "ValueVariable", ValueVariableSchema),
         ],
-        ids=["default_general", "dimension", "value_variable"],
+        ids=["default_general", "value_variable"],
     )
     def test_contract_type_resolves_to_correct_schema(
         self, input_type, expected_type, expected_schema_cls
@@ -52,6 +51,18 @@ class TestContractTypeDifferentiation:
         assert contract.contract_type == expected_type
         # Use `is` to ensure strict class identity, not just inheritance
         assert type(contract.tableschema) is expected_schema_cls
+
+    def test_contract_type_resolves_to_correct_schema_dimension(self):
+        """Ensure specific contract types build their corresponding schema classes."""
+        data = {**data_base_contract}
+        data["contract_type"] = "Dimension"
+        del data["tableschema"]  # Remove tableschema to trigger template injection
+
+        contract = CrossContract.model_validate(data)
+
+        assert contract.contract_type == "Dimension"
+        # Use `is` to ensure strict class identity, not just inheritance
+        assert type(contract.tableschema) is DimensionSchema
 
     def test_invalid_contract_type_raises_validation_error(self):
         """Ensure Pydantic's Literal typing catches unknown contract types."""
@@ -92,12 +103,14 @@ class TestInjectTableTypeToSchema:
     """Test suite for the pure dict-transformation logic of CrossContract schema
     routing."""
 
-    def test_missing_tableschema_raises_value_error(self):
-        """Ensure it fails fast if 'tableschema' is entirely missing."""
+    def test_missing_tableschema_injects_empty_dict(self):
+        """Ensure omitting the schema initializes an empty dict and injects routing."""
         input_data = {"contract_type": "Dimension", "name": "my_contract"}
 
-        with pytest.raises(ValueError, match="The 'tableschema' field is required"):
-            CrossContract._inject_table_type_to_schema(input_data)
+        result = CrossContract._inject_table_type_to_schema(input_data)
+
+        # It should have instantiated an empty dict and injected the table_type
+        assert result["tableschema"] == {"table_type": "Dimension"}
 
     def test_invalid_tableschema_type_raises_type_error(self):
         """Ensure it fails fast if 'tableschema' is not a dictionary (e.g., a list

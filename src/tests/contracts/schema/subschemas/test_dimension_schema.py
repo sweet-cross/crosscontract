@@ -1,6 +1,9 @@
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
+from crosscontract.contracts import CrossContract
 from crosscontract.contracts.schema import DimensionSchema
 
 # Assuming your imports look something like this:
@@ -60,3 +63,15 @@ class TestDimensionSchema:
 
         assert revalidated_schema is original_schema
         assert revalidated_schema.primaryKey.root == ["id"]
+
+
+class TestContractFromYAML:
+    def test_from_yaml(self):
+        """Ensure that loading from YAML (which produces a dict) correctly injects
+        the template."""
+        fn_in = Path(__file__).parent / "example_dimension.yaml"
+
+        contract = CrossContract.from_file(fn_in)
+
+        assert contract.tableschema.table_type == "Dimension"
+        assert contract.tableschema.primaryKey.root == ["id"]
