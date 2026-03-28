@@ -17,7 +17,7 @@
       "request": "launch",
       "module": "pytest",
       "args": [
-        "src/tests/crossclient/contracts/test_contract_resource.py::TestInitialize::test_initialize_with_contract_only",
+        "src/tests",
         "--tb=long"
       ],
       "justMyCode": true,
