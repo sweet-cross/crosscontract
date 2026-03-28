@@ -1,5 +1,7 @@
 from typing import Literal
 
+from pydantic import Field
+
 from ..schema import TableSchema
 
 
@@ -13,4 +15,9 @@ class ValueVariableSchema(TableSchema):
     """
 
     # todo add value variable-specific fields or constraints
-    contract_type: Literal["ValueVariable"]
+    table_type: Literal["ValueVariable"] = Field(
+        default="ValueVariable",
+        description="Type of the table determines the structure of the schema.",
+        exclude=True,
+        repr=False,
+    )

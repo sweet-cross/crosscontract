@@ -16,7 +16,10 @@
       "type": "debugpy",
       "request": "launch",
       "module": "pytest",
-      "args": ["crosscontract/tests/crossclient", "--tb=long"],
+      "args": [
+        "src/tests/crossclient/contracts/test_contract_resource.py::TestInitialize::test_initialize_with_contract_only",
+        "--tb=long"
+      ],
       "justMyCode": true,
       "console": "integratedTerminal"
     },

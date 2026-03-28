@@ -52,6 +52,9 @@ def auth_client(client):
 class CrossContractFactory(ModelFactory[CrossContract]):
     __model__ = CrossContract
 
+    # set the general contract relying on the default TableSchema
+    contract_type = "General"
+
     # OPTIONAL: If references cause noise, you can set defaults here
     # even while keeping the rest dynamic.
     @classmethod

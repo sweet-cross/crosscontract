@@ -1,5 +1,7 @@
 from typing import Literal
 
+from pydantic import Field
+
 from ..schema import TableSchema
 
 
@@ -13,4 +15,9 @@ class DimensionSchema(TableSchema):
     """
 
     # todo add dimension-specific fields or constraints
-    contract_type: Literal["Dimension"]
+    table_type: Literal["Dimension"] = Field(
+        default="Dimension",
+        description="Type of the table determines the structure of the schema.",
+        exclude=True,
+        repr=False,
+    )
