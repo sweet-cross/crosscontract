@@ -2,7 +2,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import ConfigDict, Field, model_validator
 
-from ..schema import DimensionSchema, TableSchema, ValueVariableSchema  # noqa: F401
+from ..schema import DimensionSchema, TableSchema, ValueVariableSchema
 from .base_contract import BaseContract, BaseMetaData
 
 AnyTableSchema = Annotated[
