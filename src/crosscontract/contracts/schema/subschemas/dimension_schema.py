@@ -18,6 +18,9 @@ DIMENSION_SCHEMA_TEMPLATE = {
             "constraints": {
                 "required": True,
                 "maxLength": 100,
+                # as we have a single id as primary key, it must be unique across
+                # the entire table
+                "unique": True,
             },
         },
         {
@@ -89,9 +92,21 @@ class DimensionSchema(TableSchema):
         - optional
         - Type: string
         - Description: A detailed description of the dimension entry.
+
+    Add the data level, dimensions receive more checks to ensure the hierarchy is
+    consistent and valid.
+
+    1. At level 0, no parent_id can be provided
+    2. A row at level N (N > 0) must reference a parent at level N-1
+    3. Each row at level N (N > 0) must have a parent_id
+    4. The root level of the dimension hierarchy should have an entry with id "other".
+       Each sub-level should have a sibling entry with id "other_<parent_id>" to
+       capture uncategorized entries at that level.
     """
 
-    table_type: Literal["Dimension"] = Field(
+    # ignore type error as we want to enforce the table_type for this schema
+    # for the pydantic discriminator to work correctly
+    table_type: Literal["Dimension"] = Field(  # type: ignore[assignment]
         default="Dimension",
         description="Type of the table determines the structure of the schema.",
         exclude=True,

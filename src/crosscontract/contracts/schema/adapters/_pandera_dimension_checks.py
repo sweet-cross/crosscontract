@@ -113,7 +113,7 @@ def _check_other_entries(df: pd.DataFrame) -> pd.Series:
     # Non-root: each row's parent must have a sibling "other_<parent_id>"
     # only done if there are any non-root rows
     result = pd.Series(True, index=df.index)
-    result.loc[is_root] = root_ok
+    result.loc[is_root] = bool(root_ok)
     if not is_root.all():
         non_root = df[~is_root]
         expected_other = "other_" + non_root["parent_id"].astype(str)
