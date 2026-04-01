@@ -1,8 +1,30 @@
+from typing import TYPE_CHECKING
+
 import pandas as pd
 import pandera.pandas as pa
 
+if TYPE_CHECKING:  # pragma: no cover
+    from crosscontract.contracts.schema.schema import TableSchema
 
-def get_dimension_checks() -> list[pa.Check]:
+
+def get_dimension_checks(schema: "TableSchema") -> list[pa.Check]:
+    """Returns a list of pandera checks to validate the consistency of a
+    dimension hierarchy.
+
+    The checks include:
+    1. Root level entries should not have a parent_id.
+    2. Each sub-level needs parent_id pointing to level above.
+    3. Each sub-level needs a parent_id.
+    4. The root level of the dimension hierarchy should have an entry with id "other".
+       Each sub-level should have a sibling entry with id "other_<parent_id>" to
+       capture uncategorized entries at that level.
+
+    Args:
+        schema: The TableSchema of the dimension table to generate checks for.
+
+    Returns:
+        A list of pandera Check objects to validate the dimension hierarchy.
+    """
     return [
         pa.Check(
             _check_root_no_parent,
@@ -37,7 +59,9 @@ def _check_parent_level(df: pd.DataFrame) -> pd.Series:
 
     # Valid if parent_level == own_level - 1
     result = pd.Series(True, index=df.index)
-    result.loc[~is_root] = parent_levels[~is_root] == df.loc[~is_root, "level"] - 1
+    result.loc[~is_root] = (
+        parent_levels[~is_root] == df.loc[~is_root, "level"] - 1
+    ).to_numpy(dtype=bool, na_value=False)
     return result
 
 
@@ -96,5 +120,5 @@ def _check_other_entries(df: pd.DataFrame) -> pd.Series:
         parent_has_other = non_root.groupby("parent_id")["id"].transform(
             lambda ids: expected_other.loc[ids.index].isin(ids.values).any()
         )
-        result.loc[~is_root] = parent_has_other
+        result.loc[~is_root] = parent_has_other.to_numpy(dtype=bool, na_value=False)
     return result
