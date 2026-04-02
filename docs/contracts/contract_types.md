@@ -1,9 +1,10 @@
 # Contract Types
 
 *CrossContracts* know different contract types. Their main purpose is to be able
-to enforce the CROSS data model and to facilitate operations on the data like, e.g.,
-automatic plotting. The different contract types share the same metadata differ
-however in additional requirements and checks for data schema.
+to enforce the CROSS data model and to facilitate operations on the data (e.g.,
+automatic plotting). The different contract types share the same metadata. The however,
+differ by having additional requirements on schema and additional checks for the
+data schema.
 
 In short the CROSS data model is organized as a Kimball star schema. Dimensions such
 as countries, generation technologies, or economic sectors are
