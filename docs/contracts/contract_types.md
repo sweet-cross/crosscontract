@@ -30,7 +30,7 @@ standard CROSS metadata but is characterized by a highly standardized data schem
 and additional data checks that ensure that the hierarchy implemented by the dimension
 is meaningful.
 
-The data schema for dimensions narrows the tha base [`TableSchema`](schema.md)
+The data schema for dimensions narrows the base [`TableSchema`](schema.md)
 by adding specific constraints and conventions for dimension tables.
 
 Dimensions have the following fields:
