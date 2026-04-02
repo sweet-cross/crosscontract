@@ -13,6 +13,8 @@
 
 ::: crosscontract.contracts.schema.schema
 
+::: crosscontract.contracts.schema.subschemas.dimension_schema
+
 ## Fields
 
 ::: crosscontract.contracts.schema.fields.base
