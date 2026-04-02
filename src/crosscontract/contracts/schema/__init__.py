@@ -29,6 +29,7 @@ from .fields import (
 )
 from .reference import ForeignKeys, PrimaryKey
 from .schema import TableSchema
+from .subschemas import DimensionSchema, ValueVariableSchema
 
 __all__ = [
     "TableSchema",
@@ -45,4 +46,6 @@ __all__ = [
     "DateTimeField",
     "ListField",
     "BaseField",
+    "DimensionSchema",
+    "ValueVariableSchema",
 ]

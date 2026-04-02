@@ -26,6 +26,13 @@ class TableSchema(BaseModel):
     Includes fields, primary keys, foreign keys, and field descriptors.
     """
 
+    table_type: Literal["General"] = Field(
+        default="General",
+        description="Type of the table determines the structure of the schema.",
+        exclude=True,
+        repr=False,
+    )
+
     model_config = ConfigDict(
         title="TableSchema", ignored_types=(cached_property,), str_strip_whitespace=True
     )
@@ -50,9 +57,6 @@ class TableSchema(BaseModel):
         ),
     )
     fieldDescriptors: FieldDescriptors | None = None
-
-    # def __iter__(self) -> Iterator[FieldUnion]:
-    #     return iter(self.fields)
 
     def field_iterator(self) -> Iterator[FieldUnion]:
         """Returns an iterator over the fields in the schema."""

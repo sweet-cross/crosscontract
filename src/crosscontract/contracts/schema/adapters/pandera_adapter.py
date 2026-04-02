@@ -20,6 +20,7 @@ from crosscontract.contracts.schema.fields import (
 from crosscontract.contracts.schema.fields.base import BaseField
 from crosscontract.contracts.schema.reference.foreign_key import ForeignKey
 
+from ._pandera_dimension_checks import get_dimension_checks
 from .abstract_adapter import AbstractAdapter
 from .utils import parse_datetime
 
@@ -118,6 +119,11 @@ class PanderaPandasAdapter(AbstractAdapter):
                     primary_key_values=primary_key_values,
                 )
             )
+
+        # for dimension tables, we add additional checks to ensure the consistency
+        # of the dimension hierarchy
+        if self.schema.table_type == "Dimension":
+            additional_checks.extend(get_dimension_checks(self.schema))
 
         # Handle foreign key constraints by adding custom checks to the schema
         if self.schema.foreignKeys and not skip_foreign_key_validation:
