@@ -63,6 +63,7 @@ nav:
   - CrossContract:
       - Overview: contracts/index.md
       - Tutorial: notebooks/contract_tutorial.ipynb
+      - Contract Types: contracts/contract_types.md
       - Metadata: contracts/metadata.md
       - Schema: contracts/schema.md
   - CrossRegistry:

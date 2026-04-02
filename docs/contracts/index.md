@@ -4,14 +4,19 @@
 
 The contract serves as a logical blueprint of the data, primarily consisting of two pillars:
 
-1. **Metadata**: This provides context, such as ownership, versioning, data sensitivity (PII), and the purpose of the data.
+1. **Metadata**: This describes the data and also determines the operational metadata such as
+ownership and versioning.
 
-2. **Schema**: This defines the technical structure, including field names, data types (e.g., string, integer), whether fields are mandatory or optional, and further constraints (minimum, maximum etc.)
+3. **Schema**: This defines the logical structure, including field names, data types (e.g., string, integer),
+whether fields are mandatory or optional, and further constraints (minimum, maximum etc.). Moreover, schemas
+contain also some semantic data describing the fields.
 
 The package is build in a way, that [Metadata](metadata.md) are flexible. For *CrossContracts*
-the metadata are determined by the CROSS-Team. They follow the [DCAT-CH v.2](https://www.dcat-ap.ch/)
-to be compliant with the [Swiss Open Government Data approach](https://www.bfs.admin.ch/bfs/en/home/services/ogd.html). The package, however, allows to formulate [contracts with a custom set of
-metadata entries] (see contracts/custom_metadata.md).
+the metadata are determined by the CROSS-Team. The package, however, allows to formulate [contracts with a custom set of metadata entries] (see contracts/custom_metadata.md).
+
+<!-- They follow the [DCAT-CH v.2](https://www.dcat-ap.ch/)
+to be compliant with the [Swiss Open Government Data approach](https://www.bfs.admin.ch/bfs/en/home/services/ogd.html). -->
+
 
 [Schemas](schema.md) describe tabular data resources and implement the [frictionless table
 standard](https://specs.frictionlessdata.io//table-schema/). The schemas in this

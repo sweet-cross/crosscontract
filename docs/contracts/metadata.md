@@ -2,11 +2,11 @@
 
 ## CROSS Metadata
 
-The CROSS metadata are the metadata standard defined for CrossContracts. They are
-compliant with the [DCAT-CH v.2](https://www.dcat-ap.ch/) vocabulary which itself
-is compliant with [DCAT-AC](https://op.europa.eu/en/web/eu-vocabularies/dcat-ap).
+The CROSS metadata are the metadata standard defined for CrossContracts.
 
-**to be updated**
+<!-- They are
+compliant with the [DCAT-CH v.2](https://www.dcat-ap.ch/) vocabulary which itself
+is compliant with [DCAT-AC](https://op.europa.eu/en/web/eu-vocabularies/dcat-ap). -->
 
 The current CROSS metadata include
 
@@ -16,6 +16,9 @@ The current CROSS metadata include
 | `title` | `str` | Yes | A human-readable title for the data. Think of this as the label that will be used in graphs and tables. |
 | `description` | `str` | Yes | A human-readable description of the data. This should explain what the data contain. It gives the data a semantic meaning. |
 | `tags` | `list[str]` | No | A list of tags that can be used to categorize the table.  Defaults to an empty list. |
+| `contract_type` | str | No | The type of the contract. Either *Dimension*, *ValueVariable* or *General* |
+
+For more information see on the contract types, have a look at the [separate section](contract_types.md)
 
 ## Custom Metadata
 

@@ -4,6 +4,8 @@ from pydantic import Field, model_validator
 
 from ..schema import TableSchema
 
+ID_PATTERN = r"^[a-z][a-z0-9_]*$"
+
 DIMENSION_SCHEMA_TEMPLATE = {
     "primaryKey": ["id"],
     "foreignKeys": [{"fields": ["parent_id"], "reference": {"fields": ["id"]}}],
@@ -13,7 +15,7 @@ DIMENSION_SCHEMA_TEMPLATE = {
             "type": "string",
             "description": (
                 "Unique name of the element (only lowercase letters, numbers, "
-                "hyphens, and underscores). "
+                "and underscores; must start with a letter). "
             ),
             "constraints": {
                 "required": True,
@@ -21,6 +23,7 @@ DIMENSION_SCHEMA_TEMPLATE = {
                 # as we have a single id as primary key, it must be unique across
                 # the entire table
                 "unique": True,
+                "pattern": ID_PATTERN,
             },
         },
         {
@@ -37,7 +40,7 @@ DIMENSION_SCHEMA_TEMPLATE = {
             "name": "parent_id",
             "type": "string",
             "title": "Link to parent",
-            "constraints": {"maxLength": 100},
+            "constraints": {"maxLength": 100, "pattern": ID_PATTERN},
         },
         {
             "name": "label",
@@ -93,7 +96,7 @@ class DimensionSchema(TableSchema):
         - Type: string
         - Description: A detailed description of the dimension entry.
 
-    Add the data level, dimensions receive more checks to ensure the hierarchy is
+    At the data level, dimensions receive more checks to ensure the hierarchy is
     consistent and valid.
 
     1. At level 0, no parent_id can be provided
