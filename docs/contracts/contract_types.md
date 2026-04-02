@@ -7,11 +7,12 @@ however in additional requirements and checks for data schema.
 
 In short the CROSS data model is organized as a Kimball star schema. Dimensions such
 as countries, generation technologies, or economic sectors are
-organized as hierarchies with various sub-levels. Dimensions cannot contain any
-foreign key references, i.e., dimensions are not allowed to reference each other.
-The actual data are provided in fact tables that are characterized by one or more
-column that contain the numerical values and a set of columns that reference the
-dimensions. We therefore differentiate between three main types of contracts:
+organized as hierarchies with various sub-levels. Dimensions must not contain foreign
+key references to other resources or other dimensions; only self-references within the
+same dimension table (for hierarchy, e.g., `parent_id -> id`) are allowed. The actual
+data are provided in fact tables that are characterized by one or more column that
+contain the numerical values and a set of columns that reference the dimensions. We
+therefore differentiate between three main types of contracts:
 
 - *General*: This is the most flexible type. The schema to describe the data is the
  [standard table schema](schema.md)
