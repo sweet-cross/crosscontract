@@ -18,7 +18,7 @@ The current CROSS metadata include
 | `tags` | `list[str]` | No | A list of tags that can be used to categorize the table.  Defaults to an empty list. |
 | `contract_type` | str | No | The type of the contract. Either *Dimension*, *ValueVariable* or *General* |
 
-For more information see on the contract types, have a look at the [separate section](contract_types.md)
+For more information on contract types, see the [separate section](contract_types.md).
 
 ## Custom Metadata
 
