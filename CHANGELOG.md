@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.7.0 (2026-04-02)
+
+### Features
+
+- 28 feature contract types ([#29](https://github.com/sweet-cross/crosscontract/pull/29),
+  [`9386f51`](https://github.com/sweet-cross/crosscontract/commit/9386f51693fbdd5971e600bf701a5cbe4185a7f6))
+
+
 ## v0.6.0 (2026-03-15)
 
 ### Features
