@@ -15,7 +15,9 @@ class ValueVariableSchema(TableSchema):
     """
 
     # todo add value variable-specific fields or constraints
-    table_type: Literal["ValueVariable"] = Field(
+    # ignore type error as we want to enforce the table_type for this schema
+    # for the pydantic discriminator to work correctly
+    table_type: Literal["ValueVariable"] = Field(  # type: ignore[assignment]
         default="ValueVariable",
         description="Type of the table determines the structure of the schema.",
         exclude=True,
