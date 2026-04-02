@@ -54,7 +54,7 @@ Dimensions have the following fields:
     - A human-readable label for the dimension entry. This is the default fallback
         label for plotting etc purposes if no other label is provided.
     - optional
-    - Type: string (max length 255 characters)s
+    - Type: string (max length 255 characters)
 - "description":
     - A detailed description of the dimension entry.
     - optional
