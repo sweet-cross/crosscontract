@@ -104,7 +104,7 @@ class TestRefresh:
 
         # calling the contract property should trigger refresh
         assert resource.contract.name == "test_contract"
-        # status should also be refreshed (see note below)
+        # status should also be refreshed
         assert resource.status == "Active"
 
     def test_refresh_name_mismatch(

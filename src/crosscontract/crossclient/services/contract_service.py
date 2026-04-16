@@ -114,7 +114,7 @@ class ContractService:
         raise_from_response(response)
         resp = response.json()
         contract = CrossContract.from_server(resp["contract"])
-        return ContractResource(self, contract=contract, status=resp.get("status"))
+        return ContractResource(self, contract=contract, status=resp["status"])
 
     def delete(self, name: str, hard: bool = False) -> None:
         """Delete a contract by name if it exists. A contract can only be deleted

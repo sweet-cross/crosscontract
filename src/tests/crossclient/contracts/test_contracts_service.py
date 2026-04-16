@@ -96,6 +96,8 @@ class TestGet:
         get_url = f"{CONTRACTS_URL}{contract_name}"
         expected_response = {
             "contract": valid_contract.model_dump(mode="json"),
+            "status": "Active",
+            "name": contract_name,
         }
 
         with respx.mock as respx_mock:
