@@ -85,6 +85,52 @@ class CrossContract(BaseContract, CrossMetaData):
         description="The Frictionless Table Schema definition."
     )
 
+    @classmethod
+    def from_server(cls, data: dict[str, Any]) -> "CrossContract":
+        """
+        Server responses include the materialized `tableschema` for all contract
+        types so consumers can work with it. For Dimension contracts the schema
+        is derived from a fixed template and the public validator forbids it as
+        input; this method strips it before validation so the template injection
+        can rebuild it cleanly.
+
+        Use this for any dict coming from the server or from stored server
+        payloads (e.g. a DB row). For user-authored dicts, use the standard
+        constructor.
+
+        Args:
+            data (dict[str, Any]): A dictionary containing the data for the
+                CrossContract.
+
+        Returns:
+            CrossContract: An instance of CrossContract initialized with the
+                provided data.
+        """
+        # as dimensions do not allow for a tableschema to be provided
+        # we strip it during construction
+        if data.get("contract_type") == "Dimension":
+            data = {k: v for k, v in data.items() if k != "tableschema"}
+        return cls.model_validate(data)
+
+    def to_server(self) -> dict[str, Any]:
+        """Serializes the CrossContract instance into a dictionary format suitable for
+        server communication.
+
+        This method converts the CrossContract instance into a dictionary that can be
+        easily serialized to JSON for API requests. It ensures that all necessary
+        fields are included and properly formatted according to the server's
+        expectations.
+
+        Returns:
+            dict[str, Any]: A dictionary representation of the CrossContract instance.
+        """
+        data = self.model_dump(mode="json")
+        # server will create the tableschema for dimensions, so we remove it from
+        # the payload if it's a dimension
+        if self.contract_type == "Dimension":
+            data.pop("tableschema", None)
+        return data
+
     @model_validator(mode="before")
     @classmethod
     def _inject_table_type(cls, data: Any) -> Any:
