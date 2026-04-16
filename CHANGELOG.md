@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.8.2 (2026-04-16)
+
+### Bug Fixes
+
+- Other category naming ([#36](https://github.com/sweet-cross/crosscontract/pull/36),
+  [`2ca46d7`](https://github.com/sweet-cross/crosscontract/commit/2ca46d78e689b8b7892b37fc2b4cffb10a9e7005))
+
+
 ## v0.8.1 (2026-04-16)
 
 ### Bug Fixes
