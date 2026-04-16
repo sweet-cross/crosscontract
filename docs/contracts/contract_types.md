@@ -39,7 +39,7 @@ Dimensions have the following fields:
 - "id":
     - A unique identifier for each entry in the dimension table.
     - required
-    - Type: string (max length 100 characters). Only lower case letters, numbers
+    - Type: string (max length 100 characters). Only letters (a-z, A-Z), numbers
         and underscores are allowed. It must start with a lower case letter.
     - Constraints: Must be unique across the entire table and serves as the
                     primary key.
