@@ -4,7 +4,7 @@ from pydantic import Field, model_validator
 
 from ..schema import TableSchema
 
-ID_PATTERN = r"^[a-z][a-z0-9_]*$"
+ID_PATTERN = r"^[a-zA-Z][a-zA-Z0-9_]*$"
 
 DIMENSION_SCHEMA_TEMPLATE = {
     "primaryKey": ["id"],
