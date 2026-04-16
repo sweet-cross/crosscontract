@@ -16,7 +16,7 @@ def get_dimension_checks(schema: "TableSchema") -> list[pa.Check]:
     2. Each sub-level needs parent_id pointing to level above.
     3. Each sub-level needs a parent_id.
     4. The root level of the dimension hierarchy should have an entry with id "other".
-       Each sub-level should have a sibling entry with id "other_<parent_id>" to
+       Each sub-level should have a sibling entry with id "<parent_id>_other" to
        capture uncategorized entries at that level.
 
     Args:
