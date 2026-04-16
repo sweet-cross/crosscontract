@@ -90,29 +90,58 @@ class TestRefresh:
         self, service: ContractService, contract_factory: type[ModelFactory]
     ):
         """Test refreshing contract details successfully."""
-        # initialize resource only with name and status
         resource = ContractResource(
             service=service, name="test_contract", status="Draft"
         )
         assert resource._contract is None
-        resource._service.get = Mock(
-            return_value=contract_factory.build(name="test_contract")
+
+        fetched = ContractResource(
+            service=service,
+            contract=contract_factory.build(name="test_contract"),
+            status="Active",
         )
+        resource._service.get = Mock(return_value=fetched)
+
         # calling the contract property should trigger refresh
         assert resource.contract.name == "test_contract"
+        # status should also be refreshed (see note below)
+        assert resource.status == "Active"
 
     def test_refresh_name_mismatch(
         self, service: ContractService, contract_factory: type[ModelFactory]
     ):
         """Test refreshing contract details with name mismatch."""
-        # initialize resource only with name and status
         resource = ContractResource(
             service=service, name="test_contract", status="Draft"
         )
         assert resource._contract is None
-        resource._service.get = Mock(return_value=contract_factory.build(name="test"))
+
+        fetched = ContractResource(
+            service=service,
+            contract=contract_factory.build(name="test"),
+            status="Draft",
+        )
+        resource._service.get = Mock(return_value=fetched)
+
         with pytest.raises(ValueError, match="does not match resource name"):
             resource.refresh()
+
+    def test_refresh_updates_existing_contract(
+        self, service: ContractService, contract_factory: type[ModelFactory]
+    ):
+        initial = contract_factory.build(name="test_contract", title="old")
+        resource = ContractResource(service=service, contract=initial, status="Draft")
+
+        updated = ContractResource(
+            service=service,
+            contract=contract_factory.build(name="test_contract", title="new"),
+            status="Active",
+        )
+        resource._service.get = Mock(return_value=updated)
+
+        resource.refresh()
+        assert resource.contract.title == "new"
+        assert resource.status == "Active"
 
 
 class TestChangeStatus:

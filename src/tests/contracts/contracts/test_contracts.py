@@ -111,3 +111,17 @@ class TestCrossContract:
         # BaseContract should raise error due to missing fields
         with pytest.raises(ValueError):
             CrossContract.model_validate(new_data)
+
+    def test_dimension_roundtrip(self):
+        c = CrossContract(
+            name="x", title="t", description="d", contract_type="Dimension"
+        )
+        assert CrossContract.from_server(c.to_server()) == c
+
+    def test_general_roundtrip(self):
+        new_data = data_base_contract.copy()
+        new_data["title"] = "Data Base Contract"
+        new_data["description"] = "This is a base contract for data."
+        new_data["tags"] = ["tag1", "tag2"]
+        c = CrossContract.model_validate(new_data)
+        assert CrossContract.from_server(c.to_server()) == c
