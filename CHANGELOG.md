@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.8.1 (2026-04-16)
+
+### Bug Fixes
+
+- Allow capital letters for dimension ids (to allow for iso codes)
+  ([#35](https://github.com/sweet-cross/crosscontract/pull/35),
+  [`4496e6a`](https://github.com/sweet-cross/crosscontract/commit/4496e6a2c2b977d0e6201f22bb207193e4ed454b))
+
+
 ## v0.8.0 (2026-04-16)
 
 ### Features
