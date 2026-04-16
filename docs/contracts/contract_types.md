@@ -67,7 +67,7 @@ consistent and valid.
 1. At level 0, no parent_id can be provided
 2. A row at level N (N > 0) must reference a parent at level N-1
 3. Each row at level N (N > 0) must have a parent_id
-4. The root level of the dimension hierarchy should have an entry with id "other".
-    Each sub-level should have a sibling entry with id "other_<parent_id>" to
+4. The root level of the dimension hierarchy must have an entry with id "other".
+    Each sub-level must have a sibling entry with id "<parent_id>_other" to
     capture uncategorized entries at that level.
 
