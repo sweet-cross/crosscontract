@@ -149,7 +149,7 @@ class TestLazyCollectsMultipleErrors:
         )
         with pytest.raises(pa.errors.SchemaErrors) as exc_info:
             dimension_schema.validate(df, lazy=True)
-        # At minimum we expect more than one DimensionError
+        # At minimum we expect more than one DimensionCheck
         dimension_errors = [
             err
             for err in exc_info.value.schema_errors
