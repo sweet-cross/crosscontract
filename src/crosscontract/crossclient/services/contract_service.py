@@ -47,13 +47,13 @@ class ContractService:
             ContractResource: The created contract object.
         """
         # 1. Create the contract on the platform
-        json_payload = contract.model_dump(mode="json")
+        json_payload = contract.to_server()
         response = self._client.post(self._route, json=json_payload)
         raise_from_response(response)
 
         # 2. Extract info from response
         resp = response.json()
-        contract = CrossContract.model_validate(resp["contract"])
+        contract = CrossContract.from_server(resp["contract"])
         status = resp["status"]
 
         # 3. Activate the contract if requested
@@ -91,7 +91,7 @@ class ContractService:
         return {
             item["name"]: ContractResource(
                 self,
-                contract=CrossContract.model_validate(item["contract"]),
+                contract=CrossContract.from_server(item["contract"]),
                 status=item["status"],
             )
             for item in json_body
@@ -112,9 +112,9 @@ class ContractService:
         endpoint = f"{self._route}{name}"
         response = self._client.get(endpoint)
         raise_from_response(response)
-        json_body = response.json()
-        contract = CrossContract.model_validate(json_body["contract"])
-        return ContractResource(self, contract=contract, status=json_body.get("status"))
+        resp = response.json()
+        contract = CrossContract.from_server(resp["contract"])
+        return ContractResource(self, contract=contract, status=resp.get("status"))
 
     def delete(self, name: str, hard: bool = False) -> None:
         """Delete a contract by name if it exists. A contract can only be deleted
@@ -193,8 +193,8 @@ class ContractService:
         data associated with the contract. Dropping the data table is irreversible.
         It can only be performed if the contract is in "Retired" status.
 
-        Note: This operation is ireversible and will delete all data associated with the
-        contract.
+        Note: This operation is irreversible and will delete all data associated
+            with the contract.
 
         Args:
             name (str): The name of the contract whose data to delete.

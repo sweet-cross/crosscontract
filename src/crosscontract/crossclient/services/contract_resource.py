@@ -111,13 +111,14 @@ class ContractResource:
 
     def refresh(self):
         """Fetch the full contract details from the CROSS platform."""
-        contract = self._service.get(self.name)
-        if contract.name != self.name:
+        my_resource = self._service.get(self.name)
+        if my_resource.name != self.name:
             raise ValueError(
-                f"Fetched contract name '{contract.name}' does not match "
+                f"Fetched contract name '{my_resource.name}' does not match "
                 f"resource name '{self.name}'."
             )
-        self._contract = contract
+        self._contract = my_resource.contract
+        self._status = my_resource.status
 
     def _prepare_dataframe_csv_upload(self, df: pd.DataFrame) -> pd.DataFrame:
         """Prepare a DataFrame for CSV upload by formatting datetime columns.
