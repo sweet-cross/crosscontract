@@ -100,7 +100,7 @@ class TestCheckRootNoParent:
 # ---------------------------------------------------------------------------
 # _check_other_entries
 #   - level 0: must contain id == "other"
-#   - level > 0: each parent must have a child with id == "other_<parent_id>"
+#   - level > 0: each parent must have a child with id == "<parent_id>_other"
 # ---------------------------------------------------------------------------
 class TestCheckOtherEntries:
     # --- Valid hierarchies ---
@@ -116,7 +116,7 @@ class TestCheckOtherEntries:
                 {"id": "europe", "level": 0},
                 {"id": "other", "level": 0},
                 {"id": "germany", "level": 1, "parent_id": "europe"},
-                {"id": "other_europe", "level": 1, "parent_id": "europe"},
+                {"id": "europe_other", "level": 1, "parent_id": "europe"},
                 {"id": "france", "level": 1, "parent_id": "other"},
                 {"id": "other_other", "level": 1, "parent_id": "other"},
             ]
@@ -129,10 +129,10 @@ class TestCheckOtherEntries:
                 {"id": "europe", "level": 0},
                 {"id": "other", "level": 0},
                 {"id": "germany", "level": 1, "parent_id": "europe"},
-                {"id": "other_europe", "level": 1, "parent_id": "europe"},
+                {"id": "europe_other", "level": 1, "parent_id": "europe"},
                 {"id": "berlin", "level": 2, "parent_id": "germany"},
-                {"id": "other_germany", "level": 2, "parent_id": "germany"},
-                {"id": "other_other_europe", "level": 2, "parent_id": "other_europe"},
+                {"id": "germany_other", "level": 2, "parent_id": "germany"},
+                {"id": "europe_other_other", "level": 2, "parent_id": "europe_other"},
             ]
         )
         assert _check_other_entries(df).all()
@@ -155,7 +155,7 @@ class TestCheckOtherEntries:
             [
                 {"id": "europe", "level": 0},
                 {"id": "child", "level": 1, "parent_id": "europe"},
-                {"id": "other_europe", "level": 1, "parent_id": "europe"},
+                {"id": "europe_other", "level": 1, "parent_id": "europe"},
             ]
         )
         result = _check_other_entries(df)
@@ -165,7 +165,7 @@ class TestCheckOtherEntries:
         assert result.iloc[1]
         assert result.iloc[2]
 
-    # --- Missing child "other_<parent_id>" ---
+    # --- Missing child "<parent_id>_other" ---
 
     def test_missing_child_other_flags_siblings(self):
         df = _make_df(
@@ -174,7 +174,7 @@ class TestCheckOtherEntries:
                 {"id": "other", "level": 0},
                 {"id": "germany", "level": 1, "parent_id": "europe"},
                 {"id": "france", "level": 1, "parent_id": "europe"},
-                # missing: other_europe
+                # missing: europe_other
             ]
         )
         result = _check_other_entries(df)
@@ -206,17 +206,17 @@ class TestCheckOtherEntries:
                 {"id": "europe", "level": 0},
                 {"id": "asia", "level": 0},
                 {"id": "other", "level": 0},
-                # europe children: has other_europe ✓
+                # europe children: has europe_other ✓
                 {"id": "germany", "level": 1, "parent_id": "europe"},
-                {"id": "other_europe", "level": 1, "parent_id": "europe"},
-                # asia children: missing other_asia ✗
+                {"id": "europe_other", "level": 1, "parent_id": "europe"},
+                # asia children: missing asia_other ✗
                 {"id": "japan", "level": 1, "parent_id": "asia"},
             ]
         )
         result = _check_other_entries(df)
         assert result.iloc[3]  # germany passes
-        assert result.iloc[4]  # other_europe passes
-        assert not result.iloc[5]  # japan fails (no other_asia)
+        assert result.iloc[4]  # europe_other passes
+        assert not result.iloc[5]  # japan fails (no asia_other)
 
 
 # ---------------------------------------------------------------------------

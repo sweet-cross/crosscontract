@@ -30,7 +30,7 @@ VALID_TWO_LEVEL = _make_df(
         {"id": "europe", "level": 0},
         {"id": "other", "level": 0},
         {"id": "germany", "level": 1, "parent_id": "europe"},
-        {"id": "other_europe", "level": 1, "parent_id": "europe"},
+        {"id": "europe_other", "level": 1, "parent_id": "europe"},
         {"id": "other_other", "level": 1, "parent_id": "other"},
     ]
 )
@@ -47,11 +47,11 @@ class TestValidDimension:
                 {"id": "world", "level": 0},
                 {"id": "other", "level": 0},
                 {"id": "europe", "level": 1, "parent_id": "world"},
-                {"id": "other_world", "level": 1, "parent_id": "world"},
+                {"id": "world_other", "level": 1, "parent_id": "world"},
                 {"id": "other_other", "level": 1, "parent_id": "other"},
                 {"id": "germany", "level": 2, "parent_id": "europe"},
-                {"id": "other_europe", "level": 2, "parent_id": "europe"},
-                {"id": "other_other_world", "level": 2, "parent_id": "other_world"},
+                {"id": "europe_other", "level": 2, "parent_id": "europe"},
+                {"id": "world_other_other", "level": 2, "parent_id": "world_other"},
                 {"id": "other_other_other", "level": 2, "parent_id": "other_other"},
             ]
         )
@@ -149,10 +149,10 @@ class TestLazyCollectsMultipleErrors:
         )
         with pytest.raises(pa.errors.SchemaErrors) as exc_info:
             dimension_schema.validate(df, lazy=True)
-        # At minimum we expect more than one DimensionError
+        # At minimum we expect more than one DimensionCheck
         dimension_errors = [
             err
             for err in exc_info.value.schema_errors
-            if hasattr(err, "check") and "DimensionError" in str(err.check)
+            if hasattr(err, "check") and "DimensionCheck" in str(err.check)
         ]
         assert len(dimension_errors) >= 2
