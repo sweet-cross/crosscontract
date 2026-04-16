@@ -28,21 +28,21 @@ def get_dimension_checks(schema: "TableSchema") -> list[pa.Check]:
     return [
         pa.Check(
             _check_root_no_parent,
-            name="DimensionError: Root level entries should not have a parent_id",
+            name="DimensionCheck: Root level entries should not have a parent_id",
         ),
         pa.Check(
             _check_parent_level,
             name=(
-                "DimensionError: Each sub-level needs parent_id pointing to level above"
+                "DimensionCheck: Each sub-level needs parent_id pointing to level above"
             ),
         ),
         pa.Check(
             _check_parent_id_required,
-            name="DimensionError: Each sub-level needs a parent_id",
+            name="DimensionCheck: Each sub-level needs a parent_id",
         ),
         pa.Check(
             _check_other_entries,
-            name="DimensionError: Other entry existence for each level",
+            name="DimensionCheck: Other entry existence for each level",
         ),
     ]
 
@@ -95,7 +95,7 @@ def _check_parent_id_required(df: pd.DataFrame) -> pd.Series:
 
 def _check_other_entries(df: pd.DataFrame) -> pd.Series:
     """The root level of the dimension hierarchy should have an entry with id "other".
-    Each sub-level should have a sibling entry with id "other_<parent_id>" to
+    Each sub-level should have a sibling entry with id "<parent_id>_other" to
     capture uncategorized entries at that level.  This ensures that the dimension
     can be used for aggregation without losing data due to missing parent-child links.
 
@@ -116,7 +116,7 @@ def _check_other_entries(df: pd.DataFrame) -> pd.Series:
     result.loc[is_root] = bool(root_ok)
     if not is_root.all():
         non_root = df[~is_root]
-        expected_other = "other_" + non_root["parent_id"].astype(str)
+        expected_other = non_root["parent_id"].astype(str) + "_other"
         parent_has_other = non_root.groupby("parent_id")["id"].transform(
             lambda ids: expected_other.loc[ids.index].isin(ids.values).any()
         )
