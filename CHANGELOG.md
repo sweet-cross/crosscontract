@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.8.0 (2026-04-16)
+
+### Features
+
+- From_/to_server methods for CrossContract
+  ([#34](https://github.com/sweet-cross/crosscontract/pull/34),
+  [`73af93a`](https://github.com/sweet-cross/crosscontract/commit/73af93a56c657d67579f012354e8c36b7184dc55))
+
+
 ## v0.7.0 (2026-04-02)
 
 ### Features
