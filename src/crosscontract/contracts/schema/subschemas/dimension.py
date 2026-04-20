@@ -141,4 +141,4 @@ class DimensionSchema(BaseDimensionSchema):
                 "Please put all metadata (title, description, etc.) on the "
                 "Contract level."
             )
-        return deepcopy(**DIMENSION_SCHEMA_TEMPLATE)
+        return deepcopy(DIMENSION_SCHEMA_TEMPLATE)
