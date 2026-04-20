@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from functools import cached_property
 from pathlib import Path
-from typing import Annotated, Any, Literal, Self
+from typing import Annotated, Any, ClassVar, Literal, Self
 
 import pandas as pd
 import pandera.pandas as pa
@@ -20,10 +20,32 @@ FieldUnion = Annotated[
 ]
 
 
+class MandatoryField(BaseModel):
+    """
+    A helper class to define mandatory fields in the schema. This is used for
+    validation purposes to ensure that certain fields are always present in the
+    schema.
+    """
+
+    name: str = Field(description="The name of the mandatory field.")
+    type: Literal["integer", "number", "string", "datetime", "list"] | None = Field(
+        default=None, description="The type of the mandatory field."
+    )
+    description: str = Field(
+        description="A description of the mandatory field and its purpose."
+    )
+
+
 class TableSchema(BaseModel):
     """
     A Frictionless Table Schema compatible schema definition.
     Includes fields, primary keys, foreign keys, and field descriptors.
+    """
+
+    _mandatory_fields: ClassVar[list[MandatoryField]] = []
+    """Fields that a schema subclass is required to declare.
+
+    Override in subclasses to enforce domain-specific invariants.
     """
 
     table_type: Literal["General"] = Field(
@@ -96,6 +118,26 @@ class TableSchema(BaseModel):
             return field_names in self.field_names
         else:
             return all(name in self.field_names for name in field_names)
+
+    @model_validator(mode="after")
+    def _validate_mandatory_fields(self) -> Self:
+        """Validate that all mandatory fields are present and of the correct type."""
+        errors: list[str] = []
+        for spec in self._mandatory_fields:
+            field = self.get(spec.name)
+            if field is None:
+                errors.append(f"missing field '{spec.name}' — {spec.description}")
+            elif spec.type is not None and field.type != spec.type:
+                errors.append(
+                    f"field '{spec.name}' must be of type '{spec.type}', "
+                    f"got '{field.type}' — {spec.description}"
+                )
+        if errors:
+            raise ValueError(
+                f"Mandatory field validation failed for "
+                f"'{type(self).__name__}':\n  - " + "\n  - ".join(errors)
+            )
+        return self
 
     @model_validator(mode="after")
     def validate_structural_integrity(self) -> "TableSchema":

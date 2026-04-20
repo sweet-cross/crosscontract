@@ -26,12 +26,29 @@ meta-data but the schema of the data is automatically provided.
 
 ## Dimension contracts
 
-The `contract_type` *Dimension* indicates the Dimension contract. It follows the
-standard CROSS metadata but is characterized by a highly standardized data schema
-and additional data checks that ensure that the hierarchy implemented by the dimension
-is meaningful.
+Dimensions are contracts that are meant to be referenced. They are primarily used
+to enforce **Star Schema** requirements. A Star Schema consists of fact and dimension
+tables. The start nature is enforced by the requirements that
 
-The data schema for dimensions narrows the base [`TableSchema`](schema.md)
+- Fact tables can only reference dimensions
+- Dimensions cannot reference other dimensions
+
+To facilitate this kind of data modeling, CrossContract have dimension contracts
+that come in two ways. `Dimension` and `FlexibleDimension`. They follow the
+standard CROSS metadata but are characterized by additional requirements:
+
+1. It must have a primary key. The primary key can be a single field or a composite
+of several fields.
+2. There are no foreign key references except to the table itself (self-reference).
+
+The `FlexibleDimension` contract puts the further requirement that the schema must
+have a *label* and a *description* field both of type string.
+
+The `Dimension` contract is more rigid and is the standard way to implement hierarchical
+dimensions. It implements additional data checks that ensure that the hierarchy
+implemented by the dimension is meaningful.
+
+The data schema for `Dimension` narrows the base [`TableSchema`](schema.md)
 by adding specific constraints and conventions for dimension tables.
 
 Dimensions have the following fields:

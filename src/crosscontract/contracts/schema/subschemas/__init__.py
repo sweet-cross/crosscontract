@@ -1,7 +1,11 @@
-from .dimension_schema import DimensionSchema
-from .value_variable_schema import ValueVariableSchema
+from .base_dimension import BaseDimensionSchema
+from .dimension import DimensionSchema
+from .flexible_dimension import FlexibleDimensionSchema
+from .value_variable import ValueVariableSchema
 
 __all__ = [
     "DimensionSchema",
     "ValueVariableSchema",
+    "FlexibleDimensionSchema",
+    "BaseDimensionSchema",
 ]

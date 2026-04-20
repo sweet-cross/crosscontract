@@ -2,11 +2,16 @@ from typing import Annotated, Any, Literal
 
 from pydantic import ConfigDict, Field, model_validator
 
-from ..schema import DimensionSchema, TableSchema, ValueVariableSchema
+from ..schema import (
+    DimensionSchema,
+    FlexibleDimensionSchema,
+    TableSchema,
+    ValueVariableSchema,
+)
 from .base_contract import BaseContract, BaseMetaData
 
 AnyTableSchema = Annotated[
-    TableSchema | DimensionSchema | ValueVariableSchema,
+    TableSchema | DimensionSchema | ValueVariableSchema | FlexibleDimensionSchema,
     Field(discriminator="table_type"),
 ]
 
@@ -65,7 +70,7 @@ class CrossContract(BaseContract, CrossMetaData):
             Accessible via the `tableschema` property as well.
             This is the core schema definition that describes the structure of the data,
             including fields, types, and constraints. It changes based on the contract
-            type (e.g., Table, Dimension, ValueVariable).
+            type (e.g., Table, Dimension, ValueVariable, FlexibleDimension).
     """
 
     model_config = ConfigDict(
@@ -74,7 +79,9 @@ class CrossContract(BaseContract, CrossMetaData):
         serialize_by_alias=True,
     )
 
-    contract_type: Literal["General", "Dimension", "ValueVariable"] = Field(
+    contract_type: Literal[
+        "General", "Dimension", "ValueVariable", "FlexibleDimension"
+    ] = Field(
         default="General",
         description=(
             "The type of the contract, which determines the structure of the "

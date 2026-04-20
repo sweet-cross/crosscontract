@@ -29,7 +29,7 @@ from .fields import (
 )
 from .reference import ForeignKeys, PrimaryKey
 from .schema import TableSchema
-from .subschemas import DimensionSchema, ValueVariableSchema
+from .subschemas import DimensionSchema, FlexibleDimensionSchema, ValueVariableSchema
 
 __all__ = [
     "TableSchema",
@@ -48,4 +48,5 @@ __all__ = [
     "BaseField",
     "DimensionSchema",
     "ValueVariableSchema",
+    "FlexibleDimensionSchema",
 ]
