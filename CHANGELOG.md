@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.8.4 (2026-04-20)
+
+### Bug Fixes
+
+- Refernce validation at the BaseContract using resolver
+  ([#40](https://github.com/sweet-cross/crosscontract/pull/40),
+  [`04c12fd`](https://github.com/sweet-cross/crosscontract/commit/04c12fd0d3e70693dacb1d829bb6ff4a16a0b1a9))
+
+
 ## v0.8.3 (2026-04-20)
 
 ### Bug Fixes
