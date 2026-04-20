@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.8.3 (2026-04-20)
+
+### Bug Fixes
+
+- Flexible dimension ([#39](https://github.com/sweet-cross/crosscontract/pull/39),
+  [`c0a8378`](https://github.com/sweet-cross/crosscontract/commit/c0a8378ef3b4e7ad73f27b337e989a53780ff31a))
+
+
 ## v0.8.2 (2026-04-16)
 
 ### Bug Fixes
