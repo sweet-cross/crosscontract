@@ -8,3 +8,4 @@ if TYPE_CHECKING:  # pragma: no cover
 class ContractResolver(Protocol):
     def resolve(self, name: str) -> "BaseContract | None":
         """Return the contract with the given name, or None if not found."""
+        ...
