@@ -227,8 +227,9 @@ class CrossContract(BaseContract, CrossMetaData):
         contracts whose tableschema is a BaseDimensionSchema. Users achieve this
         by choosing a dimension-flavored contract_type (Dimension or
         FlexibleDimension), which binds the corresponding schema subclass via
-        the discriminator. The default of enforce_star_schema=True reflects this
-        invariant so callers get the canonical check with a zero-argument call.
+        the discriminator. The default of ``enforce_star_schema=True`` reflects
+        this invariant, so callers get the canonical check when they omit that
+        optional argument and provide only the required ``resolver``.
         Delegates to BaseContract.validate_references; see there for
         implementation details.
 
