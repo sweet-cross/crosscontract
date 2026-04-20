@@ -25,7 +25,7 @@ class PrimaryKey(RootModel):
         Returns the list of field names that make up the primary key.
 
         Returns:
-            list[str]: A list of field names (copy of the root list).
+            list[ValidFieldName]: A list of field names (copy of the root list).
         """
         return list(self.root)
 
