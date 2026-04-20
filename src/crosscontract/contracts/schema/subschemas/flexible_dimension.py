@@ -9,7 +9,7 @@ from .base_dimension import BaseDimensionSchema
 class FlexibleDimensionSchema(BaseDimensionSchema):
     """
     A flexible dimension schema that allows for user-defined fields while enforcing
-    the presence of three mandatory fields:
+    the presence of two mandatory fields:
         - label: A label that describes the dimension value, which can be used
             for display purposes.
         - description: A description of the item in the dimension
