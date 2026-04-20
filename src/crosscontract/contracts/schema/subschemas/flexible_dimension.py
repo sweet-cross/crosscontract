@@ -28,7 +28,7 @@ class FlexibleDimensionSchema(BaseDimensionSchema):
             type="string",
             description=(
                 "A label that describes the dimension value, which can be used "
-                " for display purposes."
+                "for display purposes."
             ),
         ),
         MandatoryField(
