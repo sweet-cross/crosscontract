@@ -198,7 +198,8 @@ class TestBaseContractReferences:
 
 class TestCrossContractReferences:
     def test_star_schema_enforced_by_default(self):
-        """CrossContract rejects non-dimension references with zero-arg call."""
+        """CrossContract rejects non-dimension references when omitting the
+        enforce_star_schema argument (default is True)."""
         fact = CrossContract.model_validate(
             {
                 "name": "fact",
@@ -220,7 +221,8 @@ class TestCrossContractReferences:
             fact.validate_references(FakeResolver(non_dimension))
 
     def test_references_to_dimensions_pass(self):
-        """Default zero-arg call accepts references to dimension contracts."""
+        """Calling validate_references with default arguments accepts references
+        to dimension contracts."""
         fact = CrossContract.model_validate(
             {
                 "name": "fact",
