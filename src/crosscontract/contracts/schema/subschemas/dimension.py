@@ -1,8 +1,9 @@
+from copy import deepcopy
 from typing import Any, Literal
 
 from pydantic import Field, model_validator
 
-from ..schema import TableSchema
+from .base_dimension import BaseDimensionSchema
 
 ID_PATTERN = r"^[a-zA-Z][a-zA-Z0-9_]*$"
 
@@ -57,7 +58,7 @@ DIMENSION_SCHEMA_TEMPLATE = {
 }
 
 
-class DimensionSchema(TableSchema):
+class DimensionSchema(BaseDimensionSchema):
     """
     A specialized schema for dimension tables in the CrossContract system.
 
@@ -140,4 +141,4 @@ class DimensionSchema(TableSchema):
                 "Please put all metadata (title, description, etc.) on the "
                 "Contract level."
             )
-        return {**DIMENSION_SCHEMA_TEMPLATE}
+        return deepcopy(**DIMENSION_SCHEMA_TEMPLATE)

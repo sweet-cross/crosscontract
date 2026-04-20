@@ -19,7 +19,17 @@ class PrimaryKey(RootModel):
         description="A list of field names that make up the primary key.",
     )
 
-    def __iter__(self) -> Iterator[str]:  # type: ignore[override]
+    @property
+    def fields(self) -> list[ValidFieldName]:
+        """
+        Returns the list of field names that make up the primary key.
+
+        Returns:
+            list[str]: A list of field names (copy of the root list).
+        """
+        return list(self.root)
+
+    def __iter__(self) -> Iterator[ValidFieldName]:  # type: ignore[override]
         return iter(self.root)
 
     def __len__(self) -> int:
