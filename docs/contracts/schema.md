@@ -17,5 +17,3 @@ available fields are (check the API references for the most updated versions).
 | StringField | Restricts type to a string | minLength, maxLength, pattern, enum |
 | DateTimeField | Restricts type to a valid datetime with a given format | minimum, maximum, enum |
 | ListField | Restricts type to a valid list of a certain item type | minLength, maxLength |
-
-
