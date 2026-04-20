@@ -9,6 +9,7 @@ from ..schema import (
     ValueVariableSchema,
 )
 from .base_contract import BaseContract, BaseMetaData
+from .resolvers import ContractResolver
 
 AnyTableSchema = Annotated[
     TableSchema | DimensionSchema | ValueVariableSchema | FlexibleDimensionSchema,
@@ -214,3 +215,37 @@ class CrossContract(BaseContract, CrossMetaData):
         data_copy = dict(data)
         data_copy["tableschema"] = schema_copy
         return data_copy
+
+    def validate_references(
+        self,
+        resolver: ContractResolver,
+        enforce_star_schema: bool = True,
+    ) -> None:
+        """Validate references with star-schema enforcement on by default.
+
+        CrossContract models a star schema: external foreign keys must point to
+        contracts whose tableschema is a BaseDimensionSchema. Users achieve this
+        by choosing a dimension-flavored contract_type (Dimension or
+        FlexibleDimension), which binds the corresponding schema subclass via
+        the discriminator. The default of enforce_star_schema=True reflects this
+        invariant so callers get the canonical check with a zero-argument call.
+        Delegates to BaseContract.validate_references; see there for
+        implementation details.
+
+        Args:
+            resolver: Lookup for referenced contracts by name.
+            enforce_star_schema: If True (default), require that every external
+                reference points to a contract whose tableschema is a
+                BaseDimensionSchema. The check is on the schema type, not the
+                contract type — users pick contract types (e.g. Dimension,
+                FlexibleDimension) that in turn enforce the schema constraint.
+                Pass False to run only the existence + field integrity check —
+                see BaseContract.validate_references for that topology-agnostic
+                mode.
+
+        Raises:
+            ValueError: If any reference validation checks fail, with details on
+                the specific errors. All failures are collected and reported in
+                a single exception.
+        """
+        super().validate_references(resolver, enforce_star_schema=enforce_star_schema)

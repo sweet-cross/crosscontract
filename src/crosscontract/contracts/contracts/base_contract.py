@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..schema import TableSchema
 from ..utils import read_yaml_or_json_file
+from .resolvers import ContractResolver
 
 
 class BaseMetaData(BaseModel):
@@ -89,7 +90,7 @@ class BaseContract(BaseMetaData):
         return cls.model_validate(data)
 
     @model_validator(mode="after")
-    def validate_self_reference(self) -> Self:
+    def _validate_self_reference(self) -> Self:
         """Validate that self-referencing foreign keys are given as None on the
         resource field. Raise if a reference has the same name as the contract itself.
         """
@@ -101,3 +102,62 @@ class BaseContract(BaseMetaData):
                     "use None for the resource field."
                 )
         return self
+
+    def validate_references(
+        self,
+        resolver: ContractResolver,
+        enforce_star_schema: bool = False,
+    ) -> None:
+        """Validate that every external foreign key resolves to a contract whose
+        fields match the reference.
+
+        This check is topology-agnostic by default — it only verifies that
+        referenced contracts exist and their fields line up. Subclasses that
+        enforce a particular topology (e.g. star schema) may flip the default
+        of `enforce_star_schema` to True; see `CrossContract.validate_references`.
+
+        Args:
+            resolver: Lookup for referenced contracts by name.
+            enforce_star_schema: If True, additionally require that every
+                external reference points to a contract whose tableschema is a
+                BaseDimensionSchema. The check is on the schema type, not the
+                contract type — users pick contract types (e.g. Dimension,
+                FlexibleDimension) that in turn enforce the schema constraint.
+
+        Raises:
+            ValueError: If any reference validation checks fail, with details on
+                the specific errors. All failures are collected and reported in
+                a single exception.
+        """
+        # avoid circular imports by importing here
+        from crosscontract.contracts.schema.subschemas import BaseDimensionSchema
+
+        errors: list[str] = []
+        for fk in self.tableschema.foreignKeys:
+            target = fk.reference.resource
+            if target is None or target == self.name:
+                continue
+
+            referenced = resolver.resolve(target)
+            if referenced is None:
+                errors.append(f"Foreign key references unknown contract '{target}'.")
+                continue
+            if enforce_star_schema and not isinstance(
+                referenced.tableschema, BaseDimensionSchema
+            ):
+                errors.append(
+                    f"Foreign key references contract '{target}' with invalid schema "
+                    f"type '{type(referenced.tableschema).__name__}'. Expected a "
+                    "dimension schema."
+                )
+                continue
+            try:
+                fk.validate_referenced_fields(referenced.tableschema.field_names)
+            except ValueError as e:
+                errors.append(f"Foreign key to '{target}': {e}")
+
+        if errors:
+            raise ValueError(
+                f"Reference validation failed for '{self.name}':\n  - "
+                + "\n  - ".join(errors)
+            )
