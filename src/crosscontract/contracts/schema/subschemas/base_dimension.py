@@ -10,9 +10,10 @@ class BaseDimensionSchema(TableSchema):
     (Abstract) Base class for dimension schemas. This class is not meant to be
     instantiated directly but serves as a base for specific dimension schemas.
 
-    Used to enforce the star-schema structure of dimensions,
-    which includes a single primary key and a self-referencing foreign key. But
-    no other foreign keys are allowed.
+    Used to enforce the star-schema structure of dimensions, which requires an
+    explicitly defined primary key. Foreign keys are optional, but if provided,
+    they must all be self-referencing. Multiple self-referencing foreign keys
+    are allowed, and no external foreign keys are permitted.
 
     The primary key can be a single field or a composite key, but it must be
     explicitly defined by the user.
