@@ -34,6 +34,8 @@ class TestInitialize:
             service=service, name="test_contract", contract=contract, status="Draft"
         )
         assert resource.name == "test_contract"
+        assert resource.contract == contract
+        assert resource.status == "Draft"
 
     def test_initialize_with_name_only(self, service: ContractService):
         """Test initializing ContractResource with name only."""
@@ -48,7 +50,12 @@ class TestInitialize:
     ):
         """Test initializing ContractResource with contract only."""
         contract: CrossContract = contract_factory.build(name="test_contract")
-        resource = ContractResource(service=service, contract=contract, status="Draft")
+        resource = ContractResource(
+            service=service,
+            contract=contract,
+            status="Draft",
+            contract_type=contract.contract_type,
+        )
         assert resource.name == "test_contract"
 
     def test_initialize_name_mismatch(

@@ -22,6 +22,7 @@ class ContractResource:
         name (str): The name of the contract.
         status (str): The status of the contract.
         contract (CrossContract): The full contract details.
+        contract_type (str): The type of the contract, e.g., "General"
         service (ContractService): The ContractService instance used for API calls.
     """
 
@@ -31,6 +32,7 @@ class ContractResource:
         status: str,
         name: str | None = None,
         contract: CrossContract | None = None,
+        contract_type: str | None = None,
     ):
         """Initialize the ContractResource.
 
@@ -39,6 +41,7 @@ class ContractResource:
                 API calls.
             name (str | None): The name of the contract.
                 Required if contract is not provided.
+            status (str): The status of the contract.
             contract (CrossContract | None): The CrossContract instance.
                 If not provided, the contract details will be fetched lazily
                 when accessed.
@@ -55,6 +58,7 @@ class ContractResource:
         self._name = name or contract.name  # type: ignore
         self._contract = contract
         self._status = status
+        self._contract_type = contract.contract_type if contract else None
 
     @property
     def name(self) -> str:
@@ -63,6 +67,10 @@ class ContractResource:
     @property
     def status(self) -> str | None:
         return self._status
+
+    @property
+    def contract_type(self) -> str | None:
+        return self._contract_type
 
     @property
     def contract(self) -> CrossContract:
@@ -119,6 +127,7 @@ class ContractResource:
             )
         self._contract = remote_resource.contract
         self._status = remote_resource.status
+        self._contract_type = remote_resource.contract_type
 
     def _prepare_dataframe_csv_upload(self, df: pd.DataFrame) -> pd.DataFrame:
         """Prepare a DataFrame for CSV upload by formatting datetime columns.

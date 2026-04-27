@@ -37,6 +37,7 @@ class TestCreate:
         expected_response = {
             "contract": valid_contract.model_dump(mode="json"),
             "status": "Draft",
+            "contract_type": valid_contract.contract_type,
         }
 
         mock_route = respx.post(CONTRACTS_URL).respond(201, json=expected_response)
@@ -97,6 +98,7 @@ class TestGet:
         expected_response = {
             "contract": valid_contract.model_dump(mode="json"),
             "status": "Active",
+            "contract_type": valid_contract.contract_type,
             "name": contract_name,
         }
 
