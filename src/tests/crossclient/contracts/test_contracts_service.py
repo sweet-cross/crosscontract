@@ -130,13 +130,83 @@ class TestGet:
         ]
 
         with respx.mock as respx_mock:
-            respx_mock.get(get_url).respond(200, json=expected_response)
+            route = respx_mock.get(get_url).respond(200, json=expected_response)
 
             result = service.get_list()
 
             assert isinstance(result, dict)
             assert all(isinstance(v, ContractResource) for v in result.values())
             assert set(result.keys()) == {"contract1", "contract2"}
+            # No contract_type filter → no query string sent
+            assert route.calls.last.request.url.query == b""
+
+    def test_list_contracts_filter_single_type(
+        self, service: ContractService, valid_contracts: list[CrossContract]
+    ):
+        """Filtering by a single contract type is propagated as a query param."""
+        get_url = f"{CONTRACTS_URL}"
+        expected_response = [
+            {
+                "name": contract.name,
+                "contract": contract.model_dump(mode="json"),
+                "status": "Active",
+                "contract_type": contract.contract_type,
+            }
+            for contract in valid_contracts
+        ]
+
+        with respx.mock as respx_mock:
+            route = respx_mock.get(get_url).respond(200, json=expected_response)
+
+            service.get_list(contract_type=["General"])
+
+            params = route.calls.last.request.url.params
+            assert params.get_list("contract_type") == ["General"]
+
+    def test_list_contracts_filter_multiple_types(
+        self, service: ContractService, valid_contracts: list[CrossContract]
+    ):
+        """Multiple contract types are sent as repeated query params."""
+        get_url = f"{CONTRACTS_URL}"
+        expected_response = [
+            {
+                "name": contract.name,
+                "contract": contract.model_dump(mode="json"),
+                "status": "Active",
+                "contract_type": contract.contract_type,
+            }
+            for contract in valid_contracts
+        ]
+
+        with respx.mock as respx_mock:
+            route = respx_mock.get(get_url).respond(200, json=expected_response)
+
+            service.get_list(contract_type=["General", "Dimension"])
+
+            params = route.calls.last.request.url.params
+            assert params.get_list("contract_type") == ["General", "Dimension"]
+
+    def test_list_contracts_filter_none_omits_param(
+        self, service: ContractService, valid_contracts: list[CrossContract]
+    ):
+        """Explicit None is equivalent to no filter — no query string emitted."""
+        get_url = f"{CONTRACTS_URL}"
+        expected_response = [
+            {
+                "name": contract.name,
+                "contract": contract.model_dump(mode="json"),
+                "status": "Active",
+                "contract_type": contract.contract_type,
+            }
+            for contract in valid_contracts
+        ]
+
+        with respx.mock as respx_mock:
+            route = respx_mock.get(get_url).respond(200, json=expected_response)
+
+            service.get_list(contract_type=None)
+
+            assert route.calls.last.request.url.query == b""
 
     def test_overview_contracts(
         self, service: ContractService, valid_contracts: list[CrossContract]

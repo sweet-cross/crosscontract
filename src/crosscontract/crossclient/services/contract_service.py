@@ -73,16 +73,27 @@ class ContractService:
         df = pd.DataFrame(response.json())
         return df
 
-    def get_list(self) -> dict[str, ContractResource]:
+    def get_list(
+        self, contract_type: list[str] | None = None
+    ) -> dict[str, ContractResource]:
         """
         Lists all available contracts as ContractResource objects.
+
+        Args:
+            contract_type (list[str] | None): Optional filter restricting the
+                result to one or more contract types (e.g.
+                ``["General", "Dimension"]``). If None, contracts of every type
+                are returned.
 
         Returns:
             dict[str, ContractResource]: Dictionary of contract resources keyed
                 by contract name.
         """
         endpoint = self._route
-        response = self._client.get(endpoint)
+        params: dict[str, Any] = {}
+        if contract_type:
+            params["contract_type"] = contract_type
+        response = self._client.get(endpoint, params=params or None)
         raise_from_response(response)
         json_body = response.json()
         return {
