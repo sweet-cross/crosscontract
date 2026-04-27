@@ -35,6 +35,7 @@ class TestCreate:
         # It expects a JSON response with "contract" and "status"
         valid_contract = valid_contracts[0]
         expected_response = {
+            "name": valid_contract.name,
             "contract": valid_contract.model_dump(mode="json"),
             "status": "Draft",
             "contract_type": valid_contract.contract_type,
@@ -60,8 +61,10 @@ class TestCreate:
         valid_contract: CrossContract = valid_contracts[0]
         # 1. Create response
         create_response = {
+            "name": valid_contract.name,
             "contract": valid_contract.model_dump(mode="json"),
             "status": "Draft",
+            "contract_type": valid_contract.contract_type,
         }
         create_route = respx.post(CONTRACTS_URL).respond(201, json=create_response)
 
@@ -121,6 +124,7 @@ class TestGet:
                 "name": contract.name,
                 "contract": contract.model_dump(mode="json"),
                 "status": "Active",
+                "contract_type": contract.contract_type,
             }
             for contract in valid_contracts
         ]

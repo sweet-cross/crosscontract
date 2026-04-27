@@ -1,9 +1,11 @@
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import pandas as pd
+from pydantic import BaseModel
 
 from crosscontract import CrossContract
 from crosscontract.contracts.schema import SchemaValidationError
+from crosscontract.contracts.schema.subschemas import BaseDimensionSchema
 
 from ..exceptions import ValidationError
 
@@ -11,80 +13,84 @@ if TYPE_CHECKING:  # pragma: no cover
     from .contract_service import ContractService
 
 
-class ContractResource:
-    """A contract that is related to contract on the CROSS platform.
+ContractStatus = Literal["Draft", "Active", "Suspended", "Retired"]
 
-    ContractResources are read-only wrappers around the actual contract data that
-    is stored on the CROSS platform. They provide lazy loading of the contract
-    details and methods to interact with the contract, such as adding data.
+
+class _ContractEntryPayload(BaseModel):
+    """Client-side mirror of the server's ``DataContractEntryResponse``.
+
+    Centralising the shape here gives us validation at the API boundary and a
+    single place to adjust if the server response evolves.
+    """
+
+    name: str
+    status: ContractStatus
+    contract_type: str
+    contract: dict[str, Any]
+
+
+class ContractResource:
+    """A handle to a contract that exists on the CROSS platform.
+
+    ContractResources are read-only wrappers around contract data fetched from
+    the CROSS platform. They are produced exclusively by ``ContractService``
+    methods (``create``, ``get``, ``get_list``); end users do not construct them
+    directly.
 
     Attributes:
         name (str): The name of the contract.
         status (str): The status of the contract.
         contract (CrossContract): The full contract details.
-        contract_type (str): The type of the contract, e.g., "General"
-        service (ContractService): The ContractService instance used for API calls.
+        contract_type (str): The type of the contract, e.g. ``"General"``.
+        service (ContractService): The owning ``ContractService``.
     """
 
     def __init__(
         self,
         service: "ContractService",
-        status: str,
-        name: str | None = None,
-        contract: CrossContract | None = None,
-        contract_type: str | None = None,
+        payload: _ContractEntryPayload,
     ):
-        """Initialize the ContractResource.
+        """Initialise from a parsed server payload.
 
-        Args:
-            service (ContractService): The ContractService instance to use for
-                API calls.
-            name (str | None): The name of the contract.
-                Required if contract is not provided.
-            status (str): The status of the contract.
-            contract (CrossContract | None): The CrossContract instance.
-                If not provided, the contract details will be fetched lazily
-                when accessed.
+        Most callers should use :meth:`from_response` to parse a raw JSON dict;
+        this constructor takes a pre-validated payload to keep tests direct.
         """
         self._service = service
+        self._name = payload.name
+        self._status = payload.status
+        self._contract_type = payload.contract_type
+        self._contract = CrossContract.from_server(payload.contract)
 
-        # ensure consistence of the name and contract
-        if contract and name and contract.name != name:
-            raise ValueError(
-                f"Name '{name}' does not match contract name '{contract.name}'."
-            )
-        elif not name and not contract:
-            raise ValueError("Either name or contract must be provided.")
-        self._name = name or contract.name  # type: ignore
-        self._contract = contract
-        self._status = status
-        self._contract_type = contract.contract_type if contract else None
+    @classmethod
+    def from_response(
+        cls,
+        service: "ContractService",
+        response_json: dict[str, Any],
+    ) -> "ContractResource":
+        """Build a ContractResource from a raw server response dict."""
+        payload = _ContractEntryPayload.model_validate(response_json)
+        return cls(service, payload)
 
     @property
     def name(self) -> str:
         return self._name
 
     @property
-    def status(self) -> str | None:
+    def status(self) -> ContractStatus:
         return self._status
 
     @property
-    def contract_type(self) -> str | None:
+    def contract_type(self) -> str:
         return self._contract_type
 
     @property
     def contract(self) -> CrossContract:
-        """The full contract details as a CrossContract object.
+        return self._contract
 
-        This property uses lazy loading to fetch the contract details from the
-        CROSS platform only when accessed for the first time.
-
-        Returns:
-            CrossContract: The full contract details.
-        """
-        if self._contract is None:
-            self.refresh()
-        return self._contract  # type: ignore
+    @property
+    def is_dimension(self) -> bool:
+        """True if the contract's tableschema is a dimension schema."""
+        return isinstance(self._contract.tableschema, BaseDimensionSchema)
 
     def __setattr__(self, name, value):
         # 1. Access the class to find the attribute definition
@@ -104,30 +110,26 @@ class ContractResource:
     def __repr__(self):
         return f"ContractResource(name={self.name}, status={self.status})"
 
-    def change_status(
-        self,
-        status: Literal["Draft", "Active", "Suspended", "Retired"],
-    ) -> None:
+    def change_status(self, status: ContractStatus) -> None:
         """Change the status of the contract.
 
         Args:
-            status (Literal["Draft", "Active", "Suspended", "Retired"]):
-                The new status for the contract.
+            status (ContractStatus): The new status for the contract.
         """
         self._service.change_status(self.name, status)
         self._status = status
 
-    def refresh(self):
-        """Fetch the full contract details from the CROSS platform."""
-        remote_resource = self._service.get(self.name)
-        if remote_resource.name != self.name:
+    def refresh(self) -> None:
+        """Re-fetch the contract details from the CROSS platform."""
+        remote = self._service.get(self.name)
+        if remote.name != self.name:
             raise ValueError(
-                f"Fetched contract name '{remote_resource.name}' does not match "
+                f"Fetched contract name '{remote.name}' does not match "
                 f"resource name '{self.name}'."
             )
-        self._contract = remote_resource.contract
-        self._status = remote_resource.status
-        self._contract_type = remote_resource.contract_type
+        self._contract = remote.contract
+        self._status = remote.status
+        self._contract_type = remote.contract_type
 
     def _prepare_dataframe_csv_upload(self, df: pd.DataFrame) -> pd.DataFrame:
         """Prepare a DataFrame for CSV upload by formatting datetime columns.

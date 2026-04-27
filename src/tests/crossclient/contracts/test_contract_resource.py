@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 from polyfactory.factories.pydantic_factory import ModelFactory
+from pydantic import ValidationError as PydanticValidationError
 
 from crosscontract import CrossContract
 from crosscontract.contracts.schema import SchemaValidationError, TableSchema
@@ -13,79 +14,68 @@ from crosscontract.crossclient.services.contract_service import ContractService
 CONTRACTS_URL = "https://api.example.com/api/v1/contract/"
 
 
+def _response_dict(contract: CrossContract, status: str = "Draft") -> dict:
+    """Build a server-style response dict for a given contract."""
+    return {
+        "name": contract.name,
+        "status": status,
+        "contract_type": contract.contract_type,
+        "contract": contract.model_dump(mode="json"),
+    }
+
+
+def _make_resource(
+    service: ContractService, contract: CrossContract, status: str = "Draft"
+) -> ContractResource:
+    return ContractResource.from_response(service, _response_dict(contract, status))
+
+
 @pytest.fixture
 def contract_resource(
     service: ContractService, contract_factory: type[ModelFactory]
 ) -> ContractResource:
     """Fixture to provide a ContractResource instance."""
     contract: CrossContract = contract_factory.build(name="contract")
-    return ContractResource(
-        service=service, name=contract.name, contract=contract, status="Draft"
-    )
+    return _make_resource(service, contract)
 
 
 class TestInitialize:
-    def test_initialize_with_name_and_contract(
+    def test_from_response_success(
         self, service: ContractService, contract_factory: type[ModelFactory]
     ):
-        """Test initializing ContractResource with both name and contract."""
+        """from_response builds a fully populated resource from a response dict."""
         contract: CrossContract = contract_factory.build(name="test_contract")
-        resource = ContractResource(
-            service=service, name="test_contract", contract=contract, status="Draft"
+        resource = ContractResource.from_response(
+            service, _response_dict(contract, "Draft")
         )
         assert resource.name == "test_contract"
-        assert resource.contract == contract
         assert resource.status == "Draft"
+        assert resource.contract_type == contract.contract_type
+        assert resource.contract.name == "test_contract"
 
-    def test_initialize_with_name_only(self, service: ContractService):
-        """Test initializing ContractResource with name only."""
-        resource = ContractResource(
-            service=service, name="test_contract", status="Draft"
-        )
-        assert resource.name == "test_contract"
-        assert resource._contract is None
-
-    def test_initialize_with_contract_only(
-        self, service: ContractService, contract_factory: type[ModelFactory]
-    ):
-        """Test initializing ContractResource with contract only."""
-        contract: CrossContract = contract_factory.build(name="test_contract")
-        resource = ContractResource(
-            service=service,
-            contract=contract,
-            status="Draft",
-            contract_type=contract.contract_type,
-        )
-        assert resource.name == "test_contract"
-
-    def test_initialize_name_mismatch(
-        self, service: ContractService, contract_factory: type[ModelFactory]
-    ):
-        """Test initializing ContractResource with mismatched name and contract."""
-        contract: CrossContract = contract_factory.build(name="actual_name")
-        with pytest.raises(ValueError, match="does not match contract name"):
-            ContractResource(
-                service=service,
-                name="different_name",
-                contract=contract,
-                status="Draft",
+    def test_from_response_missing_field(self, service: ContractService):
+        """from_response surfaces a validation error if the payload is malformed."""
+        with pytest.raises(PydanticValidationError):
+            ContractResource.from_response(
+                service,
+                {"name": "x", "status": "Draft", "contract_type": "General"},
             )
 
-    def test_initialize_missing_parameters(self, service: ContractService):
-        """Test initializing ContractResource with missing parameters."""
-        with pytest.raises(
-            ValueError, match="Either name or contract must be provided."
-        ):
-            ContractResource(service=service, status="Draft")
+    def test_from_response_invalid_status(
+        self, service: ContractService, contract_factory: type[ModelFactory]
+    ):
+        """Status outside the allowed literal values is rejected."""
+        contract: CrossContract = contract_factory.build(name="test_contract")
+        payload = _response_dict(contract, status="Bogus")
+        with pytest.raises(PydanticValidationError):
+            ContractResource.from_response(service, payload)
 
     def test_representation(
         self, service: ContractService, contract_factory: type[ModelFactory]
     ):
         """Test the string representation of ContractResource."""
         contract: CrossContract = contract_factory.build(name="test_contract")
-        resource = ContractResource(
-            service=service, name="test_contract", contract=contract, status="Draft"
-        )
+        resource = _make_resource(service, contract, status="Draft")
         repr_str = repr(resource)
         assert "ContractResource" in repr_str
         assert "test_contract" in repr_str
@@ -93,55 +83,16 @@ class TestInitialize:
 
 
 class TestRefresh:
-    def test_refresh_success(
+    def test_refresh_updates_fields(
         self, service: ContractService, contract_factory: type[ModelFactory]
     ):
-        """Test refreshing contract details successfully."""
-        resource = ContractResource(
-            service=service, name="test_contract", status="Draft"
-        )
-        assert resource._contract is None
-
-        fetched = ContractResource(
-            service=service,
-            contract=contract_factory.build(name="test_contract"),
-            status="Active",
-        )
-        resource._service.get = Mock(return_value=fetched)
-
-        # calling the contract property should trigger refresh
-        assert resource.contract.name == "test_contract"
-        # status should also be refreshed
-        assert resource.status == "Active"
-
-    def test_refresh_name_mismatch(
-        self, service: ContractService, contract_factory: type[ModelFactory]
-    ):
-        """Test refreshing contract details with name mismatch."""
-        resource = ContractResource(
-            service=service, name="test_contract", status="Draft"
-        )
-        assert resource._contract is None
-
-        fetched = ContractResource(
-            service=service,
-            contract=contract_factory.build(name="test"),
-            status="Draft",
-        )
-        resource._service.get = Mock(return_value=fetched)
-
-        with pytest.raises(ValueError, match="does not match resource name"):
-            resource.refresh()
-
-    def test_refresh_updates_existing_contract(
-        self, service: ContractService, contract_factory: type[ModelFactory]
-    ):
+        """refresh() pulls fresh fields via the service and replaces local state."""
         initial = contract_factory.build(name="test_contract", title="old")
-        resource = ContractResource(service=service, contract=initial, status="Draft")
+        resource = _make_resource(service, initial, status="Draft")
 
-        updated = ContractResource(
-            service=service,
-            contract=contract_factory.build(name="test_contract", title="new"),
+        updated = _make_resource(
+            service,
+            contract_factory.build(name="test_contract", title="new"),
             status="Active",
         )
         resource._service.get = Mock(return_value=updated)
@@ -149,6 +100,18 @@ class TestRefresh:
         resource.refresh()
         assert resource.contract.title == "new"
         assert resource.status == "Active"
+
+    def test_refresh_name_mismatch(
+        self, service: ContractService, contract_factory: type[ModelFactory]
+    ):
+        """refresh() guards against the server returning a different contract."""
+        resource = _make_resource(service, contract_factory.build(name="test_contract"))
+
+        bogus = _make_resource(service, contract_factory.build(name="something_else"))
+        resource._service.get = Mock(return_value=bogus)
+
+        with pytest.raises(ValueError, match="does not match resource name"):
+            resource.refresh()
 
 
 class TestChangeStatus:
@@ -224,9 +187,7 @@ class TestAddData:
                 foreignKeys=[],
             ),
         )
-        resource = ContractResource(
-            service=service, name=contract.name, contract=contract, status="Draft"
-        )
+        resource = _make_resource(service, contract)
         data = pd.DataFrame({"timestamp": pd.to_datetime(["2021-01-01", "2021-01-02"])})
 
         result = resource._prepare_dataframe_csv_upload(data)
@@ -248,9 +209,7 @@ class TestAddData:
                 foreignKeys=[],
             ),
         )
-        resource = ContractResource(
-            service=service, name=contract.name, contract=contract, status="Draft"
-        )
+        resource = _make_resource(service, contract)
         data = pd.DataFrame({"timestamp": ["a", "b"]})
 
         result = resource._prepare_dataframe_csv_upload(data)
@@ -269,9 +228,7 @@ class TestAddData:
                 foreignKeys=[],
             ),
         )
-        resource = ContractResource(
-            service=service, name=contract.name, contract=contract, status="Draft"
-        )
+        resource = _make_resource(service, contract)
         org = ["2021-01-01 00:00", "2021-01-02 01:00"]
         data = pd.DataFrame({"timestamp": org})
 
@@ -517,6 +474,51 @@ class TestGetKeyValues:
             get_data_mock.assert_any_call(
                 name=contract_resource.name, columns=["id"], unique=True
             )
+
+
+class TestIsDimension:
+    def test_is_dimension_true_for_dimension(self, service: ContractService):
+        """Dimension contracts (rigid template) are dimensions."""
+        contract = CrossContract(
+            name="dim",
+            title="t",
+            description="d",
+            contract_type="Dimension",
+        )
+        assert _make_resource(service, contract).is_dimension is True
+
+    def test_is_dimension_true_for_flexible_dimension(self, service: ContractService):
+        """FlexibleDimension contracts are dimensions."""
+        contract = CrossContract(
+            name="flex_dim",
+            title="t",
+            description="d",
+            contract_type="FlexibleDimension",
+            tableschema={
+                "primaryKey": ["id"],
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {"name": "label", "type": "string"},
+                    {"name": "description", "type": "string"},
+                ],
+            },
+        )
+        assert _make_resource(service, contract).is_dimension is True
+
+    @pytest.mark.parametrize("contract_type", ["General", "ValueVariable"])
+    def test_is_dimension_false(self, service: ContractService, contract_type: str):
+        """is_dimension is False for non-dimension contract types."""
+        contract = CrossContract(
+            name="not_dim",
+            title="t",
+            description="d",
+            contract_type=contract_type,
+            tableschema={
+                "fields": [{"name": "id", "type": "string"}],
+                "foreignKeys": [],
+            },
+        )
+        assert _make_resource(service, contract).is_dimension is False
 
 
 class TestPassThrough:
