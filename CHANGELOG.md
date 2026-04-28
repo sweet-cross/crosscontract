@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.8.5 (2026-04-28)
+
+### Bug Fixes
+
+- Introduce contract types at the client level
+  ([#42](https://github.com/sweet-cross/crosscontract/pull/42),
+  [`9c7b548`](https://github.com/sweet-cross/crosscontract/commit/9c7b548c42816ab14ac378cb880784d0ee15ac6f))
+
+
 ## v0.8.4 (2026-04-20)
 
 ### Bug Fixes
