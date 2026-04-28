@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from crosscontract.registry import CrossDimension
+from crosscontract.registry import CrossDimension, CrossFlexibleDimension
 
 # ---------------------------------------------------------------------------
 # Test contract & data
@@ -301,3 +301,34 @@ class TestAncestryChainsCycleProtection:
         # chain terminates despite cycle
         assert "a" in chains
         assert "b" in chains
+
+
+class TestFlexibleDimension:
+    flex_contract = {
+        "name": "dim_currency",
+        "description": "A flexible (non-hierarchical) dimension",
+        "title": "Currency",
+        "contract_type": "FlexibleDimension",
+        "tableschema": {
+            "primaryKey": ["code"],
+            "fields": [
+                {"name": "code", "type": "string"},
+                {"name": "label", "type": "string"},
+                {"name": "description", "type": "string"},
+            ],
+        },
+    }
+    flex_data = pd.DataFrame(
+        {
+            "code": ["EUR", "USD"],
+            "label": ["Euro", "US Dollar"],
+            "description": ["", ""],
+        }
+    )
+
+    def test_str(self, make_contract_resource):
+        cr = make_contract_resource(
+            data=self.flex_data, contract_dict=self.flex_contract
+        )
+        dim = CrossFlexibleDimension(contract_resource=cr)
+        assert str(dim) == "FlexibleDimension(name=dim_currency)"

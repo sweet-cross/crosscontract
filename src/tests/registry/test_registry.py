@@ -213,7 +213,12 @@ class TestInit:
 
         result = registry.contract_overview
 
-        assert list(result.columns) == ["name", "title", "description"]
+        assert list(result.columns) == [
+            "name",
+            "title",
+            "description",
+            "contract_type",
+        ]
         assert set(result["name"].values) == {
             "price",
             "dim_region",
@@ -235,7 +240,12 @@ class TestInit:
 
         result = registry.get_contract_overview(contract_type="Dimension")
 
-        assert list(result.columns) == ["name", "title", "description"]
+        assert list(result.columns) == [
+            "name",
+            "title",
+            "description",
+            "contract_type",
+        ]
         assert set(result["name"].values) == {"dim_region"}
 
     def test_get_contract_overview_filters_by_multiple_types(self):
@@ -307,6 +317,90 @@ class TestAddVariable:
         var = registry._variables["prices"]
         assert "currency" in var.dimensions
         assert isinstance(var.dimensions["currency"], CrossFlexibleDimension)
+
+    def test_composite_fk_dimension_loaded_but_not_attached(
+        self, registry: CrossRegistry, mock_client
+    ):
+        """Composite-FK dimension targets are still loaded into the registry
+        so users can access them directly, but they're not auto-attached to
+        the data variable's `.dimensions` dict."""
+        from copy import deepcopy
+
+        catalog = deepcopy(_contract_catalog)
+        catalog["dim_scenario"] = (
+            {
+                "name": "dim_scenario",
+                "description": "Composite-key scenario dimension",
+                "title": "Scenario",
+                "contract_type": "FlexibleDimension",
+                "tableschema": {
+                    "primaryKey": ["model", "scenario_name"],
+                    "fields": [
+                        {"name": "model", "type": "string"},
+                        {"name": "scenario_name", "type": "string"},
+                        {"name": "label", "type": "string"},
+                        {"name": "description", "type": "string"},
+                    ],
+                },
+            },
+            pd.DataFrame(
+                {
+                    "model": ["m1", "m2"],
+                    "scenario_name": ["s1", "s2"],
+                    "label": ["M1/S1", "M2/S2"],
+                    "description": ["", ""],
+                }
+            ),
+        )
+        catalog["uses_scenario"] = (
+            {
+                "name": "uses_scenario",
+                "description": "References dim_scenario via composite FK",
+                "title": "Uses scenario",
+                "tableschema": {
+                    "fields": [
+                        {"name": "model", "type": "string"},
+                        {"name": "scenario_name", "type": "string"},
+                        {"name": "value", "type": "number"},
+                    ],
+                    "foreignKeys": [
+                        {
+                            "fields": ["model", "scenario_name"],
+                            "reference": {
+                                "resource": "dim_scenario",
+                                "fields": ["model", "scenario_name"],
+                            },
+                        }
+                    ],
+                },
+            },
+            pd.DataFrame(
+                {
+                    "model": ["m1", "m2"],
+                    "scenario_name": ["s1", "s2"],
+                    "value": [1.0, 2.0],
+                }
+            ),
+        )
+
+        def _lookup(name):
+            contract_dict, df = catalog[name]
+            contract = CrossContract.model_validate(contract_dict)
+            cr = MagicMock()
+            cr.contract = contract
+            cr.is_dimension = isinstance(contract.tableschema, BaseDimensionSchema)
+            cr.get_data.return_value = df.copy()
+            return cr
+
+        mock_client.contracts.get.side_effect = _lookup
+
+        registry.add_variable("uses_scenario")
+
+        # dimension was loaded into the registry and is reachable directly
+        assert "dim_scenario" in registry._variables
+        assert isinstance(registry._variables["dim_scenario"], CrossFlexibleDimension)
+        # ...but not auto-attached to the data variable
+        assert registry._variables["uses_scenario"].dimensions == {}
 
     def test_self_referencing_fk_skipped(self, registry: CrossRegistry, mock_client):
         """A contract with a self-referencing FK (resource=None) should not

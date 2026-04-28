@@ -162,7 +162,10 @@ class CrossRegistry:
             if ref_name not in self._variables:
                 self.add_variable(ref_name)
             target = self._variables[ref_name]
-            if isinstance(target, CrossBaseDimension):
+            # Composite-FK dimensions are loaded but not auto-attached:
+            # add_dimension keys by single column name. Users can still reach
+            # them via registry[ref_name].
+            if isinstance(target, CrossBaseDimension) and len(fk.fields) == 1:
                 var.add_dimension(target)
         return var
 
