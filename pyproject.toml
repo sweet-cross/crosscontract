@@ -55,7 +55,12 @@ allow_zero_version = true
 version_toml = ["pyproject.toml:project.version"]
 version_variables = ["src/crosscontract/__init__.py:__version__"]
 commit_message = "{version}\n\n[skip ci]"
-branch = "dev"
+
+# PSR v8+ uses release groups. Override the default "main" group (which would
+# otherwise match the `(main|master)` regex) so the release branch is `dev`.
+[tool.semantic_release.branches.main]
+match = "dev"
+prerelease = false
 
 #-------- Ruff Configuration --------#
 [tool.ruff.lint]
