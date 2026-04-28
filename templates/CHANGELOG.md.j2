@@ -50,12 +50,24 @@
 {%- endif %}
 {%- endmacro -%}
 
+{#-
+  PSR's iterators include ParseError objects (e.g. for its own
+  `{version}\n\n[skip ci]` commits, which don't match the conventional format)
+  alongside ParsedCommit objects. ParseError lacks `.descriptions`, so filter
+  those out before rendering, and skip the section entirely if nothing parsed.
+-#}
 {%- macro render_section(type_, commits) -%}
+{%- set parsed = [] -%}
+{%- for commit in commits if commit.descriptions is defined -%}
+{%- set _ = parsed.append(commit) -%}
+{%- endfor -%}
+{%- if parsed -%}
 ### {{ type_titles.get(type_, type_ | capitalize) }}
 
-{% for commit in commits %}
+{% for commit in parsed %}
 {{ render_commit(commit) }}
 {% endfor %}
+{%- endif -%}
 {%- endmacro -%}
 
 # CHANGELOG
