@@ -1,12 +1,13 @@
 import io
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 from crosscontract import CrossContract
+from crosscontract.contracts.contracts.cross_contract import ContractType
 
 from ..exceptions import ResourceNotFoundError, raise_from_response
-from .contract_resource import ContractResource
+from .contract_resource import ContractResource, ContractStatus
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..crossclient import CrossClient
@@ -51,17 +52,14 @@ class ContractService:
         response = self._client.post(self._route, json=json_payload)
         raise_from_response(response)
 
-        # 2. Extract info from response
-        resp = response.json()
-        contract = CrossContract.from_server(resp["contract"])
-        status = resp["status"]
+        # 2. Build the resource from the response payload
+        resource = ContractResource.from_response(self, response.json())
 
         # 3. Activate the contract if requested
         if activate:
-            status = self._client.contracts.change_status(contract.name, "Active")
+            resource.change_status("Active")
 
-        # 4. Return the ContractResource
-        return ContractResource(self, contract=contract, status=status)
+        return resource
 
     def overview(self) -> pd.DataFrame:
         """Get a DataFrame with an overview of all contracts, their status, and
@@ -76,24 +74,31 @@ class ContractService:
         df = pd.DataFrame(response.json())
         return df
 
-    def get_list(self) -> dict[str, ContractResource]:
+    def get_list(
+        self, contract_type: list[ContractType] | None = None
+    ) -> dict[str, ContractResource]:
         """
         Lists all available contracts as ContractResource objects.
+
+        Args:
+            contract_type (list[str] | None): Optional filter restricting the
+                result to one or more contract types (e.g.
+                ``["General", "Dimension"]``). If None, contracts of every type
+                are returned.
 
         Returns:
             dict[str, ContractResource]: Dictionary of contract resources keyed
                 by contract name.
         """
         endpoint = self._route
-        response = self._client.get(endpoint)
+        params: dict[str, Any] = {}
+        if contract_type:
+            params["contract_type"] = contract_type
+        response = self._client.get(endpoint, params=params or None)
         raise_from_response(response)
         json_body = response.json()
         return {
-            item["name"]: ContractResource(
-                self,
-                contract=CrossContract.from_server(item["contract"]),
-                status=item["status"],
-            )
+            item["name"]: ContractResource.from_response(self, item)
             for item in json_body
         }
 
@@ -112,9 +117,7 @@ class ContractService:
         endpoint = f"{self._route}{name}"
         response = self._client.get(endpoint)
         raise_from_response(response)
-        resp = response.json()
-        contract = CrossContract.from_server(resp["contract"])
-        return ContractResource(self, contract=contract, status=resp["status"])
+        return ContractResource.from_response(self, response.json())
 
     def delete(self, name: str, hard: bool = False) -> None:
         """Delete a contract by name if it exists. A contract can only be deleted
@@ -157,7 +160,7 @@ class ContractService:
     def change_status(
         self,
         name: str,
-        status: Literal["Draft", "Active", "Suspended", "Retired"],
+        status: ContractStatus,
     ) -> str:
         """Change the status of a contract. Allowable status transitions are enforced
         by the CROSS platform. The allowable statuses are:
@@ -174,8 +177,7 @@ class ContractService:
 
         Args:
             name (str): The name of the contract to change status.
-            status (Literal["Draft", "Active", "Suspended", "Retired"]):
-                The new status for the contract.
+            status (ContractStatus): The new status for the contract.
 
         Raises:
             httpx.HTTPStatusError: If the request fails.
