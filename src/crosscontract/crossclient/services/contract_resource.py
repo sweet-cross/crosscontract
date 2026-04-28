@@ -19,7 +19,7 @@ ContractStatus = Literal["Draft", "Active", "Suspended", "Retired"]
 class _ContractEntryPayload(BaseModel):
     """Client-side mirror of the server's ``DataContractEntryResponse``.
 
-    Centralising the shape here gives us validation at the API boundary and a
+    Centralizing the shape here gives us validation at the API boundary and a
     single place to adjust if the server response evolves.
     """
 

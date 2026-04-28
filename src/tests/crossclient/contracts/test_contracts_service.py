@@ -32,7 +32,7 @@ class TestCreate:
         """Test creating a contract successfully."""
         # Mock the create endpoint
         # The service calls: client.post(self._route, json=json_payload)
-        # It expects a JSON response with "contract" and "status"
+        # It expects a JSON response with name, status, contract_type, and contract
         valid_contract = valid_contracts[0]
         expected_response = {
             "name": valid_contract.name,

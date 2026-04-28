@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 from crosscontract import CrossContract
+from crosscontract.contracts.contracts.cross_contract import ContractType
 
 from ..exceptions import ResourceNotFoundError, raise_from_response
 from .contract_resource import ContractResource, ContractStatus
@@ -74,7 +75,7 @@ class ContractService:
         return df
 
     def get_list(
-        self, contract_type: list[str] | None = None
+        self, contract_type: list[ContractType] | None = None
     ) -> dict[str, ContractResource]:
         """
         Lists all available contracts as ContractResource objects.
