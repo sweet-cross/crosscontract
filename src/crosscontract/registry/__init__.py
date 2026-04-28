@@ -1,11 +1,17 @@
-from .base_variable import CrossBaseVariable
-from .data_variable import CrossDataVariable
-from .dimension import CrossDimension
 from .registry import CrossRegistry
+from .variables import (
+    CrossBaseDimension,
+    CrossBaseVariable,
+    CrossDataVariable,
+    CrossDimension,
+    CrossFlexibleDimension,
+)
 
 __all__ = [
+    "CrossBaseDimension",
+    "CrossBaseVariable",
     "CrossDataVariable",
     "CrossDimension",
+    "CrossFlexibleDimension",
     "CrossRegistry",
-    "CrossBaseVariable",
 ]

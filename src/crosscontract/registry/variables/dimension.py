@@ -5,10 +5,10 @@ import pandas as pd
 
 from crosscontract.crossclient.services import ContractResource
 
-from .base_variable import CrossBaseVariable
+from .base_dimension import CrossBaseDimension
 
 
-class CrossDimension(CrossBaseVariable):
+class CrossDimension(CrossBaseDimension):
     """Dimension variable obtained from the CROSS data platform.
 
     Dimensions have additional methods for handling hierarchical relationships
@@ -21,7 +21,6 @@ class CrossDimension(CrossBaseVariable):
     ):
         super().__init__(contract_resource)
         self._ancestor_maps: dict[int, dict[str, str]] | None = None
-        self._label_map: dict[str, str] | None = None
         self._ancestry_chains: dict[Any, list[Any]] | None = None
 
     def __str__(self):
@@ -42,19 +41,6 @@ class CrossDimension(CrossBaseVariable):
         # return copy
         return {level: mapping.copy() for level, mapping in self._ancestor_maps.items()}
 
-    @property
-    def label_map(self) -> dict[str, str]:
-        """Return a mapping from id to label for the dimension.
-
-        Returns:
-            dict[str, str]: A dictionary mapping dimension IDs to their labels.
-        """
-        if self._label_map is None:
-            self._label_map = dict(
-                zip(self.data["id"], self.data["label"], strict=True)
-            )
-        return self._label_map.copy()
-
     def _build_ancestor_maps(self) -> dict[int, dict[str, str]]:
         """Precompute ancestor mappings for all aggregation levels.
 
@@ -68,7 +54,7 @@ class CrossDimension(CrossBaseVariable):
 
         ids = dim.index.values
         levels = dim["level"].values
-        parents = dim["id_parent"].values
+        parents = dim["parent_id"].values
 
         # Map each id to a positional index for fast numpy lookups
         id_to_pos = {id_val: pos for pos, id_val in enumerate(ids)}
@@ -117,7 +103,7 @@ class CrossDimension(CrossBaseVariable):
                 chain.append(current)
                 seen.add(current)
                 current = (
-                    df_dim.at[current, "id_parent"] if current in df_dim.index else None
+                    df_dim.at[current, "parent_id"] if current in df_dim.index else None
                 )
             chains[node_id] = chain
         return chains
@@ -155,5 +141,4 @@ class CrossDimension(CrossBaseVariable):
     def clear_data_cache(self):
         super().clear_data_cache()
         self._ancestor_maps = None
-        self._label_map = None
         self._ancestry_chains = None

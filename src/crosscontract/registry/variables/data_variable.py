@@ -5,6 +5,7 @@ import pandas as pd
 from crosscontract import CrossClient
 from crosscontract.crossclient.services import ContractResource
 
+from .base_dimension import CrossBaseDimension
 from .base_variable import CrossBaseVariable
 from .dimension import CrossDimension
 
@@ -28,7 +29,7 @@ class CrossDataVariable(CrossBaseVariable):
         self._filters = filters
         # a dictionary with the references for each dimension, keyed by the name
         # of the column referring to the dimension (i.e. the foreign key column name)
-        self._dimensions: dict[str, CrossDimension] = {}
+        self._dimensions: dict[str, CrossBaseDimension] = {}
 
     @classmethod
     def from_client(
@@ -54,24 +55,26 @@ class CrossDataVariable(CrossBaseVariable):
         return f"CrossDataVariable(name={self.name}, filters={self._filters})"
 
     @property
-    def dimensions(self) -> dict[str, CrossDimension]:
+    def dimensions(self) -> dict[str, CrossBaseDimension]:
         """Get the dimensions associated with this variable. The keys of the returned
         dictionary are the names of the columns in this variable that refer to
         dimensions (i.e. the foreign key column names), and the values are the
-        corresponding CrossDimension variables.
+        corresponding dimension wrappers (``CrossDimension`` or
+        ``CrossFlexibleDimension``).
 
         Returns:
-            dict[str, CrossDimension]: A dictionary mapping foreign key column names to
-                CrossDimension variables.
+            dict[str, CrossBaseDimension]: A dictionary mapping foreign key column
+                names to dimension variables.
         """
         return self._dimensions.copy()
 
-    def add_dimension(self, item: CrossDimension):
+    def add_dimension(self, item: CrossBaseDimension):
         """Add a dimension variable to the registry, keyed by the referring
         foreign key column name(s).
 
         Args:
-            item (CrossDimension): The CrossDimension variable to add.
+            item (CrossBaseDimension): The dimension variable to add. Either a
+                hierarchical ``CrossDimension`` or a ``CrossFlexibleDimension``.
 
         """
         if item in self._dimensions.values():
@@ -224,6 +227,12 @@ class CrossDataVariable(CrossBaseVariable):
                 "registered dimension foreign key. Available dimensions: "
                 f"{list(self.dimensions.keys())}"
             )
+        if not isinstance(dim, CrossDimension):
+            raise TypeError(
+                f"Level-based aggregation is only supported on hierarchical "
+                f"dimensions; column '{col}' references a "
+                f"{type(dim).__name__}."
+            )
         dim_map = dim.ancestor_maps.get(level)
         if dim_map is None:
             return {}  # level beyond max depth, no aggregation
@@ -252,6 +261,12 @@ class CrossDataVariable(CrossBaseVariable):
                 f"{list(self.dimensions.keys())}"
             )
         dim = self.dimensions[col]
+        if not isinstance(dim, CrossDimension):
+            raise TypeError(
+                f"ID-based aggregation is only supported on hierarchical "
+                f"dimensions; column '{col}' references a "
+                f"{type(dim).__name__}."
+            )
         return dim.get_ancestor_map_by_ids(target_ids)
 
     def _get_aggregation_mapping(

@@ -20,11 +20,12 @@ dim_contract = {
     "description": "A hierarchical dimension",
     "title": "Region",
     "tableschema": {
+        "primaryKey": ["id"],
         "fields": [
             {"name": "id", "type": "string"},
             {"name": "label", "type": "string"},
             {"name": "level", "type": "integer"},
-            {"name": "id_parent", "type": "string"},
+            {"name": "parent_id", "type": "string"},
         ],
     },
 }
@@ -34,7 +35,7 @@ dim_data = pd.DataFrame(
         "id": ["total", "cat_a", "cat_b", "leaf_1", "leaf_2", "leaf_3"],
         "label": ["Total", "Category A", "Category B", "Leaf 1", "Leaf 2", "Leaf 3"],
         "level": [0, 1, 1, 2, 2, 2],
-        "id_parent": [None, "total", "total", "cat_a", "cat_a", "cat_b"],
+        "parent_id": [None, "total", "total", "cat_a", "cat_a", "cat_b"],
     }
 )
 
@@ -116,11 +117,12 @@ class TestFlatDimension:
         "description": "A flat dimension",
         "title": "Flat",
         "tableschema": {
+            "primaryKey": ["id"],
             "fields": [
                 {"name": "id", "type": "string"},
                 {"name": "label", "type": "string"},
                 {"name": "level", "type": "integer"},
-                {"name": "id_parent", "type": "string"},
+                {"name": "parent_id", "type": "string"},
             ],
         },
     }
@@ -130,7 +132,7 @@ class TestFlatDimension:
             "id": ["a", "b", "c"],
             "label": ["A", "B", "C"],
             "level": [0, 0, 0],
-            "id_parent": [None, None, None],
+            "parent_id": [None, None, None],
         }
     )
 
@@ -281,7 +283,7 @@ class TestAncestryChainsCycleProtection:
                     {"name": "id", "type": "string"},
                     {"name": "label", "type": "string"},
                     {"name": "level", "type": "integer"},
-                    {"name": "id_parent", "type": "string"},
+                    {"name": "parent_id", "type": "string"},
                 ],
             },
         }
@@ -290,7 +292,7 @@ class TestAncestryChainsCycleProtection:
                 "id": ["a", "b"],
                 "label": ["A", "B"],
                 "level": [0, 1],
-                "id_parent": ["b", "a"],  # a→b→a cycle
+                "parent_id": ["b", "a"],  # a→b→a cycle
             }
         )
         cr = make_contract_resource(data=data, contract_dict=contract)
