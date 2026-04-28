@@ -55,7 +55,7 @@ allow_zero_version = true
 version_toml = ["pyproject.toml:project.version"]
 version_variables = ["src/crosscontract/__init__.py:__version__"]
 commit_message = "{version}\n\n[skip ci]"
-branch = "main"
+branch = "dev"
 
 #-------- Ruff Configuration --------#
 [tool.ruff.lint]

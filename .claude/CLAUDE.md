@@ -40,6 +40,13 @@ uv run mkdocs serve
 
 Pre-commit hooks run `ruff check` (F401 + isort) and `ruff-format` on commit.
 
+## Branching and releases
+
+- `main` is the public release branch. Pushes to main publish to PyPI (gated by the `pypi` GitHub Environment) and deploy the docs.
+- `dev` is the integration branch and the default branch on GitHub. Versioning happens here: every push to dev runs `python-semantic-release`, which bumps the version and creates a `vX.Y.Z` tag based on conventional-commit messages.
+- Feature branches **squash-merge** into `dev`. The PR title must be a valid conventional commit (`feat:`, `fix:`, etc.) — it becomes the squash commit message that PSR analyzes. Hotfixes follow the same path.
+- `dev` **fast-forwards** into `main`. The version commits and tags created on dev carry over to main as-is. No version bumps happen on the dev → main promotion.
+
 ## Architecture
 
 The package has three independent top-level modules, all re-exported from `crosscontract/__init__.py`:

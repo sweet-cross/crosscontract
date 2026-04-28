@@ -1,9 +1,17 @@
-# Standalone workflow to publish the package to PyPI.
-# Triggered manually. Defaults to the latest release tag.
+# Reusable workflow to publish the package to PyPI.
+# Invoked from release_main_branch.yml on push to main, or manually via
+# workflow_dispatch. Defaults to the latest GitHub release tag.
 name: Publish to PyPI
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag to publish (e.g. v0.2.1). Defaults to latest release."
+        required: false
+        type: string
+        default: ""
+  workflow_call:
     inputs:
       version:
         description: "Version tag to publish (e.g. v0.2.1). Defaults to latest release."
