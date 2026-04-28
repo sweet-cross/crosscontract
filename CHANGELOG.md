@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.8.6 (2026-04-28)
+
+### Bug Fixes
+
+- Registry identify dimensions ([#45](https://github.com/sweet-cross/crosscontract/pull/45),
+  [`5808b99`](https://github.com/sweet-cross/crosscontract/commit/5808b99cdb0c5478c6aa94ae3850ba45de4cd4f7))
+
+- Versioning on dev ([#46](https://github.com/sweet-cross/crosscontract/pull/46),
+  [`55c7889`](https://github.com/sweet-cross/crosscontract/commit/55c7889601a64872ba9f524b2835604be1465bda))
+
+### Chores
+
+- New actions with dev branch ([#44](https://github.com/sweet-cross/crosscontract/pull/44),
+  [`487d9cf`](https://github.com/sweet-cross/crosscontract/commit/487d9cf7271e854661d8b129d5faf35a388eaba3))
+
+
 ## v0.8.5 (2026-04-28)
 
 ### Bug Fixes
