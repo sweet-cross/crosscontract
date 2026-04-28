@@ -24,9 +24,8 @@ class CrossBaseDimension(CrossBaseVariable, ABC):
         """Mapping from primary-key value to ``label`` for the dimension."""
         if self._label_map is None:
             id_field = self.contract_resource.contract.tableschema.primaryKey.root[0]
-            self._label_map = dict(
-                zip(self.data[id_field], self.data["label"], strict=True)
-            )
+            df = self.data
+            self._label_map = dict(zip(df[id_field], df["label"], strict=True))
         return self._label_map.copy()
 
     def clear_data_cache(self):
