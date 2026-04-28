@@ -101,7 +101,9 @@ class CrossRegistry:
 
     @property
     def contract_overview(self) -> pd.DataFrame:
-        """Overview of all contracts on the CROSS platform as a pandas DataFrame."""
+        """Overview of all contracts on the CROSS platform as a pandas DataFrame.
+        Include columns: ``name``, ``title``, ``description``, and ``contract_type``.
+        """
         return self.get_contract_overview()
 
     def add_variable(
