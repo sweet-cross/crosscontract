@@ -62,6 +62,13 @@ commit_message = "{version}\n\n[skip ci]"
 match = "dev"
 prerelease = false
 
+# Render the changelog from custom Jinja templates so that the squash-commit
+# body (i.e. the PR description) is included under each entry, not just the
+# subject line. See templates/CHANGELOG.md.j2.
+[tool.semantic_release.changelog]
+template_dir = "templates"
+changelog_file = "CHANGELOG.md"
+
 #-------- Ruff Configuration --------#
 [tool.ruff.lint]
 select = [
