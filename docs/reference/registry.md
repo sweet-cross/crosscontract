@@ -2,6 +2,13 @@
 
 ::: crosscontract.registry.CrossRegistry
 
-::: crosscontract.registry.data_variable.CrossDataVariable
 
-::: crosscontract.registry.dimension.CrossDimension
+::: crosscontract.registry.variables.base_variable.CrossBaseVariable
+
+::: crosscontract.registry.variables.data_variable.CrossDataVariable
+
+::: crosscontract.registry.variables.base_dimension.CrossBaseDimension
+
+::: crosscontract.registry.variables.dimension.CrossDimension
+
+::: crosscontract.registry.variables.flexible_dimension.CrossFlexibleDimension

@@ -1,0 +1,23 @@
+# Orchestrator workflow that runs on every push to dev. It runs tests and then
+# python-semantic-release, which inspects conventional-commit messages on dev
+# and creates a new version commit + tag if appropriate. The PSR commit message
+# carries [skip ci] to prevent re-triggering this workflow.
+name: Release Dev Branch
+
+on:
+    workflow_dispatch:
+    push:
+        branches:
+            - dev
+
+jobs:
+    test_and_coverage:
+        uses: ./.github/workflows/test_and_coverage.yml
+
+    release:
+        needs: test_and_coverage
+        if: success()
+        uses: ./.github/workflows/versioning.yml
+        permissions:
+            contents: write
+        secrets: inherit

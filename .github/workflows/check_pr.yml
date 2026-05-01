@@ -1,15 +1,19 @@
-# Run test on each PR
+# Run PR title lint and tests on each PR targeting the dev branch.
+# Squash-merge titles on dev are analyzed by python-semantic-release, so the
+# title must be a valid conventional commit.
 name: Check PR
 
 on:
     pull_request:
-        branches-ignore:
-            - main
+        branches:
+            - dev
         types:
             - opened
             - edited
             - synchronize
 
 jobs:
+    lint_pr_title:
+        uses: ./.github/workflows/check_pr_title.yml
     test_and_coverage:
         uses: ./.github/workflows/test_and_coverage.yml

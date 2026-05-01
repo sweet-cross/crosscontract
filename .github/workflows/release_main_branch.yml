@@ -1,6 +1,8 @@
-# Orchestrator workflow to deploy a new release when changes are pushed to the
-# main branch. It runs tests, creates a release if needed, and deploys docs if
-#the release was successful.
+# Orchestrator workflow that runs on every push to main. main is the public
+# release branch — when dev fast-forwards into it, the latest PSR-created tag
+# is at HEAD, and we publish that tag to PyPI and deploy the docs at it.
+# The publish job is gated by the `pypi` GitHub Environment, which requires
+# manual approval before the upload happens.
 name: Release Main Branch
 
 on:
@@ -13,19 +15,16 @@ jobs:
     test_and_coverage:
         uses: ./.github/workflows/test_and_coverage.yml
 
-    release:
+    publish:
         needs: test_and_coverage
         if: success()
-        uses: ./.github/workflows/versioning.yml
+        uses: ./.github/workflows/publish_pypi.yml
         permissions:
-            contents: write
+            contents: read
+            id-token: write
         secrets: inherit
 
     deploy_docs:
-        needs: release
-        if: >-
-            success() &&
-            (needs.release.outputs.released == 'true' || needs.release.result == 'success')
+        needs: publish
+        if: success()
         uses: ./.github/workflows/deploy_docs.yml
-        with:
-            ref: ${{ needs.release.outputs.released == 'true' && needs.release.outputs.tag || github.ref }}

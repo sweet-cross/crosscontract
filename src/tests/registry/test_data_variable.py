@@ -3,7 +3,11 @@
 import pandas as pd
 import pytest
 
-from crosscontract.registry import CrossDataVariable, CrossDimension
+from crosscontract.registry import (
+    CrossDataVariable,
+    CrossDimension,
+    CrossFlexibleDimension,
+)
 
 # ---------------------------------------------------------------------------
 # Dimension contract & data (reused from test_dimensions)
@@ -13,11 +17,12 @@ dim_contract = {
     "description": "A hierarchical dimension",
     "title": "Region",
     "tableschema": {
+        "primaryKey": ["id"],
         "fields": [
             {"name": "id", "type": "string"},
             {"name": "label", "type": "string"},
             {"name": "level", "type": "integer"},
-            {"name": "id_parent", "type": "string"},
+            {"name": "parent_id", "type": "string"},
         ],
     },
 }
@@ -27,7 +32,7 @@ dim_data = pd.DataFrame(
         "id": ["total", "cat_a", "cat_b", "leaf_1", "leaf_2", "leaf_3"],
         "label": ["Total", "Category A", "Category B", "Leaf 1", "Leaf 2", "Leaf 3"],
         "level": [0, 1, 1, 2, 2, 2],
-        "id_parent": [None, "total", "total", "cat_a", "cat_a", "cat_b"],
+        "parent_id": [None, "total", "total", "cat_a", "cat_a", "cat_b"],
     }
 )
 
@@ -441,6 +446,71 @@ class TestGetAggregationMapping:
         )
         assert result["region"]["leaf_1"] == "cat_a"
         assert result["region"]["leaf_2"] == "cat_a"
+
+
+class TestAggregationOnFlexibleDimension:
+    """Hierarchical aggregation must reject FlexibleDimension FK targets."""
+
+    flex_dim_contract = {
+        "name": "dim_currency",
+        "description": "Flexible (non-hierarchical) dimension",
+        "title": "Currency",
+        "contract_type": "FlexibleDimension",
+        "tableschema": {
+            "primaryKey": ["code"],
+            "fields": [
+                {"name": "code", "type": "string"},
+                {"name": "label", "type": "string"},
+                {"name": "description", "type": "string"},
+            ],
+        },
+    }
+    flex_dim_data = pd.DataFrame(
+        {
+            "code": ["EUR", "USD"],
+            "label": ["Euro", "US Dollar"],
+            "description": ["", ""],
+        }
+    )
+    var_contract = {
+        "name": "prices",
+        "description": "Variable with FK to a flexible dimension",
+        "title": "Prices",
+        "tableschema": {
+            "fields": [
+                {"name": "currency", "type": "string"},
+                {"name": "value", "type": "number"},
+            ],
+            "foreignKeys": [
+                {
+                    "fields": ["currency"],
+                    "reference": {"resource": "dim_currency", "fields": ["code"]},
+                }
+            ],
+        },
+    }
+    var_data = pd.DataFrame({"currency": ["EUR", "USD"], "value": [1.0, 1.1]})
+
+    @pytest.fixture
+    def variable_with_flex_dim(self, make_contract_resource) -> CrossDataVariable:
+        cr_dim = make_contract_resource(
+            data=self.flex_dim_data, contract_dict=self.flex_dim_contract
+        )
+        flex_dim = CrossFlexibleDimension(contract_resource=cr_dim)
+        cr_var = make_contract_resource(
+            data=self.var_data, contract_dict=self.var_contract
+        )
+        var = CrossDataVariable(contract_resource=cr_var)
+        var.add_dimension(flex_dim)
+        return var
+
+    def test_level_aggregation_raises(self, variable_with_flex_dim: CrossDataVariable):
+        with pytest.raises(TypeError, match="Level-based aggregation"):
+            variable_with_flex_dim._get_aggregation_mapping({"currency": 0})
+
+    def test_ids_aggregation_raises(self, variable_with_flex_dim: CrossDataVariable):
+        with pytest.raises(TypeError, match="ID-based aggregation"):
+            variable_with_flex_dim._get_aggregation_mapping({"currency": ["EUR"]})
 
     def test_keep_does_not_affect_other_subtrees(
         self, data_variable_with_dim: CrossDataVariable

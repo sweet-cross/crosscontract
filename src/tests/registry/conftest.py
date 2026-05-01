@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from crosscontract.contracts import CrossContract
+from crosscontract.contracts.schema.subschemas import BaseDimensionSchema
 
 
 @pytest.fixture
@@ -23,6 +24,7 @@ def make_contract_resource():
 
         cr = MagicMock()
         cr.contract = contract
+        cr.is_dimension = isinstance(contract.tableschema, BaseDimensionSchema)
         cr.get_data.return_value = data.copy()
 
         return cr

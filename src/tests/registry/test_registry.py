@@ -1,28 +1,30 @@
 # test_registry.py
-import warnings
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
 
 from crosscontract.contracts import CrossContract
-from crosscontract.registry import CrossDataVariable, CrossDimension, CrossRegistry
+from crosscontract.contracts.schema.subschemas import BaseDimensionSchema
+from crosscontract.registry import (
+    CrossDataVariable,
+    CrossDimension,
+    CrossFlexibleDimension,
+    CrossRegistry,
+)
 
 # ---------------------------------------------------------------------------
 # Contracts & data
 # ---------------------------------------------------------------------------
+# Rigid Dimension: tableschema is auto-injected from the DimensionSchema
+# template (id, level, parent_id, label, description). The data DataFrame
+# below mirrors what `cr.get_data()` returns to the registry-side wrapper.
 dim_contract_dict = {
     "name": "dim_region",
     "description": "A hierarchical dimension",
     "title": "Region",
-    "tableschema": {
-        "fields": [
-            {"name": "id", "type": "string"},
-            {"name": "label", "type": "string"},
-            {"name": "level", "type": "integer"},
-            {"name": "id_parent", "type": "string"},
-        ],
-    },
+    "contract_type": "Dimension",
+    "tableschema": {},
 }
 
 dim_data = pd.DataFrame(
@@ -30,7 +32,30 @@ dim_data = pd.DataFrame(
         "id": ["total", "cat_a", "cat_b"],
         "label": ["Total", "Category A", "Category B"],
         "level": [0, 1, 1],
-        "id_parent": [None, "total", "total"],
+        "parent_id": [None, "total", "total"],
+    }
+)
+
+flex_dim_contract_dict = {
+    "name": "dim_currency",
+    "description": "A flexible (non-hierarchical) dimension",
+    "title": "Currency",
+    "contract_type": "FlexibleDimension",
+    "tableschema": {
+        "primaryKey": ["code"],
+        "fields": [
+            {"name": "code", "type": "string"},
+            {"name": "label", "type": "string"},
+            {"name": "description", "type": "string"},
+        ],
+    },
+}
+
+flex_dim_data = pd.DataFrame(
+    {
+        "code": ["EUR", "USD"],
+        "label": ["Euro", "US Dollar"],
+        "description": ["European currency", "American currency"],
     }
 )
 
@@ -59,6 +84,31 @@ data_df = pd.DataFrame(
     }
 )
 
+flex_fk_contract_dict = {
+    "name": "prices",
+    "description": "Data variable with FK to a flexible dimension",
+    "title": "Prices",
+    "tableschema": {
+        "fields": [
+            {"name": "currency", "type": "string"},
+            {"name": "value", "type": "number"},
+        ],
+        "foreignKeys": [
+            {
+                "fields": ["currency"],
+                "reference": {"resource": "dim_currency", "fields": ["code"]},
+            }
+        ],
+    },
+}
+
+flex_fk_df = pd.DataFrame(
+    {
+        "currency": ["EUR", "USD"],
+        "value": [1.0, 1.1],
+    }
+)
+
 simple_contract_dict = {
     "name": "simple_data",
     "description": "No foreign keys",
@@ -84,7 +134,9 @@ simple_data = pd.DataFrame(
 # ---------------------------------------------------------------------------
 _contract_catalog = {
     "dim_region": (dim_contract_dict, dim_data),
+    "dim_currency": (flex_dim_contract_dict, flex_dim_data),
     "my_data": (data_contract_dict, data_df),
+    "prices": (flex_fk_contract_dict, flex_fk_df),
     "simple_data": (simple_contract_dict, simple_data),
 }
 
@@ -95,6 +147,7 @@ def _make_mock_contract_resource(name: str) -> MagicMock:
     contract = CrossContract.model_validate(contract_dict)
     cr = MagicMock()
     cr.contract = contract
+    cr.is_dimension = isinstance(contract.tableschema, BaseDimensionSchema)
     cr.get_data.return_value = df.copy()
     return cr
 
@@ -137,27 +190,74 @@ class TestInit:
             mock_cls.assert_called_once_with(username="user", password="pass")
             assert reg._client is mock_cls.return_value
 
-    def test_contract_overview_filters_and_returns_expected_columns(self):
-        # Arrange
-        mock_client = MagicMock()
-        mock_client.contracts.overview.return_value = pd.DataFrame(
+    def _overview_payload(self) -> pd.DataFrame:
+        return pd.DataFrame(
             {
-                "name": ["price", "dim_region", "volume"],
-                "title": ["Price", "Region Dimension", "Volume"],
-                "description": ["Price desc", "Region desc", "Volume desc"],
-                "extra_col": ["x", "y", "z"],
+                "name": ["price", "dim_region", "dim_currency", "volume"],
+                "title": ["Price", "Region", "Currency", "Volume"],
+                "description": ["P", "R", "C", "V"],
+                "contract_type": [
+                    "ValueVariable",
+                    "Dimension",
+                    "FlexibleDimension",
+                    "ValueVariable",
+                ],
+                "extra_col": ["x", "y", "z", "w"],
             }
         )
 
+    def test_contract_overview_returns_all_contracts(self):
+        mock_client = MagicMock()
+        mock_client.contracts.overview.return_value = self._overview_payload()
         registry = CrossRegistry(client=mock_client)
 
-        # Act
         result = registry.contract_overview
 
-        # Assert
-        assert list(result.columns) == ["name", "title", "description"]
-        assert "dim_region" not in result["name"].values
-        assert set(result["name"].values) == {"price", "volume"}
+        assert list(result.columns) == [
+            "name",
+            "title",
+            "description",
+            "contract_type",
+        ]
+        assert set(result["name"].values) == {
+            "price",
+            "dim_region",
+            "dim_currency",
+            "volume",
+        }
+
+    def test_get_contract_overview_no_filter_matches_property(self):
+        mock_client = MagicMock()
+        mock_client.contracts.overview.return_value = self._overview_payload()
+        registry = CrossRegistry(client=mock_client)
+
+        assert registry.get_contract_overview().equals(registry.contract_overview)
+
+    def test_get_contract_overview_filters_by_single_type(self):
+        mock_client = MagicMock()
+        mock_client.contracts.overview.return_value = self._overview_payload()
+        registry = CrossRegistry(client=mock_client)
+
+        result = registry.get_contract_overview(contract_type="Dimension")
+
+        assert list(result.columns) == [
+            "name",
+            "title",
+            "description",
+            "contract_type",
+        ]
+        assert set(result["name"].values) == {"dim_region"}
+
+    def test_get_contract_overview_filters_by_multiple_types(self):
+        mock_client = MagicMock()
+        mock_client.contracts.overview.return_value = self._overview_payload()
+        registry = CrossRegistry(client=mock_client)
+
+        result = registry.get_contract_overview(
+            contract_type=["Dimension", "FlexibleDimension"]
+        )
+
+        assert set(result["name"].values) == {"dim_region", "dim_currency"}
 
 
 class TestAddVariable:
@@ -207,66 +307,100 @@ class TestAddVariable:
         calls = [c.args[0] for c in mock_client.contracts.get.call_args_list]
         assert "dim_region" not in calls
 
-    def test_circular_foreign_key_skipped(self, make_contract_resource):
-        """Circular FK references are silently skipped by the loading guard."""
-        from unittest.mock import MagicMock
+    def test_add_flexible_dimension(self, registry: CrossRegistry):
+        registry.add_variable("dim_currency")
+        assert isinstance(registry._variables["dim_currency"], CrossFlexibleDimension)
 
-        contract_a = {
-            "name": "var_a",
-            "description": "Variable A",
-            "title": "A",
-            "tableschema": {
-                "fields": [
-                    {"name": "region", "type": "string"},
-                    {"name": "value", "type": "number"},
-                ],
-                "foreignKeys": [
-                    {
-                        "fields": ["region"],
-                        "reference": {"resource": "var_b", "fields": ["region"]},
-                    }
-                ],
+    def test_flexible_dimension_fk_resolved(self, registry: CrossRegistry):
+        registry.add_variable("prices")
+        assert isinstance(registry._variables["dim_currency"], CrossFlexibleDimension)
+        var = registry._variables["prices"]
+        assert "currency" in var.dimensions
+        assert isinstance(var.dimensions["currency"], CrossFlexibleDimension)
+
+    def test_composite_fk_dimension_loaded_but_not_attached(
+        self, registry: CrossRegistry, mock_client
+    ):
+        """Composite-FK dimension targets are still loaded into the registry
+        so users can access them directly, but they're not auto-attached to
+        the data variable's `.dimensions` dict."""
+        from copy import deepcopy
+
+        catalog = deepcopy(_contract_catalog)
+        catalog["dim_scenario"] = (
+            {
+                "name": "dim_scenario",
+                "description": "Composite-key scenario dimension",
+                "title": "Scenario",
+                "contract_type": "FlexibleDimension",
+                "tableschema": {
+                    "primaryKey": ["model", "scenario_name"],
+                    "fields": [
+                        {"name": "model", "type": "string"},
+                        {"name": "scenario_name", "type": "string"},
+                        {"name": "label", "type": "string"},
+                        {"name": "description", "type": "string"},
+                    ],
+                },
             },
-        }
-
-        contract_b = {
-            "name": "var_b",
-            "description": "Variable B",
-            "title": "B",
-            "tableschema": {
-                "fields": [
-                    {"name": "region", "type": "string"},
-                    {"name": "value", "type": "number"},
-                ],
-                "foreignKeys": [
-                    {
-                        "fields": ["region"],
-                        "reference": {"resource": "var_a", "fields": ["region"]},
-                    }
-                ],
+            pd.DataFrame(
+                {
+                    "model": ["m1", "m2"],
+                    "scenario_name": ["s1", "s2"],
+                    "label": ["M1/S1", "M2/S2"],
+                    "description": ["", ""],
+                }
+            ),
+        )
+        catalog["uses_scenario"] = (
+            {
+                "name": "uses_scenario",
+                "description": "References dim_scenario via composite FK",
+                "title": "Uses scenario",
+                "tableschema": {
+                    "fields": [
+                        {"name": "model", "type": "string"},
+                        {"name": "scenario_name", "type": "string"},
+                        {"name": "value", "type": "number"},
+                    ],
+                    "foreignKeys": [
+                        {
+                            "fields": ["model", "scenario_name"],
+                            "reference": {
+                                "resource": "dim_scenario",
+                                "fields": ["model", "scenario_name"],
+                            },
+                        }
+                    ],
+                },
             },
-        }
-
-        df = pd.DataFrame({"region": ["r1"], "value": [1]})
-        cr_a = make_contract_resource(data=df, contract_dict=contract_a)
-        cr_b = make_contract_resource(data=df, contract_dict=contract_b)
-
-        client = MagicMock()
-        client.contracts.get.side_effect = lambda name: (
-            cr_a if name == "var_a" else cr_b
+            pd.DataFrame(
+                {
+                    "model": ["m1", "m2"],
+                    "scenario_name": ["s1", "s2"],
+                    "value": [1.0, 2.0],
+                }
+            ),
         )
 
-        reg = CrossRegistry(client=client)
+        def _lookup(name):
+            contract_dict, df = catalog[name]
+            contract = CrossContract.model_validate(contract_dict)
+            cr = MagicMock()
+            cr.contract = contract
+            cr.is_dimension = isinstance(contract.tableschema, BaseDimensionSchema)
+            cr.get_data.return_value = df.copy()
+            return cr
 
-        # Should not raise RecursionError
-        reg.add_variable("var_a")
+        mock_client.contracts.get.side_effect = _lookup
 
-        # Both variables loaded
-        assert "var_a" in reg._variables
-        assert "var_b" in reg._variables
+        registry.add_variable("uses_scenario")
 
-        # Loading sentinel is clean after completion
-        assert reg._loading == set()
+        # dimension was loaded into the registry and is reachable directly
+        assert "dim_scenario" in registry._variables
+        assert isinstance(registry._variables["dim_scenario"], CrossFlexibleDimension)
+        # ...but not auto-attached to the data variable
+        assert registry._variables["uses_scenario"].dimensions == {}
 
     def test_self_referencing_fk_skipped(self, registry: CrossRegistry, mock_client):
         """A contract with a self-referencing FK (resource=None) should not
@@ -303,6 +437,7 @@ class TestAddVariable:
             contract = CrossContract.model_validate(contract_dict)
             cr = MagicMock()
             cr.contract = contract
+            cr.is_dimension = isinstance(contract.tableschema, BaseDimensionSchema)
             cr.get_data.return_value = df.copy()
             return cr
 
@@ -311,45 +446,6 @@ class TestAddVariable:
         registry.add_variable("hierarchical")
         var = registry._variables["hierarchical"]
         assert var.dimensions == {}
-
-    def test_circular_fk_warns(self, make_contract_resource):
-        """Circular FK emits a warning when the loading guard triggers."""
-
-        client = MagicMock()
-        reg = CrossRegistry(client=client)
-
-        # Simulate the condition: ref_name is in _loading but not in _variables
-        reg._loading.add("var_b")
-
-        contract_a = {
-            "name": "var_a",
-            "description": "A",
-            "title": "A",
-            "tableschema": {
-                "fields": [
-                    {"name": "id", "type": "string"},
-                    {"name": "value", "type": "number"},
-                ],
-                "foreignKeys": [
-                    {
-                        "fields": ["id"],
-                        "reference": {"resource": "var_b", "fields": ["id"]},
-                    }
-                ],
-            },
-        }
-
-        df = pd.DataFrame({"id": ["x"], "value": [1]})
-        cr_a = make_contract_resource(data=df, contract_dict=contract_a)
-        client.contracts.get.return_value = cr_a
-
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            reg.add_variable("var_a")
-
-        assert len(w) == 1
-        assert "Circular foreign key reference" in str(w[0].message)
-        assert "var_b" in str(w[0].message)
 
     def test_non_dimension_fk_target_not_added_as_dimension(
         self, make_contract_resource

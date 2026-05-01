@@ -1,13 +1,16 @@
-import warnings
 from typing import Any
 
 import pandas as pd
 
 from crosscontract import CrossClient
-from crosscontract.contracts.schema.reference import ForeignKeys
+from crosscontract.contracts.contracts.cross_contract import ContractType
 
-from .data_variable import CrossDataVariable
-from .dimension import CrossDimension
+from .variables import (
+    CrossBaseDimension,
+    CrossDataVariable,
+    CrossDimension,
+    CrossFlexibleDimension,
+)
 
 
 class CrossRegistry:
@@ -38,10 +41,9 @@ class CrossRegistry:
             client = CrossClient(username=username, password=password)
 
         self._client = client
-        self._variables: dict[str, CrossDataVariable | CrossDimension] = {}
-        self._loading: set[str] = set()
+        self._variables: dict[str, CrossDataVariable | CrossBaseDimension] = {}
 
-    def __getattr__(self, name: str) -> CrossDataVariable | CrossDimension:
+    def __getattr__(self, name: str) -> CrossDataVariable | CrossBaseDimension:
         """Magic method to allow dot notation access with lazy loading."""
         # 1. Prevent IDEs and Python internals from triggering API calls!
         if name.startswith("_"):
@@ -57,7 +59,7 @@ class CrossRegistry:
             # internal hasattr() functions still work correctly.
             raise AttributeError(str(e)) from e
 
-    def __getitem__(self, name: str) -> CrossDataVariable | CrossDimension:
+    def __getitem__(self, name: str) -> CrossDataVariable | CrossBaseDimension:
         """
         Magic method to allow dictionary-style access.
         Usage: registry["my_variable_name"]
@@ -71,21 +73,45 @@ class CrossRegistry:
         """
         return list(super().__dir__()) + list(self._variables.keys())
 
+    def get_contract_overview(
+        self,
+        contract_type: ContractType | list[ContractType] | None = None,
+    ) -> pd.DataFrame:
+        """Fetch an overview of available contracts from the CROSS platform.
+
+        Args:
+            contract_type: Optional filter restricting the result to one or
+                more contract types (e.g. ``"Dimension"`` or
+                ``["Dimension", "FlexibleDimension"]``). If ``None``, all
+                contracts are returned.
+
+        Returns:
+            pd.DataFrame: DataFrame with ``name``, ``title``, ``description``,
+                and ``contract_type`` columns.
+        """
+        df = self._client.contracts.overview()
+        if contract_type is not None:
+            wanted = (
+                [contract_type]
+                if isinstance(contract_type, str)
+                else list(contract_type)
+            )
+            df = df[df["contract_type"].isin(wanted)]
+        return df[["name", "title", "description", "contract_type"]]
+
     @property
     def contract_overview(self) -> pd.DataFrame:
-        """Fetch an overview of available contracts from the CROSS platform as
-        pandas DataFrame"""
-        df = self._client.contracts.overview().pipe(
-            lambda df: df[~df.name.str.startswith("dim_")]
-        )
-        return df[["name", "title", "description"]]
+        """Overview of all contracts on the CROSS platform as a pandas DataFrame.
+        Include columns: ``name``, ``title``, ``description``, and ``contract_type``.
+        """
+        return self.get_contract_overview()
 
     def add_variable(
         self,
         name: str,
         filters: dict[str, Any] | None = None,
         overwrite: bool = False,
-    ) -> CrossDataVariable | CrossDimension:
+    ) -> CrossDataVariable | CrossBaseDimension:
         """Add a variable to the registry by fetching it from the CROSS platform.
 
         Args:
@@ -99,10 +125,10 @@ class CrossRegistry:
                 Defaults to False.
 
         Returns:
-            CrossDataVariable | CrossDimension: The loaded variable instance.
+            CrossDataVariable | CrossBaseDimension: The loaded variable instance.
         """
         if name in self._variables:
-            if isinstance(self._variables[name], CrossDimension):
+            if isinstance(self._variables[name], CrossBaseDimension):
                 raise ValueError(
                     f"Variable '{name}' is a Dimension and cannot be overwritten."
                 )
@@ -112,55 +138,40 @@ class CrossRegistry:
                     "Set overwrite=True to replace it."
                 )
 
-        # todo: make dimensions identifiable by contract
-        if name.startswith("dim_"):
-            dimension = CrossDimension.from_client(self._client, name)
-            self._variables[name] = dimension
-            return dimension
-        else:
-            self._variables[name] = CrossDataVariable.from_client(
-                self._client, name, filters=filters
+        cr = self._client.contracts.get(name)
+
+        if cr.is_dimension:
+            # Star schema: dimensions only self-reference, so there are no
+            # external FKs to resolve here.
+            wrapper_cls: type[CrossBaseDimension] = (
+                CrossDimension
+                if cr.contract.contract_type == "Dimension"
+                else CrossFlexibleDimension
             )
+            self._variables[name] = wrapper_cls(cr)
+            return self._variables[name]
 
-        # resolve the foreign key references, fetch the respective contracts, and
-        # hydrate them into the variable
-        # NOTE: circular foreign key references are assumed to be prevented
-        # upstream by the CROSS platform upon contract injection.
-        # The guard below is a defensive measure only.
-        self._loading.add(name)
-        try:
-            fks: ForeignKeys | list = self._variables[name].foreign_keys or []
-            for fk in fks:
-                ref_name = fk.reference.resource
-                if ref_name is None:
-                    continue  # skip self-reference
-                # todo: temporary fix for scenario references
-                # fix will be provided upstream with clear dimension definition.
-                if ref_name.startswith("dim_scenario"):
-                    continue
-                if ref_name not in self._variables:
-                    if ref_name in self._loading:
-                        warnings.warn(
-                            f"Circular foreign key reference detected: "
-                            f"'{ref_name}' is already being loaded while "
-                            f"resolving '{name}'. Skipping.",
-                            stacklevel=2,
-                        )
-                        continue  # skip circular reference
-                    self.add_variable(ref_name)
-                # if it is a dimension, add it to the variable,
-                # otherwise skip (we only support dimensions as FK targets for now)
-                var = self._variables[name]
-                dim = self._variables[ref_name]
-                if isinstance(var, CrossDataVariable) and isinstance(
-                    dim, CrossDimension
-                ):
-                    var.add_dimension(dim)
-        finally:
-            self._loading.remove(name)
-        return self._variables[name]
+        # General / ValueVariable -> data variable; resolve FK targets directly.
+        # Under the star schema, FK targets are always dimensions (which do not
+        # have outgoing FKs), so a single-level walk is sufficient.
+        var = CrossDataVariable(cr, filters=filters)
+        self._variables[name] = var
 
-    def get_variable(self, name: str) -> CrossDataVariable | CrossDimension:
+        for fk in var.foreign_keys or []:
+            ref_name = fk.reference.resource
+            if ref_name is None:
+                continue  # self-reference
+            if ref_name not in self._variables:
+                self.add_variable(ref_name)
+            target = self._variables[ref_name]
+            # Composite-FK dimensions are loaded but not auto-attached:
+            # add_dimension keys by single column name. Users can still reach
+            # them via registry[ref_name].
+            if isinstance(target, CrossBaseDimension) and len(fk.fields) == 1:
+                var.add_dimension(target)
+        return var
+
+    def get_variable(self, name: str) -> CrossDataVariable | CrossBaseDimension:
         """Explicit getter method for retrieving a variable (with lazy loading)."""
         if name not in self._variables:
             try:

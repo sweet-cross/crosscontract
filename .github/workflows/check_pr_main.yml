@@ -1,5 +1,10 @@
-# Orchestrator workflow for the main branch.
-# Runs tests on every PR to the main branch.
+# Orchestrator workflow for PRs into main. PRs to main are dev → main
+# fast-forward promotions; PSR has already analyzed the squashed commits on
+# dev, so no title lint is needed here. Tests run as a final gate.
+#
+# GitHub branch protection cannot restrict a PR's source branch, so the
+# enforce_source_branch job below fails the check if the PR head is not `dev`.
+# Configure it as a required status check on main to block the merge.
 name: Check PR Main
 
 on:
@@ -12,7 +17,18 @@ on:
             - synchronize
 
 jobs:
-    lint_pr_title:
-        uses: ./.github/workflows/check_pr_title.yml
+    enforce_source_branch:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Ensure PR source is dev
+              env:
+                  HEAD_REF: ${{ github.head_ref }}
+              run: |
+                  if [ "$HEAD_REF" != "dev" ]; then
+                      echo "::error::PRs to main must come from the 'dev' branch. This PR is from '$HEAD_REF'."
+                      exit 1
+                  fi
+                  echo "PR source is 'dev' — OK."
+
     test_and_coverage:
         uses: ./.github/workflows/test_and_coverage.yml
