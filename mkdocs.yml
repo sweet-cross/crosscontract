@@ -76,4 +76,5 @@ nav:
       - CrossContract: reference/contracts.md
       - CrossRegistry: reference/registry.md
       - CrossClient: reference/client.md
+  - Contributing: contributing.md
   - About: about.md
