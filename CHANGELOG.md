@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## v0.9.0 (2026-05-08)
+
+### Features
+
+
+- **Add colors** ([`b060520`](https://github.com/sweet-cross/crosscontract/commit/b060520a890513f102099fc0e2fb7009848bc477))
+
+  ## Pull request overview
+
+  Adds optional `color` support to dimension contracts across the schema template, registry dimension wrappers, tests, and documentation to enable downstream visualization use-cases (e.g., plotting).
+
+  **Changes:**
+  - Extend the rigid `DimensionSchema` template with an optional `color` field (hex format constraints) and document it.
+  - Add `color_map` to registry-side dimension variables, mirroring `label_map` behavior and introducing caching.
+  - Add/extend tests to include the `color` field in dimension fixtures and verify `color_map` behavior.
+
+  ### Reviewed changes
+
+  Copilot reviewed 5 out of 5 changed files in this pull request and generated 4 comments.
+
+  <details> <summary>Show a summary per file</summary>
+
+  | File | Description | | ---- | ----------- | | src/crosscontract/registry/variables/base_dimension.py | Adds cached `color_map` accessor and clears its cache alongside existing caches. | | src/crosscontract/contracts/schema/subschemas/dimension.py | Adds `color` field to the rigid Dimension schema template and updates its docstring. | | src/tests/registry/test_dimensions.py | Updates dimension test fixtures to include `color` and adds a new `TestColorMap` suite. | | src/tests/contracts/schema/subschemas/test_dimension_schema.py | Verifies `color` is present in schema fields when loading a Dimension contract from YAML. | | docs/contracts/contract_types.md | Updates Dimension contract documentation to include `color` in the field list (table format). | </details>
+
+
+
+
+
 ## v0.8.7 (2026-04-28)
 
 ### Bug fixes
