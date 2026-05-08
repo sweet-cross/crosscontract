@@ -2,9 +2,15 @@
 # python-semantic-release, which inspects conventional-commit messages on dev
 # and creates a new version commit + tag if appropriate. The PSR commit message
 # carries the custom marker [skip release], checked below to prevent
-# re-triggering this workflow on PSR's own bump commits. We avoid GitHub's
-# built-in [skip ci] token because that would also suppress check_pr_main on
-# dev to main PRs whose head is the bump commit.
+# re-triggering this workflow on PSR's own bump commits. The marker is custom
+# (not GitHub's built-in skip-ci token) because the built-in token would also
+# suppress check_pr_main on dev to main PRs whose head is the bump commit, and
+# would suppress release_main_branch on the subsequent fast-forward to main.
+#
+# IMPORTANT: when titling or describing PRs that touch this file or the PSR
+# commit-message config, never include the literal skip-ci token (or its
+# variants) anywhere in the PR title or body. GitHub scans the squash-merge
+# commit message for that token and silently skips downstream workflows.
 name: Release Dev Branch
 
 on:
