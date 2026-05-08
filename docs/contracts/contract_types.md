@@ -53,30 +53,14 @@ by adding specific constraints and conventions for dimension tables.
 
 Dimensions have the following fields:
 
-- "id":
-    - A unique identifier for each entry in the dimension table.
-    - required
-    - Type: string (max length 100 characters). Only letters (a-z, A-Z), numbers
-        and underscores are allowed. Must start with a letter.
-    - Constraints: Must be unique across the entire table and serves as the
-                    primary key.
-- "parent_id":
-    - A reference to the "id" of the parent entry in the same table
-    - optional (required for levels > 0)
-    - Type: string (max length 100 characters)
-- "level":
-    - Indicates the hierarchy level of the dimension, starting at 0 for the top level.
-    - required
-    - Type: integer (non-negative, >= 0)
-- "label":
-    - A human-readable label for the dimension entry. This is the default fallback
-        label for plotting etc purposes if no other label is provided.
-    - optional
-    - Type: string (max length 255 characters)
-- "description":
-    - A detailed description of the dimension entry.
-    - optional
-    - Type: string
+| Field | Required | Data Type | Description & Constraints |
+| :--- | :--- | :--- | :--- |
+| `id` | Yes | String (max 100 chars) | A unique identifier for each entry in the dimension table. Only letters (a-z, A-Z), numbers, and underscores are allowed. Must start with a letter. <br><br>**Constraint:** Must be unique across the entire table and serves as the primary key. |
+| `parent_id` | Optional* <br>*\* Required for levels > 0* | String (max 100 chars) | A reference to the `id` of the parent entry in the same table.|
+| `level` | Yes | Integer (>= 0) | Indicates the hierarchy level of the dimension, starting at `0` for the top level. |
+| `label` | Optional | String (max 255 chars) | A human-readable label for the dimension entry. This is the default fallback label for plotting and other purposes if no other label is provided. |
+| `description` | Optional | String | A detailed description of the dimension entry. |
+| `color` | Optional | String | A hex color that can be used for plotting in stacked bar charts. |
 
 At the data level, dimensions receive more checks to ensure the hierarchy is
 consistent and valid.
