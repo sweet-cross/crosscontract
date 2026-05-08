@@ -1,7 +1,10 @@
 # Orchestrator workflow that runs on every push to dev. It runs tests and then
 # python-semantic-release, which inspects conventional-commit messages on dev
 # and creates a new version commit + tag if appropriate. The PSR commit message
-# carries [skip ci] to prevent re-triggering this workflow.
+# carries the custom marker [skip release], checked below to prevent
+# re-triggering this workflow on PSR's own bump commits. We avoid GitHub's
+# built-in [skip ci] token because that would also suppress check_pr_main on
+# dev to main PRs whose head is the bump commit.
 name: Release Dev Branch
 
 on:
@@ -12,11 +15,12 @@ on:
 
 jobs:
     test_and_coverage:
+        if: ${{ !contains(github.event.head_commit.message || '', '[skip release]') }}
         uses: ./.github/workflows/test_and_coverage.yml
 
     release:
         needs: test_and_coverage
-        if: success()
+        if: ${{ success() && !contains(github.event.head_commit.message || '', '[skip release]') }}
         uses: ./.github/workflows/versioning.yml
         permissions:
             contents: write
