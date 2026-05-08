@@ -85,3 +85,6 @@ class TestContractFromYAML:
 
         assert contract.tableschema.table_type == "Dimension"
         assert contract.tableschema.primaryKey.root == ["id"]
+        schema_fields = {field.name for field in contract.tableschema.fields}
+        for key in ["id", "parent_id", "level", "label", "description", "color"]:
+            assert key in schema_fields
