@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -86,6 +87,7 @@ class TestLabelMap:
 class TestColorMap:
     def test_all_colors_mapped(self, dimension: CrossDimension):
         color_map = dimension.color_map
+        assert set(color_map.keys()) == set(dim_data["id"])
         for k, v in color_map.items():
             assert v == dim_data.loc[dim_data["id"] == k, "color"].iloc[0]
 
@@ -115,9 +117,10 @@ class TestColorMap:
         dim = CrossDimension(contract_resource=cr)
         assert dim.color_map == {}
 
-    def test_empty_color_values(self, make_contract_resource):
+    @pytest.mark.parametrize("empty_value", ["", None, pd.NA, np.nan])
+    def test_empty_color_values(self, make_contract_resource, empty_value):
         data = dim_data.copy()
-        data["color"] = ""  # empty color values
+        data["color"] = empty_value  # empty color values
         cr = make_contract_resource(data=data, contract_dict=dim_contract)
         dim = CrossDimension(contract_resource=cr)
         assert dim.color_map == {}

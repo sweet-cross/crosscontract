@@ -1,5 +1,7 @@
 from abc import ABC
 
+import pandas as pd
+
 from crosscontract.crossclient.services import ContractResource
 
 from .base_variable import CrossBaseVariable
@@ -41,8 +43,9 @@ class CrossBaseDimension(CrossBaseVariable, ABC):
         if self._color_map is None:
             id_field = self.contract_resource.contract.tableschema.primaryKey.root[0]
             self._color_map = dict(zip(df[id_field], df["color"], strict=True))
+        # filter out empty/null colors
         return {
-            k: v for k, v in self._color_map.items() if v
+            k: v for k, v in self._color_map.items() if not pd.isna(v) and v != ""
         }  # filter out empty/null colors
 
     def clear_data_cache(self):
