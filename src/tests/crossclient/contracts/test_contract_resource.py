@@ -548,3 +548,36 @@ class TestPassThrough:
         contract_resource._service._drop_data_table.assert_called_once_with(
             contract_resource.name
         )
+
+
+class TestDeleteData:
+    def test_delete_data_success(
+        self, service: ContractService, contract_factory: type[ModelFactory]
+    ):
+        """delete_data delegates to the service when the contract is Active."""
+        contract: CrossContract = contract_factory.build(name="contract")
+        resource = _make_resource(service, contract, status="Active")
+        resource._service._delete_data = Mock(return_value=None)
+
+        filters = {"region": "DE"}
+        result = resource.delete_data(filters)
+
+        assert result is None
+        resource._service._delete_data.assert_called_once_with(resource.name, filters)
+
+    @pytest.mark.parametrize("status", ["Draft", "Suspended", "Retired"])
+    def test_delete_data_non_active_status_raises(
+        self,
+        service: ContractService,
+        contract_factory: type[ModelFactory],
+        status: str,
+    ):
+        """delete_data raises locally when the cached status is not Active."""
+        contract: CrossContract = contract_factory.build(name="contract")
+        resource = _make_resource(service, contract, status=status)
+        resource._service._delete_data = Mock(return_value=None)
+
+        with pytest.raises(ValueError, match="must be 'Active'"):
+            resource.delete_data({"region": "DE"})
+
+        resource._service._delete_data.assert_not_called()
