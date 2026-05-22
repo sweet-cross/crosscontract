@@ -7,7 +7,11 @@ import respx
 from polyfactory.factories.pydantic_factory import ModelFactory
 
 from crosscontract import CrossContract
-from crosscontract.crossclient.exceptions import ResourceNotFoundError, ServerError
+from crosscontract.crossclient.exceptions import (
+    ConflictError,
+    ResourceNotFoundError,
+    ServerError,
+)
 from crosscontract.crossclient.services.contract_resource import ContractResource
 from crosscontract.crossclient.services.contract_service import ContractService
 
@@ -306,6 +310,74 @@ class TestDelete:
 
         assert respx.calls.last.request.method == "DELETE"
         assert respx.calls.last.request.url == drop_url
+
+
+class TestDeleteData:
+    @respx.mock
+    def test_delete_data_success(self, service: ContractService):
+        """Delete data hits the DELETE /data endpoint with filters as query params."""
+        contract_name = "contract_with_data"
+        delete_url = f"{CONTRACTS_URL}{contract_name}/data"
+
+        respx.delete(delete_url).respond(200, json={"detail": "Deleted 3 rows"})
+
+        result = service._delete_data(contract_name, filters={"region": "DE"})
+
+        assert respx.calls.last.request.method == "DELETE"
+        assert respx.calls.last.request.url.path == (
+            f"/api/v1/contract/{contract_name}/data"
+        )
+        params = respx.calls.last.request.url.params
+        assert params.get_list("region") == ["DE"]
+        assert result is None
+
+    @respx.mock
+    def test_delete_data_list_value_repeats_param(self, service: ContractService):
+        """List values become repeated query params."""
+        contract_name = "contract_with_data"
+        delete_url = f"{CONTRACTS_URL}{contract_name}/data"
+
+        respx.delete(delete_url).respond(200, json={"detail": "Deleted 0 rows"})
+
+        service._delete_data(contract_name, filters={"region": ["DE", "FR"]})
+
+        params = respx.calls.last.request.url.params
+        assert params.get_list("region") == ["DE", "FR"]
+
+    @respx.mock
+    def test_delete_data_non_string_values_stringified(self, service: ContractService):
+        """int/float/bool filter values are coerced to strings."""
+        contract_name = "contract_with_data"
+        delete_url = f"{CONTRACTS_URL}{contract_name}/data"
+
+        respx.delete(delete_url).respond(200, json={"detail": "Deleted 0 rows"})
+
+        service._delete_data(
+            contract_name,
+            filters={"year": 2024, "ratio": 0.5, "active": True, "ids": [1, 2]},
+        )
+
+        params = respx.calls.last.request.url.params
+        assert params.get_list("year") == ["2024"]
+        assert params.get_list("ratio") == ["0.5"]
+        assert params.get_list("active") == ["True"]
+        assert params.get_list("ids") == ["1", "2"]
+
+    def test_delete_data_empty_filters_raises(self, service: ContractService):
+        """Empty filters raise ValueError without making an HTTP call."""
+        with pytest.raises(ValueError, match="non-empty"):
+            service._delete_data("any_contract", filters={})
+
+    @respx.mock
+    def test_delete_data_server_error(self, service: ContractService):
+        """Server errors propagate via raise_from_response."""
+        contract_name = "contract_with_data"
+        delete_url = f"{CONTRACTS_URL}{contract_name}/data"
+
+        respx.delete(delete_url).respond(409, json={"detail": "not Active"})
+
+        with pytest.raises(ConflictError):
+            service._delete_data(contract_name, filters={"region": "DE"})
 
 
 class TestChangeStatus:
