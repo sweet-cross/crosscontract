@@ -292,8 +292,10 @@ class ContractService:
 
         Raises:
             ValueError: If ``filters`` is empty.
-            httpx.HTTPStatusError: If the request fails (e.g. 404 contract not
-                found, 409 contract not Active, 400 invalid filters).
+            CrossClientError: If the request fails. Raised via
+                ``raise_from_response`` as a more specific client exception
+                such as ``ResourceNotFoundError``, ``ConflictError``, or
+                ``ServerError``.
         """
         if not filters:
             raise ValueError(

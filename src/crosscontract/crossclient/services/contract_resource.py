@@ -359,6 +359,9 @@ class ContractResource:
                 or if ``filters`` is empty. The status check is local and uses
                 the cached status; call ``refresh()`` first if the status may
                 have changed on the server.
+            CrossClientError: Propagated from the underlying service/HTTP
+                request if the deletion request fails due to client, server,
+                or network-related errors.
         """
         if self._status != "Active":
             raise ValueError(
