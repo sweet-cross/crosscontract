@@ -9,6 +9,8 @@ from crosscontract.contracts.contracts.cross_contract import ContractType
 from ..exceptions import ResourceNotFoundError, raise_from_response
 from .contract_resource import ContractResource, ContractStatus
 
+FilterValue = str | int | float | bool
+
 if TYPE_CHECKING:  # pragma: no cover
     from ..crossclient import CrossClient
 
@@ -268,3 +270,40 @@ class ContractService:
         # read the CSV data into a DataFrame
         df = pd.read_parquet(io.BytesIO(response.content))
         return df
+
+    def _delete_data(
+        self,
+        name: str,
+        filters: dict[str, FilterValue | list[FilterValue]],
+    ) -> None:
+        """Delete rows for the contract matching the given equality filters.
+
+        Filters are required and must be non-empty; full-table wipes must go
+        through ``_drop_data_table`` instead. Values may be str/int/float/bool
+        (or lists thereof for multi-value equality) and are stringified before
+        being sent as query parameters. List values produce repeated query
+        params (e.g. ``?col=a&col=b``), which the server interprets as an
+        equality match against any of the listed values.
+
+        Args:
+            name (str): The name of the contract whose rows to delete.
+            filters (dict): Mapping of column name to value (or list of values)
+                to match. Must be non-empty.
+
+        Raises:
+            ValueError: If ``filters`` is empty.
+            httpx.HTTPStatusError: If the request fails (e.g. 404 contract not
+                found, 409 contract not Active, 400 invalid filters).
+        """
+        if not filters:
+            raise ValueError(
+                "filters must be a non-empty mapping. Use drop_data() to "
+                "delete all data associated with a contract."
+            )
+        params: dict[str, str | list[str]] = {
+            k: [str(x) for x in v] if isinstance(v, list) else str(v)
+            for k, v in filters.items()
+        }
+        endpoint = f"{self._route}{name}/data"
+        response = self._client.delete(endpoint, params=params)
+        raise_from_response(response)

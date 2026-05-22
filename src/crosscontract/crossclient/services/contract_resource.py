@@ -10,7 +10,7 @@ from crosscontract.contracts.schema.subschemas import BaseDimensionSchema
 from ..exceptions import ValidationError
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .contract_service import ContractService
+    from .contract_service import ContractService, FilterValue
 
 
 ContractStatus = Literal["Draft", "Active", "Suspended", "Retired"]
@@ -342,3 +342,28 @@ class ContractResource:
     def drop_data(self) -> None:
         """Delete all data associated with the contract on the CROSS platform."""
         self._service._drop_data_table(self.name)
+
+    def delete_data(
+        self,
+        filters: "dict[str, FilterValue | list[FilterValue]]",
+    ) -> None:
+        """Delete rows from the contract's data matching the given equality filters.
+
+        Args:
+            filters: Mapping of column name to value (or list of values) to
+                match. Values may be str/int/float/bool. Must be non-empty —
+                use ``drop_data()`` to delete all rows.
+
+        Raises:
+            ValueError: If the contract's cached status is not ``"Active"``,
+                or if ``filters`` is empty. The status check is local and uses
+                the cached status; call ``refresh()`` first if the status may
+                have changed on the server.
+        """
+        if self._status != "Active":
+            raise ValueError(
+                f"Cannot delete data from contract '{self.name}': status is "
+                f"'{self._status}', must be 'Active'. Call refresh() if the "
+                "status may have changed on the server."
+            )
+        self._service._delete_data(self.name, filters)
