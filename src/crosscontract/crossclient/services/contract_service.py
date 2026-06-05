@@ -1,3 +1,4 @@
+import csv
 import io
 from typing import TYPE_CHECKING, Any
 
@@ -225,7 +226,9 @@ class ContractService:
         endpoint = f"{self._route}{name}/data"
 
         # construct the payload
-        with io.BytesIO(data.to_csv(index=False).encode("utf-8")) as csv_buffer:
+        with io.BytesIO(
+            data.to_csv(index=False, quoting=csv.QUOTE_NONNUMERIC).encode("utf-8")
+        ) as csv_buffer:
             files = {"file": (f"{name}.csv", csv_buffer, "text/csv")}
             res = self._client.post(endpoint, files=files)
         raise_from_response(res)
