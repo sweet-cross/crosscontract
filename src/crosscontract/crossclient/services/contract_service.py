@@ -271,7 +271,6 @@ class ContractService:
         params["format"] = "parquet"
         response = self._client.get(endpoint, params=params)
         raise_from_response(response)
-        # read the CSV data into a DataFrame
         df = pd.read_parquet(io.BytesIO(response.content))
         return df
 
