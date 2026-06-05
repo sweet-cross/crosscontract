@@ -224,9 +224,13 @@ class ContractService:
         """
         endpoint = f"{self._route}{name}/data"
 
-        # construct the payload
-        with io.BytesIO(data.to_csv(index=False).encode("utf-8")) as csv_buffer:
-            files = {"file": (f"{name}.csv", csv_buffer, "text/csv")}
+        # construct the payload as parquet for type safety and efficiency.
+        with io.BytesIO() as buffer:
+            data.to_parquet(buffer, index=False)
+            buffer.seek(0)
+            files = {
+                "file": (f"{name}.parquet", buffer, "application/vnd.apache.parquet")
+            }
             res = self._client.post(endpoint, files=files)
         raise_from_response(res)
         return
@@ -267,7 +271,6 @@ class ContractService:
         params["format"] = "parquet"
         response = self._client.get(endpoint, params=params)
         raise_from_response(response)
-        # read the CSV data into a DataFrame
         df = pd.read_parquet(io.BytesIO(response.content))
         return df
 
