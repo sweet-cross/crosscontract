@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## v0.10.1 (2026-06-05)
+
+### Bug fixes
+
+
+- **parquet for data upload** ([`7499ea6`](https://github.com/sweet-cross/crosscontract/commit/7499ea6fe2fb6ddfcfa27a3e30a5ecd02c1f122f))
+
+  ## Pull request overview
+
+  This PR updates the CrossClient contract data upload path to send DataFrames as Parquet instead of CSV, aligning uploads with the existing Parquet-based download path and improving fidelity/efficiency for typed data interchange.
+
+  **Changes:**
+  - Switch `ContractService._add_data()` upload serialization from CSV to Parquet (multipart file upload).
+  - Set Parquet filename and MIME type for the uploaded payload.
+  - Remove a stale CSV-related comment in the Parquet-based `_get_data()` path.
+
+
+
 ## v0.10.0 (2026-05-22)
 
 ### Features
