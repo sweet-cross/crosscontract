@@ -1,6 +1,100 @@
 # CHANGELOG
 
+## v0.10.1 (2026-06-05)
+
+### Bug fixes
+
+
+- **parquet for data upload** ([`7499ea6`](https://github.com/sweet-cross/crosscontract/commit/7499ea6fe2fb6ddfcfa27a3e30a5ecd02c1f122f))
+
+  ## Pull request overview
+
+  This PR updates the CrossClient contract data upload path to send DataFrames as Parquet instead of CSV, aligning uploads with the existing Parquet-based download path and improving fidelity/efficiency for typed data interchange.
+
+  **Changes:**
+  - Switch `ContractService._add_data()` upload serialization from CSV to Parquet (multipart file upload).
+  - Set Parquet filename and MIME type for the uploaded payload.
+  - Remove a stale CSV-related comment in the Parquet-based `_get_data()` path.
+
+
+
+## v0.10.0 (2026-05-22)
+
+### Features
+
+
+- **delete contract data with client** ([`6bb9767`](https://github.com/sweet-cross/crosscontract/commit/6bb97676b8249c0c62620874e4732d5dced7739c))
+
+  ## Pull request overview
+
+  Adds a client-side API for deleting a *filtered subset* of contract data (row-level deletes) via the crossclient SDK, complementing the existing full-table `drop_data()` behavior.
+
+  **Changes:**
+  - Introduced `ContractService._delete_data()` to call `DELETE /contract/{name}/data` with equality filters encoded as query parameters (including repeated params for list values).
+  - Added `ContractResource.delete_data()` as the public entry point, with a local guard requiring cached status to be `"Active"`.
+  - Added pytest coverage for service- and resource-level delete behavior; updated `uv.lock` to reflect the current package version.
+
+  ### Reviewed changes
+
+  Copilot reviewed 4 out of 5 changed files in this pull request and generated 3 comments.
+
+  <details> <summary>Show a summary per file</summary>
+
+  | File | Description | | ---- | ----------- | | uv.lock | Updates locked editable package version to 0.9.0. | | src/crosscontract/crossclient/services/contract_service.py | Adds `_delete_data()` implementation and filter typing/serialization. | | src/crosscontract/crossclient/services/contract_resource.py | Adds `delete_data()` public method with status guard and typed filters. | | src/tests/crossclient/contracts/test_contracts_service.py | Adds tests validating query-param encoding and error propagation for `_delete_data()`. | | src/tests/crossclient/contracts/test_contract_resource.py | Adds tests validating `delete_data()` delegation and non-Active status behavior. | </details>
+
+  Co-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>
+
+
+### Documentation
+
+
+- **warn against skip-ci token in PR titles and bodies** ([`eadbdc5`](https://github.com/sweet-cross/crosscontract/commit/eadbdc5bd0a2a9248bd05850f1236d477ad91b2f))
+
+  GitHub scans the squash-merge commit message (PR title plus body) for the built-in skip-ci token and suppresses downstream workflows when it finds one. A prior PR re-introduced that token in its description while explaining the fix, breaking check_pr_main on the next dev to main PR. Add a note to the workflow header so future contributors avoid the same trap.
+
+
+### Chores
+
+
+- **replace [skip ci] with custom [skip release] marker** ([`effae1d`](https://github.com/sweet-cross/crosscontract/commit/effae1d75b037e66b271381a3dcdcf4b802420a9))
+
+  GitHub's [skip ci] token suppresses both push and pull_request workflow runs whose head commit carries it. That broke check_pr_main on dev to main PRs whose head was the PSR version-bump commit.
+
+  Switch to a custom [skip release] marker that PSR writes into its bump commit message and that release_dev_branch.yml explicitly checks. GitHub does not recognize this token, so dev to main PRs run check_pr_main normally, but Release Dev Branch still skips itself on PSR's own commits and avoids re-running the full test matrix.
+
+
+
+## v0.9.0 (2026-05-08)
+
+
+
+### Features
+
+
+- **Add colors** ([`b060520`](https://github.com/sweet-cross/crosscontract/commit/b060520a890513f102099fc0e2fb7009848bc477))
+
+  ## Pull request overview
+
+  Adds optional `color` support to dimension contracts across the schema template, registry dimension wrappers, tests, and documentation to enable downstream visualization use-cases (e.g., plotting).
+
+  **Changes:**
+  - Extend the rigid `DimensionSchema` template with an optional `color` field (hex format constraints) and document it.
+  - Add `color_map` to registry-side dimension variables, mirroring `label_map` behavior and introducing caching.
+  - Add/extend tests to include the `color` field in dimension fixtures and verify `color_map` behavior.
+
+  ### Reviewed changes
+
+  Copilot reviewed 5 out of 5 changed files in this pull request and generated 4 comments.
+
+  <details> <summary>Show a summary per file</summary>
+
+  | File | Description | | ---- | ----------- | | src/crosscontract/registry/variables/base_dimension.py | Adds cached `color_map` accessor and clears its cache alongside existing caches. | | src/crosscontract/contracts/schema/subschemas/dimension.py | Adds `color` field to the rigid Dimension schema template and updates its docstring. | | src/tests/registry/test_dimensions.py | Updates dimension test fixtures to include `color` and adds a new `TestColorMap` suite. | | src/tests/contracts/schema/subschemas/test_dimension_schema.py | Verifies `color` is present in schema fields when loading a Dimension contract from YAML. | | docs/contracts/contract_types.md | Updates Dimension contract documentation to include `color` in the field list (table format). | </details>
+
+
+
 ## v0.8.7 (2026-04-28)
+
+
 
 ### Bug fixes
 
@@ -16,6 +110,8 @@
 
 
 ## v0.8.6 (2026-04-28)
+
+
 
 ### Bug fixes
 
@@ -51,6 +147,8 @@
 
 ## v0.8.5 (2026-04-28)
 
+
+
 ### Bug fixes
 
 
@@ -77,6 +175,8 @@
 
 ## v0.8.4 (2026-04-20)
 
+
+
 ### Bug fixes
 
 
@@ -100,6 +200,8 @@
 
 
 ## v0.8.3 (2026-04-20)
+
+
 
 ### Bug fixes
 
@@ -127,6 +229,8 @@
 
 ## v0.8.2 (2026-04-16)
 
+
+
 ### Bug fixes
 
 
@@ -151,6 +255,8 @@
 
 ## v0.8.1 (2026-04-16)
 
+
+
 ### Bug fixes
 
 
@@ -159,6 +265,8 @@
 
 
 ## v0.8.0 (2026-04-16)
+
+
 
 ### Features
 
@@ -186,6 +294,8 @@
 
 ## v0.7.0 (2026-04-02)
 
+
+
 ### Features
 
 
@@ -212,6 +322,8 @@
 
 ## v0.6.0 (2026-03-15)
 
+
+
 ### Features
 
 
@@ -224,6 +336,8 @@
 
 
 ## v0.5.0 (2026-03-14)
+
+
 
 ### Features
 
@@ -250,6 +364,8 @@
 
 
 ## v0.4.0 (2026-03-13)
+
+
 
 ### Features
 
@@ -279,6 +395,8 @@
 
 ## v0.3.0 (2026-03-08)
 
+
+
 ### Features
 
 
@@ -287,6 +405,8 @@
 
 
 ## v0.2.3 (2026-03-08)
+
+
 
 ### Bug fixes
 
@@ -316,9 +436,9 @@
 
 
 
-
-
 ## v0.2.2 (2026-03-05)
+
+
 
 ### Bug fixes
 
@@ -327,16 +447,14 @@
 
 
 
-
-
 ## v0.2.1 (2026-03-05)
+
+
 
 ### Bug fixes
 
 
 - **docs** ([`937b76f`](https://github.com/sweet-cross/crosscontract/commit/937b76f8fbf30d4615cdb0178bfc8f72ca66e4ce))
-
-
 
 
 ### Chores

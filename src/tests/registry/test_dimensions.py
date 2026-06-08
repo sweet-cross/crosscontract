@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -26,6 +27,7 @@ dim_contract = {
             {"name": "label", "type": "string"},
             {"name": "level", "type": "integer"},
             {"name": "parent_id", "type": "string"},
+            {"name": "color", "type": "string"},
         ],
     },
 }
@@ -36,6 +38,7 @@ dim_data = pd.DataFrame(
         "label": ["Total", "Category A", "Category B", "Leaf 1", "Leaf 2", "Leaf 3"],
         "level": [0, 1, 1, 2, 2, 2],
         "parent_id": [None, "total", "total", "cat_a", "cat_a", "cat_b"],
+        "color": ["#FFFFFF", "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#00FFFF"],
     }
 )
 
@@ -79,6 +82,48 @@ class TestLabelMap:
         map2 = dimension.label_map
         assert map1 == map2
         assert map1 is not map2  # copies returned
+
+
+class TestColorMap:
+    def test_all_colors_mapped(self, dimension: CrossDimension):
+        color_map = dimension.color_map
+        assert set(color_map.keys()) == set(dim_data["id"])
+        for k, v in color_map.items():
+            assert v == dim_data.loc[dim_data["id"] == k, "color"].iloc[0]
+
+    def test_color_map_cached(self, dimension: CrossDimension):
+        map1 = dimension.color_map
+        map2 = dimension.color_map
+        assert map1 == map2
+        assert map1 is not map2  # copies returned
+
+    def test_no_color_column(self, make_contract_resource):
+        contract = {
+            "name": "dim_no_color",
+            "description": "Dimension without color column",
+            "title": "No Color",
+            "tableschema": {
+                "primaryKey": ["id"],
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {"name": "label", "type": "string"},
+                    {"name": "level", "type": "integer"},
+                    {"name": "parent_id", "type": "string"},
+                ],
+            },
+        }
+        data = dim_data.drop(columns=["color"])
+        cr = make_contract_resource(data=data, contract_dict=contract)
+        dim = CrossDimension(contract_resource=cr)
+        assert dim.color_map == {}
+
+    @pytest.mark.parametrize("empty_value", ["", None, pd.NA, np.nan])
+    def test_empty_color_values(self, make_contract_resource, empty_value):
+        data = dim_data.copy()
+        data["color"] = empty_value  # empty color values
+        cr = make_contract_resource(data=data, contract_dict=dim_contract)
+        dim = CrossDimension(contract_resource=cr)
+        assert dim.color_map == {}
 
 
 class TestAncestorMaps:

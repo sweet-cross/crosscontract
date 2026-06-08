@@ -54,6 +54,12 @@ DIMENSION_SCHEMA_TEMPLATE = {
             "type": "string",
             "description": "Description of a single element",
         },
+        {
+            "name": "color",
+            "type": "string",
+            "description": "Color associated with the dimension entry",
+            "constraints": {"maxLength": 7, "pattern": r"^#(?:[0-9a-fA-F]{3}){1,2}$"},
+        },
     ],
 }
 
@@ -96,6 +102,11 @@ class DimensionSchema(BaseDimensionSchema):
         - optional
         - Type: string
         - Description: A detailed description of the dimension entry.
+    - "color":
+        - optional
+        - Type: string (must be a valid hex color code, e.g., "#RRGGBB")
+        - Description: A color associated with the dimension entry, which can be
+                       used for visualization purposes.
 
     At the data level, dimensions receive more checks to ensure the hierarchy is
     consistent and valid.
