@@ -92,3 +92,35 @@ The package has three independent top-level modules, all re-exported from `cross
 - **Discriminated unions**: `contract_type` on `CrossContract` maps 1:1 to `table_type` on the schema. The `_inject_table_type` validator bridges them automatically.
 - **Adapters are stateless class methods**: call `Adapter.convert_schema(schema, ...)` directly; the adapter pattern exists for extensibility but doesn't require instantiation in practice.
 - **Tests live in `src/tests/`**, mirroring the `src/crosscontract/` structure. `pythonpath = "src"` in `pyproject.toml` means imports use `from crosscontract import ...` without editable install, though the package should be installed via `uv sync`.
+
+## Docstring convention
+
+All Python docstrings in this package use **Google style** (rendered by mkdocs via mkdocstrings). Markdown is used for inline formatting — backticks for code/types, dashes for bullet lists. Do **not** use reStructuredText roles (`:attr:`, `:class:`, `:meth:`, `:func:`) or rST directives.
+
+Standard sections (omit any that don't apply):
+
+```python
+def f(x: int, y: str | None = None) -> bool:
+    """One-line summary in the imperative.
+
+    Optional longer description in plain prose. Reference symbols with
+    backticks, e.g. `PlotSpec`, `value_column`, `pd.DataFrame`.
+
+    Args:
+        x (int): What it is.
+        y (str | None, optional): What it is. Defaults to `None`.
+
+    Returns:
+        bool: What comes back.
+
+    Raises:
+        ValueError: When and why.
+    """
+```
+
+Rules of thumb:
+
+- Docstrings are user-facing. Do **not** reference internal notes (ADRs, issue numbers, task numbers, migration cycles) — those belong in commit messages, PRs, or `.ai-context/`.
+- For Pydantic field descriptions, use the `Field(description=...)` argument with the same markdown conventions; no Args block on the field itself.
+- For `@model_validator` / `@model_serializer` methods, document the invariant they enforce in the summary, plus `Returns:` (typically `Self`) and `Raises:` where applicable.
+- Properties: document via `Returns:` rather than restating the property name.
