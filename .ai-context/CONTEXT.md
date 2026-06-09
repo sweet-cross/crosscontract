@@ -23,8 +23,11 @@ custom contracts may define their own set.
 
 **Schema**:
 The structural half of a **Contract** — field names, data types, mandatory/optional,
-constraints, and the primary/foreign keys. Frictionless-table-standard based, extended
-with **Field descriptors**. Describes logical content only, independent of file format.
+constraints, and the primary/foreign keys. *Is* a Frictionless Table Schema, more
+strictly defined (typed **contract types**, mandatory fields, dimension invariants) and
+slightly extended (**Field descriptors**). Describes logical content only, independent of
+file format. The correspondence is tight at this level only — a **Contract** above it is
+*not* a Frictionless Data Resource, which would bind to a physical file.
 
 **BaseContract** vs **CrossContract**:
 A **BaseContract** is the minimal contract (name + schema) for use *outside* the CROSS
