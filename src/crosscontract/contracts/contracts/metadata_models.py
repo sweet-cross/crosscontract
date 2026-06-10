@@ -17,7 +17,7 @@ class Contributor(BaseModel):
         role (str | None): The role of the contributor (e.g., author, maintainer).
     """
 
-    model_config = ConfigDict(allow_extra=False, str_strip_whitespace=True)
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     title: str = Field(description="The name of the contributor.")
     email: EmailStr | None = Field(
@@ -48,7 +48,7 @@ class DataSource(BaseModel):
         path (str | None): A URL or file path to the data source.
     """
 
-    model_config = ConfigDict(allow_extra=False, str_strip_whitespace=True)
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     title: str = Field(description="The name of the data source.")
     path: HttpUrl | str | None = Field(
         default=None, description="A URL or file path to the data source."
@@ -63,7 +63,7 @@ class License(BaseModel):
     A license for the data package or resource.
     """
 
-    model_config = ConfigDict(allow_extra=True, str_strip_whitespace=True)
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     name: str | None = Field(
         default=None,
