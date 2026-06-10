@@ -1,8 +1,8 @@
 """A `CrossDataResource` is the frictionless compliant representation of a
 `CrossContract` together with the description of the data source. The data source is
 always a file that is assumed to be distributed within a (zip) folder together with
-this descriptor. I.e., the `CrossDataResource` is a self-contained. It the
-same as the `CrossContract` but augments by a description of the data file.
+this descriptor. I.e., the `CrossDataResource` is self-contained. It is the same as
+the `CrossContract` but augmented by a description of the data file.
 
 """
 
@@ -10,7 +10,7 @@ from typing import Literal, Self
 
 from pydantic import Field, computed_field, model_validator
 
-from ...contracts.contracts.cross_contract import CrossContract
+from ...contracts.contracts.cross_contract import AnyTableSchema, CrossContract
 
 Formats = Literal["csv", "parquet"]
 Encodings = Literal["utf-8", "utf-16", "latin-1"]
@@ -21,8 +21,9 @@ class CrossDataResource(CrossContract):
     A `CrossDataResource` is the frictionless compliant representation of a
     `CrossContract` together with the description of the data source. The data
     source is always a file that is assumed to be distributed within a (zip) folder
-    together with this descriptor. I.e., the `CrossDataResource` is a self-contained.
-    It the same as the `CrossContract` but augments by a description of the data file.
+    together with this descriptor. I.e., the `CrossDataResource` is self-contained.
+    It is the same as the `CrossContract` but augmented by a description of the
+    data file.
 
     Attributes:
         path (str): The path to the data file. This is a required field.
@@ -36,6 +37,13 @@ class CrossDataResource(CrossContract):
             on the format.
     """
 
+    tableschema: AnyTableSchema = Field(
+        serialization_alias="schema",
+        description=(
+            "The Frictionless Table Schema definition. Serialized under the "
+            "Frictionless-standard key `schema` in the resource descriptor."
+        ),
+    )
     path: str = Field(
         description=("The path to the data file. This is a required field."),
     )
@@ -53,7 +61,7 @@ class CrossDataResource(CrossContract):
         ),
     )
 
-    @computed_field(
+    @computed_field(  # type: ignore[prop-decorator]
         description=(
             "The profile of the data resource. Assigned automatically based on format."
         )
