@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## v0.10.3 (2026-06-10)
+
+### Bug fixes
+
+
+- **Data resource** ([`778c70a`](https://github.com/sweet-cross/crosscontract/commit/778c70a188bb93800582c91b659c2f184cfb777b))
+
+  ## Pull request overview
+
+  This PR introduces a new “release” surface area to represent a Frictionless-style **Data Resource** (a `CrossContract` bound to a physical data file) and adds initial tests/docs for it.
+
+  **Changes:**
+  - Add `CrossDataResource` model under `crosscontract.release`, including computed `profile` and path/format validation.
+  - Add pytest coverage for `CrossDataResource` and a shared `contract_factory` fixture for release tests.
+  - Update internal context docs to define “Data Resource / Data specification / Data Package” terminology; bump lockfile version.
+
+  ### Reviewed changes
+
+  Copilot reviewed 7 out of 8 changed files in this pull request and generated 4 comments.
+
+  <details> <summary>Show a summary per file</summary>
+
+  | File | Description | | ---- | ----------- | | `uv.lock` | Updates locked package version to `0.10.2`. | | `src/crosscontract/release/data_package/data_resource.py` | Adds the `CrossDataResource` model (contract + file-binding metadata). | | `src/crosscontract/release/data_package/__init__.py` | Exports `CrossDataResource` from the data_package submodule. | | `src/crosscontract/release/__init__.py` | Exports `CrossDataResource` as the release package public API. | | `src/tests/conftest.py` | Adds a root-level `contract_factory` fixture for tests outside `crossclient/`. | | `src/tests/release/test_data_resource.py` | Adds tests for `CrossDataResource` construction, profile computation, and validation. | | `.ai-context/CONTEXT.md` | Documents release/distribution terminology and intended behavior. | </details>
+
+
+
 ## v0.10.2 (2026-06-10)
 
 ### Bug fixes
