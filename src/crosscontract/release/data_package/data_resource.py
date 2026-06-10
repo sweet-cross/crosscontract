@@ -6,11 +6,11 @@ the `CrossContract` but augmented by a description of the data file.
 
 """
 
-from typing import Literal, Self
+from typing import Any, Literal, Self
 
 from pydantic import Field, computed_field, model_validator
 
-from ...contracts.contracts.cross_contract import AnyTableSchema, CrossContract
+from ...contracts.contracts.cross_contract import CrossContract
 
 Formats = Literal["csv", "parquet"]
 Encodings = Literal["utf-8", "utf-16", "latin-1"]
@@ -37,13 +37,6 @@ class CrossDataResource(CrossContract):
             on the format.
     """
 
-    tableschema: AnyTableSchema = Field(
-        serialization_alias="schema",
-        description=(
-            "The Frictionless Table Schema definition. Serialized under the "
-            "Frictionless-standard key `schema` in the resource descriptor."
-        ),
-    )
     path: str = Field(
         description=("The path to the data file. This is a required field."),
     )
@@ -132,3 +125,20 @@ class CrossDataResource(CrossContract):
             format=format,
             encoding=encoding,
         )
+
+    def to_descriptor(self) -> dict[str, Any]:
+        """Render the Frictionless data-resource descriptor.
+
+        Serializes the resource and remaps the internal `tableschema` key to the
+        Frictionless-standard `schema`. This is the single point where the release
+        wire-format is applied; the model itself stays neutral and round-trippable
+        via the ordinary `tableschema` field, so `model_dump()` and
+        `model_validate()` remain symmetric.
+
+        Returns:
+            dict[str, Any]: The Frictionless-compatible resource descriptor, ready
+                to be written alongside the data file in the (zip) archive.
+        """
+        descriptor = self.model_dump(mode="json")
+        descriptor["schema"] = descriptor.pop("tableschema")
+        return descriptor
