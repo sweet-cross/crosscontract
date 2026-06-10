@@ -40,12 +40,28 @@ uv run mkdocs serve
 
 Pre-commit hooks run `ruff check` (F401 + isort) and `ruff-format` on commit.
 
+### Do not run validation automatically
+
+Do **not** run tests, linting, type-checking, coverage, or any other validation
+command (`pytest`, `ruff`, `mypy`, `coverage`, etc.) on your own initiative. After
+making changes, stop and **ask for permission** before running any of them. Only run
+a validation command when the user has explicitly asked for it or granted permission
+in the current exchange.
+
 ## Branching and releases
 
 - `main` is the public release branch. Pushes to main publish to PyPI (gated by the `pypi` GitHub Environment) and deploy the docs.
 - `dev` is the integration branch and the default branch on GitHub. Versioning happens here: every push to dev runs `python-semantic-release`, which bumps the version and creates a `vX.Y.Z` tag based on conventional-commit messages.
 - Feature branches **squash-merge** into `dev`. The PR title must be a valid conventional commit (`feat:`, `fix:`, etc.) — it becomes the squash commit message that PSR analyzes. Hotfixes follow the same path.
 - `dev` **fast-forwards** into `main`. The version commits and tags created on dev carry over to main as-is. No version bumps happen on the dev → main promotion.
+
+## Deferred work
+
+Out-of-scope, separate-PR follow-ups are collected in
+[`.ai-context/TODO.md`](../.ai-context/TODO.md). When you spot work worth doing but
+that would bloat the change in front of you, **append it there** (with enough context
+to act on it cold) rather than expanding the current PR. Consult this file when
+planning a change, and remove an item once its PR lands.
 
 ## Architecture
 

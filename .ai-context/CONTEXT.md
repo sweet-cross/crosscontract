@@ -155,6 +155,24 @@ The catch-all sentinel **member** every hierarchical **Dimension** carries — `
 the root, `other_<parent_id>` at each sub-level — so uncategorised data has a home and the
 **Sum invariant** still holds.
 
+### Release and distribution
+
+**Data Resource**:
+A **Contract** bound to a physical data file — the same descriptor *plus* a **Data
+specification**, so it is self-contained and ships alongside its file. A **Contract** *is*
+a Data Resource minus the data specification; that is why `CrossDataResource` extends the
+contract rather than wrapping it.
+_Avoid_: file descriptor, dataset (when meaning the bound resource)
+
+**Data specification**:
+The file-binding part a bare **Contract** lacks — `path`, `format` (`csv` | `parquet`),
+`encoding`, and the derived `profile` — that turns a **Contract** into a **Data Resource**.
+
+**Data Package** (foreseen):
+A bundle of **Data Resources** plus package-level metadata, distributed as a single (zip)
+archive. The planned public entry point fetches data from the **CROSS platform** and
+assembles the package.
+
 ## Relationships
 
 - A **Contract** is **Metadata** + **Schema**, and has exactly one **Contract type**.
@@ -170,6 +188,8 @@ the root, `other_<parent_id>` at each sub-level — so uncategorised data has a 
   (**Draft → Active ⇄ Suspended → Retired**).
 - The **Registry** reads **Variables** from the platform; the **Client** is the write
   path. **Data providers** write, **Data consumers** read.
+- A **Data Resource** is a **Contract** + a **Data specification**; a **Data Package**
+  (foreseen) bundles many **Data Resources** for distribution.
 
 ## Example dialogue
 
@@ -194,3 +214,14 @@ the root, `other_<parent_id>` at each sub-level — so uncategorised data has a 
 - **"Dimension" — umbrella vs. strict.** Resolved: "Dimension" unqualified means the
   strict hierarchical form; **FlexibleDimension** is the flat sibling. Both share a
   common base, but the default meaning is the hierarchical one.
+- **Dimension schema on release egress — intentionally left open.** Release bundles
+  *already-validated* **Contracts**, so the planned `create_data_package` fetches from the
+  **CROSS platform** through the trusted-source path (`from_server`), which strips and
+  regenerates a **Dimension**'s rigid schema from its template — keeping the **Data
+  Resource** self-contained without re-admitting a supplied dimension schema. The bare
+  `CrossDataResource.from_contract` on a local **Dimension** contract round-trips the
+  materialized schema back through the constructor and is rejected by the dimension
+  rigidity guard. That rejection is a **feature** on ingest (reading a package back into
+  the model must not trust a drifted schema) and is deliberately *not* worked around on
+  this rarely-used egress path. Do not "fix" it by loosening dimension rigidity; if it
+  ever needs closing, route `from_contract` through the same trusted-source mechanism.
