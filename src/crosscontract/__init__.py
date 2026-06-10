@@ -4,7 +4,7 @@ from .contracts import BaseContract, CrossContract, SchemaValidationError, Table
 from .crossclient import CrossClient
 from .registry import CrossRegistry
 
-__version__ = "0.10.1"
+__version__ = "0.10.2"
 
 __all__ = [
     "CrossClient",

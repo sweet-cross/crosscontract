@@ -1,5 +1,37 @@
 # CHANGELOG
 
+## v0.10.2 (2026-06-10)
+
+### Bug fixes
+
+
+- **Metadata extension** ([`6f29341`](https://github.com/sweet-cross/crosscontract/commit/6f29341977c80bc748b814ddc6fcfe4151bd6e68))
+
+  ## Pull request overview
+
+  This PR extends the contract metadata model to support Frictionless-aligned provenance/licensing fields by introducing dedicated Pydantic models and wiring them into `CrossMetaData`, along with tests and documentation updates.
+
+  **Changes:**
+  - Add `Contributor`, `DataSource`, and `License` Pydantic models (strict `extra="forbid"`) and document intentional Frictionless deviations.
+  - Extend `CrossMetaData` with `contributors`, `sources`, and `licenses` fields.
+  - Add unit tests and update docs/reference pages to include the new metadata models.
+
+  ### Reviewed changes
+
+  Copilot reviewed 9 out of 10 changed files in this pull request and generated 3 comments.
+
+  <details> <summary>Show a summary per file</summary>
+
+  | File | Description | | ---- | ----------- | | uv.lock | Updates locked editable package version metadata. | | src/tests/crossclient/conftest.py | Updates test factory to build valid nested `licenses` metadata. | | src/tests/contracts/contracts/test_metadata_models.py | Adds tests for new metadata models and validation behavior. | | src/crosscontract/contracts/contracts/metadata_models.py | Introduces new metadata Pydantic models (`Contributor`, `DataSource`, `License`). | | src/crosscontract/contracts/contracts/cross_contract.py | Adds new metadata fields to `CrossMetaData` and imports models. | | docs/reference/contracts.md | Exposes `metadata_models` in the API reference. | | docs/contracts/metadata.md | Documents new metadata fields and Frictionless relationship/deviations. | | .claude/CLAUDE.md | Updates repository guidance to include the new vendored Frictionless schema file. | | .ai-context/adrs/0002-metadata-follows-frictionless-with-deviations.md | Adds ADR clarifying Frictionless alignment and deliberate departures. | | .ai-context/additional_info/tabular-data-resource.json | Adds vendored upstream Frictionless schema reference. | </details>
+
+
+### Chores
+
+
+- **Claude setup** ([`60eaff8`](https://github.com/sweet-cross/crosscontract/commit/60eaff8579ad0f631df111c77cb28f576a3a917a))
+
+
+
 ## v0.10.1 (2026-06-05)
 
 ### Bug fixes
@@ -15,6 +47,8 @@
   - Switch `ContractService._add_data()` upload serialization from CSV to Parquet (multipart file upload).
   - Set Parquet filename and MIME type for the uploaded payload.
   - Remove a stale CSV-related comment in the Parquet-based `_get_data()` path.
+
+
 
 
 
