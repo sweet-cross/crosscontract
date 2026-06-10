@@ -28,13 +28,6 @@ Knock-on cleanup: once the transport methods leave the model, the defensive
 their tests (`test_to_server_is_disabled`, `test_from_server_is_disabled`) can be
 removed — they exist only to stop a release artifact from inheriting transport methods.
 
-### Decide whether `to_descriptor()` should emit a strict Frictionless descriptor
-
-`CrossDataResource.to_descriptor()` currently keeps non-Frictionless properties
-(`contract_type`, `tags`, …) in the output. Frictionless tolerates custom properties,
-so this is valid — but if a strict descriptor is ever required, `to_descriptor()` is
-the single place to prune them. No action unless an external strict consumer appears.
-
 ## Related context (not TODO items)
 
 - The `CrossDataResource.from_contract` + `Dimension` egress corner is **intentionally
