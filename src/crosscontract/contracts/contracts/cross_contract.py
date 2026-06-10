@@ -9,6 +9,7 @@ from ..schema import (
     ValueVariableSchema,
 )
 from .base_contract import BaseContract, BaseMetaData
+from .metadata_models import Contributor, DataSource, License
 from .resolvers import ContractResolver
 
 AnyTableSchema = Annotated[
@@ -51,6 +52,19 @@ class CrossMetaData(BaseMetaData):
             "A list of tags that can be used to categorize the table. "
             "This can be used to filter tables in the UI."
         ),
+    )
+
+    contributors: list[Contributor] | None = Field(
+        default=None, description="A list of contributors to the data contract."
+    )
+
+    sources: list[DataSource] | None = Field(
+        default=None, description="A list of data sources for the data contract."
+    )
+
+    licenses: list[License] | None = Field(
+        default=None,
+        description="A list of licenses for the data associated with the contract.",
     )
 
 
