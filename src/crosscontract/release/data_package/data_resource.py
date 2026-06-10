@@ -48,7 +48,7 @@ class CrossDataResource(CrossContract):
         ),
     )
     path: str = Field(
-        pattern=r"^(?=^[^./~])(^((?!\.{2}).)*$).*$",
+        pattern=r"^[^./~]([^.]|\.[^.])*$",
         description=(
             "The path to the data file. This is a required field. Must be a "
             "Frictionless-compliant POSIX-relative path: it may not start with "

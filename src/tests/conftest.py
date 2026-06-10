@@ -11,8 +11,10 @@ class CrossContractFactory(ModelFactory[CrossContract]):
     # set the general contract relying on the default TableSchema
     contract_type = "General"
 
-    # OPTIONAL: If references cause noise, you can set defaults here
-    # even while keeping the rest dynamic.
+    # Pinned to a Frictionless-legal lowercase name so that CrossDataResource
+    # (which enforces ^([-a-z0-9._/])+$) can be constructed from any factory build.
+    name = "my-contract"
+
     @classmethod
     def tableschema(cls):
         # Force empty foreign keys to avoid 'validate_self_reference' issues entirely
