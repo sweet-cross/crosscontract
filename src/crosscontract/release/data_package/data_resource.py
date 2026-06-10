@@ -150,7 +150,7 @@ class CrossDataResource(CrossContract):
             dict[str, Any]: The Frictionless-compatible resource descriptor, ready
                 to be written alongside the data file in the (zip) archive.
         """
-        descriptor = self.model_dump(mode="json")
+        descriptor = self.model_dump(mode="json", exclude_none=True)
         descriptor["schema"] = descriptor.pop("tableschema")
         return descriptor
 
