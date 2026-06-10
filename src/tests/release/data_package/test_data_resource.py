@@ -172,3 +172,23 @@ class TestFrictionlessPathConstraint:
             contract_factory.build(), "subdir/nested/file.csv"
         )
         assert resource.path == "subdir/nested/file.csv"
+
+
+class TestEmptyMetadataListToNone:
+    def test_empty_contributors_collapses_to_none(
+        self, contract_factory: type[ModelFactory]
+    ):
+        # Inherited from CrossMetaData: empty optional metadata lists become None so
+        # the release descriptor omits them rather than emitting minItems:1-violating
+        # empty arrays.
+        contract = contract_factory.build(contributors=[], sources=[], licenses=[])
+        resource = CrossDataResource.from_contract(contract, "data/file.csv")
+
+        assert resource.contributors is None
+        assert resource.sources is None
+        assert resource.licenses is None
+
+        descriptor = resource.to_descriptor()
+        assert "contributors" not in descriptor
+        assert "sources" not in descriptor
+        assert "licenses" not in descriptor
