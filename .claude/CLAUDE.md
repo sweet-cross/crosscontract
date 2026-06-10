@@ -66,7 +66,7 @@ The package has three independent top-level modules, all re-exported from `cross
 - `DimensionSchema`: rigid template (id, level, parent_id, label, description). Rejects any user-provided fields.
 - `FlexibleDimensionSchema`: user-defined fields, but mandates `label` and `description` fields.
 - `_mandatory_fields` class variable: list of `MandatoryField` specs validated at schema construction time.
-- Vendored copies of the upstream Frictionless JSON Schemas (`table-schema.json`, `data-resource.json`, `data-package.json`) live in `.ai-context/additional_info/` — the authoritative reference for what fields, types, and constraints the schema layer must stay compatible with. Reference only; no code loads them at runtime.
+- Vendored copies of the upstream Frictionless JSON Schemas (`table-schema.json`, `data-resource.json`, `data-package.json`, `tabular-data-resource.json`) live in `.ai-context/additional_info/` — the authoritative reference for what fields, types, and constraints the schema layer must stay compatible with. Reference only; no code loads them at runtime.
 
 **`contracts/schema/adapters/`** — Converts `TableSchema` to external formats:
 - `PanderaPandasAdapter`: builds a `pandera.DataFrameSchema` with primary-key uniqueness and foreign-key checks.
