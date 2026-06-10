@@ -2,8 +2,6 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl, model_validator
 
-ContractType = Literal["General", "Dimension", "ValueVariable", "FlexibleDimension"]
-
 ContributorRoles = Literal["author", "maintainer", "contributor"]
 
 
@@ -15,7 +13,9 @@ class Contributor(BaseModel):
         title (str): The name of the contributor.
         email (str | None): The email address of the contributor.
         path (str | None): A URL to the contributor's profile or homepage.
-        role (str | None): The role of the contributor (e.g., author, maintainer).
+        role (str | None): The role of the contributor ("author", "maintainer",
+            "contributor").
+            Defaults to "contributor" if not specified.
         organization (str | None): The organization the contributor is affiliated with.
     """
 

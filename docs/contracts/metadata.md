@@ -19,7 +19,7 @@ The current CROSS metadata include
 | `contributors` | `list[Contributor] \| None` | No | The people or organizations who contributed to the data contract. Defaults to `None`. |
 | `sources` | `list[DataSource] \| None` | No | The raw data sources the data is derived from. Defaults to `None`. |
 | `licenses` | `list[License] \| None` | No | The license(s) under which the **data** associated with the contract is published. Defaults to `None`. |
-| `contract_type` | str | No | The type of the contract. Either *Dimension*, *ValueVariable*, *FlexibleDimension* or *General* |
+| `contract_type` | `str` | No | The type of the contract. Either *Dimension*, *ValueVariable*, *FlexibleDimension* or *General* |
 
 For more information on contract types, see the [separate section](contract_types.md).
 
