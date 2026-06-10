@@ -1,5 +1,38 @@
 # CHANGELOG
 
+## v0.11.0 (2026-06-10)
+
+### Features
+
+
+- **Data package** ([`0a924e6`](https://github.com/sweet-cross/crosscontract/commit/0a924e64dc2b8c06bdf9af908148b60369c18e87))
+
+  ## Pull request overview
+
+  This PR introduces a Frictionless Data Package release artifact (`CrossDataPackage`) alongside existing data-resource support, and tightens validation/serialization to better match Frictionless wire formats.
+
+  **Changes:**
+  - Add `CrossDataPackage` model with `to_descriptor()` and `to_file()` for JSON/YAML emission.
+  - Strengthen Frictionless-related constraints (contract `name` pattern; data-resource `path` validation; omit `None` fields in descriptors).
+  - Add comprehensive tests + vendored Frictionless `data-package.json` schema for compliance checks.
+
+  ### Reviewed changes
+
+  Copilot reviewed 13 out of 14 changed files in this pull request and generated 5 comments.
+
+  <details> <summary>Show a summary per file</summary>
+
+  | File | Description | | ---- | ----------- | | uv.lock | Bumps locked package version to 0.10.3. | | src/tests/release/data_package/test_data_resource.py | Expands resource descriptor/path/metadata tests (includes new path constraint cases). | | src/tests/release/data_package/test_data_package.py | Adds end-to-end tests for data-package descriptor + file output + schema validation. | | src/tests/release/data_package/data-package.json | Adds Frictionless Data Package JSON Schema fixture used by tests. | | src/tests/contracts/contracts/test_contracts.py | Adds tests for updated Frictionless-compatible contract name constraints. | | src/tests/conftest.py | Pins factory `name` to a Frictionless-legal lowercase value for release tests. | | src/crosscontract/release/data_package/data_resource.py | Tightens `path` constraints and excludes `None` fields in `to_descriptor()`. | | src/crosscontract/release/data_package/data_package.py | Introduces `CrossDataPackage` model and JSON/YAML serialization. | | src/crosscontract/release/data_package/__init__.py | Exports `CrossDataPackage` from the subpackage. | | src/crosscontract/release/__init__.py | Re-exports `CrossDataPackage` at `crosscontract.release` level. | | src/crosscontract/contracts/contracts/cross_contract.py | Normalizes empty optional metadata lists to `None` prior to serialization. | | src/crosscontract/contracts/contracts/base_contract.py | Introduces `FRICTIONLESS_NAME_PATTERN` and applies it to contract `name`. | | .ai-context/TODO.md | Captures an open design decision around `tags` vs Frictionless `keywords`. | </details>
+
+  <details> <summary>Comments suppressed due to low confidence (2)</summary>
+
+  **src/tests/release/data_package/test_data_resource.py:154**
+  * This call line exceeds the repo’s ruff line-length limit (E501). Wrap the arguments across lines to avoid lint failures in tests.
+  **src/tests/release/data_package/test_data_resource.py:144**
+  * This test function definition exceeds the repo’s ruff line-length limit (E501). Please wrap the parameters onto multiple lines to keep lint passing. </details>
+
+
+
 ## v0.10.3 (2026-06-10)
 
 ### Bug fixes
