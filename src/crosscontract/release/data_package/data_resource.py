@@ -38,7 +38,18 @@ class CrossDataResource(CrossContract):
     """
 
     path: str = Field(
-        description=("The path to the data file. This is a required field."),
+        # Lookahead-free equivalent of the Frictionless path pattern
+        # ``^(?=^[^./~])(^((?!\.{2}).)*$).*$``. pydantic-core's Rust regex engine
+        # rejects look-arounds, so we encode the same two rules directly: the first
+        # character is not '.', '/', or '~', and no two dots are ever adjacent
+        # (forbidding '..'). A single trailing dot is permitted, matching the
+        # standard.
+        pattern=r"^[^./~](\.?[^.])*\.?$",
+        description=(
+            "The path to the data file. This is a required field. Must be a "
+            "Frictionless-compliant POSIX-relative path: it may not start with "
+            "'.', '/', or '~', and may not contain a '..' segment."
+        ),
     )
     format: Formats = Field(
         default="csv",
@@ -150,7 +161,7 @@ class CrossDataResource(CrossContract):
             dict[str, Any]: The Frictionless-compatible resource descriptor, ready
                 to be written alongside the data file in the (zip) archive.
         """
-        descriptor = self.model_dump(mode="json")
+        descriptor = self.model_dump(mode="json", exclude_none=True)
         descriptor["schema"] = descriptor.pop("tableschema")
         return descriptor
 

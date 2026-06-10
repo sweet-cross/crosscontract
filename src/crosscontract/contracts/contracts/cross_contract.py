@@ -1,6 +1,6 @@
 from typing import Annotated, Any, Literal
 
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ..schema import (
     DimensionSchema,
@@ -66,6 +66,27 @@ class CrossMetaData(BaseMetaData):
         default=None,
         description="A list of licenses for the data associated with the contract.",
     )
+
+    @field_validator("contributors", "sources", "licenses", mode="before")
+    @classmethod
+    def _empty_list_to_none(cls, value: Any) -> Any:
+        """Normalize an empty optional list to `None`.
+
+        Frictionless requires `minItems: 1` on `contributors`, `sources`, and
+        `licenses`, so an empty list would be non-compliant once these are
+        serialized into a release descriptor. Collapsing `[]` to `None` lets
+        `exclude_none` drop the key entirely rather than emit an invalid empty
+        array.
+
+        Args:
+            value (Any): The raw field value before validation.
+
+        Returns:
+            Any: `None` if `value` is an empty list, otherwise `value` unchanged.
+        """
+        if isinstance(value, list) and not value:
+            return None
+        return value
 
 
 class CrossContract(BaseContract, CrossMetaData):

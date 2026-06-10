@@ -28,6 +28,23 @@ Knock-on cleanup: once the transport methods leave the model, the defensive
 their tests (`test_to_server_is_disabled`, `test_from_server_is_disabled`) can be
 removed — they exist only to stop a release artifact from inheriting transport methods.
 
+### Decide whether `tags` should be `keywords` at the contract level
+
+Frictionless uses `keywords` (a `list[str]`, `minItems: 1`) for free-text package/resource
+labels; CROSS models the same concept as `tags` on `CrossMetaData`
+([cross_contract.py](../src/crosscontract/contracts/contracts/cross_contract.py)). In the
+release path, `tags` currently leaks into the data-package / data-resource descriptors
+under the non-standard key `tags` (tolerated, since the Frictionless schemas don't set
+`additionalProperties: false`, but non-canonical).
+
+Decide whether to rename `tags` → `keywords` at the **contract level** (cleanest — the
+release output then complies for free) or to remap `tags` → `keywords` only on the way
+out in `to_descriptor`. Renaming at the contract level is a breaking change for the
+server payload (`to_server`) and stored contracts, so it needs coordination; the
+egress-only remap is safe but leaves the two vocabularies out of sync. Note `keywords`
+also carries `minItems: 1`, so empty lists must collapse to omitted (same pattern as the
+package `_empty_list_to_none` validator).
+
 ## Related context (not TODO items)
 
 - The `CrossDataResource.from_contract` + `Dimension` egress corner is **intentionally

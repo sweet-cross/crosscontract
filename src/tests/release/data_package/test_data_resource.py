@@ -1,5 +1,6 @@
 import pytest
 from polyfactory.factories.pydantic_factory import ModelFactory
+from pydantic import ValidationError
 
 from crosscontract.release import CrossDataResource
 
@@ -85,7 +86,10 @@ class TestCrossDataResource:
         resource = CrossDataResource.from_contract(contract, "data/file.csv")
 
         descriptor = resource.to_descriptor()
-        assert descriptor["schema"] == resource.model_dump(mode="json")["tableschema"]
+        assert (
+            descriptor["schema"]
+            == resource.model_dump(mode="json", exclude_none=True)["tableschema"]
+        )
 
     def test_to_descriptor_includes_resource_metadata(
         self, contract_factory: type[ModelFactory]
@@ -128,3 +132,63 @@ class TestCrossDataResource:
         # self-contained resource.
         with pytest.raises(NotImplementedError, match="no data specification"):
             CrossDataResource.from_server({"name": "x", "contract_type": "General"})
+
+
+class TestFrictionlessPathConstraint:
+    def test_rejects_absolute_path(self, contract_factory: type[ModelFactory]):
+        with pytest.raises(ValidationError, match="path"):
+            CrossDataResource.from_contract(
+                contract_factory.build(), "/absolute/file.csv"
+            )
+
+    def test_rejects_path_starting_with_dot(self, contract_factory: type[ModelFactory]):
+        with pytest.raises(ValidationError, match="path"):
+            CrossDataResource.from_contract(
+                contract_factory.build(), "./relative/file.csv"
+            )
+
+    def test_rejects_path_starting_with_tilde(
+        self, contract_factory: type[ModelFactory]
+    ):
+        with pytest.raises(ValidationError, match="path"):
+            CrossDataResource.from_contract(contract_factory.build(), "~/home/file.csv")
+
+    def test_rejects_path_with_parent_traversal(
+        self, contract_factory: type[ModelFactory]
+    ):
+        with pytest.raises(ValidationError, match="path"):
+            CrossDataResource.from_contract(
+                contract_factory.build(), "data/../file.csv"
+            )
+
+    def test_accepts_simple_relative_path(self, contract_factory: type[ModelFactory]):
+        resource = CrossDataResource.from_contract(
+            contract_factory.build(), "data/file.csv"
+        )
+        assert resource.path == "data/file.csv"
+
+    def test_accepts_nested_relative_path(self, contract_factory: type[ModelFactory]):
+        resource = CrossDataResource.from_contract(
+            contract_factory.build(), "subdir/nested/file.csv"
+        )
+        assert resource.path == "subdir/nested/file.csv"
+
+
+class TestEmptyMetadataListToNone:
+    def test_empty_contributors_collapses_to_none(
+        self, contract_factory: type[ModelFactory]
+    ):
+        # Inherited from CrossMetaData: empty optional metadata lists become None so
+        # the release descriptor omits them rather than emitting minItems:1-violating
+        # empty arrays.
+        contract = contract_factory.build(contributors=[], sources=[], licenses=[])
+        resource = CrossDataResource.from_contract(contract, "data/file.csv")
+
+        assert resource.contributors is None
+        assert resource.sources is None
+        assert resource.licenses is None
+
+        descriptor = resource.to_descriptor()
+        assert "contributors" not in descriptor
+        assert "sources" not in descriptor
+        assert "licenses" not in descriptor
