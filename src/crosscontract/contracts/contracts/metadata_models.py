@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl, model_validator
 
@@ -14,7 +14,9 @@ class Contributor(BaseModel):
     Attributes:
         title (str): The name of the contributor.
         email (str | None): The email address of the contributor.
+        path (str | None): A URL to the contributor's profile or homepage.
         role (str | None): The role of the contributor (e.g., author, maintainer).
+        organization (str | None): The organization the contributor is affiliated with.
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -44,8 +46,8 @@ class DataSource(BaseModel):
 
     Attributes:
         title (str): The name of the data source.
-        description (str | None): A description of the data source.
         path (str | None): A URL or file path to the data source.
+        email (str | None): The email address of the data source contact.
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -70,6 +72,7 @@ class License(BaseModel):
         description=(
             "MUST be an Open Definition license identifier (e.g., 'CC-BY-4.0')."
         ),
+        pattern=r"^([-a-zA-Z0-9._])+$",
     )
 
     path: HttpUrl | str | None = Field(
@@ -84,7 +87,7 @@ class License(BaseModel):
     )
 
     @model_validator(mode="after")
-    def check_name_or_path(self) -> Any:
+    def check_name_or_path(self) -> Self:
         if not self.name and not self.path:
             raise ValueError(
                 "A License object must contain at least a 'name' or a 'path' property."

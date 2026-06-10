@@ -9,6 +9,10 @@
 
 ::: crosscontract.contracts.contracts.cross_contract
 
+## Metadata models
+
+::: crosscontract.contracts.contracts.metadata_models
+
 ## Schemas
 
 ::: crosscontract.contracts.schema.schema
