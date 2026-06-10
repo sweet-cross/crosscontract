@@ -38,7 +38,13 @@ class CrossDataResource(CrossContract):
     """
 
     path: str = Field(
-        pattern=r"^[^./~]([^.]|\.[^.])*$",
+        # Lookahead-free equivalent of the Frictionless path pattern
+        # ``^(?=^[^./~])(^((?!\.{2}).)*$).*$``. pydantic-core's Rust regex engine
+        # rejects look-arounds, so we encode the same two rules directly: the first
+        # character is not '.', '/', or '~', and no two dots are ever adjacent
+        # (forbidding '..'). A single trailing dot is permitted, matching the
+        # standard.
+        pattern=r"^[^./~](\.?[^.])*\.?$",
         description=(
             "The path to the data file. This is a required field. Must be a "
             "Frictionless-compliant POSIX-relative path: it may not start with "

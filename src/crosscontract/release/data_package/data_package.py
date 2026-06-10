@@ -155,10 +155,17 @@ class CrossDataPackage(BaseModel):
         suffix = path.suffix.lower()
         descriptor = self.to_descriptor()
         if suffix == ".json":
-            path.write_text(json.dumps(descriptor, indent=2))
+            path.write_text(
+                json.dumps(descriptor, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
         elif suffix in (".yaml", ".yml"):
-            with path.open("w") as f:
-                yaml.dump(descriptor, f, sort_keys=False)
+            # safe_dump refuses to emit non-standard `!!python/...` tags, so a stray
+            # non-primitive in the descriptor fails loudly rather than producing an
+            # unportable document. UTF-8 + allow_unicode keeps the output readable and
+            # symmetric with read_yaml_or_json_file (which reads UTF-8).
+            with path.open("w", encoding="utf-8") as f:
+                yaml.safe_dump(descriptor, f, sort_keys=False, allow_unicode=True)
         else:
             raise ValueError(
                 f"Unsupported extension '{suffix}'. Use .json, .yaml, or .yml."
