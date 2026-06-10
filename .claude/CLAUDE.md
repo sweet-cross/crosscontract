@@ -55,6 +55,14 @@ in the current exchange.
 - Feature branches **squash-merge** into `dev`. The PR title must be a valid conventional commit (`feat:`, `fix:`, etc.) — it becomes the squash commit message that PSR analyzes. Hotfixes follow the same path.
 - `dev` **fast-forwards** into `main`. The version commits and tags created on dev carry over to main as-is. No version bumps happen on the dev → main promotion.
 
+## Deferred work
+
+Out-of-scope, separate-PR follow-ups are collected in
+[`.ai-context/TODO.md`](../.ai-context/TODO.md). When you spot work worth doing but
+that would bloat the change in front of you, **append it there** (with enough context
+to act on it cold) rather than expanding the current PR. Consult this file when
+planning a change, and remove an item once its PR lands.
+
 ## Architecture
 
 The package has three independent top-level modules, all re-exported from `crosscontract/__init__.py`:
