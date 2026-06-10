@@ -37,8 +37,23 @@ class CrossDataResource(CrossContract):
             on the format.
     """
 
+    name: str = Field(
+        pattern=r"^([-a-z0-9._/])+$",
+        max_length=100,
+        description=(
+            "A unique identifier for the resource. Unlike the looser contract name, "
+            "a released resource name MUST be Frictionless-compliant: lowercase "
+            "alphanumeric characters plus '.', '_', '-', and '/' only. Binding a "
+            "contract whose name contains uppercase characters therefore fails here."
+        ),
+    )
     path: str = Field(
-        description=("The path to the data file. This is a required field."),
+        pattern=r"^(?=^[^./~])(^((?!\.{2}).)*$).*$",
+        description=(
+            "The path to the data file. This is a required field. Must be a "
+            "Frictionless-compliant POSIX-relative path: it may not start with "
+            "'.', '/', or '~', and may not contain a '..' segment."
+        ),
     )
     format: Formats = Field(
         default="csv",

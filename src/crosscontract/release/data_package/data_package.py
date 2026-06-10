@@ -1,9 +1,10 @@
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AnyUrl, BaseModel, ConfigDict, Field, field_validator
 
 from ...contracts.contracts.metadata_models import (
     Contributor,
@@ -18,12 +19,20 @@ class CrossDataPackage(BaseModel):
     A frictionless compliant representation of a data package that contains
     several `CrossDataResource` objects. This is the top-level descriptor for a
     data package, which includes metadata about the package itself as well as a
-    list of resources (tables)
+    list of resources (tables).
 
     Attributes:
-        title (str): A human-readable title for the data.
-        description (str): A human-readable description of the data.
-        tags (list[str] | None): A list of tags for categorization and filtering.
+        name (str): A unique, Frictionless-compliant identifier for the package.
+        id (str | None): An optional globally unique identifier (e.g. UUID or DOI).
+        title (str): A human-readable title for the data package.
+        description (str): A human-readable description of the data package.
+        homepage (AnyUrl | None): An optional URL for the package's web home.
+        created (datetime | None): The datetime the descriptor was created.
+        contributors (list[Contributor] | None): Contributors to the package.
+        sources (list[DataSource] | None): Data sources for the package.
+        licenses (list[License] | None): Licenses for the package's data.
+        resources (list[CrossDataResource]): The data resources (tables) in the
+            package. At least one is required.
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -36,6 +45,14 @@ class CrossDataPackage(BaseModel):
             " and '/'."
         ),
     )
+    id: str | None = Field(
+        default=None,
+        description=(
+            "A globally unique identifier for the data package, such as a UUID or "
+            "DOI. Optional. While global uniqueness cannot be validated here, "
+            "consumers that rely on `id` MUST ensure it is globally unique."
+        ),
+    )
     title: str = Field(
         description=("A human-readable title for the data package."),
     )
@@ -45,6 +62,17 @@ class CrossDataPackage(BaseModel):
             "A human-readable description of the data package. "
             "This should explain what the data package is about."
         )
+    )
+    homepage: AnyUrl | None = Field(
+        default=None,
+        description="A URL for the web home related to this data package.",
+    )
+    created: datetime | None = Field(
+        default=None,
+        description=(
+            "The datetime on which this descriptor was created, serialized as an "
+            "RFC3339 string."
+        ),
     )
     contributors: list[Contributor] | None = Field(
         default=None, description="A list of contributors to the data package."
@@ -60,11 +88,33 @@ class CrossDataPackage(BaseModel):
     )
 
     resources: list[CrossDataResource] = Field(
+        min_length=1,
         description=(
             "A list of data resources (tables) included in the data package. Each "
-            "resource describes a specific dataset and its associated metadata."
-        )
+            "resource describes a specific dataset and its associated metadata. A "
+            "package MUST contain at least one resource."
+        ),
     )
+
+    @field_validator("contributors", "sources", "licenses", mode="before")
+    @classmethod
+    def _empty_list_to_none(cls, value: Any) -> Any:
+        """Normalize an empty optional list to `None`.
+
+        Frictionless requires `minItems: 1` on `contributors`, `sources`, and
+        `licenses`, so an empty list would be non-compliant. Collapsing `[]` to
+        `None` lets `to_descriptor`'s `exclude_none` drop the key entirely rather
+        than emit an invalid empty array.
+
+        Args:
+            value (Any): The raw field value before validation.
+
+        Returns:
+            Any: `None` if `value` is an empty list, otherwise `value` unchanged.
+        """
+        if isinstance(value, list) and not value:
+            return None
+        return value
 
     @property
     def profile(self) -> str:
@@ -86,7 +136,7 @@ class CrossDataPackage(BaseModel):
                 ready to be written alongside the data files in the (zip) archive.
         """
         descriptor = self.model_dump(
-            by_alias=True, exclude_none=True, exclude={"resources"}
+            mode="json", by_alias=True, exclude_none=True, exclude={"resources"}
         )
         descriptor["profile"] = self.profile
         descriptor["resources"] = [r.to_descriptor() for r in self.resources]
