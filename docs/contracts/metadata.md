@@ -12,7 +12,7 @@ The current CROSS metadata include
 
 | Attribute | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `name` | `str` | Yes | Unique identifier for the data contract |
+| `name` | `str` | Yes | Unique identifier for the data contract. Must be a Frictionless-compliant identifier: lowercase letters, digits, `.`, `_`, and `-` only (no uppercase, no `/`), max 100 characters. |
 | `title` | `str` | Yes | A human-readable title for the data. Think of this as the label that will be used in graphs and tables. |
 | `description` | `str` | Yes | A human-readable description of the data. This should explain what the data contain. It gives the data a semantic meaning. |
 | `tags` | `list[str]` | No | A list of tags that can be used to categorize the table.  Defaults to an empty list. |
@@ -109,6 +109,9 @@ These fields stay close to the Frictionless vocabulary but differ on purpose:
 - **No extra fields.** `Contributor`, `DataSource`, and `License` reject
   unknown keys, so a misspelled attribute fails validation rather than being
   silently dropped.
+- **Empty lists are treated as absent.** Passing `[]` for `contributors`,
+  `sources`, or `licenses` is normalized to `None`, so the field is omitted from
+  serialized output rather than emitted as an (invalid) empty array.
 
 ## Custom Metadata
 
@@ -122,7 +125,9 @@ of your own standard is simple and comes in two steps:
 
 To create your own standard, create a class that inherits from the `BaseMetaData` class.
 The `BaseMetaData` is a pydantic model that defines only attribute, i.e., metadata entry,
-that must be implemented by all contract: the *name* attribute.
+that must be implemented by all contract: the *name* attribute. The *name* must be a
+Frictionless-compliant identifier (lowercase letters, digits, `.`, `_`, and `-`; no
+uppercase or `/`), so contracts stay release-compliant by construction.
 
 ``` py
 from crosscontract.contracts.contracts import BaseMetaData
