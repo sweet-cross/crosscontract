@@ -37,16 +37,6 @@ class CrossDataResource(CrossContract):
             on the format.
     """
 
-    name: str = Field(
-        pattern=r"^([-a-z0-9._/])+$",
-        max_length=100,
-        description=(
-            "A unique identifier for the resource. Unlike the looser contract name, "
-            "a released resource name MUST be Frictionless-compliant: lowercase "
-            "alphanumeric characters plus '.', '_', '-', and '/' only. Binding a "
-            "contract whose name contains uppercase characters therefore fails here."
-        ),
-    )
     path: str = Field(
         pattern=r"^[^./~]([^.]|\.[^.])*$",
         description=(

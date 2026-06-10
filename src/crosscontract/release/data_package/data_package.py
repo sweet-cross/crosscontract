@@ -6,6 +6,7 @@ from typing import Any
 import yaml
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field, field_validator
 
+from ...contracts.contracts.base_contract import FRICTIONLESS_NAME_PATTERN
 from ...contracts.contracts.metadata_models import (
     Contributor,
     DataSource,
@@ -37,12 +38,12 @@ class CrossDataPackage(BaseModel):
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     name: str = Field(
-        pattern=r"^([-a-z0-9._/])+$",
+        pattern=FRICTIONLESS_NAME_PATTERN,
         description=(
             "A unique identifier for the data package. This should be a slug or "
             "machine-readable name that can be used as an identifier in code. "
-            "Must consist only of lowercase alphanumeric characters, '.', '_', '-',"
-            " and '/'."
+            "Must consist only of lowercase alphanumeric characters, '.', '_', "
+            "and '-'."
         ),
     )
     id: str | None = Field(

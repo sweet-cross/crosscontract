@@ -134,39 +134,6 @@ class TestCrossDataResource:
             CrossDataResource.from_server({"name": "x", "contract_type": "General"})
 
 
-class TestFrictionlessNameConstraint:
-    def test_rejects_uppercase_name(self, contract_factory: type[ModelFactory]):
-        with pytest.raises(ValidationError, match="name"):
-            CrossDataResource.from_contract(
-                contract_factory.build(name="MyContract"), "data/file.csv"
-            )
-
-    def test_rejects_name_with_uppercase_mid(
-        self, contract_factory: type[ModelFactory]
-    ):
-        with pytest.raises(ValidationError, match="name"):
-            CrossDataResource.from_contract(
-                contract_factory.build(name="my-Contract"), "data/file.csv"
-            )
-
-    def test_accepts_dotted_lowercase_name(self, contract_factory: type[ModelFactory]):
-        # CrossContract forbids '.' in name, so construct CrossDataResource directly
-        # to exercise its overridden (Frictionless-legal) name pattern.
-        data = contract_factory.build().model_dump()
-        data["name"] = "my.contract"
-        data["path"] = "data/file.csv"
-        resource = CrossDataResource(**data)
-        assert resource.name == "my.contract"
-
-    def test_accepts_slashed_lowercase_name(self, contract_factory: type[ModelFactory]):
-        # CrossContract forbids '/' in name, so construct CrossDataResource directly.
-        data = contract_factory.build().model_dump()
-        data["name"] = "group/contract"
-        data["path"] = "data/file.csv"
-        resource = CrossDataResource(**data)
-        assert resource.name == "group/contract"
-
-
 class TestFrictionlessPathConstraint:
     def test_rejects_absolute_path(self, contract_factory: type[ModelFactory]):
         with pytest.raises(ValidationError, match="path"):
