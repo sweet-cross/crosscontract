@@ -102,3 +102,29 @@ class TestCrossDataResource:
         assert descriptor["encoding"] == "utf-8"
         assert descriptor["profile"] == "data-resource"
         assert descriptor["name"] == contract.name
+
+    def test_from_contract_rejects_a_data_resource(
+        self, contract_factory: type[ModelFactory]
+    ):
+        # A resource already carries its data specification; re-binding it would
+        # collide with the path/format/encoding arguments.
+        contract = contract_factory.build()
+        resource = CrossDataResource.from_contract(contract, "data/file.csv")
+
+        with pytest.raises(TypeError, match="not a CrossDataResource"):
+            CrossDataResource.from_contract(resource, "data/other.csv")
+
+    def test_to_server_is_disabled(self, contract_factory: type[ModelFactory]):
+        # A resource is an egress artifact, never submitted to the platform; the
+        # inherited to_server would otherwise emit an invalid payload.
+        contract = contract_factory.build()
+        resource = CrossDataResource.from_contract(contract, "data/file.csv")
+
+        with pytest.raises(NotImplementedError, match="not a server contract"):
+            resource.to_server()
+
+    def test_from_server_is_disabled(self):
+        # Server payloads carry no data specification, so they cannot build a
+        # self-contained resource.
+        with pytest.raises(NotImplementedError, match="no data specification"):
+            CrossDataResource.from_server({"name": "x", "contract_type": "General"})

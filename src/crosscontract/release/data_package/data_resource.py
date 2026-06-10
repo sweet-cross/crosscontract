@@ -109,7 +109,8 @@ class CrossDataResource(CrossContract):
         metadata.
 
         Args:
-            contract (CrossContract): The base contract to convert.
+            contract (CrossContract): The base contract to convert. Must be a plain
+                `CrossContract`, not an already-bound `CrossDataResource`.
             path (str): The path to the data file.
             format (Formats, optional): The format of the data file. Defaults to "csv".
             encoding (Encodings, optional): The encoding of the data file.
@@ -118,7 +119,17 @@ class CrossDataResource(CrossContract):
         Returns:
             Self: A new instance of `CrossDataResource` with the
                 provided metadata.
+
+        Raises:
+            TypeError: If `contract` is a `CrossDataResource`, which already carries
+                its own data specification and would collide with the `path`,
+                `format`, and `encoding` arguments.
         """
+        if isinstance(contract, CrossDataResource):
+            raise TypeError(
+                "from_contract expects a plain CrossContract, not a CrossDataResource. "
+                "The resource already carries its own data specification."
+            )
         return cls(
             **contract.model_dump(),
             path=path,
@@ -142,3 +153,40 @@ class CrossDataResource(CrossContract):
         descriptor = self.model_dump(mode="json")
         descriptor["schema"] = descriptor.pop("tableschema")
         return descriptor
+
+    def to_server(self) -> dict[str, Any]:
+        """Reject server serialization — a resource is not a server contract.
+
+        A `CrossDataResource` is an egress/release artifact that binds a contract to
+        a physical file; it is never submitted to the platform as a contract. The
+        inherited `CrossContract.to_server` would otherwise emit the resource-only
+        fields (`path`, `format`, `encoding`, `profile`) and produce an invalid
+        payload, so it is disabled here.
+
+        Raises:
+            NotImplementedError: Always. Operate on the underlying `CrossContract`
+                to talk to the platform.
+        """
+        raise NotImplementedError(
+            "CrossDataResource is a release artifact, not a server contract. "
+            "Operate on the underlying CrossContract to talk to the platform."
+        )
+
+    @classmethod
+    def from_server(cls, data: dict[str, Any]) -> "CrossDataResource":
+        """Reject server construction — a resource is not built from a server payload.
+
+        Server payloads describe `CrossContract`s and carry no data specification
+        (`path`, `format`, `encoding`), so they cannot construct a self-contained
+        resource. Build the `CrossContract` from the server first, then bind a file
+        with `from_contract`.
+
+        Raises:
+            NotImplementedError: Always. Use `CrossContract.from_server` followed by
+                `CrossDataResource.from_contract`.
+        """
+        raise NotImplementedError(
+            "CrossDataResource cannot be built from a server payload, which carries "
+            "no data specification. Use CrossContract.from_server, then "
+            "CrossDataResource.from_contract."
+        )
