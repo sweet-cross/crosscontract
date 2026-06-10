@@ -40,6 +40,14 @@ uv run mkdocs serve
 
 Pre-commit hooks run `ruff check` (F401 + isort) and `ruff-format` on commit.
 
+### Do not run validation automatically
+
+Do **not** run tests, linting, type-checking, coverage, or any other validation
+command (`pytest`, `ruff`, `mypy`, `coverage`, etc.) on your own initiative. After
+making changes, stop and **ask for permission** before running any of them. Only run
+a validation command when the user has explicitly asked for it or granted permission
+in the current exchange.
+
 ## Branching and releases
 
 - `main` is the public release branch. Pushes to main publish to PyPI (gated by the `pypi` GitHub Environment) and deploy the docs.
