@@ -74,6 +74,22 @@ def test_map_column_values_with_nan(sample_df: pd.DataFrame):
     assert_frame_equal(result_df, expected_df)
 
 
+def test_map_column_values_maps_to_none_distinct_from_unmapped(
+    sample_df: pd.DataFrame,
+):
+    """A value intentionally mapped to None is kept, not treated as unmapped.
+
+    With KEEP_ORIGINAL, only values absent from the mapping keys fall back to
+    the original. A key that maps to None must yield None, while unmapped
+    values retain their original value.
+    """
+    mapping = {"foo": None, "baz": "BAZ"}
+    result_df = map_column_values(sample_df, "B", mapping, default_value=KEEP_ORIGINAL)
+    expected_df = sample_df.copy()
+    expected_df["B"] = [None, "bar", "BAZ", None, "qux"]
+    assert_frame_equal(result_df, expected_df)
+
+
 def test_map_column_values_nonexistent_column(sample_df: pd.DataFrame):
     """Test that a KeyError is raised for a nonexistent column."""
     with pytest.raises(KeyError):

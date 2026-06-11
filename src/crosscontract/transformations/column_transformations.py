@@ -12,18 +12,20 @@ def map_column_values(
     value_mapping: dict[Any, Any],
     default_value: Any = KEEP_ORIGINAL,
 ) -> pd.DataFrame:
-    """
-    Maps values in a specified column based on the provided mapping.
+    """Map values in a column according to the provided mapping.
 
-    Parameters:
+    The input DataFrame is not mutated; a new DataFrame is returned.
+
+    Args:
         df (pd.DataFrame): The DataFrame to map column values in.
         column_name (Any): The name of the column to map values in.
         value_mapping (dict[Any, Any]): A dictionary where keys are current
             values and values are new values to map to.
-        default_value (Any): The value to use for unmapped values.
-            If set to `KEEP_ORIGINAL` (the default), unmapped values remain unchanged.
-            If set to `None`, unmapped values will be explicitly replaced with `None`.
-            Can be set to any other fallback value.
+        default_value (Any, optional): The value to use for unmapped values.
+            If set to `KEEP_ORIGINAL` (the default), unmapped values remain
+            unchanged. If set to `None`, unmapped values are explicitly
+            replaced with `None`. Can be set to any other fallback value.
+            Defaults to `KEEP_ORIGINAL`.
 
     Returns:
         pd.DataFrame: A new DataFrame with the mapped column.
