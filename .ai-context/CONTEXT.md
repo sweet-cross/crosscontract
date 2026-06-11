@@ -173,6 +173,23 @@ A bundle of **Data Resources** plus package-level metadata, distributed as a sin
 archive. The planned public entry point fetches data from the **CROSS platform** and
 assembles the package.
 
+### Transformations and build specs
+
+**Transformation**:
+A named, parameterised operation applied to a **Variable**'s tabular data — e.g.
+renaming or dropping columns, or remapping values — declared rather than coded, and
+applied in declared order. Schema-agnostic: it knows DataFrames, not **Contracts**,
+**Schema**, or **Dimensions**.
+_Avoid_: spec, block (for a single transformation — those name a **Build spec**)
+
+**Build spec**:
+A declarative description (YAML) of an artifact to assemble from platform data — which
+**Variable**(s) to load and the ordered **Transformations** to apply to each. Concrete
+forms (a data-package spec, a plot spec, …) each admit their own permitted set of
+**Transformations**. Distinct from a **Data specification**, which is the file-binding
+part of a single **Data Resource**, not a build recipe.
+_Avoid_: spec (unqualified — ambiguous with **Data specification**)
+
 ## Relationships
 
 - A **Contract** is **Metadata** + **Schema**, and has exactly one **Contract type**.
@@ -190,6 +207,10 @@ assembles the package.
   path. **Data providers** write, **Data consumers** read.
 - A **Data Resource** is a **Contract** + a **Data specification**; a **Data Package**
   (foreseen) bundles many **Data Resources** for distribution.
+- A **Build spec** names one or more **Variables** and an ordered list of
+  **Transformations** per variable; each kind of **Build spec** permits its own subset of
+  **Transformations**. A **Transformation** touches tabular data only — never
+  **Contracts**, **Schema**, or **Dimensions**.
 
 ## Example dialogue
 
@@ -225,3 +246,13 @@ assembles the package.
   the model must not trust a drifted schema) and is deliberately *not* worked around on
   this rarely-used egress path. Do not "fix" it by loosening dimension rigidity; if it
   ever needs closing, route `from_contract` through the same trusted-source mechanism.
+- **"spec" was overloaded.** Resolved: a single **Transformation** is *not* "a spec"; the
+  declarative manifest that lists variables and transformations is a **Build spec**
+  (data-package spec, plot spec). Unqualified "spec" is banned because it also collides
+  with **Data specification** (the file-binding part of a **Data Resource**).
+- **"registry" for transformation dispatch — not a Registry.** When transformations were
+  proposed, "registry" was meant only in the dict/dispatch-pattern sense, not the domain
+  **Registry** (`CrossRegistry`, the read layer). Resolved: there is no transformation
+  "registry"; each **Build spec** holds a discriminated union of **Transformation** models
+  that dispatch on a `type` tag (the same discriminator key as the `fields/` and `schema/`
+  unions). The word **Registry** stays reserved for `CrossRegistry`.
