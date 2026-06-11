@@ -1,6 +1,9 @@
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
+from pydantic import Field
+
+from .base import BaseTransformation
 
 # Define a sentinel value
 KEEP_ORIGINAL = object()
@@ -44,3 +47,42 @@ def map_column_values(
         final_series = mapped_series.where(~unmapped_mask, default_value)
 
     return df.assign(**{column_name: final_series})
+
+
+class MapColumnValues(BaseTransformation):
+    """Declarative spec for `map_column_values`.
+
+    Remaps the values of a single column according to `mapping`, with control
+    over how unmapped values are handled via `default_value`.
+    """
+
+    type: Literal["map_column_values"] = Field(
+        default="map_column_values",
+        description="Discriminator identifying this transformation.",
+    )
+    column_name: Any = Field(
+        description="The name of the column to map values in.",
+    )
+    mapping: dict[Any, Any] = Field(
+        description="Maps current values (keys) to new values.",
+    )
+    default_value: Any = Field(
+        default=KEEP_ORIGINAL,
+        description=(
+            "Value for entries absent from `mapping`. When omitted, unmapped "
+            "values are kept unchanged."
+        ),
+    )
+
+    def apply(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Apply the value mapping, returning a new DataFrame.
+
+        Args:
+            df (pd.DataFrame): The DataFrame to transform.
+
+        Returns:
+            pd.DataFrame: A new DataFrame with the mapped column.
+        """
+        return map_column_values(
+            df, self.column_name, self.mapping, self.default_value
+        )

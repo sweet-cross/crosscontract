@@ -37,3 +37,6 @@ class ColumnAggregation(RootModel[int | list[Any] | LevelKeepSpec | dict[Any, An
         if isinstance(v, dict) and "level" in v:
             return LevelKeepSpec.model_validate(v)
         return v
+
+
+AggregationSpec = dict[str, ColumnAggregation]

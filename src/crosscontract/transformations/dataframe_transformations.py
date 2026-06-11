@@ -1,6 +1,9 @@
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
+from pydantic import Field
+
+from .base import BaseTransformation
 
 
 def rename_columns(df: pd.DataFrame, column_mapping: dict[Any, Any]) -> pd.DataFrame:
@@ -32,3 +35,55 @@ def drop_columns(df: pd.DataFrame, columns_to_drop: list[Any]) -> pd.DataFrame:
         pd.DataFrame: A new DataFrame with the specified columns dropped.
     """
     return df.drop(columns=columns_to_drop)
+
+
+class RenameColumns(BaseTransformation):
+    """Declarative spec for `rename_columns`.
+
+    Renames columns according to `mapping` (current name to new name).
+    """
+
+    type: Literal["rename_columns"] = Field(
+        default="rename_columns",
+        description="Discriminator identifying this transformation.",
+    )
+    mapping: dict[Any, Any] = Field(
+        description="Maps current column names (keys) to new names.",
+    )
+
+    def apply(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Rename columns, returning a new DataFrame.
+
+        Args:
+            df (pd.DataFrame): The DataFrame to transform.
+
+        Returns:
+            pd.DataFrame: A new DataFrame with renamed columns.
+        """
+        return rename_columns(df, self.mapping)
+
+
+class DropColumns(BaseTransformation):
+    """Declarative spec for `drop_columns`.
+
+    Drops the columns listed in `columns`.
+    """
+
+    type: Literal["drop_columns"] = Field(
+        default="drop_columns",
+        description="Discriminator identifying this transformation.",
+    )
+    columns: list[Any] = Field(
+        description="The column names to drop.",
+    )
+
+    def apply(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Drop the listed columns, returning a new DataFrame.
+
+        Args:
+            df (pd.DataFrame): The DataFrame to transform.
+
+        Returns:
+            pd.DataFrame: A new DataFrame with the columns dropped.
+        """
+        return drop_columns(df, self.columns)
