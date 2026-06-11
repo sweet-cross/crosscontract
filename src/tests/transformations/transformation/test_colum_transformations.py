@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from crosscontract.transformations.column_transformations import (
+from crosscontract.transformations.transformation.column_transformations import (
     KEEP_ORIGINAL,
     map_column_values,
 )

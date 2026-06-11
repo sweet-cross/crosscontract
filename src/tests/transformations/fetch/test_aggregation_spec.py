@@ -1,8 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from crosscontract.transformations import AggregationSpec
-from crosscontract.transformations.aggregation_spec import (
+from crosscontract.transformations.fetch import (
+    AggregationSpec,
     ColumnAggregation,
     LevelKeepSpec,
 )

@@ -5,7 +5,7 @@ import pytest
 from pandas.testing import assert_frame_equal
 from pydantic import Field, TypeAdapter, ValidationError
 
-from crosscontract.transformations import (
+from crosscontract.transformations.transformation import (
     DropColumns,
     MapColumnValues,
     RenameColumns,
