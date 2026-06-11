@@ -47,7 +47,7 @@ class RenameColumns(BaseTransformation):
         default="rename_columns",
         description="Discriminator identifying this transformation.",
     )
-    mapping: dict[Any, Any] = Field(
+    mapping: dict[str, str] = Field(
         description="Maps current column names (keys) to new names.",
     )
 
@@ -73,7 +73,7 @@ class DropColumns(BaseTransformation):
         default="drop_columns",
         description="Discriminator identifying this transformation.",
     )
-    columns: list[Any] = Field(
+    columns: list[str] = Field(
         description="The column names to drop.",
     )
 

@@ -60,22 +60,26 @@ class MapColumnValues(BaseTransformation):
         default="map_column_values",
         description="Discriminator identifying this transformation.",
     )
-    column_name: Any = Field(
+    column_name: str = Field(
         description="The name of the column to map values in.",
     )
     mapping: dict[Any, Any] = Field(
         description="Maps current values (keys) to new values.",
     )
     default_value: Any = Field(
-        default=KEEP_ORIGINAL,
+        default=None,
         description=(
-            "Value for entries absent from `mapping`. When omitted, unmapped "
-            "values are kept unchanged."
+            "Value used for entries absent from `mapping`. When omitted or "
+            "`None`, unmapped values are kept unchanged."
         ),
     )
 
     def apply(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply the value mapping, returning a new DataFrame.
+
+        A `default_value` of `None` is interpreted as "keep original"; the spec
+        therefore cannot remap unmapped entries to `None` (use the
+        `map_column_values` function directly for that).
 
         Args:
             df (pd.DataFrame): The DataFrame to transform.
@@ -83,6 +87,7 @@ class MapColumnValues(BaseTransformation):
         Returns:
             pd.DataFrame: A new DataFrame with the mapped column.
         """
-        return map_column_values(
-            df, self.column_name, self.mapping, self.default_value
+        default_value = (
+            KEEP_ORIGINAL if self.default_value is None else self.default_value
         )
+        return map_column_values(df, self.column_name, self.mapping, default_value)

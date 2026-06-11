@@ -1,3 +1,4 @@
+from .aggregation_spec import AggregationSpec
 from .base import BaseTransformation
 from .column_transformations import MapColumnValues, map_column_values
 from .dataframe_transformations import (
@@ -6,7 +7,6 @@ from .dataframe_transformations import (
     drop_columns,
     rename_columns,
 )
-from .filter_spec import AggregationSpec
 
 __all__ = [
     "BaseTransformation",
