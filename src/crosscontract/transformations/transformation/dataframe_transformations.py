@@ -21,8 +21,13 @@ def rename_columns(df: pd.DataFrame, column_mapping: dict[Any, Any]) -> pd.DataF
 
     Raises:
         KeyError: If any key in `column_mapping` is not a column of `df`.
+        ValueError: If the rename would produce duplicate column labels.
     """
-    return df.rename(columns=column_mapping, errors="raise")
+    renamed = df.rename(columns=column_mapping, errors="raise")
+    if renamed.columns.has_duplicates:
+        dupes = renamed.columns[renamed.columns.duplicated()].unique().tolist()
+        raise ValueError(f"Rename produces duplicate column(s): {dupes}")
+    return renamed
 
 
 def drop_columns(df: pd.DataFrame, columns_to_drop: list[Any]) -> pd.DataFrame:

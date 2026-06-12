@@ -48,6 +48,18 @@ def test_rename_columns_mixed_existence(sample_df: pd.DataFrame):
         rename_columns(sample_df, {"A": "col_A", "D": "col_D"})
 
 
+def test_rename_columns_collision_with_existing_raises(sample_df: pd.DataFrame):
+    """Renaming onto an existing column name raises a ValueError."""
+    with pytest.raises(ValueError, match="duplicate column"):
+        rename_columns(sample_df, {"A": "B"})
+
+
+def test_rename_columns_collision_two_sources_raises(sample_df: pd.DataFrame):
+    """Renaming two columns to the same name raises a ValueError."""
+    with pytest.raises(ValueError, match="duplicate column"):
+        rename_columns(sample_df, {"A": "X", "B": "X"})
+
+
 def test_rename_columns_on_empty_dataframe():
     """Test renaming columns on an empty DataFrame."""
     df = pd.DataFrame(columns=["A", "B"])
