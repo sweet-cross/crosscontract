@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from crosscontract.transformations.fetch import FetchSpecMixin
 
 
@@ -40,3 +43,9 @@ def test_aggregation_shapes():
             "raw": {"leaf_1": "group_x"},
         },
     }
+
+
+def test_fetch_spec_rejects_keep_without_level():
+    """An invalid aggregation directive is caught when building a FetchSpecMixin."""
+    with pytest.raises(ValidationError, match="only valid together with 'level'"):
+        FetchSpecMixin(aggregation={"region": {"keep": ["x"]}})

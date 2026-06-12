@@ -44,3 +44,9 @@ def test_levelkeepspec_forbids_extra_keys():
     """A spec-dict with `level` rejects unknown keys."""
     with pytest.raises(ValidationError):
         ColumnAggregation.model_validate({"level": 0, "bogus": 1})
+
+
+def test_keep_without_level_rejected():
+    """`keep` without `level` is rejected at spec time, matching get_data."""
+    with pytest.raises(ValidationError, match="only valid together with 'level'"):
+        ColumnAggregation.model_validate({"keep": ["x"]})
