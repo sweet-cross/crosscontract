@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## v0.11.1 (2026-06-12)
+
+### Bug fixes
+
+
+- **Transformations** ([`2176fc7`](https://github.com/sweet-cross/crosscontract/commit/2176fc75a4bc1e05cfceba0f662c7470625a8749))
+
+  ## Pull request overview
+
+  Adds a new `crosscontract.transformations` package to support declarative fetch-shaping and pandas DataFrame transformations, with accompanying unit tests and supporting documentation updates.
+
+  **Changes:**
+  - Introduces declarative fetch specs (`FetchSpecMixin`, `ColumnAggregation`, `LevelKeepSpec`) that serialize into the raw shapes expected by `CrossDataVariable.get_data`.
+  - Adds transformation specs + pure functions for common DataFrame operations (map values, rename columns, drop columns).
+  - Adds a comprehensive pytest suite for the new transformation/fetch behavior and strengthens an existing aggregation equivalence test.
+
+  ### Reviewed changes
+
+  Copilot reviewed 16 out of 20 changed files in this pull request and generated 2 comments.
+
+  <details> <summary>Show a summary per file</summary>
+
+  | File | Description | | ---- | ----------- | | uv.lock | Updates lock metadata (including editable project version and marker normalization). | | src/crosscontract/transformations/__init__.py | Exposes the new transformations public API surface. | | src/crosscontract/transformations/fetch/__init__.py | Re-exports fetch-spec types. | | src/crosscontract/transformations/fetch/aggregation_spec.py | Adds validated aggregation directive models (including dict disambiguation). | | src/crosscontract/transformations/fetch/fetch_spec.py | Adds `FetchSpecMixin.get_data_kwargs` shaping logic. | | src/crosscontract/transformations/transformation/__init__.py | Re-exports transformation specs and pure functions. | | src/crosscontract/transformations/transformation/base.py | Introduces a strict base model for transformation specs (`extra='forbid'`). | | src/crosscontract/transformations/transformation/column_transformations.py | Adds `map_column_values` + `MapColumnValues` spec. | | src/crosscontract/transformations/transformation/dataframe_transformations.py | Adds `rename_columns`/`drop_columns` + corresponding specs. | | src/tests/transformations/__init__.py | Creates tests package for transformations. | | src/tests/transformations/fetch/__init__.py | Creates fetch tests package. | | src/tests/transformations/fetch/test_aggregation_spec.py | Tests `ColumnAggregation` parsing/dumping and validation. | | src/tests/transformations/fetch/test_fetch_spec.py | Tests `FetchSpecMixin.get_data_kwargs` output shapes and validation. | | src/tests/transformations/transformation/__init__.py | Creates transformation tests package. | | src/tests/transformations/transformation/test_colum_transformations.py | Tests `map_column_values` behavior and edge cases. | | src/tests/transformations/transformation/test_dataframe_transformations.py | Tests `rename_columns` / `drop_columns` behavior and errors. | | src/tests/transformations/transformation/test_transformation_specs.py | Tests spec/application parity + discriminator union behavior. | | src/tests/registry/test_data_variable.py | Adds regression test ensuring empty `keep` matches plain `level`. | | src/crosscontract/contracts/contracts/metadata_models.py | Expands `License` docstring attribute documentation. | | .ai-context/CONTEXT.md | Documents terminology for “Transformation” vs “Build spec”. | </details>
+
+
+
 ## v0.11.0 (2026-06-10)
 
 ### Features
