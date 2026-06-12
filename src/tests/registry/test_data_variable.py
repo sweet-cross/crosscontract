@@ -447,6 +447,26 @@ class TestGetAggregationMapping:
         assert result["region"]["leaf_1"] == "cat_a"
         assert result["region"]["leaf_2"] == "cat_a"
 
+    @pytest.mark.parametrize("level", [0, 1])
+    def test_empty_keep_equivalent_to_plain_level(
+        self, data_variable_with_dim: CrossDataVariable, level: int
+    ):
+        """An empty `keep` must produce the same mapping as a bare `level`.
+
+        The two forms reach different branches (plain level-mapping vs. the
+        id-based combine path), but must agree. `FetchSpecMixin.get_data_kwargs`
+        relies on this equivalence: it drops an empty `keep` so a bare
+        `LevelKeepSpec` round-trips to `{"level": N}` and takes the plain
+        branch.
+        """
+        plain = data_variable_with_dim._get_aggregation_mapping(
+            {"region": {"level": level}}
+        )
+        with_empty_keep = data_variable_with_dim._get_aggregation_mapping(
+            {"region": {"level": level, "keep": []}}
+        )
+        assert with_empty_keep["region"] == plain["region"]
+
 
 class TestAggregationOnFlexibleDimension:
     """Hierarchical aggregation must reject FlexibleDimension FK targets."""
