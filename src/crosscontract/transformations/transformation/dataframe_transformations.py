@@ -18,8 +18,11 @@ def rename_columns(df: pd.DataFrame, column_mapping: dict[Any, Any]) -> pd.DataF
 
     Returns:
         pd.DataFrame: A new DataFrame with renamed columns.
+
+    Raises:
+        KeyError: If any key in `column_mapping` is not a column of `df`.
     """
-    return df.rename(columns=column_mapping)
+    return df.rename(columns=column_mapping, errors="raise")
 
 
 def drop_columns(df: pd.DataFrame, columns_to_drop: list[Any]) -> pd.DataFrame:

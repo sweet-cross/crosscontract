@@ -37,11 +37,15 @@ def test_rename_columns_empty_mapping(sample_df: pd.DataFrame):
 
 
 def test_rename_columns_nonexistent_column(sample_df: pd.DataFrame):
-    """Test that renaming a nonexistent column does not raise an error and has
-    no effect."""
-    mapping = {"D": "col_D"}
-    result_df = rename_columns(sample_df, mapping)
-    assert_frame_equal(result_df, sample_df)
+    """Test that renaming a nonexistent column raises a KeyError."""
+    with pytest.raises(KeyError):
+        rename_columns(sample_df, {"D": "col_D"})
+
+
+def test_rename_columns_mixed_existence(sample_df: pd.DataFrame):
+    """Test renaming a mix of existing and nonexistent columns raises a KeyError."""
+    with pytest.raises(KeyError):
+        rename_columns(sample_df, {"A": "col_A", "D": "col_D"})
 
 
 def test_rename_columns_on_empty_dataframe():

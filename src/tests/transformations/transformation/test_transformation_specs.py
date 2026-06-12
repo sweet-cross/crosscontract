@@ -104,8 +104,8 @@ def test_ordered_application(sample_df: pd.DataFrame):
     assert df["col_A"].iloc[0] == 100
 
 
-def test_rename_after_drop_is_noop_on_missing_column(sample_df: pd.DataFrame):
-    """Renaming a dropped column is a silent no-op (order matters)."""
+def test_rename_after_drop_raises_on_missing_column(sample_df: pd.DataFrame):
+    """Renaming a dropped column raises KeyError (order matters)."""
     df = DropColumns(columns=["B"]).apply(sample_df)
-    df = RenameColumns(mapping={"B": "col_B"}).apply(df)
-    assert "col_B" not in df.columns
+    with pytest.raises(KeyError):
+        RenameColumns(mapping={"B": "col_B"}).apply(df)
