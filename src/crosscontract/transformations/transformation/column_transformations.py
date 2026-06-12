@@ -46,7 +46,11 @@ def map_column_values(
         # Fill unmapped values with the specified default (e.g., None, "Unknown", etc.)
         final_series = mapped_series.where(~unmapped_mask, default_value)
 
-    return df.assign(**{column_name: final_series})
+    # Label-based assignment on a copy: keeps the input unmutated and, unlike
+    # df.assign(**{...}), supports non-string column labels.
+    result = df.copy()
+    result[column_name] = final_series
+    return result
 
 
 class MapColumnValues(BaseTransformation):

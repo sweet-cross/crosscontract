@@ -102,3 +102,12 @@ def test_map_column_values_empty_dataframe():
     mapping = {1: 10}
     result_df = map_column_values(df, "A", mapping)
     assert_frame_equal(result_df, df, check_dtype=False)
+
+
+def test_map_column_values_non_string_column_label():
+    """A non-string column label is supported and the input is not mutated."""
+    df = pd.DataFrame({1: ["a", "b", "c"], "B": [10, 20, 30]})
+    result_df = map_column_values(df, 1, {"a": "A", "c": "C"})
+    assert list(result_df[1]) == ["A", "b", "C"]
+    # input left unmutated
+    assert list(df[1]) == ["a", "b", "c"]
