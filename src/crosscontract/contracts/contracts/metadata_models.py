@@ -63,6 +63,11 @@ class DataSource(BaseModel):
 class License(BaseModel):
     """
     A license for the data package or resource.
+
+    Attributes:
+        name (str | None): An Open Definition license identifier (e.g., "CC-BY-4.0").
+        path (str | None): A URL or file path to the license text.
+        title (str | None): A human-readable title for the license.
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
