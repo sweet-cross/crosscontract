@@ -1,15 +1,29 @@
-"""The DataPackageReleaseSpec model, which defines the
-schema for a data package release specification. It takes the same fields as a
-CrossDataPackage but adds additional information how to fetch the data
-from the server."""
+"""Release specification models determine data resources and packages
+together with the instruction how to get the data from the server."""
 
-from pydantic import ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ...transformations import FetchSpecMixin
 from .data_resource import CrossDataResource
 
 
-class CrossDataResourceReleaseSpec(CrossDataResource):
+class DataInstructions(BaseModel):
+    """A data fetching specification, which defines how to retrieve the data for
+    a resource from the server. It is a subclass of FetchSpecMixin, which provides
+    the same fields and validation logic.
+    """
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    fetch: FetchSpecMixin = Field(
+        description=(
+            "The data fetching specification, which defines how to retrieve the "
+            "data for this resource from the server."
+        )
+    )
+
+
+class CrossDataResourceReleaseSpec(BaseModel):
     """A data package release specification. A release specification is the same
     as the DataResource model but with additional information about how to
     fetch the data from the server.
@@ -19,13 +33,17 @@ class CrossDataResourceReleaseSpec(CrossDataResource):
     contract.
     """
 
-    config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    data: FetchSpecMixin = Field(
-        default_factory=FetchSpecMixin,
+    resource: CrossDataResource = Field(
         description=(
-            "The data fetching specification, which defines how to retrieve the "
-            "data for this resource from the server. If not provided, it defaults "
-            "to an empty FetchSpecMixin, which yields the get_data bypass sentinels."
+            "The data resource for which this release specification applies. It "
+            "contains metadata about the resource, such as its name, description, "
+            "and schema."
+        )
+    )
+    data_instructions: DataInstructions = Field(
+        description=(
+            "Instructions how to fetch and transform the data for the data resource."
         ),
     )
