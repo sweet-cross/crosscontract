@@ -1,9 +1,14 @@
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
-import yaml
-from pydantic import AnyUrl, BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    AnyUrl,
+    BaseModel,
+    ConfigDict,
+    Field,
+    alidator,
+    field_validator,
+)
 
 from ...contracts.contracts.base_contract import FRICTIONLESS_NAME_PATTERN
 from ...contracts.contracts.metadata_models import (

@@ -6,7 +6,7 @@ import yaml
 from pydantic import ConfigDict, Field
 
 from .data_resource import CrossDataResource
-from .meta_data import CrossDataPackageMetaData
+from .models_package import CrossDataPackageMetaData
 
 
 class CrossDataPackage(CrossDataPackageMetaData):

@@ -5,7 +5,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ...transformations import FetchSpecMixin
 from .data_resource import CrossDataResource
-from .meta_data import CrossDataPackageMetaData
+from .models_package import CrossDataPackageMetaData
+from .models_resource import CrossDataResourceMetaData
 
 
 class DataInstructions(BaseModel):
@@ -26,7 +27,7 @@ class DataInstructions(BaseModel):
     )
 
 
-class CrossDataResourceReleaseSpec(BaseModel):
+class CrossDataResourceReleaseSpec(CrossDataResourceMetaData):
     """Release specification for a single data resource.
 
     Bundles a `CrossDataResource` (the resource's metadata and schema) with the
@@ -41,13 +42,6 @@ class CrossDataResourceReleaseSpec(BaseModel):
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    resource: CrossDataResource = Field(
-        description=(
-            "The data resource for which this release specification applies. It "
-            "contains metadata about the resource, such as its name, description, "
-            "and schema."
-        )
-    )
     data_instructions: DataInstructions = Field(
         description=("Instructions for fetching the data for the data resource."),
     )
