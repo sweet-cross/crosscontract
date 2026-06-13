@@ -26,7 +26,7 @@ class DataInstructions(BaseModel):
     )
 
 
-class CrossDataResourceReleaseSpec(CrossDataPackageMetaData):
+class CrossDataResourceReleaseSpec(BaseModel):
     """Release specification for a single data resource.
 
     Bundles a `CrossDataResource` (the resource's metadata and schema) with the
@@ -56,11 +56,11 @@ class CrossDataResourceReleaseSpec(CrossDataPackageMetaData):
 class CrossDataPackageReleaseSpec(CrossDataPackageMetaData):
     """Release specification for a data package.
 
-    Bundles a `CrossDataPackage` (the package's metadata and resources) with the
-    `DataInstructions` describing how to fetch the data for each resource from
-    the platform. This is a build recipe, not a Frictionless descriptor: a later
-    build step pairs it with a resolver to fetch the data and materialize the
-    package..
+    Carries the package-level metadata (inherited from `CrossDataPackageMetaData`)
+    together with a release specification per resource, each pairing a
+    `CrossDataResource` with the `DataInstructions` for fetching its data. This is
+    a build recipe, not a Frictionless descriptor: a later build step pairs it with
+    a resolver to fetch the data and materialize the package.
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
