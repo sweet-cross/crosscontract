@@ -1,7 +1,11 @@
 """Release specification models determine data resources and packages
 together with the instruction how to get the data from the server."""
 
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Self
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from crosscontract.contracts.contracts.base_contract import FRICTIONLESS_NAME_PATTERN
 
 from ...transformations import FetchSpecMixin
 from .data_resource import CrossDataResource
@@ -41,10 +45,26 @@ class CrossDataResourceReleaseSpec(CrossDataResourceMetaData):
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
+    name: str | None = Field(
+        default=None,
+        pattern=FRICTIONLESS_NAME_PATTERN,
+        max_length=100,
+        description=(
+            "A unique identifier for the data resource. Must consist only of "
+            "lowercase alphanumeric characters, '.', '_', and '-'."
+            "If not provided, will be the same as the name of the contract "
+            "used for fetching the data."
+        ),
+    )
     data_instructions: DataInstructions = Field(
         description=("Instructions for fetching the data for the data resource."),
     )
+
+    @model_validator(mode="after")
+    def _fill_name_from_contract(self) -> Self:
+        """If the resource name is not provided, fill it from the contract name."""
+        self.name = self.name or self.data_instructions.fetch.contract
+        return self
 
 
 class CrossDataPackageReleaseSpec(CrossDataPackageMetaData):
@@ -59,7 +79,17 @@ class CrossDataPackageReleaseSpec(CrossDataPackageMetaData):
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    resources: list[CrossDataResourceReleaseSpec] = Field(
+    name: str | None = Field(
+        default=None,
+        pattern=FRICTIONLESS_NAME_PATTERN,
+        max_length=100,
+        description=(
+            "A unique identifier for the data contract. Must consist only of "
+            "lowercase alphanumeric characters, '.', '_', and '-'."
+        ),
+    )
+
+    resource: list[CrossDataResourceReleaseSpec] = Field(
         min_length=1,
         description=(
             "A list of release specifications for the data resources included in the "

@@ -1,9 +1,9 @@
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 import yaml
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, field_validator
 
 from .data_resource import CrossDataResource
 from .models_package import CrossDataPackageMetaData
@@ -45,6 +45,14 @@ class CrossDataPackage(CrossDataPackageMetaData):
     def profile(self) -> str:
         """The profile of the data package, which is always 'data-package'."""
         return "data-package"
+
+    @field_validator(mode="after")
+    def _validate_resource_names(self) -> Self:
+        """Validate that all resource names are unique within the package."""
+        resource_names = [resource.name for resource in self.resources]
+        if len(resource_names) != len(set(resource_names)):
+            raise ValueError("All resource names within a data package must be unique.")
+        return self
 
     def to_descriptor(self) -> dict[str, Any]:
         """Render the Frictionless data-package descriptor.
