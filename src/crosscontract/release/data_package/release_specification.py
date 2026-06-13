@@ -5,10 +5,8 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from crosscontract.contracts.contracts.base_contract import FRICTIONLESS_NAME_PATTERN
-
+from ...contracts.contracts.base_contract import FRICTIONLESS_NAME_PATTERN
 from ...transformations import FetchSpecMixin
-from .data_resource import CrossDataResource
 from .models_package import CrossDataPackageMetaData
 from .models_resource import CrossDataResourceMetaData
 
@@ -34,14 +32,15 @@ class DataInstructions(BaseModel):
 class CrossDataResourceReleaseSpec(CrossDataResourceMetaData):
     """Release specification for a single data resource.
 
-    Bundles a `CrossDataResource` (the resource's metadata and schema) with the
-    `DataInstructions` describing how to fetch its data from the platform. This
-    is a build recipe, not a Frictionless descriptor: a later build step pairs it
-    with a resolver to fetch the data and materialize the resource.
+    Carries the resource's descriptive metadata (inherited from
+    `CrossDataResourceMetaData`) together with the `DataInstructions` describing
+    how to fetch its data from the platform. This is a build recipe, not a
+    Frictionless descriptor: a later build step pairs it with a resolver to fetch
+    the data and materialize the resource.
 
-    Note that, in principle, all metadata is taken from the specification;
-    however, where it is not provided it is intended to be filled from the
-    contract (not yet implemented).
+    `name` is optional and defaults to the name of the contract used for
+    fetching; the remaining descriptive metadata must be supplied by the
+    specification.
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -71,16 +70,15 @@ class CrossDataPackageReleaseSpec(CrossDataPackageMetaData):
     """Release specification for a data package.
 
     Carries the package-level metadata (inherited from `CrossDataPackageMetaData`)
-    together with a release specification per resource, each pairing a
-    `CrossDataResource` with the `DataInstructions` for fetching its data. This is
+    together with a `CrossDataResourceReleaseSpec` per resource, each bundling the
+    resource's metadata with the `DataInstructions` for fetching its data. This is
     a build recipe, not a Frictionless descriptor: a later build step pairs it with
     a resolver to fetch the data and materialize the package.
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    name: str | None = Field(
-        default=None,
+    name: str = Field(
         pattern=FRICTIONLESS_NAME_PATTERN,
         max_length=100,
         description=(
@@ -89,7 +87,7 @@ class CrossDataPackageReleaseSpec(CrossDataPackageMetaData):
         ),
     )
 
-    resource: list[CrossDataResourceReleaseSpec] = Field(
+    resources: list[CrossDataResourceReleaseSpec] = Field(
         min_length=1,
         description=(
             "A list of release specifications for the data resources included in the "

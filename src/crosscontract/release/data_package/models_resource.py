@@ -1,9 +1,7 @@
 from typing import Literal, Self
 
 from pydantic import (
-    AnyUrl,
     BaseModel,
-    ConfigDict,
     Field,
     computed_field,
     model_validator,
@@ -16,24 +14,13 @@ Encodings = Literal["utf-8", "utf-16", "latin-1"]
 
 
 class CrossDataResourceMetaData(CrossMetaData):
-    """
-    A `CrossDataResource` is the frictionless compliant representation of a
-    `CrossContract` together with the description of the data source. The data
-    source is always a file that is assumed to be distributed within a (zip) folder
-    together with this descriptor. I.e., the `CrossDataResource` is self-contained.
-    It is the same as the `CrossContract` but augmented by a description of the
-    data file.
+    """The descriptive metadata of a data resource.
 
-    Attributes:
-        path (str): The path to the data file. This is a required field.
-        format (Formats): The format of the data file. Either 'csv' or 'parquet'.
-            Defaults to 'csv'.
-        encoding (Encodings): The encoding of the data file. Either 'utf-8',
-            'utf-16', or 'latin-1'. Defaults to 'utf-8'.
-        profile (Literal['tabular-data-resource', 'data-resource']): The profile of
-            the data resource. 'tabular-data-resource' for CSV files and
-            'data-resource' for Parquet files. This is automatically assigned based
-            on the format.
+    A passthrough of `CrossMetaData` (the contract's descriptive metadata: title,
+    description, tags, and ownership), kept as its own type so resource-specific
+    metadata can be added later without touching the contract. It carries no file
+    binding (`path`, `format`, `encoding`) — that is `FileMetaData` — and no
+    schema, which is owned by the contract.
     """
 
     pass
