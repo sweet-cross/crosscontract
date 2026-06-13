@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Self
 
 import yaml
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from .data_resource import CrossDataResource
 from .models_package import CrossDataPackageMetaData
@@ -46,7 +46,7 @@ class CrossDataPackage(CrossDataPackageMetaData):
         """The profile of the data package, which is always 'data-package'."""
         return "data-package"
 
-    @field_validator(mode="after")
+    @model_validator(mode="after")
     def _validate_resource_names(self) -> Self:
         """Validate that all resource names are unique within the package."""
         resource_names = [resource.name for resource in self.resources]
