@@ -44,7 +44,9 @@ class CrossDataResourceReleaseSpec(CrossDataResourceMetaData):
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-    name: str | None = Field(
+    # Deliberately relax the inherited required `name` to optional: it defaults
+    # to the contract name in `_fill_name_from_contract`.
+    name: str | None = Field(  # type: ignore[assignment]
         default=None,
         pattern=FRICTIONLESS_NAME_PATTERN,
         max_length=100,
