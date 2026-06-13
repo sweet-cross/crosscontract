@@ -39,31 +39,24 @@ class TestCrossDataResource:
         ):
             CrossDataResource.from_contract(contract, "data/file.txt", format="parquet")
 
-    @pytest.mark.skip(
-        reason="Stale: pending CrossDataResource schema field rename to "
-        "`table_schema` with alias='schema'; rewrite against the final field name."
-    )
-    def test_model_dump_uses_neutral_tableschema_key(
+    def test_model_dump_uses_neutral_table_schema_key(
         self, contract_factory: type[ModelFactory]
     ):
         # The model itself stays release-agnostic: its default serialization keeps
-        # the internal `tableschema` key, not the Frictionless `schema` wire-name.
+        # the internal `table_schema` name, not the Frictionless `schema` wire-name
+        # (which is only applied via `by_alias=True` in `to_descriptor`).
         contract = contract_factory.build()
         resource = CrossDataResource.from_contract(contract, "data/file.csv")
 
         dumped = resource.model_dump()
-        assert "tableschema" in dumped
+        assert "table_schema" in dumped
         assert "schema" not in dumped
 
-    @pytest.mark.skip(
-        reason="Stale: pending CrossDataResource schema field rename to "
-        "`table_schema` with alias='schema'; rewrite against the final field name."
-    )
-    def test_tableschema_round_trips_through_validation(
+    def test_table_schema_round_trips_through_validation(
         self, contract_factory: type[ModelFactory]
     ):
-        # Removing the serialization alias keeps dump -> validate symmetric: the
-        # dumped `tableschema` key is the one validation accepts. `profile` is an
+        # `populate_by_name=True` keeps dump -> validate symmetric: the dumped
+        # `table_schema` name is accepted back on validation. `profile` is an
         # output-only computed field, so it is dropped before re-validating.
         contract = contract_factory.build()
         resource = CrossDataResource.from_contract(contract, "data/file.csv")
@@ -72,7 +65,7 @@ class TestCrossDataResource:
         dumped.pop("profile")
         restored = CrossDataResource.model_validate(dumped)
 
-        assert restored.tableschema == resource.tableschema
+        assert restored.table_schema == resource.table_schema
         assert restored.path == resource.path
 
     def test_to_descriptor_emits_frictionless_schema_key(
@@ -86,21 +79,17 @@ class TestCrossDataResource:
         assert "schema" in descriptor
         assert "tableschema" not in descriptor
 
-    @pytest.mark.skip(
-        reason="Stale: pending CrossDataResource schema field rename to "
-        "`table_schema` with alias='schema'; rewrite against the final field name."
-    )
-    def test_to_descriptor_schema_equals_model_tableschema(
+    def test_to_descriptor_schema_equals_model_table_schema(
         self, contract_factory: type[ModelFactory]
     ):
-        # Renaming the key must not alter the schema content.
+        # Aliasing the key to `schema` must not alter the schema content.
         contract = contract_factory.build()
         resource = CrossDataResource.from_contract(contract, "data/file.csv")
 
         descriptor = resource.to_descriptor()
         assert (
             descriptor["schema"]
-            == resource.model_dump(mode="json", exclude_none=True)["tableschema"]
+            == resource.model_dump(mode="json", exclude_none=True)["table_schema"]
         )
 
     def test_to_descriptor_includes_resource_metadata(

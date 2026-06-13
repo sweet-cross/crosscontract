@@ -8,6 +8,8 @@ the `CrossContract` but augmented by a description of the data file.
 
 from typing import Any, Literal, Self
 
+from pydantic import ConfigDict, Field
+
 from ...contracts import CrossContract
 from .models_resource import CrossDataResourceMetaData, FileMetaData
 
@@ -36,7 +38,24 @@ class CrossDataResource(CrossDataResourceMetaData, FileMetaData):
             on the format.
     """
 
-    schema: dict[str, Any]  # from tableschema in CrossContract
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+        # Let the field be set/validated by its python name (`table_schema`) as
+        # well as its `schema` alias — `from_contract` builds it by name.
+        populate_by_name=True,
+    )
+
+    # The Frictionless wire name for this property is `schema`. We cannot name the
+    # field `schema` because that shadows pydantic's reserved `BaseModel.schema`
+    # attribute (the deprecated `.schema()` method), which raises a runtime
+    # UserWarning and a mypy `[assignment]` error. So the field is `table_schema`
+    # internally and exposes the Frictionless `schema` key via its alias — emitted
+    # by `to_descriptor` with `by_alias=True`.
+    table_schema: dict[str, Any] = Field(
+        alias="schema",
+        description="The Frictionless table schema, serialized under the `schema` key.",
+    )
 
     @classmethod
     def from_contract(
@@ -75,6 +94,8 @@ class CrossDataResource(CrossDataResourceMetaData, FileMetaData):
         meta = contract.model_dump(include=set(CrossDataResourceMetaData.model_fields))
         return cls(
             **meta,
+            # Set via the `schema` alias (the Frictionless wire name); the field
+            # itself is `table_schema` (see its definition for why).
             schema=contract.model_dump()["tableschema"],
             path=path,
             format=format,
@@ -84,15 +105,16 @@ class CrossDataResource(CrossDataResourceMetaData, FileMetaData):
     def to_descriptor(self) -> dict[str, Any]:
         """Render the Frictionless data-resource descriptor.
 
-        Serializes the resource and remaps the internal `tableschema` key to the
-        Frictionless-standard `schema`. This is the single point where the release
-        wire-format is applied; the model itself stays neutral and round-trippable
-        via the ordinary `tableschema` field, so `model_dump()` and
-        `model_validate()` remain symmetric.
+        Serializes the resource with `by_alias=True` so the internal
+        `table_schema` field is emitted under its Frictionless `schema` alias.
+        The model itself stays neutral: a plain `model_dump()` keeps the
+        `table_schema` name, and `populate_by_name=True` lets that round-trip
+        back through validation, so `model_dump()` / `model_validate()` stay
+        symmetric.
 
         Returns:
             dict[str, Any]: The Frictionless-compatible resource descriptor, ready
                 to be written alongside the data file in the (zip) archive.
         """
-        descriptor = self.model_dump(mode="json", exclude_none=True)
+        descriptor = self.model_dump(mode="json", by_alias=True, exclude_none=True)
         return descriptor

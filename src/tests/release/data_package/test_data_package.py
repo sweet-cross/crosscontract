@@ -98,18 +98,15 @@ class TestToDescriptor:
         descriptor = pkg.to_descriptor()
         assert len(descriptor["resources"]) == 2
 
-    @pytest.mark.skip(
-        reason="Stale: pending CrossDataResource schema field rename to "
-        "`table_schema` with alias='schema'; rewrite against the final field name."
-    )
     def test_descriptor_is_independent_of_model_dump(
         self, contract_factory: type[ModelFactory]
     ):
-        # model_dump must still carry tableschema (stay neutral/round-trippable)
+        # model_dump stays neutral: resources carry the internal `table_schema`
+        # name, not the Frictionless `schema` wire-name.
         pkg = _make_package(contract_factory)
         raw = pkg.model_dump()
         for resource in raw["resources"]:
-            assert "tableschema" in resource
+            assert "table_schema" in resource
             assert "schema" not in resource
 
     def test_frictionless_schema_compliance(self, contract_factory: type[ModelFactory]):
@@ -118,10 +115,6 @@ class TestToDescriptor:
         descriptor = pkg.to_descriptor()
         jsonschema.validate(instance=descriptor, schema=frictionless_schema)
 
-    @pytest.mark.skip(
-        reason="Stale: pending CrossDataResource schema field rename to "
-        "`table_schema` with alias='schema'; rewrite against the final field name."
-    )
     def test_resource_schema_content_matches_contract(
         self, contract_factory: type[ModelFactory]
     ):
@@ -135,7 +128,7 @@ class TestToDescriptor:
         )
         descriptor = pkg.to_descriptor()
         expected_schema = resource.model_dump(mode="json", exclude_none=True)[
-            "tableschema"
+            "table_schema"
         ]
         assert descriptor["resources"][0]["schema"] == expected_schema
 
