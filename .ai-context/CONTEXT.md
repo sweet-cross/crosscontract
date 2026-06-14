@@ -173,6 +173,13 @@ A bundle of **Data Resources** plus package-level metadata, distributed as a sin
 archive. The planned public entry point fetches data from the **CROSS platform** and
 assembles the package.
 
+**Frictionless descriptor** (the permissive mirror):
+A faithful, permissive model of the *upstream* Frictionless `Data Resource` / `Data
+Package` — accepts unknown keys, imposes no CROSS rules. Distinct from the CROSS **Data
+Resource** above: that one is contract-derived and strict, this one is the standard taken
+at face value (used for interop / round-tripping arbitrary descriptors). When unqualified,
+"**Data Resource**" means the CROSS concept; say "Frictionless descriptor" for the mirror.
+
 ### Transformations and build specs
 
 **Transformation**:

@@ -23,3 +23,24 @@ Frictionless:
 - **No extra fields.** `Contributor`, `DataSource`, and `License` are
   `extra="forbid"` — a misspelled key fails validation rather than being
   silently dropped.
+
+## Two layers: curated CROSS models vs. the faithful mirror
+
+The deviations above belong to the **curated CROSS models** in `metadata_models.py`
+— the strict surface a `CrossContract` actually uses. Separately, the internal
+`_standards/frictionless/` package provides a **faithful, permissive mirror** of
+the upstream standard: `Source`, `License`, `Contributor`, and the
+`Data Resource` / `Data Package` descriptors, all `extra="allow"` and with the
+full Frictionless `role` set. The two coexist on purpose:
+
+- The **mirror** exists for interop — validating or round-tripping arbitrary
+  Frictionless descriptors without losing unknown keys. It does *not* impose the
+  CROSS deviations.
+- The **curated models** stay the strict, CROSS-facing types; the deviations
+  listed above are theirs alone.
+
+Keep them separate — do not collapse the curated models onto the mirror (that
+would re-admit extra fields and the wider `role` set), and do not push CROSS
+deviations into the mirror (that would make it an unfaithful copy of the
+standard). Wiring the two together (e.g. the curated models as narrowed views of
+the mirror) is deferred.

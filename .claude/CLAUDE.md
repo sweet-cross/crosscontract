@@ -65,7 +65,7 @@ planning a change, and remove an item once its PR lands.
 
 ## Architecture
 
-The package has three independent top-level modules, all re-exported from `crosscontract/__init__.py`:
+The public surface — `contracts/`, `crossclient/`, and `registry/` — is re-exported from `crosscontract/__init__.py`. `_standards/` is an internal module (not re-exported) holding faithful models of the upstream Frictionless standard.
 
 ### `contracts/` — Schema and contract definitions
 
@@ -82,7 +82,7 @@ The package has three independent top-level modules, all re-exported from `cross
 - `DimensionSchema`: rigid template (id, level, parent_id, label, description). Rejects any user-provided fields.
 - `FlexibleDimensionSchema`: user-defined fields, but mandates `label` and `description` fields.
 - `_mandatory_fields` class variable: list of `MandatoryField` specs validated at schema construction time.
-- Vendored copies of the upstream Frictionless JSON Schemas (`table-schema.json`, `data-resource.json`, `data-package.json`, `tabular-data-resource.json`) live in `.ai-context/additional_info/` — the authoritative reference for what fields, types, and constraints the schema layer must stay compatible with. Reference only; no code loads them at runtime.
+- Vendored copies of the upstream Frictionless JSON Schemas (`table-schema.json`, `data-resource.json`, `data-package.json`, `tabular-data-resource.json`) live in `.ai-context/additional_info/` — the authoritative reference for what fields, types, and constraints the schema layer must stay compatible with. Reference only; no code loads them at runtime. The `_standards/frictionless/` package (below) is a faithful pydantic mirror of these.
 
 **`contracts/schema/adapters/`** — Converts `TableSchema` to external formats:
 - `PanderaPandasAdapter`: builds a `pandera.DataFrameSchema` with primary-key uniqueness and foreign-key checks.
@@ -91,6 +91,15 @@ The package has three independent top-level modules, all re-exported from `cross
 - `_pandera_dimension_checks.py`: custom Pandera checks enforcing dimension hierarchy invariants (level 0 = no parent, level N > 0 = parent at N-1, required "other" sentinel entries).
 
 **`contracts/schema/fields/`** — Field types (`IntegerField`, `NumberField`, `StringField`, `DateTimeField`, `ListField`), all discriminated by `type`. Each carries a typed `constraints` submodel (e.g. `min`/`max` for numbers, `pattern`/`maxLength` for strings).
+
+### `_standards/frictionless/` — Faithful, permissive Frictionless models (internal)
+
+A pydantic mirror of the upstream Frictionless standard, distinct from the stricter `contracts/` layer: every model is `extra="allow"` and carries no CROSS domain logic, so the standard's extensibility rides through losslessly. Internal — not re-exported from the top-level package; sibling modules import from `crosscontract._standards.frictionless`.
+
+- `fields.py` — permissive field models (`StringField`, `IntegerField`, … discriminated by `type`) with typed `constraints` submodels.
+- `table_schema.py` — the permissive `TableSchema` (`fields`, `primaryKey`, `foreignKeys`, `missingValues`). Shares its bare name with the strict contract `TableSchema`; disambiguate by module.
+- `metadata.py` — reusable metadata building blocks composed by the descriptors: `BaseMetaData` (fields identical in both descriptors), `ResourceMetaData` / `PackageMetaData` (descriptive parts), `FileMetaData` (the physical data binding), plus the permissive leaf models `Source`, `License`, `Contributor`. Also defines `FRICTIONLESS_NAME_PATTERN` (the resource/package `name` pattern, which permits `/`).
+- `descriptors.py` — thin compositions: `DataResource(ResourceMetaData, FileMetaData)` and `DataPackage(PackageMetaData)` (adds the required `resources` array). The Frictionless `schema` key maps to a `table_schema` field (via `alias`) to avoid shadowing `BaseModel.schema`.
 
 ### `crossclient/` — HTTP client for the CROSS platform
 
@@ -108,6 +117,7 @@ The package has three independent top-level modules, all re-exported from `cross
 
 - **Discriminated unions**: `contract_type` on `CrossContract` maps 1:1 to `table_type` on the schema. The `_inject_table_type` validator bridges them automatically.
 - **Adapters are stateless class methods**: call `Adapter.convert_schema(schema, ...)` directly; the adapter pattern exists for extensibility but doesn't require instantiation in practice.
+- **Two `name` patterns, deliberately distinct**: `CONTRACT_NAME_PATTERN` (in `contracts/contracts/base_contract.py`) is the strict contract/field identifier — no `/`; `FRICTIONLESS_NAME_PATTERN` (in `_standards/frictionless/metadata.py`) is the looser standard resource/package identifier that permits `/`. The contract pattern is a subset, so any contract name is also a valid Frictionless name.
 - **Tests live in `src/tests/`**, mirroring the `src/crosscontract/` structure. `pythonpath = "src"` in `pyproject.toml` means imports use `from crosscontract import ...` without editable install, though the package should be installed via `uv sync`.
 
 ## Docstring convention
