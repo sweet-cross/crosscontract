@@ -9,25 +9,6 @@ something while working, append it here rather than expanding the PR in front of
 
 ## Open
 
-### Move `to_server` / `from_server` off the contract model
-
-`CrossContract.to_server()` / `from_server()`
-([cross_contract.py](../src/crosscontract/contracts/contracts/cross_contract.py))
-are transport-shaped — they produce/consume the platform's server wire payload — yet
-live on the domain/schema model. They belong nearer the client transport layer
-(`crossclient`, e.g. `ContractService`).
-
-This is a **split, not a relocation**: the methods also encode a domain rule (strip /
-restore the `tableschema` for `Dimension` contracts because the server owns a
-Dimension's schema). Keep that "which fields are platform-owned" invariant expressed
-on the model; move only the wire mechanics to the client.
-
-Knock-on cleanup: once the transport methods leave the model, the defensive
-`to_server` / `from_server` overrides on `CrossDataResource`
-([data_resource.py](../src/crosscontract/release/data_package/data_resource.py)) and
-their tests (`test_to_server_is_disabled`, `test_from_server_is_disabled`) can be
-removed — they exist only to stop a release artifact from inheriting transport methods.
-
 ### Decide whether `tags` should be `keywords` at the contract level
 
 Frictionless uses `keywords` (a `list[str]`, `minItems: 1`) for free-text package/resource
@@ -47,6 +28,8 @@ package `_empty_list_to_none` validator).
 
 ## Related context (not TODO items)
 
-- The `CrossDataResource.from_contract` + `Dimension` egress corner is **intentionally
-  left open**, not a bug. See the decision recorded in
-  [CONTEXT.md](./CONTEXT.md) under "Flagged ambiguities".
+- The release layer is a contract → Frictionless adapter; `CrossDataResource` /
+  `CrossDataPackage` are retired. See [ADR 0003](./adrs/0003-release-is-a-contract-to-frictionless-adapter.md)
+  and the "Release adapter" terms in [CONTEXT.md](./CONTEXT.md). The old `from_contract`
+  + `Dimension` egress corner is **resolved** by routing through the registry's
+  trusted-source path (CONTEXT.md "Flagged ambiguities").
