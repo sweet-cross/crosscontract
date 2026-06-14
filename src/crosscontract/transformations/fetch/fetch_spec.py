@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from crosscontract.contracts.contracts.base_contract import FRICTIONLESS_NAME_PATTERN
+from crosscontract.contracts.contracts.base_contract import CONTRACT_NAME_PATTERN
 
 from .aggregation_spec import AggregationSpec
 
@@ -18,7 +18,7 @@ class FetchSpecMixin(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     contract: str = Field(
-        pattern=FRICTIONLESS_NAME_PATTERN,
+        pattern=CONTRACT_NAME_PATTERN,
         max_length=100,
         description=(
             "A unique identifier for the data contract. Must consist only of "

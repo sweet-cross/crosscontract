@@ -15,6 +15,17 @@ from .fields import (
     NumberField,
     StringField,
 )
+from .descriptors import DataPackage, DataResource
+from .metadata import (
+    FRICTIONLESS_NAME_PATTERN,
+    BaseMetaData,
+    Contributor,
+    FileMetaData,
+    License,
+    PackageMetaData,
+    ResourceMetaData,
+    Source,
+)
 from .table_schema import FieldUnion, ForeignKey, Reference, TableSchema
 
 __all__ = [
@@ -33,4 +44,16 @@ __all__ = [
     "FieldUnion",
     "ForeignKey",
     "Reference",
+    # descriptors
+    "DataResource",
+    "DataPackage",
+    # metadata building blocks
+    "FRICTIONLESS_NAME_PATTERN",
+    "BaseMetaData",
+    "FileMetaData",
+    "ResourceMetaData",
+    "PackageMetaData",
+    "Source",
+    "License",
+    "Contributor",
 ]

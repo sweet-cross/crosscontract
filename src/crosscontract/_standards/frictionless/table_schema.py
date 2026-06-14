@@ -1,9 +1,9 @@
 """Frictionless Table Schema model.
 
 A faithful, *permissive* pydantic representation of the Frictionless Table Schema
-standard (see `.ai-context/additional_info/table-schema.json`): a collection of
-typed `fields` plus `primaryKey`, `foreignKeys`, and `missingValues`. All models
-allow extra keys so the standard's extensibility rides through losslessly.
+standard: a collection of typed `fields` plus `primaryKey`, `foreignKeys`, and
+`missingValues`. All models allow extra keys so the standard's extensibility rides
+through losslessly.
 
 Note: `TableSchema` here is the *standard* schema and shares its bare name with the
 stricter contract schema in `crosscontract.contracts.schema.schema`. Callers

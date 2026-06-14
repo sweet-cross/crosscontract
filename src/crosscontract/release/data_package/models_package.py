@@ -9,7 +9,7 @@ from pydantic import (
     field_validator,
 )
 
-from ...contracts.contracts.base_contract import FRICTIONLESS_NAME_PATTERN
+from ...contracts.contracts.base_contract import CONTRACT_NAME_PATTERN
 from ...contracts.contracts.metadata_models import (
     Contributor,
     DataSource,
@@ -24,7 +24,7 @@ class CrossDataPackageMetaData(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     name: str = Field(
-        pattern=FRICTIONLESS_NAME_PATTERN,
+        pattern=CONTRACT_NAME_PATTERN,
         description=(
             "A unique identifier for the data package. This should be a slug or "
             "machine-readable name that can be used as an identifier in code. "

@@ -1,8 +1,7 @@
 """Frictionless Table Schema field models.
 
 A faithful, *permissive* pydantic representation of the field objects defined by
-the Frictionless Table Schema standard (see
-`.ai-context/additional_info/table-schema.json`). Unlike the contract fields in
+the Frictionless Table Schema standard. Unlike the contract fields in
 `crosscontract.contracts.schema.fields`, these models impose no domain logic and
 allow extra keys (`extra="allow"`) so the standard's extensibility — and the
 contract's `fieldDescriptors` and any custom properties — ride through losslessly.

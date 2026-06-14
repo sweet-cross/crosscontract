@@ -5,7 +5,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from ...contracts.contracts.base_contract import FRICTIONLESS_NAME_PATTERN
+from ...contracts.contracts.base_contract import CONTRACT_NAME_PATTERN
 from ...transformations import FetchSpecMixin
 from .models_package import CrossDataPackageMetaData
 from .models_resource import CrossDataResourceMetaData
@@ -48,7 +48,7 @@ class CrossDataResourceReleaseSpec(CrossDataResourceMetaData):
     # to the contract name in `_fill_name_from_contract`.
     name: str | None = Field(  # type: ignore[assignment]
         default=None,
-        pattern=FRICTIONLESS_NAME_PATTERN,
+        pattern=CONTRACT_NAME_PATTERN,
         max_length=100,
         description=(
             "A unique identifier for the data resource. Must consist only of "
@@ -81,7 +81,7 @@ class CrossDataPackageReleaseSpec(CrossDataPackageMetaData):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     name: str = Field(
-        pattern=FRICTIONLESS_NAME_PATTERN,
+        pattern=CONTRACT_NAME_PATTERN,
         max_length=100,
         description=(
             "A unique identifier for the data contract. Must consist only of "
