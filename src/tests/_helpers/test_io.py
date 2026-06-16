@@ -3,7 +3,7 @@ import json
 import pytest
 import yaml
 
-from crosscontract.contracts.utils import read_yaml_or_json_file
+from crosscontract._helpers import read_yaml_or_json_file
 
 
 class TestReadYamlOrJsonFile:

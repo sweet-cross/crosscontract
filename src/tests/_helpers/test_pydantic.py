@@ -1,7 +1,7 @@
 import pytest
 from pydantic import BaseModel
 
-from crosscontract._pydantic_helpers import OptionalNonEmptyList
+from crosscontract._helpers import OptionalNonEmptyList
 
 
 class _Model(BaseModel):

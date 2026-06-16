@@ -23,5 +23,3 @@ def _drop_empty_list(v: Any) -> Any:
 
 
 OptionalNonEmptyList = Annotated[list[T] | None, BeforeValidator(_drop_empty_list)]
-
-__all__ = ["OptionalNonEmptyList"]

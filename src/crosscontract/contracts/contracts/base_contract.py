@@ -3,8 +3,8 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from ..._helpers import read_yaml_or_json_file
 from ..schema import TableSchema
-from ..utils import read_yaml_or_json_file
 from .resolvers import ContractResolver
 
 # A deliberately strict subset of the Frictionless identifier pattern

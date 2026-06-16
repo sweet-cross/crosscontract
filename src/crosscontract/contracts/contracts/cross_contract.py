@@ -2,7 +2,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import ConfigDict, Field, model_validator
 
-from ..._pydantic_helpers import OptionalNonEmptyList
+from ..._helpers import OptionalNonEmptyList
 from ..schema import (
     DimensionSchema,
     FlexibleDimensionSchema,

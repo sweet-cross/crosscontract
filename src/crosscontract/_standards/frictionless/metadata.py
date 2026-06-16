@@ -26,7 +26,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ..._pydantic_helpers import OptionalNonEmptyList
+from ..._helpers import OptionalNonEmptyList
 from .table_schema import TableSchema
 
 # Shared config: permissive and whitespace-trimming, matching `fields.py` /

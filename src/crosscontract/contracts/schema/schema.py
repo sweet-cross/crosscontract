@@ -8,7 +8,7 @@ import pandera.pandas as pa
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import MetaData, Table
 
-from ..utils import read_yaml_or_json_file
+from ..._helpers import read_yaml_or_json_file
 from .field_descriptors import FieldDescriptors
 from .fields import DateTimeField, IntegerField, ListField, NumberField, StringField
 from .reference import ForeignKeys, PrimaryKey
