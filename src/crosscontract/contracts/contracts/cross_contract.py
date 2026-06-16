@@ -2,6 +2,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
+# from .metadata_models import Contributor, DataSource, License
+from ..._standards.frictionless import Contributor, License, Source
 from ..schema import (
     DimensionSchema,
     FlexibleDimensionSchema,
@@ -9,7 +11,6 @@ from ..schema import (
     ValueVariableSchema,
 )
 from .base_contract import BaseContract, BaseMetaData
-from .metadata_models import Contributor, DataSource, License
 from .resolvers import ContractResolver
 
 AnyTableSchema = Annotated[
@@ -58,7 +59,7 @@ class CrossMetaData(BaseMetaData):
         default=None, description="A list of contributors to the data contract."
     )
 
-    sources: list[DataSource] | None = Field(
+    sources: list[Source] | None = Field(
         default=None, description="A list of data sources for the data contract."
     )
 
