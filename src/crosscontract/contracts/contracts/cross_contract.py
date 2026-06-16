@@ -2,6 +2,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
+from ..._pydantic_helpers import OptionalNonEmptyList
 from ..schema import (
     DimensionSchema,
     FlexibleDimensionSchema,
@@ -54,7 +55,7 @@ class CrossMetaData(BaseMetaData):
         ),
     )
 
-    contributors: list[Contributor] | None = Field(
+    contributors: OptionalNonEmptyList[Contributor] = Field(
         default=None, description="A list of contributors to the data contract."
     )
 

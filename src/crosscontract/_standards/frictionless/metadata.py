@@ -26,6 +26,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ..._pydantic_helpers import OptionalNonEmptyList
 from .table_schema import TableSchema
 
 # Shared config: permissive and whitespace-trimming, matching `fields.py` /
@@ -309,7 +310,7 @@ class PackageMetaData(BaseMetaData):
         default=None,
         description="The RFC3339 datetime on which this descriptor was created.",
     )
-    contributors: list[Contributor] = Field(
+    contributors: OptionalNonEmptyList[Contributor] = Field(
         default_factory=list,
         description="The contributors to this descriptor.",
     )

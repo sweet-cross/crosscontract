@@ -5,7 +5,8 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from ..._standards.frictionless import PackageMetaData, ResourceMetaData
+from ..._pydantic_helpers import OptionalNonEmptyList
+from ..._standards.frictionless import Contributor, PackageMetaData, ResourceMetaData
 from ...contracts.contracts.base_contract import CONTRACT_NAME_PATTERN
 from ...transformations import FetchSpecMixin
 
@@ -55,6 +56,9 @@ class CrossDataResourceReleaseSpec(ResourceMetaData):
             "If not provided, will be the same as the name of the contract "
             "used for fetching the data."
         ),
+    )
+    contributors: OptionalNonEmptyList[Contributor] = Field(
+        default=None, description="A list of contributors to the data resource."
     )
     data_instructions: DataInstructions = Field(
         description=("Instructions for fetching the data for the data resource."),
