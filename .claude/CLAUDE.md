@@ -113,6 +113,19 @@ A pydantic mirror of the upstream Frictionless standard, distinct from the stric
 - `CrossDataVariable`: holds a fetched `ContractResource` and its resolved `CrossDimension` objects. Main entry point is `get_data()`, which supports filtering, dimension aggregation (by level, target ID list, or custom mapping), title relabeling (`use_titles=True`), and column selection.
 - `CrossDimension`: dimension-specific variable. Exposes `label_map`, `ancestor_maps` (precomputed per-level), and `get_ancestor_map_by_ids()` for aggregation.
 
+### `release/data_package/` — Contract → Frictionless Data Package adapter
+
+A stateless adapter that turns CROSS contracts into a Frictionless Data Package (a zip on disk). It assembles the permissive `_standards.frictionless` `DataResource` / `DataPackage` models directly — there are no bespoke descriptor classes (see ADR 0003).
+
+- `release_specification.py` — the build-recipe spec models: `CrossDataResourceReleaseSpec` (per-resource descriptive overrides + a `DataInstructions` wrapping the `FetchSpecMixin`; `name` defaults to the fetch contract) and `CrossDataPackageReleaseSpec` (authored package metadata + `resources`, with a unique-resource-name validator).
+- `create_data_package.py` — `create_data_package(registry, release_spec, fn_out)`: the slim orchestrator. Loads the spec from a YAML/JSON path (or accepts an instance), then delegates.
+- `_resolve_resource.py` — `fetch_data` (fetch via the registry's trusted path), `build_data_resource` (overlay contract metadata with the spec field-by-field, embed the contract `schema`, derive `path`/`profile` from `format`), and `resolve_resources` (the per-resource loop: empty data is warned-and-skipped; an all-empty release raises).
+- `_resolve_package.py` — `save_data_package`: writes each resource's data file plus `datapackage.json` and `datapackage.yaml` into the output zip.
+
+### `_helpers/` — Internal, dependency-free helpers
+
+Not re-exported from the top-level package. `_pydantic.py` holds reusable pydantic types (`OptionalNonEmptyList`, which collapses `[]`→`None` for Frictionless `minItems: 1` optional arrays); `_io.py` holds `read_yaml_or_json_file` and `dump_to_file`.
+
 ### Key design patterns
 
 - **Discriminated unions**: `contract_type` on `CrossContract` maps 1:1 to `table_type` on the schema. The `_inject_table_type` validator bridges them automatically.

@@ -26,6 +26,22 @@ egress-only remap is safe but leaves the two vocabularies out of sync. Note `key
 also carries `minItems: 1`, so empty lists must collapse to omitted (same pattern as the
 package `_empty_list_to_none` validator).
 
+### Release adapter follow-ups
+
+Deferred while landing the first `create_data_package` draft:
+
+- **Accept `CrossClient` as `source`.** `create_data_package` currently takes a
+  `CrossRegistry` directly; ADR 0003's intended signature also accepts a
+  `CrossClient` (promoted via `CrossRegistry(client=source)`).
+- **Dimension egress.** A resource referencing a Dimension contract routes through
+  `var.data`, so `filters` / `aggregation` are silently ignored. Decide whether to
+  raise when they are set for a dimension, and add auto-inclusion of referenced
+  dimensions as their own resources (the `# todo: Collect dimensions` marker in
+  [_resolve_resource.py](../src/crosscontract/release/data_package/_resolve_resource.py)).
+- **Narrow error handling.** `fetch_data` wraps *every* exception from `get_data`
+  as `RuntimeError`; unknown-column errors from `filters`/`aggregation` should
+  propagate as-is instead.
+
 ## Related context (not TODO items)
 
 - The release layer is a contract → Frictionless adapter; `CrossDataResource` /

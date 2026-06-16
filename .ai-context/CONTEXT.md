@@ -185,8 +185,8 @@ default from).
 _Avoid_: export, dump, builder (when meaning the whole adapter)
 
 **Release spec**:
-The **Build spec** for a release — a **DataPackageSpec** (authored package metadata) plus a
-list of **DataResourceSpec** (per-resource metadata overrides, the chosen `format`, and the
+The **Build spec** for a release — a **CrossDataPackageReleaseSpec** (authored package metadata) plus a
+list of **CrossDataResourceReleaseSpec** (per-resource metadata overrides, the chosen `format`, and the
 **fetch** instructions). Names the resources to pull and how; the **Release adapter**
 consumes it.
 _Avoid_: release specification, descriptor (the spec is the recipe, not the output)
@@ -233,8 +233,8 @@ _Avoid_: spec (unqualified — ambiguous with **Data specification**)
   path. **Data providers** write, **Data consumers** read.
 - A **Data Resource** is a **Contract** + a **Data specification**; a **Data Package**
   bundles many **Data Resources** for distribution.
-- The **Release adapter** consumes a **Release spec** (a **DataPackageSpec** + many
-  **DataResourceSpec**) and a **Registry**, fetches each **Variable**'s data and **Contract**
+- The **Release adapter** consumes a **Release spec** (a **CrossDataPackageReleaseSpec** + many
+  **CrossDataResourceReleaseSpec**) and a **Registry**, fetches each **Variable**'s data and **Contract**
   through a **ContractResource**, and emits a Frictionless **Data Package** (zip) — overriding
   contract metadata per resource and authoring package metadata wholesale.
 - A **Build spec** names one or more **Variables** and an ordered list of

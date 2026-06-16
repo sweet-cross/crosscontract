@@ -2,12 +2,17 @@
 
 The release layer is an **adapter** from CROSS **Contracts** to a Frictionless
 **Data Package**, parameterised by how each resource's data is obtained. It holds
-only specification models — `DataPackageSpec` and `DataResourceSpec` — plus a
-single `create_data_package(spec, source: CrossClient | CrossRegistry, fn_out)`
-function that fetches through the **Registry**, overlays the spec, and writes a
-zip. Its output type is the faithful, permissive `_standards.frictionless`
-`DataResource` / `DataPackage` directly. We **retired** the bespoke
-`CrossDataResource` and `CrossDataPackage` descriptor classes.
+only specification models — `CrossDataPackageReleaseSpec` and
+`CrossDataResourceReleaseSpec` — plus a single
+`create_data_package(registry: CrossRegistry, release_spec, fn_out)` function that
+fetches through the **Registry**, overlays the spec, and writes a zip. Its output
+type is the faithful, permissive `_standards.frictionless` `DataResource` /
+`DataPackage` directly. We **retired** the bespoke `CrossDataResource` and
+`CrossDataPackage` descriptor classes.
+
+> Accepting a `CrossClient` as `source` (promoted to a `CrossRegistry`) is the
+> intended end state but **not yet implemented**: the current signature takes a
+> `CrossRegistry` directly.
 
 ## Why
 
@@ -21,10 +26,12 @@ removes both problems.
 The CROSS restriction we *do* care about — the file description being correct —
 moves to where it can't be violated rather than living in a descriptor class:
 
-- `format` is a strict `Literal["csv", "parquet"]` on `DataResourceSpec`.
-- `create_data_package` derives `path` (`data/<name>.<ext>`) and `profile` from
-  that `format`, so filename/format consistency holds by construction — there is
-  no way to express a mismatch.
+- `format` is a strict `Literal["csv", "parquet"]` on the resource spec's `fetch`
+  instructions.
+- `create_data_package` derives `path` (a flat `<name>.<ext>`) and `profile`
+  (`tabular-data-resource` for csv, `data-resource` for parquet) from that
+  `format`, so filename/format consistency holds by construction — there is no way
+  to express a mismatch.
 
 ## Consequences
 
@@ -42,4 +49,8 @@ moves to where it can't be violated rather than living in a descriptor class:
   name.
 - **`encoding` is fixed at `utf-8`** and not exposed on the spec.
 - **Output is a single zip** written to a caller-chosen path; whether to extract
-  it is the caller's concern.
+  it is the caller's concern. The zip carries the descriptor as both
+  `datapackage.json` (canonical) and `datapackage.yaml` (a human-readable twin).
+- **A release must yield at least one non-empty resource.** Resources whose
+  fetched data is empty are warned and skipped; if *every* resource is skipped,
+  `create_data_package` raises rather than emitting an empty package.

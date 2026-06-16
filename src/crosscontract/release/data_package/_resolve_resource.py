@@ -143,4 +143,9 @@ def resolve_resources(
             "data": df,
         }
     # todo: Collect dimensions to also export them
+
+    if not my_resources:
+        raise ValueError(
+            "No resources to release: every resource resolved to empty data."
+        )
     return my_resources

@@ -1,3 +1,4 @@
+import warnings
 from unittest.mock import MagicMock
 
 import pandas as pd
@@ -139,16 +140,31 @@ class TestResolveResources:
             assert isinstance(result[name]["data_resource"], DataResource)
             pd.testing.assert_frame_equal(result[name]["data"], df)
 
-    def test_empty_dataframe_is_warned_and_skipped(
+    def test_empty_resource_is_warned_and_skipped(
         self, make_package_spec, make_data_variable
     ):
-        spec = make_package_spec(("res_a",))
-        registry = FakeRegistry({"res_a": make_data_variable(pd.DataFrame())})
+        spec = make_package_spec(("res_empty", "res_ok"))
+        registry = FakeRegistry(
+            {
+                "res_empty": make_data_variable(pd.DataFrame()),
+                "res_ok": make_data_variable(pd.DataFrame({"id": ["a"]})),
+            }
+        )
 
         with pytest.warns(UserWarning, match="is empty"):
             result = resolve_resources(registry, spec)
 
-        assert result == {}
+        assert set(result) == {"res_ok"}
+
+    def test_all_empty_raises(self, make_package_spec, make_data_variable):
+        spec = make_package_spec(("res_a",))
+        registry = FakeRegistry({"res_a": make_data_variable(pd.DataFrame())})
+
+        # the empty-skip warning is asserted in the test above; silence it here
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            with pytest.raises(ValueError, match="No resources to release"):
+                resolve_resources(registry, spec)
 
     def test_duplicate_resource_name_raises(
         self, make_package_spec, make_resource_spec, make_data_variable
