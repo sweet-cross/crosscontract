@@ -4,7 +4,7 @@
 - `_io` — file readers (`read_yaml_or_json_file`).
 """
 
-from ._io import read_yaml_or_json_file
+from ._io import dump_to_file, read_yaml_or_json_file
 from ._pydantic import OptionalNonEmptyList
 
-__all__ = ["OptionalNonEmptyList", "read_yaml_or_json_file"]
+__all__ = ["OptionalNonEmptyList", "dump_to_file", "read_yaml_or_json_file"]

@@ -24,7 +24,14 @@ to reference `DataResource` and the two files stay free of circular imports.
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from ..._helpers import OptionalNonEmptyList
 from .table_schema import TableSchema
@@ -170,8 +177,12 @@ class BaseMetaData(BaseModel):
         default=None,
         description="The home on the web related to this descriptor.",
     )
-    sources: list[Source] = Field(
-        default_factory=list,
+    # `sources` is Frictionless `minItems: 0`: an empty list is valid, so it is
+    # not collapsed like the `minItems: 1` fields (`licenses`, `contributors`,
+    # `keywords`). It is still optional and defaults to `None` so an unset value
+    # is omitted under `exclude_none` rather than emitted as `[]`.
+    sources: list[Source] | None = Field(
+        default=None,
         description="The raw sources for this descriptor.",
     )
     licenses: OptionalNonEmptyList[License] = Field(
@@ -235,6 +246,20 @@ class FileMetaData(BaseModel):
             Any: A list when a bare string was given, else `value` unchanged.
         """
         return _to_list(value)
+
+    @field_serializer("path")
+    def _path_to_scalar(self, value: list[str]) -> str | list[str]:
+        """Emit a scalar for a single path, mirroring the input normalization.
+
+        A bare string `path` is canonicalized to a one-element list on input
+        (see `_path_to_list`). This collapses a single-element list back to the
+        scalar form on output so a `path` authored as a string round-trips as a
+        string. Multipart paths (and the empty default) serialize as the array.
+
+        Returns:
+            str | list[str]: The single path as a string, or the list unchanged.
+        """
+        return value[0] if len(value) == 1 else value
 
     @model_validator(mode="after")
     def _require_data_or_path(self) -> "FileMetaData":

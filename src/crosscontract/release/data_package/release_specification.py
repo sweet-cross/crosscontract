@@ -109,3 +109,11 @@ class CrossDataPackageReleaseSpec(PackageMetaData):
             "MUST contain at least one resource specification."
         ),
     )
+
+    @model_validator(mode="after")
+    def _validate_unique_resource_names(self) -> Self:
+        """Validate that all resource names in the package are unique."""
+        resource_names = [res.name for res in self.resources]
+        if len(resource_names) != len(set(resource_names)):
+            raise ValueError("All resource names in the package must be unique.")
+        return self

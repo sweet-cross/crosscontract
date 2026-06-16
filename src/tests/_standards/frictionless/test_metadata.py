@@ -66,6 +66,17 @@ class TestFileMetaData:
     def test_path_list_is_unchanged(self):
         assert FileMetaData(path=["a.csv", "b.csv"]).path == ["a.csv", "b.csv"]
 
+    def test_single_path_serializes_as_scalar(self):
+        assert FileMetaData(path="file.csv").model_dump()["path"] == "file.csv"
+
+    def test_multipart_path_serializes_as_list(self):
+        dumped = FileMetaData(path=["a.csv", "b.csv"]).model_dump()
+        assert dumped["path"] == ["a.csv", "b.csv"]
+
+    def test_string_path_roundtrips_as_string(self):
+        original = FileMetaData(path="file.csv")
+        assert FileMetaData.model_validate(original.model_dump()).path == ["file.csv"]
+
     def test_data_only_is_valid(self):
         binding = FileMetaData(data=[{"x": 1}])
         assert binding.path == []
@@ -129,6 +140,16 @@ class TestPackageMetaData:
         meta = PackageMetaData()
         assert meta.name is None
         assert meta.profile == "data-package"
+
+    def test_optional_lists_default_to_none_and_are_omitted(self):
+        meta = PackageMetaData(name="my-package")
+        assert meta.sources is None
+        assert meta.licenses is None
+        assert meta.contributors is None
+        assert meta.keywords is None
+        dumped = meta.model_dump(exclude_none=True)
+        for key in ("sources", "licenses", "contributors", "keywords"):
+            assert key not in dumped
 
     def test_name_pattern_is_enforced(self):
         with pytest.raises(ValidationError):
