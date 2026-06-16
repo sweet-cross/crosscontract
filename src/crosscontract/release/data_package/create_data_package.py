@@ -80,7 +80,7 @@ def _build_data_resource(
             file_metadata = FileMetaData(
                 path=resource_spec.name + ".parquet", format="parquet"
             )
-            profile = "tabular-data-resource"
+            profile = "data-resource"
 
     contract_data = var.contract_resource.contract.model_dump(
         exclude={"contract_type"}, exclude_none=True, exclude_unset=True, mode="json"
@@ -95,7 +95,11 @@ def _build_data_resource(
     )
     spec_data["profile"] = profile
 
-    metadata = {**contract_data, **spec_data, **file_metadata.model_dump()}
+    metadata = {
+        **contract_data,
+        **spec_data,
+        **file_metadata.model_dump(exclude_none=True, mode="json"),
+    }
     fl_resource = DataResource(**metadata)
     return fl_resource
 
@@ -138,10 +142,15 @@ def _save_data_package(
                     df.to_parquet(out_path, index=False)
             all_resources.append(data_resource)
         package_descriptor = DataPackage(
-            **release_spec.model_dump(exclude={"resources"}),
+            **release_spec.model_dump(
+                exclude={"resources"},
+                exclude_none=True,
+                exclude_unset=True,
+                mode="json",
+            ),
             resources=all_resources,
         )
-        _data = package_descriptor.model_dump(exclude_unset=True)
+        _data = package_descriptor.model_dump(exclude_unset=True, mode="json")
         dump_to_file(_data, tmp_dir / "datapackage.json")
         dump_to_file(_data, tmp_dir / "datapackage.yaml")
         shutil.make_archive(fn_out, "zip", tmp_dir_path)
