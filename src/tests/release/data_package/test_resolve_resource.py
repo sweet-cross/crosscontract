@@ -8,9 +8,6 @@ from crosscontract.release.data_package._resolve_resource import (
     build_data_resource,
     fetch_data,
 )
-from crosscontract.release.data_package.release_specification import (
-    CrossDataResourceReleaseSpec,
-)
 from crosscontract.transformations import FetchSpecMixin
 
 
@@ -22,24 +19,6 @@ class FakeRegistry:
 
     def __getitem__(self, key):
         return self._variables[key]
-
-
-def _resource_spec(
-    contract: str = "my_resource", fmt: str = "csv", **overrides
-) -> CrossDataResourceReleaseSpec:
-    """Build a resource spec (name defaults to its fetch contract)."""
-    data = {
-        "data_instructions": {"fetch": {"contract": contract, "format": fmt}},
-        **overrides,
-    }
-    return CrossDataResourceReleaseSpec.model_validate(data)
-
-
-def _var_for_contract(contract) -> MagicMock:
-    """A variable mock exposing `contract_resource.contract`."""
-    var = MagicMock()
-    var.contract_resource.contract = contract
-    return var
 
 
 class TestFetchData:
@@ -83,30 +62,32 @@ class TestFetchData:
 
 
 class TestBuildDataResource:
-    def test_csv_path_format_and_profile(self, contract_factory):
-        contract = contract_factory.build()
-        resource = build_data_resource(
-            _resource_spec(fmt="csv"), _var_for_contract(contract)
-        )
+    def test_csv_path_format_and_profile(
+        self, make_resource_spec, make_var_for_contract, contract_factory
+    ):
+        var = make_var_for_contract(contract_factory.build())
+        resource = build_data_resource(make_resource_spec(fmt="csv"), var)
 
         assert resource.name == "my_resource"
         assert resource.path == ["my_resource.csv"]
         assert resource.format == "csv"
         assert resource.profile == "tabular-data-resource"
 
-    def test_parquet_path_format_and_profile(self, contract_factory):
-        contract = contract_factory.build()
-        resource = build_data_resource(
-            _resource_spec(fmt="parquet"), _var_for_contract(contract)
-        )
+    def test_parquet_path_format_and_profile(
+        self, make_resource_spec, make_var_for_contract, contract_factory
+    ):
+        var = make_var_for_contract(contract_factory.build())
+        resource = build_data_resource(make_resource_spec(fmt="parquet"), var)
 
         assert resource.path == ["my_resource.parquet"]
         assert resource.format == "parquet"
         assert resource.profile == "data-resource"
 
-    def test_schema_embedded_and_cross_fields_dropped(self, contract_factory):
-        contract = contract_factory.build()
-        resource = build_data_resource(_resource_spec(), _var_for_contract(contract))
+    def test_schema_embedded_and_cross_fields_dropped(
+        self, make_resource_spec, make_var_for_contract, contract_factory
+    ):
+        var = make_var_for_contract(contract_factory.build())
+        resource = build_data_resource(make_resource_spec(), var)
 
         assert resource.table_schema is not None
         dumped = resource.model_dump(by_alias=True)
@@ -114,24 +95,25 @@ class TestBuildDataResource:
         assert "tableschema" not in dumped
         assert "contract_type" not in dumped
 
-    def test_spec_field_overrides_contract(self, contract_factory):
-        contract = contract_factory.build(title="Contract Title")
-        spec = _resource_spec(title="Spec Title")
-
-        resource = build_data_resource(spec, _var_for_contract(contract))
+    def test_spec_field_overrides_contract(
+        self, make_resource_spec, make_var_for_contract, contract_factory
+    ):
+        var = make_var_for_contract(contract_factory.build(title="Contract Title"))
+        resource = build_data_resource(make_resource_spec(title="Spec Title"), var)
 
         assert resource.title == "Spec Title"
 
-    def test_unset_spec_field_inherits_contract(self, contract_factory):
+    def test_unset_spec_field_inherits_contract(
+        self, make_resource_spec, make_var_for_contract, contract_factory
+    ):
         contract = contract_factory.build(description="Contract Description")
-        spec = _resource_spec()  # description left unset
-
-        resource = build_data_resource(spec, _var_for_contract(contract))
+        var = make_var_for_contract(contract)
+        resource = build_data_resource(make_resource_spec(), var)
 
         assert resource.description == "Contract Description"
 
-    def test_unsupported_format_raises(self):
-        spec = _resource_spec()
+    def test_unsupported_format_raises(self, make_resource_spec):
+        spec = make_resource_spec()
         # Bypass the Literal["csv", "parquet"] guard to reach the defensive
         # branch (FetchSpecMixin has no validate_assignment).
         spec.data_instructions.fetch.format = "xml"

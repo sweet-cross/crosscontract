@@ -32,7 +32,7 @@ def test_aggregation_shapes():
             "scenario": {"level": 2, "keep": ["x"]},
             "product": ["a", "b"],
             "raw": {"leaf_1": "group_x"},
-        }
+        },
     )
     assert spec.get_data_kwargs == {
         "filters": None,
