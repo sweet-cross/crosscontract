@@ -8,6 +8,7 @@ from ..._standards.frictionless import (
     FileMetaData,
 )
 from ...registry import CrossRegistry
+from ...registry.variables.base_variable import CrossBaseVariable
 from ...registry.variables.data_variable import CrossDataVariable
 from ...transformations import FetchSpecMixin
 from .release_specification import (
@@ -19,7 +20,7 @@ from .release_specification import (
 def fetch_data(
     registry: CrossRegistry,
     fetch_spec: FetchSpecMixin,
-) -> tuple[CrossDataVariable, pd.DataFrame]:
+) -> tuple[CrossBaseVariable, pd.DataFrame]:
     """Given a resource release specification, fetch the data according to the
     instructions in the spec.
 
