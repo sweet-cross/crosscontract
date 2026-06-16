@@ -1,6 +1,11 @@
-from .data_package import CrossDataPackage, CrossDataResource
+from .data_package import (
+    CrossDataPackageReleaseSpec,
+    CrossDataResourceReleaseSpec,
+    create_data_package,
+)
 
 __all__ = [
-    "CrossDataResource",
-    "CrossDataPackage",
+    "CrossDataPackageReleaseSpec",
+    "create_data_package",
+    "CrossDataResourceReleaseSpec",
 ]

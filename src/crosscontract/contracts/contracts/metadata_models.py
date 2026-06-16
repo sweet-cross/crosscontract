@@ -1,31 +1,32 @@
-from typing import Literal, Self
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl, model_validator
+from pydantic import ConfigDict, EmailStr, Field
+
+from ..._standards.frictionless import Contributor as FLContributor
+from ..._standards.frictionless import License as FLLicense
+from ..._standards.frictionless import Source as FLSource
 
 ContributorRoles = Literal["author", "maintainer", "contributor"]
 
 
-class Contributor(BaseModel):
+class Contributor(FLContributor):
     """
     A contributor to the data contract.
 
     Attributes:
         title (str): The name of the contributor.
-        email (str | None): The email address of the contributor.
+        email (EmailStr | None): The email address of the contributor.
         path (str | None): A URL to the contributor's profile or homepage.
-        role (str | None): The role of the contributor ("author", "maintainer",
-            "contributor").
-            Defaults to "contributor" if not specified.
+        role (ContributorRoles): The role of the contributor ("author",
+            "maintainer", "contributor"). Defaults to "contributor" if not specified.
         organization (str | None): The organization the contributor is affiliated with.
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
-    title: str = Field(description="The name of the contributor.")
     email: EmailStr | None = Field(
         default=None, description="The email of the contributor."
     )
-    path: HttpUrl | str | None = Field(
+    path: str | None = Field(
         default=None, description="A URL to the contributor's profile or homepage."
     )
     role: ContributorRoles = Field(
@@ -35,24 +36,21 @@ class Contributor(BaseModel):
             "author, maintainer, contributor."
         ),
     )
-    organization: str | None = Field(
-        default=None, description="The organization the contributor is affiliated with."
-    )
 
 
-class DataSource(BaseModel):
+class Source(FLSource):
     """
     A data source for the data contract.
 
     Attributes:
         title (str): The name of the data source.
         path (str | None): A URL or file path to the data source.
-        email (str | None): The email address of the data source contact.
+        email (EmailStr | None): The email address of the data source contact.
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     title: str = Field(description="The name of the data source.")
-    path: HttpUrl | str | None = Field(
+    path: str | None = Field(
         default=None, description="A URL or file path to the data source."
     )
     email: EmailStr | None = Field(
@@ -60,7 +58,7 @@ class DataSource(BaseModel):
     )
 
 
-class License(BaseModel):
+class License(FLLicense):
     """
     A license for the data package or resource.
 
@@ -71,30 +69,6 @@ class License(BaseModel):
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
-    name: str | None = Field(
-        default=None,
-        description=(
-            "MUST be an Open Definition license identifier (e.g., 'CC-BY-4.0')."
-        ),
-        pattern=r"^([-a-zA-Z0-9._])+$",
+    path: str | None = Field(
+        default=None, description="A URL or file path to the license text."
     )
-
-    path: HttpUrl | str | None = Field(
-        default=None,
-        description=(
-            "A fully qualified URL, or a POSIX file path to the license text."
-        ),
-    )
-
-    title: str | None = Field(
-        default=None, description="A human-readable title for the license."
-    )
-
-    @model_validator(mode="after")
-    def check_name_or_path(self) -> Self:
-        if not self.name and not self.path:
-            raise ValueError(
-                "A License object must contain at least a 'name' or a 'path' property."
-            )
-        return self

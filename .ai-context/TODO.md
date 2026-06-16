@@ -9,24 +9,19 @@ something while working, append it here rather than expanding the PR in front of
 
 ## Open
 
-### Move `to_server` / `from_server` off the contract model
+### Add descendant traversal to `CrossDimension`
 
-`CrossContract.to_server()` / `from_server()`
-([cross_contract.py](../src/crosscontract/contracts/contracts/cross_contract.py))
-are transport-shaped — they produce/consume the platform's server wire payload — yet
-live on the domain/schema model. They belong nearer the client transport layer
-(`crossclient`, e.g. `ContractService`).
+`CrossDimension` ([dimension.py](../src/crosscontract/registry/variables/dimension.py))
+can walk **up** the tree (`ancestor_maps`, `_ancestry_chains`) but has no way to walk
+**down**. Add a `get_descendants(node_id, include_self=False)` (all children,
+grandchildren, …) and a `get_children(node_id)` (direct children only).
 
-This is a **split, not a relocation**: the methods also encode a domain rule (strip /
-restore the `tableschema` for `Dimension` contracts because the server owns a
-Dimension's schema). Keep that "which fields are platform-owned" invariant expressed
-on the model; move only the wire mechanics to the client.
-
-Knock-on cleanup: once the transport methods leave the model, the defensive
-`to_server` / `from_server` overrides on `CrossDataResource`
-([data_resource.py](../src/crosscontract/release/data_package/data_resource.py)) and
-their tests (`test_to_server_is_disabled`, `test_from_server_is_disabled`) can be
-removed — they exist only to stop a release artifact from inheriting transport methods.
+Descendants are the inverse of the cached ancestry chains — a node's descendants are
+exactly the nodes whose chain contains it — so `get_descendants` can reuse
+`_ancestry_chains` with no new cache; `get_children` is a `parent_id == node_id` filter
+on `self.data`. If repeated bulk queries become hot, precompute a `parent → [children]`
+adjacency dict (mirroring the `ancestor_maps` precompute) instead. Pairs with the
+aggregation layer: `get_descendants(x)` yields the id set for "everything under x".
 
 ### Decide whether `tags` should be `keywords` at the contract level
 
@@ -45,8 +40,26 @@ egress-only remap is safe but leaves the two vocabularies out of sync. Note `key
 also carries `minItems: 1`, so empty lists must collapse to omitted (same pattern as the
 package `_empty_list_to_none` validator).
 
+### Release adapter follow-ups
+
+Deferred while landing the first `create_data_package` draft:
+
+- **Accept `CrossClient` as `source`.** `create_data_package` currently takes a
+  `CrossRegistry` directly; ADR 0003's intended signature also accepts a
+  `CrossClient` (promoted via `CrossRegistry(client=source)`).
+- **Dimension egress.** A resource referencing a Dimension contract routes through
+  `var.data`, so `filters` / `aggregation` are silently ignored. Decide whether to
+  raise when they are set for a dimension, and add auto-inclusion of referenced
+  dimensions as their own resources (the `# todo: Collect dimensions` marker in
+  [_resolve_resource.py](../src/crosscontract/release/data_package/_resolve_resource.py)).
+- **Narrow error handling.** `fetch_data` wraps *every* exception from `get_data`
+  as `RuntimeError`; unknown-column errors from `filters`/`aggregation` should
+  propagate as-is instead.
+
 ## Related context (not TODO items)
 
-- The `CrossDataResource.from_contract` + `Dimension` egress corner is **intentionally
-  left open**, not a bug. See the decision recorded in
-  [CONTEXT.md](./CONTEXT.md) under "Flagged ambiguities".
+- The release layer is a contract → Frictionless adapter; `CrossDataResource` /
+  `CrossDataPackage` are retired. See [ADR 0003](./adrs/0003-release-is-a-contract-to-frictionless-adapter.md)
+  and the "Release adapter" terms in [CONTEXT.md](./CONTEXT.md). The old `from_contract`
+  + `Dimension` egress corner is **resolved** by routing through the registry's
+  trusted-source path (CONTEXT.md "Flagged ambiguities").

@@ -158,20 +158,46 @@ the root, `other_<parent_id>` at each sub-level — so uncategorised data has a 
 ### Release and distribution
 
 **Data Resource**:
-A **Contract** bound to a physical data file — the same descriptor *plus* a **Data
-specification**, so it is self-contained and ships alongside its file. A **Contract** *is*
-a Data Resource minus the data specification; that is why `CrossDataResource` extends the
-contract rather than wrapping it.
+A **Contract** bound to a physical data file — the contract's descriptive metadata *plus*
+a **Data specification**, so it is self-contained and ships alongside its file. There is no
+bespoke CROSS class for this: a Data Resource *is* a Frictionless resource descriptor,
+emitted by the **Release adapter**.
 _Avoid_: file descriptor, dataset (when meaning the bound resource)
 
 **Data specification**:
 The file-binding part a bare **Contract** lacks — `path`, `format` (`csv` | `parquet`),
 `encoding`, and the derived `profile` — that turns a **Contract** into a **Data Resource**.
+The **Release adapter** owns it: `format` is chosen, the rest derived (so the file
+description is correct by construction).
 
-**Data Package** (foreseen):
-A bundle of **Data Resources** plus package-level metadata, distributed as a single (zip)
-archive. The planned public entry point fetches data from the **CROSS platform** and
-assembles the package.
+**Data Package**:
+A bundle of **Data Resources** plus package-level metadata, distributed as a single zip
+archive. The realized output of the **Release adapter**: a Frictionless package descriptor
+plus its data files, written to disk as a zip.
+
+**Release adapter**:
+The translation from CROSS **Contracts** to a Frictionless **Data Package**, parameterised
+by how each resource's data is obtained. It fetches through the **Registry**, overlays the
+**Release spec**, and emits Frictionless descriptors directly — there is no parallel CROSS
+descriptor hierarchy. Resource descriptive metadata **overrides** the contract's defaults
+field-by-field; package metadata is **authored** wholesale (a package has no contract to
+default from).
+_Avoid_: export, dump, builder (when meaning the whole adapter)
+
+**Release spec**:
+The **Build spec** for a release — a **CrossDataPackageReleaseSpec** (authored package metadata) plus a
+list of **CrossDataResourceReleaseSpec** (per-resource metadata overrides, the chosen `format`, and the
+**fetch** instructions). Names the resources to pull and how; the **Release adapter**
+consumes it.
+_Avoid_: release specification, descriptor (the spec is the recipe, not the output)
+
+**Frictionless descriptor** (the permissive mirror):
+A faithful, permissive model of the *upstream* Frictionless `Data Resource` / `Data
+Package` — accepts unknown keys, imposes no CROSS rules. This *is* the **Release adapter**'s
+output type (so the release is Frictionless-compliant by construction) and also serves
+interop / round-tripping of arbitrary descriptors. The CROSS restriction lives upstream in
+the **Contract** and in the adapter's file-binding guard, not in a separate strict
+descriptor class.
 
 ### Transformations and build specs
 
@@ -185,9 +211,9 @@ _Avoid_: spec, block (for a single transformation — those name a **Build spec*
 **Build spec**:
 A declarative description (YAML) of an artifact to assemble from platform data — which
 **Variable**(s) to load and the ordered **Transformations** to apply to each. Concrete
-forms (a data-package spec, a plot spec, …) each admit their own permitted set of
-**Transformations**. Distinct from a **Data specification**, which is the file-binding
-part of a single **Data Resource**, not a build recipe.
+forms (the **Release spec** for a data package, a plot spec, …) each admit their own
+permitted set of **Transformations**. Distinct from a **Data specification**, which is the
+file-binding part of a single **Data Resource**, not a build recipe.
 _Avoid_: spec (unqualified — ambiguous with **Data specification**)
 
 ## Relationships
@@ -206,7 +232,11 @@ _Avoid_: spec (unqualified — ambiguous with **Data specification**)
 - The **Registry** reads **Variables** from the platform; the **Client** is the write
   path. **Data providers** write, **Data consumers** read.
 - A **Data Resource** is a **Contract** + a **Data specification**; a **Data Package**
-  (foreseen) bundles many **Data Resources** for distribution.
+  bundles many **Data Resources** for distribution.
+- The **Release adapter** consumes a **Release spec** (a **CrossDataPackageReleaseSpec** + many
+  **CrossDataResourceReleaseSpec**) and a **Registry**, fetches each **Variable**'s data and **Contract**
+  through a **ContractResource**, and emits a Frictionless **Data Package** (zip) — overriding
+  contract metadata per resource and authoring package metadata wholesale.
 - A **Build spec** names one or more **Variables** and an ordered list of
   **Transformations** per variable; each kind of **Build spec** permits its own subset of
   **Transformations**. A **Transformation** touches tabular data only — never
@@ -235,17 +265,19 @@ _Avoid_: spec (unqualified — ambiguous with **Data specification**)
 - **"Dimension" — umbrella vs. strict.** Resolved: "Dimension" unqualified means the
   strict hierarchical form; **FlexibleDimension** is the flat sibling. Both share a
   common base, but the default meaning is the hierarchical one.
-- **Dimension schema on release egress — intentionally left open.** Release bundles
-  *already-validated* **Contracts**, so the planned `create_data_package` fetches from the
-  **CROSS platform** through the trusted-source path (`from_server`), which strips and
-  regenerates a **Dimension**'s rigid schema from its template — keeping the **Data
-  Resource** self-contained without re-admitting a supplied dimension schema. The bare
-  `CrossDataResource.from_contract` on a local **Dimension** contract round-trips the
-  materialized schema back through the constructor and is rejected by the dimension
-  rigidity guard. That rejection is a **feature** on ingest (reading a package back into
-  the model must not trust a drifted schema) and is deliberately *not* worked around on
-  this rarely-used egress path. Do not "fix" it by loosening dimension rigidity; if it
-  ever needs closing, route `from_contract` through the same trusted-source mechanism.
+- **Dimension schema on release egress — resolved.** The **Release adapter** fetches every
+  **Contract** through the **Registry**, i.e. through the trusted-source path
+  (`from_server`), which strips and regenerates a **Dimension**'s rigid schema from its
+  template. The adapter embeds *that* trusted schema directly, so the old `from_contract`
+  round-trip — which fed a materialized dimension schema back through the constructor and
+  tripped the rigidity guard — never happens on this path. The rigidity guard remains a
+  **feature** on ingest; do not loosen it.
+- **`ContractResource` vs `CrossDataResource` — resolved.** One word apart, two layers:
+  **`ContractResource`** is the **Registry**/**Client** per-contract fetch handle (wraps a
+  **Contract**, exposes `get_data()`) and is untouched by release work; `CrossDataResource`
+  was the bespoke release descriptor and is **retired** (the **Release adapter** emits a
+  **Frictionless descriptor** instead). When someone says "the release resource", they mean
+  the Frictionless resource descriptor, never the fetch handle.
 - **"spec" was overloaded.** Resolved: a single **Transformation** is *not* "a spec"; the
   declarative manifest that lists variables and transformations is a **Build spec**
   (data-package spec, plot spec). Unqualified "spec" is banned because it also collides

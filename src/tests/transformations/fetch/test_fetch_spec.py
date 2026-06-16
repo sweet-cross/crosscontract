@@ -6,7 +6,7 @@ from crosscontract.transformations.fetch import FetchSpecMixin
 
 def test_empty_collapses_to_none():
     """An unset spec yields the get_data bypass sentinels."""
-    assert FetchSpecMixin().get_data_kwargs == {
+    assert FetchSpecMixin(contract="my-contract").get_data_kwargs == {
         "filters": None,
         "aggregation": None,
     }
@@ -14,7 +14,7 @@ def test_empty_collapses_to_none():
 
 def test_filters_pass_through():
     """Non-empty filters pass through unchanged."""
-    spec = FetchSpecMixin(filters={"region": ["a", "b"]})
+    spec = FetchSpecMixin(contract="my-contract", filters={"region": ["a", "b"]})
     assert spec.get_data_kwargs["filters"] == {"region": ["a", "b"]}
 
 
@@ -25,13 +25,14 @@ def test_aggregation_shapes():
     an explicit `keep` is retained.
     """
     spec = FetchSpecMixin(
+        contract="my-contract",
         aggregation={
             "region": 1,
             "sector": {"level": 0},
             "scenario": {"level": 2, "keep": ["x"]},
             "product": ["a", "b"],
             "raw": {"leaf_1": "group_x"},
-        }
+        },
     )
     assert spec.get_data_kwargs == {
         "filters": None,

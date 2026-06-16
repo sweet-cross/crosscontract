@@ -1,8 +1,12 @@
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from crosscontract.contracts.contracts.base_contract import CONTRACT_NAME_PATTERN
+
 from .aggregation_spec import AggregationSpec
+
+FILE_FORMAT = Literal["csv", "parquet"]
 
 
 class FetchSpecMixin(BaseModel):
@@ -14,6 +18,23 @@ class FetchSpecMixin(BaseModel):
     """
 
     model_config = ConfigDict(extra="forbid")
+
+    contract: str = Field(
+        pattern=CONTRACT_NAME_PATTERN,
+        max_length=100,
+        description=(
+            "A unique identifier for the data contract. Must consist only of "
+            "lowercase alphanumeric characters, '.', '_', and '-'."
+        ),
+    )
+
+    format: FILE_FORMAT = Field(
+        default="csv",
+        description=(
+            "The file format to fetch the data in. Supported formats are 'csv' and "
+            "'parquet'. Defaults to 'csv'."
+        ),
+    )
 
     filters: dict[str, list[Any]] = Field(
         default_factory=dict,
