@@ -1,3 +1,6 @@
+import warnings
+from typing import Any
+
 import pandas as pd
 
 from ..._standards.frictionless import (
@@ -7,7 +10,10 @@ from ..._standards.frictionless import (
 from ...registry import CrossRegistry
 from ...registry.variables.data_variable import CrossDataVariable
 from ...transformations import FetchSpecMixin
-from .release_specification import CrossDataResourceReleaseSpec
+from .release_specification import (
+    CrossDataPackageReleaseSpec,
+    CrossDataResourceReleaseSpec,
+)
 
 
 def fetch_data(
@@ -97,3 +103,43 @@ def build_data_resource(
     }
     fl_resource = DataResource(**metadata)
     return fl_resource
+
+
+def resolve_resources(
+    registry: CrossRegistry, release_spec: CrossDataPackageReleaseSpec
+) -> dict[str, dict[str, Any]]:
+    """Resolve the data for each resource according to the release specification.
+
+    Args:
+        registry (CrossRegistry): The registry to use for validating contract
+            references.
+        release_spec (CrossDataPackageReleaseSpec): The release specification for
+            the data package, including the metadata and data fetching instructions
+            for each resource.
+
+    Returns:
+        dict[str, dict[str, Any]]: A dictionary mapping resource names to their
+            resolved data and metadata.
+            Each value is a dictionary with keys "data_resource" (the Frictionless
+            `DataResource` for the resource) and "data" (the fetched data as a pandas
+            DataFrame).
+    """
+    my_resources: dict[str, dict[str, Any]] = {}
+    for resource_spec in release_spec.resources:
+        fetch_spec = resource_spec.data_instructions.fetch
+        var, df = fetch_data(registry, fetch_spec)
+        if df.empty:
+            warnings.warn(
+                f"Fetched data for contract '{fetch_spec.contract}' is empty. "
+                "Skipping this resource.",
+                stacklevel=2,
+            )
+            continue
+        data_resource = build_data_resource(resource_spec, var)
+        if resource_spec.name in my_resources:
+            raise ValueError(f"Duplicate resource name '{resource_spec.name}' found.")
+        my_resources[resource_spec.name] = {
+            "data_resource": data_resource,
+            "data": df,
+        }
+        # todo: Collect dimensions to also export them
