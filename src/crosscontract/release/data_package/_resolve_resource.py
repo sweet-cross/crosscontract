@@ -61,7 +61,8 @@ def build_data_resource(
             metadata from the release specification with the fetched data.
     """
     # resolve the data according to the instructions in the release spec
-    match resource_spec.data_instructions.fetch.format:
+    format_spec = resource_spec.data_instructions.fetch.format
+    match format_spec:
         case "csv":
             file_metadata = FileMetaData(path=resource_spec.name + ".csv", format="csv")
             profile = "tabular-data-resource"
@@ -70,6 +71,11 @@ def build_data_resource(
                 path=resource_spec.name + ".parquet", format="parquet"
             )
             profile = "data-resource"
+        case _:
+            raise ValueError(
+                f"Unsupported data format '{format_spec}' for "
+                f"resource '{resource_spec.name}'"
+            )
 
     contract_data = var.contract_resource.contract.model_dump(
         exclude={"contract_type"}, exclude_none=True, exclude_unset=True, mode="json"

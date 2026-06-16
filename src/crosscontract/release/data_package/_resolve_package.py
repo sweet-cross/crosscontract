@@ -49,6 +49,11 @@ def save_data_package(
                     df.to_csv(out_path, index=False, encoding=data_resource.encoding)
                 case "parquet":
                     df.to_parquet(out_path, index=False)
+                case _:
+                    raise ValueError(
+                        f"Unsupported data format '{data_resource.format}' for "
+                        f"resource '{data_resource.name}'"
+                    )
             all_resources.append(data_resource)
         package_descriptor = DataPackage(
             **release_spec.model_dump(
