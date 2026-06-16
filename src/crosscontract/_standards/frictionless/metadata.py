@@ -174,8 +174,8 @@ class BaseMetaData(BaseModel):
         default_factory=list,
         description="The raw sources for this descriptor.",
     )
-    licenses: list[License] = Field(
-        default_factory=list,
+    licenses: OptionalNonEmptyList[License] = Field(
+        default=None,
         description="The license(s) under which this descriptor is published.",
     )
 
@@ -311,11 +311,11 @@ class PackageMetaData(BaseMetaData):
         description="The RFC3339 datetime on which this descriptor was created.",
     )
     contributors: OptionalNonEmptyList[Contributor] = Field(
-        default_factory=list,
+        default=None,
         description="The contributors to this descriptor.",
     )
-    keywords: list[str] = Field(
-        default_factory=list,
+    keywords: OptionalNonEmptyList[str] = Field(
+        default=None,
         description="A list of keywords that describe this package.",
     )
     image: str | None = Field(

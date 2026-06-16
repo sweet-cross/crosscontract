@@ -57,6 +57,9 @@ class CrossDataResourceReleaseSpec(ResourceMetaData):
             "used for fetching the data."
         ),
     )
+    # Resource-level contributors are a deliberate CROSS extension (upstream
+    # Frictionless places `contributors` on the package only): a contract may
+    # carry contributors, so a released resource is allowed to as well.
     contributors: OptionalNonEmptyList[Contributor] = Field(
         default=None, description="A list of contributors to the data resource."
     )
