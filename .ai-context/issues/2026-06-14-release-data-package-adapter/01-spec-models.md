@@ -8,14 +8,14 @@ that recipe — the two Pydantic v2 models plus the data-instruction wrapper —
 adapter (later tasks) has a typed input. No dependencies; this is the foundation.
 
 ## Acceptance Criteria
-- [ ] `DataInstructions` wraps `fetch: FetchSpecMixin` (carried over unchanged from the
+- [x] `DataInstructions` wraps `fetch: FetchSpecMixin` (carried over unchanged from the
       retired `release_specification.py`).
-- [ ] `DataResourceSpec` inherits from `_standards.frictionless.ResourceMetaData` with
+- [x] `DataResourceSpec` inherits from `_standards.frictionless.ResourceMetaData` with
       partial overrides: descriptive fields (`name`, `title`, `description`, `homepage`,
       `sources`, `licenses`) all optional; `name` validated by `CONTRACT_NAME_PATTERN`
       (rejects `/` and uppercase) and defaulting to the contract name is deferred to the
       adapter (the field itself is optional here).
-- [ ] `DataResourceSpec` adds `format: Literal["csv", "parquet"] = "csv"` and
+- [x] `DataResourceSpec` adds `format: Literal["csv", "parquet"] = "csv"` and
       `data_instructions: DataInstructions`. `path`/`encoding`/`profile`/`schema` are
       **not** author-settable.
 - [ ] `DataPackageSpec` inherits from `_standards.frictionless.PackageMetaData`:

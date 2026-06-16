@@ -5,10 +5,9 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from ..._standards.frictionless import PackageMetaData, ResourceMetaData
 from ...contracts.contracts.base_contract import CONTRACT_NAME_PATTERN
 from ...transformations import FetchSpecMixin
-from .models_package import CrossDataPackageMetaData
-from .models_resource import CrossDataResourceMetaData
 
 
 class DataInstructions(BaseModel):
@@ -29,11 +28,11 @@ class DataInstructions(BaseModel):
     )
 
 
-class CrossDataResourceReleaseSpec(CrossDataResourceMetaData):
+class CrossDataResourceReleaseSpec(ResourceMetaData):
     """Release specification for a single data resource.
 
     Carries the resource's descriptive metadata (inherited from
-    `CrossDataResourceMetaData`) together with the `DataInstructions` describing
+    `frictionless.ResourceMetaData`) together with the `DataInstructions` describing
     how to fetch its data from the platform. This is a build recipe, not a
     Frictionless descriptor: a later build step pairs it with a resolver to fetch
     the data and materialize the resource.
@@ -43,7 +42,7 @@ class CrossDataResourceReleaseSpec(CrossDataResourceMetaData):
     specification.
     """
 
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(extra="allow", str_strip_whitespace=True)
     # Deliberately relax the inherited required `name` to optional: it defaults
     # to the contract name in `_fill_name_from_contract`.
     name: str | None = Field(  # type: ignore[assignment]
@@ -64,21 +63,26 @@ class CrossDataResourceReleaseSpec(CrossDataResourceMetaData):
     @model_validator(mode="after")
     def _fill_name_from_contract(self) -> Self:
         """If the resource name is not provided, fill it from the contract name."""
+        if self.name is not None:
+            raise NotImplementedError(
+                "Explicit resource names are not supported yet. "
+                "Automatically filling from contract name."
+            )
         self.name = self.name or self.data_instructions.fetch.contract
         return self
 
 
-class CrossDataPackageReleaseSpec(CrossDataPackageMetaData):
+class CrossDataPackageReleaseSpec(PackageMetaData):
     """Release specification for a data package.
 
-    Carries the package-level metadata (inherited from `CrossDataPackageMetaData`)
+    Carries the package-level metadata (inherited from `frictionless.PackageMetaData`)
     together with a `CrossDataResourceReleaseSpec` per resource, each bundling the
     resource's metadata with the `DataInstructions` for fetching its data. This is
     a build recipe, not a Frictionless descriptor: a later build step pairs it with
     a resolver to fetch the data and materialize the package.
     """
 
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(extra="allow", str_strip_whitespace=True)
 
     name: str = Field(
         pattern=CONTRACT_NAME_PATTERN,

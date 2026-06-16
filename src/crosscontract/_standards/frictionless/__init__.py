@@ -4,6 +4,7 @@ Internal: received by consumers via released artifacts, but not re-exported from
 the top-level `crosscontract` package.
 """
 
+from .descriptors import DataPackage, DataResource
 from .fields import (
     AnyField,
     ArrayField,
@@ -15,7 +16,6 @@ from .fields import (
     NumberField,
     StringField,
 )
-from .descriptors import DataPackage, DataResource
 from .metadata import (
     FRICTIONLESS_NAME_PATTERN,
     BaseMetaData,
