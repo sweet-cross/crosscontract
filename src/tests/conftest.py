@@ -11,8 +11,7 @@ class CrossContractFactory(ModelFactory[CrossContract]):
     # set the general contract relying on the default TableSchema
     contract_type = "General"
 
-    # Pinned to a Frictionless-legal lowercase name (see `CONTRACT_NAME_PATTERN`)
-    # so that CrossDataResource can be constructed from any factory build.
+    # Pinned to a Frictionless-legal lowercase name (see `CONTRACT_NAME_PATTERN`).
     name = "my-contract"
 
     @classmethod
