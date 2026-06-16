@@ -2,8 +2,6 @@ from typing import Annotated, Any, Literal
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
-# from .metadata_models import Contributor, DataSource, License
-from ..._standards.frictionless import Contributor, License, Source
 from ..schema import (
     DimensionSchema,
     FlexibleDimensionSchema,
@@ -11,6 +9,7 @@ from ..schema import (
     ValueVariableSchema,
 )
 from .base_contract import BaseContract, BaseMetaData
+from .metadata_models import Contributor, License, Source
 from .resolvers import ContractResolver
 
 AnyTableSchema = Annotated[

@@ -2,8 +2,8 @@ import pytest
 
 from crosscontract.contracts.contracts.metadata_models import (
     Contributor,
-    DataSource,
     License,
+    Source,
 )
 
 
@@ -18,7 +18,7 @@ class TestLicense:
     def test_license_creation_invalid(self):
         with pytest.raises(
             ValueError,
-            match="A License object must contain at least a",
+            match="Value error, A license must define at least one of `name` or",
         ):
             License()
 
@@ -52,20 +52,20 @@ class TestContributor:
             )
 
 
-class TestDataSource:
-    def test_datasource_creation_valid(self):
-        datasource = DataSource(
+class TestSource:
+    def test_source_creation_valid(self):
+        source = Source(
             title="Example Data Source",
             path="https://example.com/data.csv",
         )
-        assert datasource.title == "Example Data Source"
+        assert source.title == "Example Data Source"
 
-    def test_datasource_creation_no_extra(self):
+    def test_source_creation_no_extra(self):
         with pytest.raises(
             ValueError,
             match="extra",
         ):
-            DataSource(
+            Source(
                 title="Example Data Source",
                 path="https://example.com/data.csv",
                 extra="This should not be allowed",
