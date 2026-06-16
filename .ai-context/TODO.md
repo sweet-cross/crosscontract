@@ -9,6 +9,20 @@ something while working, append it here rather than expanding the PR in front of
 
 ## Open
 
+### Add descendant traversal to `CrossDimension`
+
+`CrossDimension` ([dimension.py](../src/crosscontract/registry/variables/dimension.py))
+can walk **up** the tree (`ancestor_maps`, `_ancestry_chains`) but has no way to walk
+**down**. Add a `get_descendants(node_id, include_self=False)` (all children,
+grandchildren, …) and a `get_children(node_id)` (direct children only).
+
+Descendants are the inverse of the cached ancestry chains — a node's descendants are
+exactly the nodes whose chain contains it — so `get_descendants` can reuse
+`_ancestry_chains` with no new cache; `get_children` is a `parent_id == node_id` filter
+on `self.data`. If repeated bulk queries become hot, precompute a `parent → [children]`
+adjacency dict (mirroring the `ancestor_maps` precompute) instead. Pairs with the
+aggregation layer: `get_descendants(x)` yields the id set for "everything under x".
+
 ### Decide whether `tags` should be `keywords` at the contract level
 
 Frictionless uses `keywords` (a `list[str]`, `minItems: 1`) for free-text package/resource

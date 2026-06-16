@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import ConfigDict, EmailStr, Field, HttpUrl
+from pydantic import ConfigDict, EmailStr, Field
 
 from ..._standards.frictionless import Contributor as FLContributor
 from ..._standards.frictionless import License as FLLicense
@@ -16,7 +16,7 @@ class Contributor(FLContributor):
     Attributes:
         title (str): The name of the contributor.
         email (EmailStr | None): The email address of the contributor.
-        path (HttpUrl | str | None): A URL to the contributor's profile or homepage.
+        path (str | None): A URL to the contributor's profile or homepage.
         role (ContributorRoles): The role of the contributor ("author",
             "maintainer", "contributor"). Defaults to "contributor" if not specified.
         organization (str | None): The organization the contributor is affiliated with.
@@ -26,7 +26,7 @@ class Contributor(FLContributor):
     email: EmailStr | None = Field(
         default=None, description="The email of the contributor."
     )
-    path: HttpUrl | str | None = Field(
+    path: str | None = Field(
         default=None, description="A URL to the contributor's profile or homepage."
     )
     role: ContributorRoles = Field(
@@ -44,13 +44,13 @@ class Source(FLSource):
 
     Attributes:
         title (str): The name of the data source.
-        path (HttpUrl | str | None): A URL or file path to the data source.
+        path (str | None): A URL or file path to the data source.
         email (EmailStr | None): The email address of the data source contact.
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     title: str = Field(description="The name of the data source.")
-    path: HttpUrl | str | None = Field(
+    path: str | None = Field(
         default=None, description="A URL or file path to the data source."
     )
     email: EmailStr | None = Field(
@@ -64,11 +64,11 @@ class License(FLLicense):
 
     Attributes:
         name (str | None): An Open Definition license identifier (e.g., "CC-BY-4.0").
-        path (HttpUrl | str | None): A URL or file path to the license text.
+        path (str | None): A URL or file path to the license text.
         title (str | None): A human-readable title for the license.
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-    path: HttpUrl | str | None = Field(
+    path: str | None = Field(
         default=None, description="A URL or file path to the license text."
     )

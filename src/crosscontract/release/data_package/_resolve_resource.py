@@ -52,7 +52,7 @@ def fetch_data(
 
 
 def build_data_resource(
-    resource_spec: CrossDataResourceReleaseSpec, var: CrossDataVariable
+    resource_spec: CrossDataResourceReleaseSpec, var: CrossBaseVariable
 ) -> DataResource:
     """Build a Frictionless `DataResource` from a `CrossDataResourceReleaseSpec` by
     pairing the release specification with the fetched data.
@@ -61,22 +61,25 @@ def build_data_resource(
         resource_spec (CrossDataResourceReleaseSpec): The release specification for
             the data resource, including both the descriptive metadata and the
             data fetching instructions.
-        var (CrossDataVariable): The fetched data variable
+        var (CrossBaseVariable): The fetched data variable (only its
+            `contract_resource.contract` is read here).
 
     Returns:
         DataResource: A Frictionless `DataResource` that pairs the descriptive
             metadata from the release specification with the fetched data.
     """
+    # `name` is guaranteed non-None after `_fill_name_from_contract`.
+    name = resource_spec.name
+    assert name is not None
+
     # resolve the data according to the instructions in the release spec
     format_spec = resource_spec.data_instructions.fetch.format
     match format_spec:
         case "csv":
-            file_metadata = FileMetaData(path=resource_spec.name + ".csv", format="csv")
+            file_metadata = FileMetaData(path=[f"{name}.csv"], format="csv")
             profile = "tabular-data-resource"
         case "parquet":
-            file_metadata = FileMetaData(
-                path=resource_spec.name + ".parquet", format="parquet"
-            )
+            file_metadata = FileMetaData(path=[f"{name}.parquet"], format="parquet")
             profile = "data-resource"
         case _:
             raise ValueError(
@@ -137,9 +140,11 @@ def resolve_resources(
             )
             continue
         data_resource = build_data_resource(resource_spec, var)
-        if resource_spec.name in my_resources:
-            raise ValueError(f"Duplicate resource name '{resource_spec.name}' found.")
-        my_resources[resource_spec.name] = {
+        name = resource_spec.name
+        assert name is not None  # guaranteed by _fill_name_from_contract
+        if name in my_resources:
+            raise ValueError(f"Duplicate resource name '{name}' found.")
+        my_resources[name] = {
             "data_resource": data_resource,
             "data": df,
         }

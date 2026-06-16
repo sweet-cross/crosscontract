@@ -67,4 +67,4 @@ def save_data_package(
         _data = package_descriptor.model_dump(exclude_unset=True, mode="json")
         dump_to_file(_data, tmp_dir / "datapackage.json")
         dump_to_file(_data, tmp_dir / "datapackage.yaml")
-        shutil.make_archive(fn_out, "zip", tmp_dir_path)
+        shutil.make_archive(str(fn_out), "zip", tmp_dir_path)
