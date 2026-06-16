@@ -59,11 +59,11 @@ class CrossMetaData(BaseMetaData):
         default=None, description="A list of contributors to the data contract."
     )
 
-    sources: list[Source] | None = Field(
+    sources: OptionalNonEmptyList[Source] = Field(
         default=None, description="A list of data sources for the data contract."
     )
 
-    licenses: list[License] | None = Field(
+    licenses: OptionalNonEmptyList[License] = Field(
         default=None,
         description="A list of licenses for the data associated with the contract.",
     )
