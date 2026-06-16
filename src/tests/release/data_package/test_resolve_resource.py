@@ -3,10 +3,12 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
+from crosscontract._standards.frictionless import DataResource
 from crosscontract.registry.variables.data_variable import CrossDataVariable
 from crosscontract.release.data_package._resolve_resource import (
     build_data_resource,
     fetch_data,
+    resolve_resources,
 )
 from crosscontract.transformations import FetchSpecMixin
 
@@ -120,3 +122,43 @@ class TestBuildDataResource:
 
         with pytest.raises(ValueError, match="Unsupported data format"):
             build_data_resource(spec, MagicMock())
+
+
+class TestResolveResources:
+    def test_returns_mapping_of_resources(self, make_package_spec, make_data_variable):
+        df = pd.DataFrame({"id": ["a", "b"]})
+        spec = make_package_spec(("res_a", "res_b"))
+        registry = FakeRegistry(
+            {"res_a": make_data_variable(df), "res_b": make_data_variable(df)}
+        )
+
+        result = resolve_resources(registry, spec)
+
+        assert set(result) == {"res_a", "res_b"}
+        for name in ("res_a", "res_b"):
+            assert isinstance(result[name]["data_resource"], DataResource)
+            pd.testing.assert_frame_equal(result[name]["data"], df)
+
+    def test_empty_dataframe_is_warned_and_skipped(
+        self, make_package_spec, make_data_variable
+    ):
+        spec = make_package_spec(("res_a",))
+        registry = FakeRegistry({"res_a": make_data_variable(pd.DataFrame())})
+
+        with pytest.warns(UserWarning, match="is empty"):
+            result = resolve_resources(registry, spec)
+
+        assert result == {}
+
+    def test_duplicate_resource_name_raises(
+        self, make_package_spec, make_resource_spec, make_data_variable
+    ):
+        df = pd.DataFrame({"id": ["a"]})
+        spec = make_package_spec(("dup",))
+        # Bypass the spec-level unique check to exercise the runtime guard
+        # (a future referenced-dimension feature could reintroduce duplicates).
+        spec.resources.append(make_resource_spec(contract="dup"))
+        registry = FakeRegistry({"dup": make_data_variable(df)})
+
+        with pytest.raises(ValueError, match="Duplicate resource name"):
+            resolve_resources(registry, spec)

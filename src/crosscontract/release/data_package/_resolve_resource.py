@@ -142,4 +142,5 @@ def resolve_resources(
             "data_resource": data_resource,
             "data": df,
         }
-        # todo: Collect dimensions to also export them
+    # todo: Collect dimensions to also export them
+    return my_resources
