@@ -405,6 +405,47 @@ class TestFilterPrunedDimensions:
 
         assert len(resources["dim_region"]["data"]) == 3
 
+    def test_skips_resource_without_embedded_schema(self):
+        # A resource whose schema is an external reference (a string, not an
+        # embedded TableSchema) is skipped when collecting referenced keys.
+        fact = _res("fact", pd.DataFrame({"model": ["a"]}), foreign_keys=self._MODEL_FK)
+        dim = _res("dim_model", pd.DataFrame({"id": ["a", "b"]}))
+        external = {
+            "data_resource": DataResource(
+                name="external",
+                path=["external.csv"],
+                table_schema="https://example.com/schema.json",
+            ),
+            "data": pd.DataFrame({"x": ["z"]}),
+        }
+        resources = {"fact": fact, "dim_model": dim, "external": external}
+
+        _filter_pruned_dimensions(resources)
+
+        assert "external" in resources
+        assert sorted(resources["dim_model"]["data"]["id"]) == ["a"]
+
+    def test_skips_foreign_keys_to_non_pruned_targets(self):
+        # A fact FK to a non-pruned dimension is ignored while a pruned dimension
+        # is present (exercises the target-not-in-prune-set skip).
+        fact = _res(
+            "fact",
+            pd.DataFrame({"model": ["a"], "region": ["r"]}),
+            foreign_keys=self._MODEL_FK
+            + [
+                {
+                    "fields": ["region"],
+                    "reference": {"resource": "dim_region", "fields": ["id"]},
+                }
+            ],
+        )
+        dim = _res("dim_model", pd.DataFrame({"id": ["a", "b"]}))
+        resources = {"fact": fact, "dim_model": dim}
+
+        _filter_pruned_dimensions(resources)
+
+        assert sorted(resources["dim_model"]["data"]["id"]) == ["a"]
+
 
 class TestResolveResources:
     def test_returns_mapping_of_resources(self, make_package_spec, make_data_variable):
