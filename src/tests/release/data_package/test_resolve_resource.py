@@ -9,7 +9,7 @@ from crosscontract._standards.frictionless import DataResource
 from crosscontract.registry.variables.data_variable import CrossDataVariable
 from crosscontract.release.data_package._resolve_resource import (
     build_data_resource,
-    collect_dimensions,
+    collect_referenced_resources,
     fetch_data,
     resolve_resources,
 )
@@ -17,8 +17,8 @@ from crosscontract.transformations import FetchSpecMixin
 
 
 def _fk(resource, fields=("x",), ref_fields=("x",)):
-    """Minimal foreign-key stand-in exposing the attributes `collect_dimensions`
-    reads (`reference.resource`).
+    """Minimal foreign-key stand-in exposing the attributes
+    `collect_referenced_resources` reads (`reference.resource`).
     """
     return SimpleNamespace(
         fields=list(fields),
@@ -137,14 +137,14 @@ class TestBuildDataResource:
             build_data_resource(spec, MagicMock())
 
 
-class TestCollectDimensions:
+class TestCollectReferencedResources:
     def test_collects_referenced_dimension(self, make_data_variable, make_dimension):
         dim = make_dimension(pd.DataFrame({"id": ["a"]}))
         fact = make_data_variable(pd.DataFrame({"region": ["a"]}))
         fact.foreign_keys = [_fk("dim_region")]
         registry = FakeRegistry({"dim_region": dim})
 
-        assert collect_dimensions(registry, [fact]) == {"dim_region": dim}
+        assert collect_referenced_resources(registry, [fact]) == {"dim_region": dim}
 
     def test_deduplicated_across_variables(self, make_data_variable, make_dimension):
         dim = make_dimension(pd.DataFrame({"id": ["a"]}))
@@ -154,11 +154,13 @@ class TestCollectDimensions:
         fact_b.foreign_keys = [_fk("dim_region")]
         registry = FakeRegistry({"dim_region": dim})
 
-        assert collect_dimensions(registry, [fact_a, fact_b]) == {"dim_region": dim}
+        assert collect_referenced_resources(registry, [fact_a, fact_b]) == {
+            "dim_region": dim
+        }
 
     def test_composite_foreign_key_resolved(self, make_data_variable, make_dimension):
         # A composite-key dimension is absent from `var.dimensions` but is still
-        # reachable via `foreign_keys`, which is what `collect_dimensions` uses.
+        # reachable via `foreign_keys`, which is what this collector uses.
         dim = make_dimension(pd.DataFrame({"a": ["x"], "b": ["y"], "c": ["z"]}))
         fact = make_data_variable(pd.DataFrame({"a": ["x"], "b": ["y"], "c": ["z"]}))
         fact.foreign_keys = [
@@ -166,22 +168,24 @@ class TestCollectDimensions:
         ]
         registry = FakeRegistry({"dim_scenario": dim})
 
-        assert collect_dimensions(registry, [fact]) == {"dim_scenario": dim}
+        assert collect_referenced_resources(registry, [fact]) == {"dim_scenario": dim}
 
     def test_self_reference_skipped(self, make_data_variable):
         fact = make_data_variable(pd.DataFrame({"id": ["a"]}))
         fact.foreign_keys = [_fk(None)]
         registry = FakeRegistry({})
 
-        assert collect_dimensions(registry, [fact]) == {}
+        assert collect_referenced_resources(registry, [fact]) == {}
 
-    def test_non_dimension_target_ignored(self, make_data_variable):
+    def test_non_dimension_target_collected(self, make_data_variable):
+        # Not restricted to dimensions: any referenced resource is bundled so the
+        # package stays self-contained even if the star-schema rule is relaxed.
         other = make_data_variable(pd.DataFrame({"id": ["a"]}))  # not a dimension
         fact = make_data_variable(pd.DataFrame({"x": ["a"]}))
         fact.foreign_keys = [_fk("other")]
         registry = FakeRegistry({"other": other})
 
-        assert collect_dimensions(registry, [fact]) == {}
+        assert collect_referenced_resources(registry, [fact]) == {"other": other}
 
 
 class TestResolveResources:

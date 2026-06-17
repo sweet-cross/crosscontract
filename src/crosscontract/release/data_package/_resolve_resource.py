@@ -9,7 +9,6 @@ from ..._standards.frictionless import (
 )
 from ...registry import CrossRegistry
 from ...registry.variables import (
-    CrossBaseDimension,
     CrossBaseVariable,
     CrossDataVariable,
 )
@@ -113,33 +112,41 @@ def build_data_resource(
     return fl_resource
 
 
-def collect_dimensions(
+def collect_referenced_resources(
     registry: CrossRegistry, variables: list[CrossBaseVariable]
-) -> dict[str, CrossBaseDimension]:
-    """Collect the dimensions referenced by the given variables, deduplicated by name.
+) -> dict[str, CrossBaseVariable]:
+    """Collect the resources referenced by the given variables, deduplicated by name.
 
     Walks each variable's foreign keys and resolves every referenced contract via
-    the registry, keeping those that are dimensions. Keying by contract name means a
-    dimension referenced by several variables is collected only once.
+    the registry. Keying by contract name means a resource referenced by several
+    variables is collected only once.
+
+    Under the platform's star schema these references are always dimensions, but
+    nothing here relies on that: any referenced contract is bundled so the released
+    data package stays self-contained even if that constraint is relaxed.
+
+    References are resolved one level deep only — a referenced resource's own
+    foreign keys are not followed. This is complete under the star schema, where
+    referenced resources (dimensions) have no outgoing foreign keys. If the schema
+    ever permitted reference chains, this would need to become a transitive walk to
+    keep the package self-contained.
 
     Args:
         registry (CrossRegistry): The registry used to resolve referenced contracts.
-        variables (list[CrossBaseVariable]): The (included) fact variables whose
-            foreign keys are scanned.
+        variables (list[CrossBaseVariable]): The (included) variables whose foreign
+            keys are scanned.
 
     Returns:
-        dict[str, CrossBaseDimension]: Referenced dimensions keyed by contract name.
+        dict[str, CrossBaseVariable]: Referenced resources keyed by contract name.
     """
-    dimensions: dict[str, CrossBaseDimension] = {}
+    referenced: dict[str, CrossBaseVariable] = {}
     for var in variables:
         for fk in var.foreign_keys:
             ref = fk.reference.resource
-            if ref is None or ref in dimensions:  # self-ref or already collected
+            if ref is None or ref in referenced:  # self-ref or already collected
                 continue
-            target = registry[ref]
-            if isinstance(target, CrossBaseDimension):
-                dimensions[ref] = target
-    return dimensions
+            referenced[ref] = registry[ref]
+    return referenced
 
 
 def resolve_resources(
@@ -189,31 +196,31 @@ def resolve_resources(
             "No resources to release: every resource resolved to empty data."
         )
 
-    # collect the dimensions referenced by the included variables
-    dimensions = collect_dimensions(registry, included_vars)
-    for dim_name, dim in dimensions.items():
-        if dim_name in my_resources:
-            # Already resolved in the first pass: the dimension was listed
-            # explicitly as a resource. Contract names are server-unique, so this
-            # is necessarily the same dimension; the explicit spec wins.
+    # collect the resources referenced by the included variables (e.g. dimensions)
+    referenced = collect_referenced_resources(registry, included_vars)
+    for ref_name, ref_var in referenced.items():
+        if ref_name in my_resources:
+            # Already resolved in the first pass: the resource was listed
+            # explicitly. Contract names are server-unique, so this is necessarily
+            # the same resource; the explicit spec wins.
             continue
-        dim_df = dim.data
-        if dim_df.empty:
+        ref_df = ref_var.data
+        if ref_df.empty:
             warnings.warn(
-                f"Dimension '{dim_name}' has no data. Skipping this resource.",
+                f"Referenced resource '{ref_name}' has no data. Skipping it.",
                 stacklevel=2,
             )
             continue
         # build a ReleaseSpec and re-use the existing build_data_resource function
-        # to create a Frictionless DataResource for the dimension
-        dim_spec = CrossDataResourceReleaseSpec(
+        # to create a Frictionless DataResource for the referenced resource
+        ref_spec = CrossDataResourceReleaseSpec(
             data_instructions=DataInstructions(
-                fetch=FetchSpecMixin(contract=dim_name, format="csv")
+                fetch=FetchSpecMixin(contract=ref_name, format="csv")
             )
         )
-        my_resources[dim_name] = {
-            "data_resource": build_data_resource(dim_spec, dim),
-            "data": dim_df,
+        my_resources[ref_name] = {
+            "data_resource": build_data_resource(ref_spec, ref_var),
+            "data": ref_df,
         }
 
     return my_resources
