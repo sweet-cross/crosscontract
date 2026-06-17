@@ -207,30 +207,77 @@ def resolve_resources(
         )
 
     # collect the resources referenced by the included variables (e.g. dimensions)
-    referenced = collect_referenced_resources(registry, included_vars)
-    for ref_name, ref_var in referenced.items():
-        if ref_name in my_resources:
-            # Already resolved in the first pass: the resource was listed
-            # explicitly. Contract names are server-unique, so this is necessarily
-            # the same resource; the explicit spec wins.
-            continue
-        ref_df = ref_var.data
-        if ref_df.empty:
-            warnings.warn(
-                f"Referenced resource '{ref_name}' has no data. Skipping it.",
-                stacklevel=2,
+    if resolve_references:
+        referenced = collect_referenced_resources(registry, included_vars)
+        for ref_name, ref_var in referenced.items():
+            if ref_name in my_resources:
+                # Already resolved in the first pass: the resource was listed
+                # explicitly. Contract names are server-unique, so this is
+                # necessarily the same resource; the explicit spec wins.
+                continue
+            ref_df = ref_var.data
+            if ref_df.empty:
+                warnings.warn(
+                    f"Referenced resource '{ref_name}' has no data. Skipping it.",
+                    stacklevel=2,
+                )
+                continue
+            # build a ReleaseSpec and re-use the existing build_data_resource
+            # function to create a Frictionless DataResource for the referenced
+            # resource
+            ref_spec = CrossDataResourceReleaseSpec(
+                data_instructions=DataInstructions(
+                    fetch=FetchSpecMixin(contract=ref_name, format="csv")
+                )
             )
-            continue
-        # build a ReleaseSpec and re-use the existing build_data_resource function
-        # to create a Frictionless DataResource for the referenced resource
-        ref_spec = CrossDataResourceReleaseSpec(
-            data_instructions=DataInstructions(
-                fetch=FetchSpecMixin(contract=ref_name, format="csv")
-            )
-        )
-        my_resources[ref_name] = {
-            "data_resource": build_data_resource(ref_spec, ref_var),
-            "data": ref_df,
-        }
+            my_resources[ref_name] = {
+                "data_resource": build_data_resource(ref_spec, ref_var),
+                "data": ref_df,
+            }
+
+    # Keep the package self-contained: a released schema may only carry foreign
+    # keys whose target resource is also in the package. This drops references to
+    # excluded resources (e.g. when resolve_references is False, or a referenced
+    # resource was skipped as empty) so the descriptor stays Frictionless-compliant.
+    _drop_dangling_foreign_keys(my_resources, warn=resolve_references)
 
     return my_resources
+
+
+def _drop_dangling_foreign_keys(
+    resources: dict[str, dict[str, Any]], warn: bool = True
+) -> None:
+    """Strip foreign keys whose target resource is absent from the package.
+
+    Mutates each resource's embedded table schema in place, keeping only foreign
+    keys that reference the current resource (an empty `resource`) or another
+    resource present in `resources`.
+
+    Args:
+        resources (dict[str, dict[str, Any]]): The resolved resources, keyed by
+            name. Each value holds the `DataResource` under `"data_resource"`.
+        warn (bool, optional): Whether to warn when a resource's foreign keys are
+            pruned. Intended for the case where references were meant to be
+            included but a target was nonetheless excluded (e.g. skipped as empty);
+            leave `False` when references are dropped by design. Defaults to `True`.
+    """
+    included_names = set(resources)
+    for res in resources.values():
+        data_resource: DataResource = res["data_resource"]
+        schema = data_resource.table_schema
+        if schema is None or not schema.foreignKeys:
+            continue
+        kept = [
+            fk
+            for fk in schema.foreignKeys
+            # "" is a self-reference (kept); any other target must be present
+            if fk.reference.resource in ("", *included_names)
+        ]
+        if len(kept) != len(schema.foreignKeys):
+            if warn:
+                warnings.warn(
+                    f"Dropping foreign keys from resource '{data_resource.name}' "
+                    "whose targets are not included in the package.",
+                    stacklevel=2,
+                )
+            schema.foreignKeys = kept
