@@ -193,7 +193,10 @@ def resolve_resources(
     dimensions = collect_dimensions(registry, included_vars)
     for dim_name, dim in dimensions.items():
         if dim_name in my_resources:
-            raise ValueError(f"Duplicate resource name '{dim_name}' found.")
+            # Already resolved in the first pass: the dimension was listed
+            # explicitly as a resource. Contract names are server-unique, so this
+            # is necessarily the same dimension; the explicit spec wins.
+            continue
         dim_df = dim.data
         if dim_df.empty:
             warnings.warn(

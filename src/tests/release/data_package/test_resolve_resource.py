@@ -1,4 +1,5 @@
 import warnings
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pandas as pd
@@ -8,10 +9,21 @@ from crosscontract._standards.frictionless import DataResource
 from crosscontract.registry.variables.data_variable import CrossDataVariable
 from crosscontract.release.data_package._resolve_resource import (
     build_data_resource,
+    collect_dimensions,
     fetch_data,
     resolve_resources,
 )
 from crosscontract.transformations import FetchSpecMixin
+
+
+def _fk(resource, fields=("x",), ref_fields=("x",)):
+    """Minimal foreign-key stand-in exposing the attributes `collect_dimensions`
+    reads (`reference.resource`).
+    """
+    return SimpleNamespace(
+        fields=list(fields),
+        reference=SimpleNamespace(resource=resource, fields=list(ref_fields)),
+    )
 
 
 class FakeRegistry:
@@ -125,6 +137,53 @@ class TestBuildDataResource:
             build_data_resource(spec, MagicMock())
 
 
+class TestCollectDimensions:
+    def test_collects_referenced_dimension(self, make_data_variable, make_dimension):
+        dim = make_dimension(pd.DataFrame({"id": ["a"]}))
+        fact = make_data_variable(pd.DataFrame({"region": ["a"]}))
+        fact.foreign_keys = [_fk("dim_region")]
+        registry = FakeRegistry({"dim_region": dim})
+
+        assert collect_dimensions(registry, [fact]) == {"dim_region": dim}
+
+    def test_deduplicated_across_variables(self, make_data_variable, make_dimension):
+        dim = make_dimension(pd.DataFrame({"id": ["a"]}))
+        fact_a = make_data_variable(pd.DataFrame({"region": ["a"]}))
+        fact_a.foreign_keys = [_fk("dim_region")]
+        fact_b = make_data_variable(pd.DataFrame({"region": ["b"]}))
+        fact_b.foreign_keys = [_fk("dim_region")]
+        registry = FakeRegistry({"dim_region": dim})
+
+        assert collect_dimensions(registry, [fact_a, fact_b]) == {"dim_region": dim}
+
+    def test_composite_foreign_key_resolved(self, make_data_variable, make_dimension):
+        # A composite-key dimension is absent from `var.dimensions` but is still
+        # reachable via `foreign_keys`, which is what `collect_dimensions` uses.
+        dim = make_dimension(pd.DataFrame({"a": ["x"], "b": ["y"], "c": ["z"]}))
+        fact = make_data_variable(pd.DataFrame({"a": ["x"], "b": ["y"], "c": ["z"]}))
+        fact.foreign_keys = [
+            _fk("dim_scenario", fields=("a", "b", "c"), ref_fields=("a", "b", "c"))
+        ]
+        registry = FakeRegistry({"dim_scenario": dim})
+
+        assert collect_dimensions(registry, [fact]) == {"dim_scenario": dim}
+
+    def test_self_reference_skipped(self, make_data_variable):
+        fact = make_data_variable(pd.DataFrame({"id": ["a"]}))
+        fact.foreign_keys = [_fk(None)]
+        registry = FakeRegistry({})
+
+        assert collect_dimensions(registry, [fact]) == {}
+
+    def test_non_dimension_target_ignored(self, make_data_variable):
+        other = make_data_variable(pd.DataFrame({"id": ["a"]}))  # not a dimension
+        fact = make_data_variable(pd.DataFrame({"x": ["a"]}))
+        fact.foreign_keys = [_fk("other")]
+        registry = FakeRegistry({"other": other})
+
+        assert collect_dimensions(registry, [fact]) == {}
+
+
 class TestResolveResources:
     def test_returns_mapping_of_resources(self, make_package_spec, make_data_variable):
         df = pd.DataFrame({"id": ["a", "b"]})
@@ -178,3 +237,67 @@ class TestResolveResources:
 
         with pytest.raises(ValueError, match="Duplicate resource name"):
             resolve_resources(registry, spec)
+
+    def test_referenced_dimension_added_as_resource(
+        self, make_package_spec, make_data_variable, make_dimension
+    ):
+        dim_df = pd.DataFrame({"id": ["a", "b"], "label": ["A", "B"]})
+        fact = make_data_variable(pd.DataFrame({"region": ["a", "b"]}))
+        fact.foreign_keys = [_fk("dim_region")]
+        dim = make_dimension(dim_df)
+        spec = make_package_spec(("res_a",))
+        registry = FakeRegistry({"res_a": fact, "dim_region": dim})
+
+        result = resolve_resources(registry, spec)
+
+        assert set(result) == {"res_a", "dim_region"}
+        dim_resource = result["dim_region"]["data_resource"]
+        assert isinstance(dim_resource, DataResource)
+        assert dim_resource.name == "dim_region"
+        pd.testing.assert_frame_equal(result["dim_region"]["data"], dim_df)
+
+    def test_dimension_deduplicated_across_resources(
+        self, make_package_spec, make_data_variable, make_dimension
+    ):
+        dim = make_dimension(pd.DataFrame({"id": ["a"], "label": ["A"]}))
+        fact_a = make_data_variable(pd.DataFrame({"region": ["a"]}))
+        fact_a.foreign_keys = [_fk("dim_region")]
+        fact_b = make_data_variable(pd.DataFrame({"region": ["a"]}))
+        fact_b.foreign_keys = [_fk("dim_region")]
+        spec = make_package_spec(("res_a", "res_b"))
+        registry = FakeRegistry({"res_a": fact_a, "res_b": fact_b, "dim_region": dim})
+
+        result = resolve_resources(registry, spec)
+
+        assert set(result) == {"res_a", "res_b", "dim_region"}
+
+    def test_explicit_dimension_resource_not_duplicated(
+        self, make_package_spec, make_data_variable, make_dimension
+    ):
+        # The dimension is both listed explicitly as a resource and referenced by
+        # a fact: it must appear once (resolved in the first pass), not raise.
+        dim_df = pd.DataFrame({"id": ["a", "b"], "label": ["A", "B"]})
+        dim = make_dimension(dim_df)
+        fact = make_data_variable(pd.DataFrame({"region": ["a"]}))
+        fact.foreign_keys = [_fk("dim_region")]
+        spec = make_package_spec(("res_a", "dim_region"))
+        registry = FakeRegistry({"res_a": fact, "dim_region": dim})
+
+        result = resolve_resources(registry, spec)
+
+        assert set(result) == {"res_a", "dim_region"}
+        pd.testing.assert_frame_equal(result["dim_region"]["data"], dim_df)
+
+    def test_empty_dimension_warned_and_skipped(
+        self, make_package_spec, make_data_variable, make_dimension
+    ):
+        fact = make_data_variable(pd.DataFrame({"region": ["a"]}))
+        fact.foreign_keys = [_fk("dim_region")]
+        dim = make_dimension(pd.DataFrame())
+        spec = make_package_spec(("res_a",))
+        registry = FakeRegistry({"res_a": fact, "dim_region": dim})
+
+        with pytest.warns(UserWarning, match="has no data"):
+            result = resolve_resources(registry, spec)
+
+        assert set(result) == {"res_a"}
