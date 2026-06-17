@@ -275,8 +275,7 @@ def _drop_dangling_foreign_keys(
         kept = [
             fk
             for fk in schema.foreignKeys
-            # "" is a self-reference (kept); any other target must be present
-            if fk.reference.resource in ("", *included_names)
+            if fk.reference.resource == "" or fk.reference.resource in included_names
         ]
         if len(kept) != len(schema.foreignKeys):
             if warn:
