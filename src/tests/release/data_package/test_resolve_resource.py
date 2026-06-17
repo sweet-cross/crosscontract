@@ -8,6 +8,7 @@ import pytest
 from crosscontract._standards.frictionless import DataResource
 from crosscontract.registry.variables.data_variable import CrossDataVariable
 from crosscontract.release.data_package._resolve_resource import (
+    _drop_dangling_foreign_keys,
     build_data_resource,
     collect_referenced_resources,
     fetch_data,
@@ -23,6 +24,21 @@ def _fk(resource, fields=("x",), ref_fields=("x",)):
     return SimpleNamespace(
         fields=list(fields),
         reference=SimpleNamespace(resource=resource, fields=list(ref_fields)),
+    )
+
+
+def _fact_contract_with_fk(contract_factory, target="dim_region"):
+    """Build a General contract whose schema carries a foreign key to `target`."""
+    return contract_factory.build(
+        tableschema={
+            "fields": [{"name": "region", "type": "string"}],
+            "foreignKeys": [
+                {
+                    "fields": ["region"],
+                    "reference": {"resource": target, "fields": ["id"]},
+                }
+            ],
+        },
     )
 
 
@@ -188,6 +204,90 @@ class TestCollectReferencedResources:
         assert collect_referenced_resources(registry, [fact]) == {"other": other}
 
 
+class TestDropDanglingForeignKeys:
+    @staticmethod
+    def _resource(name, foreign_keys):
+        return DataResource(
+            name=name,
+            path=[f"{name}.csv"],
+            table_schema={
+                "fields": [{"name": "region", "type": "string"}],
+                "foreignKeys": foreign_keys,
+            },
+        )
+
+    def test_keeps_foreign_key_to_present_target(self):
+        fact = self._resource(
+            "fact",
+            [
+                {
+                    "fields": ["region"],
+                    "reference": {"resource": "dim", "fields": ["id"]},
+                }
+            ],
+        )
+        resources = {
+            "fact": {"data_resource": fact},
+            "dim": {"data_resource": self._resource("dim", [])},
+        }
+
+        _drop_dangling_foreign_keys(resources)
+
+        assert len(fact.table_schema.foreignKeys) == 1
+
+    def test_keeps_self_reference(self):
+        # An empty `resource` is a self-reference and must survive pruning.
+        dim = self._resource(
+            "dim",
+            [
+                {
+                    "fields": ["region"],
+                    "reference": {"resource": "", "fields": ["region"]},
+                }
+            ],
+        )
+        resources = {"dim": {"data_resource": dim}}
+
+        _drop_dangling_foreign_keys(resources)
+
+        assert len(dim.table_schema.foreignKeys) == 1
+
+    def test_drops_dangling_and_warns_by_default(self):
+        fact = self._resource(
+            "fact",
+            [
+                {
+                    "fields": ["region"],
+                    "reference": {"resource": "dim", "fields": ["id"]},
+                }
+            ],
+        )
+        resources = {"fact": {"data_resource": fact}}
+
+        with pytest.warns(UserWarning, match="Dropping foreign keys"):
+            _drop_dangling_foreign_keys(resources)
+
+        assert fact.table_schema.foreignKeys == []
+
+    def test_warn_false_suppresses_warning(self):
+        fact = self._resource(
+            "fact",
+            [
+                {
+                    "fields": ["region"],
+                    "reference": {"resource": "dim", "fields": ["id"]},
+                }
+            ],
+        )
+        resources = {"fact": {"data_resource": fact}}
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # any warning would fail the test
+            _drop_dangling_foreign_keys(resources, warn=False)
+
+        assert fact.table_schema.foreignKeys == []
+
+
 class TestResolveResources:
     def test_returns_mapping_of_resources(self, make_package_spec, make_data_variable):
         df = pd.DataFrame({"id": ["a", "b"]})
@@ -305,3 +405,69 @@ class TestResolveResources:
             result = resolve_resources(registry, spec)
 
         assert set(result) == {"res_a"}
+
+    def test_resolve_references_false_excludes_referenced(
+        self, make_package_spec, make_data_variable, make_dimension
+    ):
+        fact = make_data_variable(pd.DataFrame({"region": ["a"]}))
+        fact.foreign_keys = [_fk("dim_region")]
+        dim = make_dimension(pd.DataFrame({"id": ["a"], "label": ["A"]}))
+        spec = make_package_spec(("res_a",))
+        registry = FakeRegistry({"res_a": fact, "dim_region": dim})
+
+        result = resolve_resources(registry, spec, resolve_references=False)
+
+        assert set(result) == {"res_a"}
+
+    def test_resolve_references_false_drops_embedded_foreign_keys(
+        self, make_package_spec, make_data_variable, contract_factory
+    ):
+        contract = _fact_contract_with_fk(contract_factory)
+        fact = make_data_variable(pd.DataFrame({"region": ["a"]}), contract=contract)
+        spec = make_package_spec(("res_a",))
+        registry = FakeRegistry({"res_a": fact})
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # dropping by design must not warn
+            result = resolve_resources(registry, spec, resolve_references=False)
+
+        assert set(result) == {"res_a"}
+        assert result["res_a"]["data_resource"].table_schema.foreignKeys == []
+
+    def test_resolve_references_true_keeps_present_foreign_keys(
+        self, make_package_spec, make_data_variable, make_dimension, contract_factory
+    ):
+        contract = _fact_contract_with_fk(contract_factory)
+        fact = make_data_variable(pd.DataFrame({"region": ["a"]}), contract=contract)
+        fact.foreign_keys = [_fk("dim_region", fields=("region",), ref_fields=("id",))]
+        dim = make_dimension(pd.DataFrame({"id": ["a"], "label": ["A"]}))
+        spec = make_package_spec(("res_a",))
+        registry = FakeRegistry({"res_a": fact, "dim_region": dim})
+
+        result = resolve_resources(registry, spec, resolve_references=True)
+
+        assert set(result) == {"res_a", "dim_region"}
+        assert len(result["res_a"]["data_resource"].table_schema.foreignKeys) == 1
+
+    def test_skipped_empty_reference_drops_foreign_keys_and_warns(
+        self, make_package_spec, make_data_variable, make_dimension, contract_factory
+    ):
+        # Even in the default (include) path, a reference skipped as empty would
+        # leave a dangling foreign key: it must be dropped, and that is surprising
+        # enough to warn about.
+        contract = _fact_contract_with_fk(contract_factory)
+        fact = make_data_variable(pd.DataFrame({"region": ["a"]}), contract=contract)
+        fact.foreign_keys = [_fk("dim_region", fields=("region",), ref_fields=("id",))]
+        dim = make_dimension(pd.DataFrame())  # empty -> skipped
+        spec = make_package_spec(("res_a",))
+        registry = FakeRegistry({"res_a": fact, "dim_region": dim})
+
+        # Capture (and thus consume) all warnings to keep the empty-skip notice
+        # from leaking into the test output, then assert on the drop warning.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = resolve_resources(registry, spec, resolve_references=True)
+
+        assert any("Dropping foreign keys" in str(w.message) for w in caught)
+        assert set(result) == {"res_a"}
+        assert result["res_a"]["data_resource"].table_schema.foreignKeys == []
