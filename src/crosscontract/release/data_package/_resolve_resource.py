@@ -279,6 +279,9 @@ def _filter_pruned_dimensions(resources: dict[str, dict[str, Any]]) -> None:
     warning); any foreign keys this leaves dangling are handled by
     `_drop_dangling_foreign_keys`.
 
+    This is needed for filtering the dim_model and dim_scenario dimensions when
+    releasing the data package for a single scenario.
+
     Args:
         resources (dict[str, dict[str, Any]]): The resolved resources, keyed by
             name. Mutated in place; each value holds the `DataResource` under
@@ -298,7 +301,7 @@ def _filter_pruned_dimensions(resources: dict[str, dict[str, Any]]) -> None:
         schema = res["data_resource"].table_schema
         if not isinstance(schema, TableSchema):
             continue
-        df = res["data"]
+        df: pd.DataFrame = res["data"]
         for fk in schema.foreignKeys:
             target = fk.reference.resource
             if target not in used:
@@ -312,7 +315,7 @@ def _filter_pruned_dimensions(resources: dict[str, dict[str, Any]]) -> None:
 
     # 2. Reduce each pruned dimension to its referenced rows (or drop it if none).
     for name, cols in key_cols.items():
-        dim_df = resources[name]["data"]
+        dim_df: pd.DataFrame = resources[name]["data"]
         mask = dim_df[cols].apply(tuple, axis=1).isin(used[name])
         filtered = dim_df[mask]
         if filtered.empty:

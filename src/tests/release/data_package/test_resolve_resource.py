@@ -9,6 +9,7 @@ from crosscontract._standards.frictionless import DataResource
 from crosscontract.registry.variables.data_variable import CrossDataVariable
 from crosscontract.release.data_package._resolve_resource import (
     _drop_dangling_foreign_keys,
+    _filter_pruned_dimensions,
     build_data_resource,
     collect_referenced_resources,
     fetch_data,
@@ -40,6 +41,25 @@ def _fact_contract_with_fk(contract_factory, target="dim_region"):
             ],
         },
     )
+
+
+def _res(name, df, foreign_keys=None):
+    """Build a `my_resources` entry (DataResource + data) from a DataFrame.
+
+    Schema fields are derived from the DataFrame columns; `foreign_keys` are
+    embedded as-is (dicts in Frictionless form).
+    """
+    return {
+        "data_resource": DataResource(
+            name=name,
+            path=[f"{name}.csv"],
+            table_schema={
+                "fields": [{"name": c, "type": "string"} for c in df.columns],
+                "foreignKeys": foreign_keys or [],
+            },
+        ),
+        "data": df,
+    }
 
 
 class FakeRegistry:
@@ -296,6 +316,96 @@ class TestDropDanglingForeignKeys:
         assert fact.table_schema.foreignKeys == []
 
 
+class TestFilterPrunedDimensions:
+    _MODEL_FK = [
+        {"fields": ["model"], "reference": {"resource": "dim_model", "fields": ["id"]}}
+    ]
+    _SCENARIO_FK = [
+        {
+            "fields": ["sg", "sn", "sv"],
+            "reference": {
+                "resource": "dim_scenario",
+                "fields": ["scenario_group", "scenario_name", "scenario_variant"],
+            },
+        }
+    ]
+
+    def test_filters_single_key_dimension(self):
+        fact = _res(
+            "fact",
+            pd.DataFrame({"model": ["a", "b"], "value": ["1", "2"]}),
+            foreign_keys=self._MODEL_FK,
+        )
+        dim = _res(
+            "dim_model", pd.DataFrame({"id": ["a", "b", "c"], "label": list("ABC")})
+        )
+        resources = {"fact": fact, "dim_model": dim}
+
+        _filter_pruned_dimensions(resources)
+
+        assert sorted(resources["dim_model"]["data"]["id"]) == ["a", "b"]
+
+    def test_filters_composite_key_dimension(self):
+        fact = _res(
+            "fact",
+            pd.DataFrame({"sg": ["g1"], "sn": ["n1"], "sv": ["v1"]}),
+            foreign_keys=self._SCENARIO_FK,
+        )
+        dim = _res(
+            "dim_scenario",
+            pd.DataFrame(
+                {
+                    "scenario_group": ["g1", "g2"],
+                    "scenario_name": ["n1", "n2"],
+                    "scenario_variant": ["v1", "v2"],
+                }
+            ),
+        )
+        resources = {"fact": fact, "dim_scenario": dim}
+
+        _filter_pruned_dimensions(resources)
+
+        out = resources["dim_scenario"]["data"]
+        assert len(out) == 1
+        assert out.iloc[0]["scenario_name"] == "n1"
+
+    def test_union_across_multiple_facts(self):
+        f1 = _res("f1", pd.DataFrame({"model": ["a"]}), foreign_keys=self._MODEL_FK)
+        f2 = _res("f2", pd.DataFrame({"model": ["b"]}), foreign_keys=self._MODEL_FK)
+        dim = _res("dim_model", pd.DataFrame({"id": ["a", "b", "c"]}))
+        resources = {"f1": f1, "f2": f2, "dim_model": dim}
+
+        _filter_pruned_dimensions(resources)
+
+        assert sorted(resources["dim_model"]["data"]["id"]) == ["a", "b"]
+
+    def test_unreferenced_pruned_dimension_dropped(self):
+        resources = {"dim_model": _res("dim_model", pd.DataFrame({"id": ["a", "b"]}))}
+
+        with pytest.warns(UserWarning, match="no referenced rows"):
+            _filter_pruned_dimensions(resources)
+
+        assert "dim_model" not in resources
+
+    def test_non_pruned_dimension_untouched(self):
+        fact = _res(
+            "fact",
+            pd.DataFrame({"region": ["a"]}),
+            foreign_keys=[
+                {
+                    "fields": ["region"],
+                    "reference": {"resource": "dim_region", "fields": ["id"]},
+                }
+            ],
+        )
+        dim = _res("dim_region", pd.DataFrame({"id": ["a", "b", "c"]}))
+        resources = {"fact": fact, "dim_region": dim}
+
+        _filter_pruned_dimensions(resources)
+
+        assert len(resources["dim_region"]["data"]) == 3
+
+
 class TestResolveResources:
     def test_returns_mapping_of_resources(self, make_package_spec, make_data_variable):
         df = pd.DataFrame({"id": ["a", "b"]})
@@ -479,6 +589,27 @@ class TestResolveResources:
         assert any("Dropping foreign keys" in str(w.message) for w in caught)
         assert set(result) == {"res_a"}
         assert result["res_a"]["data_resource"].table_schema.foreignKeys == []
+
+    def test_pruned_dimension_filtered_end_to_end(
+        self, make_package_spec, make_data_variable, make_dimension, contract_factory
+    ):
+        # Wiring check: resolve_resources applies _filter_pruned_dimensions, so the
+        # collected dim_model is reduced to the ids referenced by the fact.
+        contract = _fact_contract_with_fk(contract_factory, target="dim_model")
+        fact = make_data_variable(
+            pd.DataFrame({"region": ["a", "b"]}), contract=contract
+        )
+        fact.foreign_keys = [_fk("dim_model", fields=("region",), ref_fields=("id",))]
+        dim = make_dimension(
+            pd.DataFrame({"id": ["a", "b", "c"], "label": list("ABC")})
+        )
+        spec = make_package_spec(("res_a",))
+        registry = FakeRegistry({"res_a": fact, "dim_model": dim})
+
+        result = resolve_resources(registry, spec)
+
+        assert set(result) == {"res_a", "dim_model"}
+        assert sorted(result["dim_model"]["data"]["id"]) == ["a", "b"]
 
     def test_referenced_fetch_error_wrapped_as_runtimeerror(
         self, make_package_spec, make_data_variable
