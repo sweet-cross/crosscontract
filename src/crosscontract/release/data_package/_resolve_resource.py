@@ -6,6 +6,7 @@ import pandas as pd
 from ..._standards.frictionless import (
     DataResource,
     FileMetaData,
+    TableSchema,
 )
 from ...registry import CrossRegistry
 from ...registry.variables import (
@@ -164,12 +165,11 @@ def resolve_resources(
             for each resource.
         resolve_references (bool, optional): Whether to resolve and include
             referenced resources (e.g., dimensions) in the returned dictionary.
-            Not resolving references may result in a data package that is
-            not-self-contained and frictionless-compliant. Thus, references are
-            resolved by default. If references are not resolved, references are
-            dropped from the released resources' metadata to make the package
-            frictionless-compliant.
-            Defaults to True.
+            Including them keeps the package self-contained, so references are
+            resolved by default. When `False`, the referenced resources are left
+            out and the now-dangling foreign keys are dropped from the released
+            schemas, so the package is no longer self-contained but remains
+            Frictionless-compliant. Defaults to `True`.
 
     Returns:
         dict[str, dict[str, Any]]: A dictionary mapping resource names to their
@@ -265,7 +265,9 @@ def _drop_dangling_foreign_keys(
     for res in resources.values():
         data_resource: DataResource = res["data_resource"]
         schema = data_resource.table_schema
-        if schema is None or not schema.foreignKeys:
+        # `table_schema` may be a string (an external schema reference) per the
+        # standard; only an embedded TableSchema carries prunable foreign keys.
+        if not isinstance(schema, TableSchema) or not schema.foreignKeys:
             continue
         kept = [
             fk
