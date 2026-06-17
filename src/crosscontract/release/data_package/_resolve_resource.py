@@ -20,6 +20,16 @@ from .release_specification import (
     DataInstructions,
 )
 
+# Non-hierarchical dimensions whose rows must be reduced to only those referenced
+# by the released data, mapped to their (explicitly known) key columns. This guards
+# against the server exposing the full model and scenario catalogs; the filter is
+# applied unconditionally — even when such a dimension is listed explicitly in the
+# release spec.
+PRUNE_DIMENSIONS: dict[str, list[str]] = {
+    "dim_model": ["id"],
+    "dim_scenario": ["scenario_group", "scenario_name", "scenario_variant"],
+}
+
 
 def fetch_data(
     registry: CrossRegistry,
@@ -243,6 +253,10 @@ def resolve_resources(
                 "data": ref_df,
             }
 
+    # Reduce model/scenario dimensions to the rows actually referenced by the data,
+    # before pruning foreign keys (an emptied dimension may leave a dangling FK).
+    _filter_pruned_dimensions(my_resources)
+
     # Keep the package self-contained: a released schema may only carry foreign
     # keys whose target resource is also in the package. This drops references to
     # excluded resources (e.g. when resolve_references is False, or a referenced
@@ -250,6 +264,66 @@ def resolve_resources(
     _drop_dangling_foreign_keys(my_resources, warn=resolve_references)
 
     return my_resources
+
+
+def _filter_pruned_dimensions(resources: dict[str, dict[str, Any]]) -> None:
+    """Reduce `PRUNE_DIMENSIONS` resources to the rows referenced by the data.
+
+    For each pruned dimension present in `resources`, the union of key tuples
+    referenced by the foreign keys of all resources is collected from their data,
+    and the dimension's rows are reduced to that set. This runs regardless of how
+    the dimension entered the package (pulled in as a reference or listed
+    explicitly) so the full model/scenario catalog is never shipped.
+
+    A pruned dimension left with no referenced rows is dropped entirely (with a
+    warning); any foreign keys this leaves dangling are handled by
+    `_drop_dangling_foreign_keys`.
+
+    Args:
+        resources (dict[str, dict[str, Any]]): The resolved resources, keyed by
+            name. Mutated in place; each value holds the `DataResource` under
+            `"data_resource"` and its data under `"data"`.
+    """
+    # The pruned dimensions present in this package, mapped to their known key
+    # columns (the order here defines the tuple ordering used below).
+    key_cols = {
+        name: cols for name, cols in PRUNE_DIMENSIONS.items() if name in resources
+    }
+    if not key_cols:
+        return
+
+    # 1. Collect the key tuples actually referenced across all resources' data.
+    used: dict[str, set[tuple]] = {name: set() for name in key_cols}
+    for res in resources.values():
+        schema = res["data_resource"].table_schema
+        if not isinstance(schema, TableSchema):
+            continue
+        df = res["data"]
+        for fk in schema.foreignKeys:
+            target = fk.reference.resource
+            if target not in used:
+                continue
+            # A reference to a pruned dimension always uses its full key; map those
+            # key columns to the referencing fact columns and read them in order.
+            dim_to_fact = dict(zip(fk.reference.fields, fk.fields, strict=True))
+            fact_cols = [dim_to_fact[col] for col in key_cols[target]]
+            sub = df.loc[:, fact_cols].drop_duplicates()
+            used[target].update(sub.itertuples(index=False, name=None))
+
+    # 2. Reduce each pruned dimension to its referenced rows (or drop it if none).
+    for name, cols in key_cols.items():
+        dim_df = resources[name]["data"]
+        mask = dim_df[cols].apply(tuple, axis=1).isin(used[name])
+        filtered = dim_df[mask]
+        if filtered.empty:
+            warnings.warn(
+                f"Pruned dimension '{name}' has no referenced rows. "
+                "Dropping it from the package.",
+                stacklevel=2,
+            )
+            del resources[name]
+        else:
+            resources[name]["data"] = filtered
 
 
 def _drop_dangling_foreign_keys(
