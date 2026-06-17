@@ -146,7 +146,10 @@ def collect_referenced_resources(
             ref = fk.reference.resource
             if ref is None or ref in referenced:  # self-ref or already collected
                 continue
-            referenced[ref] = registry[ref]
+            try:
+                referenced[ref] = registry[ref]
+            except KeyError as e:
+                raise ValueError(f"Referenced contract '{ref}' not found") from e
     return referenced
 
 
