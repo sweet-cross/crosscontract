@@ -471,3 +471,19 @@ class TestResolveResources:
         assert any("Dropping foreign keys" in str(w.message) for w in caught)
         assert set(result) == {"res_a"}
         assert result["res_a"]["data_resource"].table_schema.foreignKeys == []
+
+    def test_referenced_fetch_error_wrapped_as_runtimeerror(
+        self, make_package_spec, make_data_variable
+    ):
+        class _BadVar:
+            @property
+            def data(self):
+                raise KeyError("boom")
+
+        fact = make_data_variable(pd.DataFrame({"region": ["a"]}))
+        fact.foreign_keys = [_fk("dim_region")]
+        spec = make_package_spec(("res_a",))
+        registry = FakeRegistry({"res_a": fact, "dim_region": _BadVar()})
+
+        with pytest.raises(RuntimeError, match="Error fetching data for referenced"):
+            resolve_resources(registry, spec, resolve_references=True)

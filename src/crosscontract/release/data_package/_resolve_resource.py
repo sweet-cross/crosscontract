@@ -218,7 +218,12 @@ def resolve_resources(
                 # explicitly. Contract names are server-unique, so this is
                 # necessarily the same resource; the explicit spec wins.
                 continue
-            ref_df = ref_var.data
+            try:
+                ref_df = ref_var.data
+            except Exception as e:
+                raise RuntimeError(
+                    f"Error fetching data for referenced contract '{ref_name}': {e}"
+                ) from e
             if ref_df.empty:
                 warnings.warn(
                     f"Referenced resource '{ref_name}' has no data. Skipping it.",
