@@ -150,7 +150,9 @@ def collect_referenced_resources(
 
 
 def resolve_resources(
-    registry: CrossRegistry, release_spec: CrossDataPackageReleaseSpec
+    registry: CrossRegistry,
+    release_spec: CrossDataPackageReleaseSpec,
+    resolve_references: bool = True,
 ) -> dict[str, dict[str, Any]]:
     """Resolve the data for each resource according to the release specification.
 
@@ -160,6 +162,14 @@ def resolve_resources(
         release_spec (CrossDataPackageReleaseSpec): The release specification for
             the data package, including the metadata and data fetching instructions
             for each resource.
+        resolve_references (bool, optional): Whether to resolve and include
+            referenced resources (e.g., dimensions) in the returned dictionary.
+            Not resolving references may result in a data package that is
+            not-self-contained and frictionless-compliant. Thus, references are
+            resolved by default. If references are not resolved, references are
+            dropped from the released resources' metadata to make the package
+            frictionless-compliant.
+            Defaults to True.
 
     Returns:
         dict[str, dict[str, Any]]: A dictionary mapping resource names to their
