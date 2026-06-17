@@ -203,6 +203,14 @@ class TestCollectReferencedResources:
 
         assert collect_referenced_resources(registry, [fact]) == {"other": other}
 
+    def test_unknown_reference_raises_valueerror(self, make_data_variable):
+        fact = make_data_variable(pd.DataFrame({"region": ["a"]}))
+        fact.foreign_keys = [_fk("missing")]
+        registry = FakeRegistry({})  # "missing" not registered
+
+        with pytest.raises(ValueError, match="Referenced contract 'missing' not found"):
+            collect_referenced_resources(registry, [fact])
+
 
 class TestDropDanglingForeignKeys:
     @staticmethod
