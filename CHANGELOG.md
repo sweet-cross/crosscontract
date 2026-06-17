@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## v0.12.1 (2026-06-17)
+
+### Bug fixes
+
+
+- **Include refernced resource in data package** ([`2120961`](https://github.com/sweet-cross/crosscontract/commit/2120961f0a0548988ca9a1a3ff7471c7e3cd5dba))
+
+  ## Pull request overview
+
+  This PR updates the data package release pipeline to automatically include resources referenced via foreign keys (e.g., dimensions) so exported Frictionless data packages are self-contained by default. It also adds an opt-out flag to skip reference resolution while pruning now-dangling foreign keys to keep the descriptor Frictionless-compliant.
+
+  **Changes:**
+  - Add `resolve_references` flag (default `True`) to `create_data_package()` / `resolve_resources()` and wire it through.
+  - Implement referenced-resource collection and pruning of dangling foreign keys in released schemas.
+  - Expand test coverage for referenced resource inclusion and foreign-key pruning behavior.
+
+  ### Reviewed changes
+
+  Copilot reviewed 6 out of 7 changed files in this pull request and generated 2 comments.
+
+  <details> <summary>Show a summary per file</summary>
+
+  | File | Description | | ---- | ----------- | | uv.lock | Updates locked metadata (markers) and bumps local package version to 0.12.0. | | pyproject.toml | Extends mypy exclude list to include `main_dev.py`. | | src/crosscontract/release/data_package/create_data_package.py | Adds `resolve_references` parameter and forwards it to `resolve_resources`. | | src/crosscontract/release/data_package/_resolve_resource.py | Adds referenced-resource resolution + foreign key pruning logic; updates resolver API. | | src/tests/release/data_package/test_resolve_resource.py | Adds tests for collecting referenced resources and pruning dangling foreign keys; expands resolve_resources tests. | | src/tests/release/data_package/test_create_data_package.py | Updates mocks and adds coverage to ensure `resolve_references` is passed through. | | src/tests/release/data_package/conftest.py | Adds `make_dimension` fixture for dimension-like registry variables. | </details>
+
+
+
 ## v0.12.0 (2026-06-16)
 
 ### Features
