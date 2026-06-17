@@ -27,7 +27,7 @@ from .release_specification import (
 # release spec.
 PRUNE_DIMENSIONS: dict[str, list[str]] = {
     "dim_model": ["id"],
-    "dim_scenario": ["scenario_group", "scenario_name", "scenario_variant"],
+    "dim_scenario": ["group", "name", "variant"],
 }
 
 

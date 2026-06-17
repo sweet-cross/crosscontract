@@ -320,12 +320,14 @@ class TestFilterPrunedDimensions:
     _MODEL_FK = [
         {"fields": ["model"], "reference": {"resource": "dim_model", "fields": ["id"]}}
     ]
+    # The fact columns (scenario_*) differ from the dimension's key columns
+    # (group/name/variant); the FK pairs them positionally.
     _SCENARIO_FK = [
         {
-            "fields": ["sg", "sn", "sv"],
+            "fields": ["scenario_group", "scenario_name", "scenario_variant"],
             "reference": {
                 "resource": "dim_scenario",
-                "fields": ["scenario_group", "scenario_name", "scenario_variant"],
+                "fields": ["group", "name", "variant"],
             },
         }
     ]
@@ -348,16 +350,22 @@ class TestFilterPrunedDimensions:
     def test_filters_composite_key_dimension(self):
         fact = _res(
             "fact",
-            pd.DataFrame({"sg": ["g1"], "sn": ["n1"], "sv": ["v1"]}),
+            pd.DataFrame(
+                {
+                    "scenario_group": ["g1"],
+                    "scenario_name": ["n1"],
+                    "scenario_variant": ["v1"],
+                }
+            ),
             foreign_keys=self._SCENARIO_FK,
         )
         dim = _res(
             "dim_scenario",
             pd.DataFrame(
                 {
-                    "scenario_group": ["g1", "g2"],
-                    "scenario_name": ["n1", "n2"],
-                    "scenario_variant": ["v1", "v2"],
+                    "group": ["g1", "g2"],
+                    "name": ["n1", "n2"],
+                    "variant": ["v1", "v2"],
                 }
             ),
         )
@@ -367,7 +375,7 @@ class TestFilterPrunedDimensions:
 
         out = resources["dim_scenario"]["data"]
         assert len(out) == 1
-        assert out.iloc[0]["scenario_name"] == "n1"
+        assert out.iloc[0]["name"] == "n1"
 
     def test_union_across_multiple_facts(self):
         f1 = _res("f1", pd.DataFrame({"model": ["a"]}), foreign_keys=self._MODEL_FK)
