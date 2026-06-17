@@ -34,8 +34,26 @@ class TestCreateDataPackage:
         create_data_package(registry=registry, release_spec=spec, fn_out="out.zip")
 
         # spec is used as-is (not reloaded) and delegation is wired correctly
-        mock_resolve.assert_called_once_with(registry, spec)
+        mock_resolve.assert_called_once_with(registry, spec, resolve_references=True)
         mock_save.assert_called_once_with(spec, {"r": {}}, "out.zip")
+
+    @patch(f"{MODULE}.save_data_package")
+    @patch(f"{MODULE}.resolve_resources")
+    def test_resolve_references_flag_passed_through(
+        self, mock_resolve, mock_save, make_package_spec
+    ):
+        spec = make_package_spec()
+        registry = MagicMock()
+        mock_resolve.return_value = {"r": {}}
+
+        create_data_package(
+            registry=registry,
+            release_spec=spec,
+            fn_out="out.zip",
+            resolve_references=False,
+        )
+
+        mock_resolve.assert_called_once_with(registry, spec, resolve_references=False)
 
     @patch(f"{MODULE}.save_data_package")
     @patch(f"{MODULE}.resolve_resources")

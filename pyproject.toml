@@ -116,5 +116,5 @@ exclude_lines = [
 
 #-------- Mypy Configuration --------#
 [tool.mypy]
-exclude = ["src/tests/"]
+exclude = ["src/tests/", "main_dev.py"]
 #disable_error_code = ["misc"]

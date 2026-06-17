@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from crosscontract.registry.variables import CrossBaseDimension
 from crosscontract.registry.variables.data_variable import CrossDataVariable
 from crosscontract.release.data_package.release_specification import (
     CrossDataPackageReleaseSpec,
@@ -69,5 +70,20 @@ def make_data_variable(contract_factory):
         var.get_data.return_value = df
         var.contract_resource.contract = contract or contract_factory.build()
         return var
+
+    return _make
+
+
+@pytest.fixture
+def make_dimension(contract_factory):
+    """Factory for a `CrossBaseDimension` mock exposing `data` and a real contract
+    via `contract_resource.contract`.
+    """
+
+    def _make(df, contract=None) -> MagicMock:
+        dim = MagicMock(spec=CrossBaseDimension)
+        dim.data = df
+        dim.contract_resource.contract = contract or contract_factory.build()
+        return dim
 
     return _make
