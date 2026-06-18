@@ -316,8 +316,8 @@ def _filter_pruned_dimensions(resources: dict[str, dict[str, Any]]) -> None:
     # 2. Reduce each pruned dimension to its referenced rows (or drop it if none).
     for name, cols in key_cols.items():
         dim_df: pd.DataFrame = resources[name]["data"]
-        mask = dim_df[cols].apply(tuple, axis=1).isin(used[name])
-        filtered = dim_df[mask]
+        mask = pd.MultiIndex.from_frame(dim_df.loc[:, cols]).isin(list(used[name]))
+        filtered = dim_df.loc[mask]
         if filtered.empty:
             warnings.warn(
                 f"Pruned dimension '{name}' has no referenced rows. "
