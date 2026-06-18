@@ -296,7 +296,7 @@ def _filter_pruned_dimensions(resources: dict[str, dict[str, Any]]) -> None:
         return
 
     # 1. Collect the key tuples actually referenced across all resources' data.
-    used: dict[str, set[tuple]] = {name: set() for name in key_cols}
+    used: dict[str, set[tuple[Any, ...]]] = {name: set() for name in key_cols}
     for res in resources.values():
         schema = res["data_resource"].table_schema
         if not isinstance(schema, TableSchema):
