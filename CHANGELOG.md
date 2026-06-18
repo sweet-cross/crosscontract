@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## v0.12.2 (2026-06-18)
+
+### Bug fixes
+
+
+- **Filter model scenario dimension** ([`e799f66`](https://github.com/sweet-cross/crosscontract/commit/e799f6621177faadd351f54ba456bef6a31f426d))
+
+  ## Pull request overview
+
+  This PR introduces a safeguard in the data-package release pipeline to *prune* sensitive/non-hierarchical dimensions (model/scenario catalogs) down to only the rows referenced by released fact data, reducing the risk of shipping full catalogs unintentionally.
+
+  **Changes:**
+  - Add `PRUNE_DIMENSIONS` and `_filter_pruned_dimensions()` to restrict `dim_model` / `dim_scenario` rows to referenced keys before FK cleanup.
+  - Wire `_filter_pruned_dimensions()` into `resolve_resources()` ahead of `_drop_dangling_foreign_keys()`.
+  - Add unit + wiring tests covering single-key and composite-key pruning behavior and edge cases.
+
+  ### Reviewed changes
+
+  Copilot reviewed 2 out of 2 changed files in this pull request and generated 6 comments.
+
+  | File | Description | | ---- | ----------- | | `src/crosscontract/release/data_package/_resolve_resource.py` | Adds pruned-dimension filtering logic and integrates it into resource resolution. | | `src/tests/release/data_package/test_resolve_resource.py` | Adds test fixtures and coverage for pruning behavior and end-to-end wiring via `resolve_resources()`. |
+
+
+
 ## v0.12.1 (2026-06-17)
 
 ### Bug fixes
