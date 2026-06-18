@@ -3,9 +3,17 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from ..._helpers import read_yaml_or_json_file
 from ..schema import TableSchema
-from ..utils import read_yaml_or_json_file
 from .resolvers import ContractResolver
+
+# A deliberately strict subset of the Frictionless identifier pattern
+# (``^([-a-z0-9._/])+$``, see `FRICTIONLESS_NAME_PATTERN` in
+# `_standards.frictionless`): lowercase alphanumeric characters plus '.', '_', and
+# '-'. The '/' the standard permits is intentionally excluded. Because this is a
+# subset, any accepted name is also a valid Frictionless name, so contracts stay
+# release-compliant by construction.
+CONTRACT_NAME_PATTERN = r"^([-a-z0-9._])+$"
 
 
 class BaseMetaData(BaseModel):
@@ -18,17 +26,21 @@ class BaseMetaData(BaseModel):
     class as a base for your custom contract together with BaseContract.
 
     Attributes:
-        name (str): A unique identifier for the data contract.
-            Must contain only alphanumeric characters, underscores, or hyphens.
-            Maximum length is 100 characters.
+        name (str): A unique identifier for the data contract. Must be a
+            Frictionless-compliant identifier: lowercase alphanumeric characters
+            plus '.', '_', and '-' (no uppercase, no '/'). Maximum length is 100
+            characters.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(
-        pattern="^[a-zA-Z0-9_-]+$",
+        pattern=CONTRACT_NAME_PATTERN,
         max_length=100,
-        description="A unique identifier for the data contract.",
+        description=(
+            "A unique identifier for the data contract. Must consist only of "
+            "lowercase alphanumeric characters, '.', '_', and '-'."
+        ),
     )
 
 

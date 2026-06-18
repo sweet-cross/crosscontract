@@ -1,5 +1,200 @@
 # CHANGELOG
 
+## v0.12.2 (2026-06-18)
+
+### Bug fixes
+
+
+- **Filter model scenario dimension** ([`e799f66`](https://github.com/sweet-cross/crosscontract/commit/e799f6621177faadd351f54ba456bef6a31f426d))
+
+  ## Pull request overview
+
+  This PR introduces a safeguard in the data-package release pipeline to *prune* sensitive/non-hierarchical dimensions (model/scenario catalogs) down to only the rows referenced by released fact data, reducing the risk of shipping full catalogs unintentionally.
+
+  **Changes:**
+  - Add `PRUNE_DIMENSIONS` and `_filter_pruned_dimensions()` to restrict `dim_model` / `dim_scenario` rows to referenced keys before FK cleanup.
+  - Wire `_filter_pruned_dimensions()` into `resolve_resources()` ahead of `_drop_dangling_foreign_keys()`.
+  - Add unit + wiring tests covering single-key and composite-key pruning behavior and edge cases.
+
+  ### Reviewed changes
+
+  Copilot reviewed 2 out of 2 changed files in this pull request and generated 6 comments.
+
+  | File | Description | | ---- | ----------- | | `src/crosscontract/release/data_package/_resolve_resource.py` | Adds pruned-dimension filtering logic and integrates it into resource resolution. | | `src/tests/release/data_package/test_resolve_resource.py` | Adds test fixtures and coverage for pruning behavior and end-to-end wiring via `resolve_resources()`. |
+
+
+
+## v0.12.1 (2026-06-17)
+
+### Bug fixes
+
+
+- **Include refernced resource in data package** ([`2120961`](https://github.com/sweet-cross/crosscontract/commit/2120961f0a0548988ca9a1a3ff7471c7e3cd5dba))
+
+  ## Pull request overview
+
+  This PR updates the data package release pipeline to automatically include resources referenced via foreign keys (e.g., dimensions) so exported Frictionless data packages are self-contained by default. It also adds an opt-out flag to skip reference resolution while pruning now-dangling foreign keys to keep the descriptor Frictionless-compliant.
+
+  **Changes:**
+  - Add `resolve_references` flag (default `True`) to `create_data_package()` / `resolve_resources()` and wire it through.
+  - Implement referenced-resource collection and pruning of dangling foreign keys in released schemas.
+  - Expand test coverage for referenced resource inclusion and foreign-key pruning behavior.
+
+  ### Reviewed changes
+
+  Copilot reviewed 6 out of 7 changed files in this pull request and generated 2 comments.
+
+  <details> <summary>Show a summary per file</summary>
+
+  | File | Description | | ---- | ----------- | | uv.lock | Updates locked metadata (markers) and bumps local package version to 0.12.0. | | pyproject.toml | Extends mypy exclude list to include `main_dev.py`. | | src/crosscontract/release/data_package/create_data_package.py | Adds `resolve_references` parameter and forwards it to `resolve_resources`. | | src/crosscontract/release/data_package/_resolve_resource.py | Adds referenced-resource resolution + foreign key pruning logic; updates resolver API. | | src/tests/release/data_package/test_resolve_resource.py | Adds tests for collecting referenced resources and pruning dangling foreign keys; expands resolve_resources tests. | | src/tests/release/data_package/test_create_data_package.py | Updates mocks and adds coverage to ensure `resolve_references` is passed through. | | src/tests/release/data_package/conftest.py | Adds `make_dimension` fixture for dimension-like registry variables. | </details>
+
+
+
+## v0.12.0 (2026-06-16)
+
+### Features
+
+
+- **Data package** ([`6108ca8`](https://github.com/sweet-cross/crosscontract/commit/6108ca81ad48764db97f077fef1f559b8dd82b30))
+
+  ## Pull request overview
+
+  Adds a new “release/data_package” pipeline that exports CROSS contracts + fetched data as a Frictionless Data Package (zip on disk), backed by a new internal `_standards.frictionless` Pydantic mirror of the upstream Frictionless schemas.
+
+  **Changes:**
+  - Introduces permissive Frictionless descriptor/schema models under `crosscontract._standards.frictionless` plus shared internal helpers under `crosscontract._helpers`.
+  - Implements data package release spec models + resolver/writer functions and wires a new public entry point `create_data_package`.
+  - Refactors metadata models (`Contributor`/`Source`/`License`) and contract metadata list handling to align with the new standards layer, and adds/updates tests accordingly.
+
+  ### Reviewed changes
+
+  Copilot reviewed 54 out of 60 changed files in this pull request and generated 11 comments.
+
+  <details> <summary>Show a summary per file</summary>
+
+  | File | Description | | ---- | ----------- | | uv.lock | Bumps local package version in lockfile. | | src/crosscontract/transformations/fetch/fetch_spec.py | Makes `FetchSpecMixin` require `contract` and adds `format` for release output. | | src/crosscontract/release/data_package/release_specification.py | Adds release spec models for packages/resources and validation rules. | | src/crosscontract/release/data_package/create_data_package.py | Adds orchestrator to load spec, resolve resources, and write package zip. | | src/crosscontract/release/data_package/_resolve_resource.py | Adds fetch/build/resolve logic to turn registry variables into Frictionless resources. | | src/crosscontract/release/data_package/_resolve_package.py | Adds zip writer that emits data files + datapackage descriptors. | | src/crosscontract/release/data_package/__init__.py | Re-exports new release spec + `create_data_package`. | | src/crosscontract/release/__init__.py | Updates public release exports to new adapter surface. | | src/crosscontract/contracts/contracts/base_contract.py | Renames identifier pattern constant to `CONTRACT_NAME_PATTERN`. | | src/crosscontract/contracts/contracts/cross_contract.py | Switches contributors/licenses to `OptionalNonEmptyList`; renames DataSource→Source. | | src/crosscontract/contracts/contracts/metadata_models.py | Re-bases curated metadata models on `_standards.frictionless` leaf models. | | src/crosscontract/contracts/schema/schema.py | Updates YAML/JSON reader import to new `_helpers` module. | | src/crosscontract/contracts/utils.py | Removes old YAML/JSON reader (now in `_helpers`). | | src/crosscontract/release/data_package/data_resource.py | Removes retired bespoke release descriptor class. | | src/crosscontract/release/data_package/data_package.py | Removes retired bespoke package descriptor class. | | src/crosscontract/_helpers/_pydantic.py | Adds `OptionalNonEmptyList` validator helper. | | src/crosscontract/_helpers/_io.py | Adds YAML/JSON read + dump helpers used across codebase. | | src/crosscontract/_helpers/__init__.py | Exposes internal helper utilities. | | src/crosscontract/_standards/frictionless/fields.py | Adds permissive Frictionless field models + constraints. | | src/crosscontract/_standards/frictionless/table_schema.py | Adds permissive Frictionless TableSchema model with normalization/dispatch. | | src/crosscontract/_standards/frictionless/metadata.py | Adds composable Frictionless metadata models and validators/serializers. | | src/crosscontract/_standards/frictionless/descriptors.py | Adds `DataResource`/`DataPackage` descriptor compositions. | | src/crosscontract/_standards/frictionless/__init__.py | Exposes Frictionless standard models internally. | | src/crosscontract/_standards/__init__.py | Declares `_standards` internal package. | | src/tests/transformations/fetch/test_fetch_spec.py | Updates tests for new required `contract` field (one case still missing it). | | src/tests/release/data_package/conftest.py | Adds fixtures for package/resource spec and mock registry variables. | | src/tests/release/data_package/test_resolve_resource.py | Adds unit tests for resource fetch/build/resolve behavior. | | src/tests/release/data_package/test_resolve_package.py | Adds unit tests for zip writer and descriptor round-tripping. | | src/tests/release/data_package/test_release_specification.py | Adds tests for spec validation (e.g., unique resource names). | | src/tests/release/data_package/test_create_data_package.py | Adds orchestrator tests (incl. end-to-end with fake registry). | | src/tests/release/data_package/__init__.py | New test package marker. | | src/tests/release/__init__.py | New test package marker. | | src/tests/release/data_package/test_data_resource.py | Removes tests for retired bespoke descriptor class. | | src/tests/release/data_package/test_data_package.py | Removes tests for retired bespoke package class. | | src/tests/contracts/test_utils.py | Removes tests tied to deleted `contracts.utils.read_yaml_or_json_file`. | | src/tests/contracts/contracts/test_metadata_models.py | Updates tests for DataSource→Source and new License validation message. | | src/tests/conftest.py | Updates factory comment/pattern reference (still mentions retired class in comment). | | src/tests/_standards/frictionless/test_table_schema.py | Adds coverage for standards TableSchema normalization/dispatch. | | src/tests/_standards/frictionless/test_metadata.py | Adds coverage for standards metadata blocks. | | src/tests/_standards/frictionless/test_descriptors.py | Adds coverage for standards resource/package composition + round-trip. | | src/tests/_standards/frictionless/__init__.py | New test package marker. | | src/tests/_standards/__init__.py | New test package marker. | | src/tests/_helpers/test_pydantic.py | Adds coverage for `OptionalNonEmptyList`. | | src/tests/_helpers/test_io.py | Adds coverage for YAML/JSON read + dump helpers and formatting. | | src/tests/_helpers/__init__.py | New test package marker. | | main_dev.py | Adds a dev script (currently includes hardcoded credentials). | | .claude/CLAUDE.md | Updates architecture docs to include `_standards` and release adapter. | | .ai-context/TODO.md | Updates TODOs for release adapter follow-ups and removes obsolete items. | | .ai-context/prds/2026-06-14-release-data-package-adapter.md | Adds PRD describing the release adapter feature. | | .ai-context/prds/.gitignore | Removes ignore pattern. | | .ai-context/issues/2026-06-14-release-data-package-adapter/01-spec-models.md | Adds implementation task note. | | .ai-context/issues/2026-06-14-release-data-package-adapter/02-adapter-build-helpers.md | Adds implementation task note. | | .ai-context/issues/2026-06-14-release-data-package-adapter/03-adapter-orchestration.md | Adds implementation task note. | | .ai-context/issues/2026-06-14-release-data-package-adapter/04-retire-and-wire-exports.md | Adds implementation task note. | | .ai-context/issues/2026-06-14-release-data-package-adapter/05-unit-tests.md | Adds implementation task note. | | .ai-context/issues/2026-06-14-release-data-package-adapter/06-integration-tests.md | Adds implementation task note. | | .ai-context/issues/.gitignore | Removes ignore pattern. | | .ai-context/CONTEXT.md | Updates glossary/context for the new release adapter approach. | | .ai-context/adrs/0003-release-is-a-contract-to-frictionless-adapter.md | Adds ADR formalizing the new release adapter design. | | .ai-context/adrs/0002-metadata-follows-frictionless-with-deviations.md | Clarifies two-layer metadata approach (curated vs faithful mirror). | </details>
+
+  Co-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>
+
+
+
+## v0.11.1 (2026-06-12)
+
+### Bug fixes
+
+
+- **Transformations** ([`2176fc7`](https://github.com/sweet-cross/crosscontract/commit/2176fc75a4bc1e05cfceba0f662c7470625a8749))
+
+  ## Pull request overview
+
+  Adds a new `crosscontract.transformations` package to support declarative fetch-shaping and pandas DataFrame transformations, with accompanying unit tests and supporting documentation updates.
+
+  **Changes:**
+  - Introduces declarative fetch specs (`FetchSpecMixin`, `ColumnAggregation`, `LevelKeepSpec`) that serialize into the raw shapes expected by `CrossDataVariable.get_data`.
+  - Adds transformation specs + pure functions for common DataFrame operations (map values, rename columns, drop columns).
+  - Adds a comprehensive pytest suite for the new transformation/fetch behavior and strengthens an existing aggregation equivalence test.
+
+  ### Reviewed changes
+
+  Copilot reviewed 16 out of 20 changed files in this pull request and generated 2 comments.
+
+  <details> <summary>Show a summary per file</summary>
+
+  | File | Description | | ---- | ----------- | | uv.lock | Updates lock metadata (including editable project version and marker normalization). | | src/crosscontract/transformations/__init__.py | Exposes the new transformations public API surface. | | src/crosscontract/transformations/fetch/__init__.py | Re-exports fetch-spec types. | | src/crosscontract/transformations/fetch/aggregation_spec.py | Adds validated aggregation directive models (including dict disambiguation). | | src/crosscontract/transformations/fetch/fetch_spec.py | Adds `FetchSpecMixin.get_data_kwargs` shaping logic. | | src/crosscontract/transformations/transformation/__init__.py | Re-exports transformation specs and pure functions. | | src/crosscontract/transformations/transformation/base.py | Introduces a strict base model for transformation specs (`extra='forbid'`). | | src/crosscontract/transformations/transformation/column_transformations.py | Adds `map_column_values` + `MapColumnValues` spec. | | src/crosscontract/transformations/transformation/dataframe_transformations.py | Adds `rename_columns`/`drop_columns` + corresponding specs. | | src/tests/transformations/__init__.py | Creates tests package for transformations. | | src/tests/transformations/fetch/__init__.py | Creates fetch tests package. | | src/tests/transformations/fetch/test_aggregation_spec.py | Tests `ColumnAggregation` parsing/dumping and validation. | | src/tests/transformations/fetch/test_fetch_spec.py | Tests `FetchSpecMixin.get_data_kwargs` output shapes and validation. | | src/tests/transformations/transformation/__init__.py | Creates transformation tests package. | | src/tests/transformations/transformation/test_colum_transformations.py | Tests `map_column_values` behavior and edge cases. | | src/tests/transformations/transformation/test_dataframe_transformations.py | Tests `rename_columns` / `drop_columns` behavior and errors. | | src/tests/transformations/transformation/test_transformation_specs.py | Tests spec/application parity + discriminator union behavior. | | src/tests/registry/test_data_variable.py | Adds regression test ensuring empty `keep` matches plain `level`. | | src/crosscontract/contracts/contracts/metadata_models.py | Expands `License` docstring attribute documentation. | | .ai-context/CONTEXT.md | Documents terminology for “Transformation” vs “Build spec”. | </details>
+
+
+
+## v0.11.0 (2026-06-10)
+
+### Features
+
+
+- **Data package** ([`0a924e6`](https://github.com/sweet-cross/crosscontract/commit/0a924e64dc2b8c06bdf9af908148b60369c18e87))
+
+  ## Pull request overview
+
+  This PR introduces a Frictionless Data Package release artifact (`CrossDataPackage`) alongside existing data-resource support, and tightens validation/serialization to better match Frictionless wire formats.
+
+  **Changes:**
+  - Add `CrossDataPackage` model with `to_descriptor()` and `to_file()` for JSON/YAML emission.
+  - Strengthen Frictionless-related constraints (contract `name` pattern; data-resource `path` validation; omit `None` fields in descriptors).
+  - Add comprehensive tests + vendored Frictionless `data-package.json` schema for compliance checks.
+
+  ### Reviewed changes
+
+  Copilot reviewed 13 out of 14 changed files in this pull request and generated 5 comments.
+
+  <details> <summary>Show a summary per file</summary>
+
+  | File | Description | | ---- | ----------- | | uv.lock | Bumps locked package version to 0.10.3. | | src/tests/release/data_package/test_data_resource.py | Expands resource descriptor/path/metadata tests (includes new path constraint cases). | | src/tests/release/data_package/test_data_package.py | Adds end-to-end tests for data-package descriptor + file output + schema validation. | | src/tests/release/data_package/data-package.json | Adds Frictionless Data Package JSON Schema fixture used by tests. | | src/tests/contracts/contracts/test_contracts.py | Adds tests for updated Frictionless-compatible contract name constraints. | | src/tests/conftest.py | Pins factory `name` to a Frictionless-legal lowercase value for release tests. | | src/crosscontract/release/data_package/data_resource.py | Tightens `path` constraints and excludes `None` fields in `to_descriptor()`. | | src/crosscontract/release/data_package/data_package.py | Introduces `CrossDataPackage` model and JSON/YAML serialization. | | src/crosscontract/release/data_package/__init__.py | Exports `CrossDataPackage` from the subpackage. | | src/crosscontract/release/__init__.py | Re-exports `CrossDataPackage` at `crosscontract.release` level. | | src/crosscontract/contracts/contracts/cross_contract.py | Normalizes empty optional metadata lists to `None` prior to serialization. | | src/crosscontract/contracts/contracts/base_contract.py | Introduces `FRICTIONLESS_NAME_PATTERN` and applies it to contract `name`. | | .ai-context/TODO.md | Captures an open design decision around `tags` vs Frictionless `keywords`. | </details>
+
+  <details> <summary>Comments suppressed due to low confidence (2)</summary>
+
+  **src/tests/release/data_package/test_data_resource.py:154**
+  * This call line exceeds the repo’s ruff line-length limit (E501). Wrap the arguments across lines to avoid lint failures in tests.
+  **src/tests/release/data_package/test_data_resource.py:144**
+  * This test function definition exceeds the repo’s ruff line-length limit (E501). Please wrap the parameters onto multiple lines to keep lint passing. </details>
+
+
+
+## v0.10.3 (2026-06-10)
+
+### Bug fixes
+
+
+- **Data resource** ([`778c70a`](https://github.com/sweet-cross/crosscontract/commit/778c70a188bb93800582c91b659c2f184cfb777b))
+
+  ## Pull request overview
+
+  This PR introduces a new “release” surface area to represent a Frictionless-style **Data Resource** (a `CrossContract` bound to a physical data file) and adds initial tests/docs for it.
+
+  **Changes:**
+  - Add `CrossDataResource` model under `crosscontract.release`, including computed `profile` and path/format validation.
+  - Add pytest coverage for `CrossDataResource` and a shared `contract_factory` fixture for release tests.
+  - Update internal context docs to define “Data Resource / Data specification / Data Package” terminology; bump lockfile version.
+
+  ### Reviewed changes
+
+  Copilot reviewed 7 out of 8 changed files in this pull request and generated 4 comments.
+
+  <details> <summary>Show a summary per file</summary>
+
+  | File | Description | | ---- | ----------- | | `uv.lock` | Updates locked package version to `0.10.2`. | | `src/crosscontract/release/data_package/data_resource.py` | Adds the `CrossDataResource` model (contract + file-binding metadata). | | `src/crosscontract/release/data_package/__init__.py` | Exports `CrossDataResource` from the data_package submodule. | | `src/crosscontract/release/__init__.py` | Exports `CrossDataResource` as the release package public API. | | `src/tests/conftest.py` | Adds a root-level `contract_factory` fixture for tests outside `crossclient/`. | | `src/tests/release/test_data_resource.py` | Adds tests for `CrossDataResource` construction, profile computation, and validation. | | `.ai-context/CONTEXT.md` | Documents release/distribution terminology and intended behavior. | </details>
+
+
+
+## v0.10.2 (2026-06-10)
+
+### Bug fixes
+
+
+- **Metadata extension** ([`6f29341`](https://github.com/sweet-cross/crosscontract/commit/6f29341977c80bc748b814ddc6fcfe4151bd6e68))
+
+  ## Pull request overview
+
+  This PR extends the contract metadata model to support Frictionless-aligned provenance/licensing fields by introducing dedicated Pydantic models and wiring them into `CrossMetaData`, along with tests and documentation updates.
+
+  **Changes:**
+  - Add `Contributor`, `DataSource`, and `License` Pydantic models (strict `extra="forbid"`) and document intentional Frictionless deviations.
+  - Extend `CrossMetaData` with `contributors`, `sources`, and `licenses` fields.
+  - Add unit tests and update docs/reference pages to include the new metadata models.
+
+  ### Reviewed changes
+
+  Copilot reviewed 9 out of 10 changed files in this pull request and generated 3 comments.
+
+  <details> <summary>Show a summary per file</summary>
+
+  | File | Description | | ---- | ----------- | | uv.lock | Updates locked editable package version metadata. | | src/tests/crossclient/conftest.py | Updates test factory to build valid nested `licenses` metadata. | | src/tests/contracts/contracts/test_metadata_models.py | Adds tests for new metadata models and validation behavior. | | src/crosscontract/contracts/contracts/metadata_models.py | Introduces new metadata Pydantic models (`Contributor`, `DataSource`, `License`). | | src/crosscontract/contracts/contracts/cross_contract.py | Adds new metadata fields to `CrossMetaData` and imports models. | | docs/reference/contracts.md | Exposes `metadata_models` in the API reference. | | docs/contracts/metadata.md | Documents new metadata fields and Frictionless relationship/deviations. | | .claude/CLAUDE.md | Updates repository guidance to include the new vendored Frictionless schema file. | | .ai-context/adrs/0002-metadata-follows-frictionless-with-deviations.md | Adds ADR clarifying Frictionless alignment and deliberate departures. | | .ai-context/additional_info/tabular-data-resource.json | Adds vendored upstream Frictionless schema reference. | </details>
+
+
+### Chores
+
+
+- **Claude setup** ([`60eaff8`](https://github.com/sweet-cross/crosscontract/commit/60eaff8579ad0f631df111c77cb28f576a3a917a))
+
+
+
 ## v0.10.1 (2026-06-05)
 
 ### Bug fixes
@@ -15,6 +210,8 @@
   - Switch `ContractService._add_data()` upload serialization from CSV to Parquet (multipart file upload).
   - Set Parquet filename and MIME type for the uploaded payload.
   - Remove a stale CSV-related comment in the Parquet-based `_get_data()` path.
+
+
 
 
 

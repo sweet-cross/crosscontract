@@ -2,6 +2,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import ConfigDict, Field, model_validator
 
+from ..._helpers import OptionalNonEmptyList
 from ..schema import (
     DimensionSchema,
     FlexibleDimensionSchema,
@@ -9,6 +10,7 @@ from ..schema import (
     ValueVariableSchema,
 )
 from .base_contract import BaseContract, BaseMetaData
+from .metadata_models import Contributor, License, Source
 from .resolvers import ContractResolver
 
 AnyTableSchema = Annotated[
@@ -51,6 +53,23 @@ class CrossMetaData(BaseMetaData):
             "A list of tags that can be used to categorize the table. "
             "This can be used to filter tables in the UI."
         ),
+    )
+
+    # `contributors` and `licenses` are Frictionless `minItems: 1`, so an empty
+    # list is collapsed to `None` (via `OptionalNonEmptyList`) and dropped under
+    # `exclude_none`. `sources` is `minItems: 0`: an empty list is valid, so it is
+    # left as-is.
+    contributors: OptionalNonEmptyList[Contributor] = Field(
+        default=None, description="A list of contributors to the data contract."
+    )
+
+    sources: list[Source] | None = Field(
+        default=None, description="A list of data sources for the data contract."
+    )
+
+    licenses: OptionalNonEmptyList[License] = Field(
+        default=None,
+        description="A list of licenses for the data associated with the contract.",
     )
 
 

@@ -40,6 +40,14 @@ uv run mkdocs serve
 
 Pre-commit hooks run `ruff check` (F401 + isort) and `ruff-format` on commit.
 
+### Do not run validation automatically
+
+Do **not** run tests, linting, type-checking, coverage, or any other validation
+command (`pytest`, `ruff`, `mypy`, `coverage`, etc.) on your own initiative. After
+making changes, stop and **ask for permission** before running any of them. Only run
+a validation command when the user has explicitly asked for it or granted permission
+in the current exchange.
+
 ## Branching and releases
 
 - `main` is the public release branch. Pushes to main publish to PyPI (gated by the `pypi` GitHub Environment) and deploy the docs.
@@ -47,9 +55,17 @@ Pre-commit hooks run `ruff check` (F401 + isort) and `ruff-format` on commit.
 - Feature branches **squash-merge** into `dev`. The PR title must be a valid conventional commit (`feat:`, `fix:`, etc.) — it becomes the squash commit message that PSR analyzes. Hotfixes follow the same path.
 - `dev` **fast-forwards** into `main`. The version commits and tags created on dev carry over to main as-is. No version bumps happen on the dev → main promotion.
 
+## Deferred work
+
+Out-of-scope, separate-PR follow-ups are collected in
+[`.ai-context/TODO.md`](../.ai-context/TODO.md). When you spot work worth doing but
+that would bloat the change in front of you, **append it there** (with enough context
+to act on it cold) rather than expanding the current PR. Consult this file when
+planning a change, and remove an item once its PR lands.
+
 ## Architecture
 
-The package has three independent top-level modules, all re-exported from `crosscontract/__init__.py`:
+The public surface — `contracts/`, `crossclient/`, and `registry/` — is re-exported from `crosscontract/__init__.py`. `_standards/` is an internal module (not re-exported) holding faithful models of the upstream Frictionless standard.
 
 ### `contracts/` — Schema and contract definitions
 
@@ -66,6 +82,7 @@ The package has three independent top-level modules, all re-exported from `cross
 - `DimensionSchema`: rigid template (id, level, parent_id, label, description). Rejects any user-provided fields.
 - `FlexibleDimensionSchema`: user-defined fields, but mandates `label` and `description` fields.
 - `_mandatory_fields` class variable: list of `MandatoryField` specs validated at schema construction time.
+- Vendored copies of the upstream Frictionless JSON Schemas (`table-schema.json`, `data-resource.json`, `data-package.json`, `tabular-data-resource.json`) live in `.ai-context/additional_info/` — the authoritative reference for what fields, types, and constraints the schema layer must stay compatible with. Reference only; no code loads them at runtime. The `_standards/frictionless/` package (below) is a faithful pydantic mirror of these.
 
 **`contracts/schema/adapters/`** — Converts `TableSchema` to external formats:
 - `PanderaPandasAdapter`: builds a `pandera.DataFrameSchema` with primary-key uniqueness and foreign-key checks.
@@ -74,6 +91,15 @@ The package has three independent top-level modules, all re-exported from `cross
 - `_pandera_dimension_checks.py`: custom Pandera checks enforcing dimension hierarchy invariants (level 0 = no parent, level N > 0 = parent at N-1, required "other" sentinel entries).
 
 **`contracts/schema/fields/`** — Field types (`IntegerField`, `NumberField`, `StringField`, `DateTimeField`, `ListField`), all discriminated by `type`. Each carries a typed `constraints` submodel (e.g. `min`/`max` for numbers, `pattern`/`maxLength` for strings).
+
+### `_standards/frictionless/` — Faithful, permissive Frictionless models (internal)
+
+A pydantic mirror of the upstream Frictionless standard, distinct from the stricter `contracts/` layer: every model is `extra="allow"` and carries no CROSS domain logic, so the standard's extensibility rides through losslessly. Internal — not re-exported from the top-level package; sibling modules import from `crosscontract._standards.frictionless`.
+
+- `fields.py` — permissive field models (`StringField`, `IntegerField`, … discriminated by `type`) with typed `constraints` submodels.
+- `table_schema.py` — the permissive `TableSchema` (`fields`, `primaryKey`, `foreignKeys`, `missingValues`). Shares its bare name with the strict contract `TableSchema`; disambiguate by module.
+- `metadata.py` — reusable metadata building blocks composed by the descriptors: `BaseMetaData` (fields identical in both descriptors), `ResourceMetaData` / `PackageMetaData` (descriptive parts), `FileMetaData` (the physical data binding), plus the permissive leaf models `Source`, `License`, `Contributor`. Also defines `FRICTIONLESS_NAME_PATTERN` (the resource/package `name` pattern, which permits `/`).
+- `descriptors.py` — thin compositions: `DataResource(ResourceMetaData, FileMetaData)` and `DataPackage(PackageMetaData)` (adds the required `resources` array). The Frictionless `schema` key maps to a `table_schema` field (via `alias`) to avoid shadowing `BaseModel.schema`.
 
 ### `crossclient/` — HTTP client for the CROSS platform
 
@@ -87,8 +113,54 @@ The package has three independent top-level modules, all re-exported from `cross
 - `CrossDataVariable`: holds a fetched `ContractResource` and its resolved `CrossDimension` objects. Main entry point is `get_data()`, which supports filtering, dimension aggregation (by level, target ID list, or custom mapping), title relabeling (`use_titles=True`), and column selection.
 - `CrossDimension`: dimension-specific variable. Exposes `label_map`, `ancestor_maps` (precomputed per-level), and `get_ancestor_map_by_ids()` for aggregation.
 
+### `release/data_package/` — Contract → Frictionless Data Package adapter
+
+A stateless adapter that turns CROSS contracts into a Frictionless Data Package (a zip on disk). It assembles the permissive `_standards.frictionless` `DataResource` / `DataPackage` models directly — there are no bespoke descriptor classes (see ADR 0003).
+
+- `release_specification.py` — the build-recipe spec models: `CrossDataResourceReleaseSpec` (per-resource descriptive overrides + a `DataInstructions` wrapping the `FetchSpecMixin`; `name` defaults to the fetch contract) and `CrossDataPackageReleaseSpec` (authored package metadata + `resources`, with a unique-resource-name validator).
+- `create_data_package.py` — `create_data_package(registry, release_spec, fn_out)`: the slim orchestrator. Loads the spec from a YAML/JSON path (or accepts an instance), then delegates.
+- `_resolve_resource.py` — `fetch_data` (fetch via the registry's trusted path), `build_data_resource` (overlay contract metadata with the spec field-by-field, embed the contract `schema`, derive `path`/`profile` from `format`), and `resolve_resources` (the per-resource loop: empty data is warned-and-skipped; an all-empty release raises).
+- `_resolve_package.py` — `save_data_package`: writes each resource's data file plus `datapackage.json` and `datapackage.yaml` into the output zip.
+
+### `_helpers/` — Internal, dependency-free helpers
+
+Not re-exported from the top-level package. `_pydantic.py` holds reusable pydantic types (`OptionalNonEmptyList`, which collapses `[]`→`None` for Frictionless `minItems: 1` optional arrays); `_io.py` holds `read_yaml_or_json_file` and `dump_to_file`.
+
 ### Key design patterns
 
 - **Discriminated unions**: `contract_type` on `CrossContract` maps 1:1 to `table_type` on the schema. The `_inject_table_type` validator bridges them automatically.
 - **Adapters are stateless class methods**: call `Adapter.convert_schema(schema, ...)` directly; the adapter pattern exists for extensibility but doesn't require instantiation in practice.
+- **Two `name` patterns, deliberately distinct**: `CONTRACT_NAME_PATTERN` (in `contracts/contracts/base_contract.py`) is the strict contract/field identifier — no `/`; `FRICTIONLESS_NAME_PATTERN` (in `_standards/frictionless/metadata.py`) is the looser standard resource/package identifier that permits `/`. The contract pattern is a subset, so any contract name is also a valid Frictionless name.
 - **Tests live in `src/tests/`**, mirroring the `src/crosscontract/` structure. `pythonpath = "src"` in `pyproject.toml` means imports use `from crosscontract import ...` without editable install, though the package should be installed via `uv sync`.
+
+## Docstring convention
+
+All Python docstrings in this package use **Google style** (rendered by mkdocs via mkdocstrings). Markdown is used for inline formatting — backticks for code/types, dashes for bullet lists. Do **not** use reStructuredText roles (`:attr:`, `:class:`, `:meth:`, `:func:`) or rST directives.
+
+Standard sections (omit any that don't apply):
+
+```python
+def f(x: int, y: str | None = None) -> bool:
+    """One-line summary in the imperative.
+
+    Optional longer description in plain prose. Reference symbols with
+    backticks, e.g. `PlotSpec`, `value_column`, `pd.DataFrame`.
+
+    Args:
+        x (int): What it is.
+        y (str | None, optional): What it is. Defaults to `None`.
+
+    Returns:
+        bool: What comes back.
+
+    Raises:
+        ValueError: When and why.
+    """
+```
+
+Rules of thumb:
+
+- Docstrings are user-facing. Do **not** reference internal notes (ADRs, issue numbers, task numbers, migration cycles) — those belong in commit messages, PRs, or `.ai-context/`.
+- For Pydantic field descriptions, use the `Field(description=...)` argument with the same markdown conventions; no Args block on the field itself.
+- For `@model_validator` / `@model_serializer` methods, document the invariant they enforce in the summary, plus `Returns:` (typically `Self`) and `Raises:` where applicable.
+- Properties: document via `Returns:` rather than restating the property name.

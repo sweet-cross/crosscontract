@@ -1,6 +1,6 @@
 [project]
 name = "crosscontract"
-version = "0.10.1"
+version = "0.12.2"
 description = "Provides data contracts with frictionless schemas and client to interact with CROSS data platform.   "
 readme = "README.md"
 requires-python = ">=3.11"
@@ -116,5 +116,5 @@ exclude_lines = [
 
 #-------- Mypy Configuration --------#
 [tool.mypy]
-exclude = ["src/tests/"]
+exclude = ["src/tests/", "main_dev.py"]
 #disable_error_code = ["misc"]

@@ -1,9 +1,7 @@
 from unittest.mock import patch
 
 import pytest
-from polyfactory.factories.pydantic_factory import ModelFactory
 
-from crosscontract.contracts import CrossContract, TableSchema
 from crosscontract.crossclient import CrossClient
 from crosscontract.crossclient.services.contract_service import ContractService
 
@@ -47,26 +45,3 @@ def auth_client(client):
     client._token = "token_123"
     client._client.headers["Authorization"] = "Bearer token_123"
     yield client
-
-
-class CrossContractFactory(ModelFactory[CrossContract]):
-    __model__ = CrossContract
-
-    # set the general contract relying on the default TableSchema
-    contract_type = "General"
-
-    # OPTIONAL: If references cause noise, you can set defaults here
-    # even while keeping the rest dynamic.
-    @classmethod
-    def tableschema(cls):
-        # Force empty foreign keys to avoid 'validate_self_reference' issues entirely
-        return TableSchema(fields=[{"name": "id", "type": "string"}], foreignKeys=[])
-
-
-@pytest.fixture(scope="session")
-def contract_factory() -> type[CrossContractFactory]:
-    """
-    Returns the Factory CLASS itself, allowing tests to call .build()
-    with different overrides.
-    """
-    return CrossContractFactory

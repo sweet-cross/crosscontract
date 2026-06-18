@@ -89,6 +89,27 @@ class TestBaseContract:
         with pytest.raises(ValidationError):
             BaseContract.model_validate(invalid_data)
 
+    @pytest.mark.parametrize(
+        "name",
+        ["data_base_contract", "result.monthly", "dim-fuel", "abc123"],
+    )
+    def test_accepts_frictionless_name(self, name):
+        data = deepcopy(data_base_contract)
+        data["name"] = name
+        assert BaseContract.model_validate(data).name == name
+
+    @pytest.mark.parametrize(
+        "name",
+        ["MyContract", "my-Contract", "group/contract", "has space", "trailing!"],
+    )
+    def test_rejects_non_frictionless_name(self, name):
+        # Uppercase and '/' are intentionally excluded (stricter subset of the
+        # Frictionless identifier pattern).
+        data = deepcopy(data_base_contract)
+        data["name"] = name
+        with pytest.raises(ValidationError, match="name"):
+            BaseContract.model_validate(data)
+
 
 class TestCrossContract:
     def test_valid(self):
