@@ -69,6 +69,7 @@ nav:
   - CrossRegistry:
       - Overview: registry/index.md
       - Tutorial: notebooks/registry_tutorial.ipynb
+      - Releasing data: release/index.md
   - CrossClient:
       - Overview: client/index.md
       - Tutorial: notebooks/client_tutorial.ipynb
@@ -76,5 +77,6 @@ nav:
       - CrossContract: reference/contracts.md
       - CrossRegistry: reference/registry.md
       - CrossClient: reference/client.md
+      - Release: reference/release.md
   - Contributing: contributing.md
   - About: about.md
