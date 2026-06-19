@@ -50,6 +50,9 @@ plugins:
       include: ["notebooks/*.ipynb"] # Matches the virtual dest_path
       execute: false
 
+extra_css:
+  - stylesheets/extra.css
+
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true

@@ -1,0 +1,82 @@
+/* ---------------------------------------------------------------------------
+ * Custom theming for the CrossContracts docs, aligned with sweet-cross.ch.
+ *
+ * Material for MkDocs is themed primarily through CSS custom properties
+ * (the `--md-*` variables). Override them here rather than targeting deep
+ * selectors so the changes survive theme upgrades.
+ *
+ * Reference: https://squidfunk.github.io/mkdocs-material/customization/
+ * Full variable list (the source of truth):
+ *   https://github.com/squidfunk/mkdocs-material/blob/master/src/templates/assets/stylesheets/main/_colors.scss
+ *
+ * HOW TO FIND THE RIGHT PROPERTY
+ * ------------------------------
+ * 1. `uv run mkdocs serve` and open http://127.0.0.1:8000
+ * 2. Right-click the element you want to restyle -> "Inspect".
+ * 3. In devtools, look at the "Computed" / "Styles" panel: Material's rules
+ *    almost always read from a `var(--md-...)` token. Find that token name,
+ *    then set it in the matching scheme block below.
+ * 4. If a token doesn't cover what you need, add a normal selector at the
+ *    bottom (see "Targeted overrides").
+ *
+ * CHEAT SHEET — the variables you'll most likely want
+ * ---------------------------------------------------
+ *   Brand / chrome:
+ *     --md-primary-fg-color          Header bar + nav tabs background
+ *     --md-primary-fg-color--light   Lighter shade of the primary
+ *     --md-primary-fg-color--dark    Darker shade (e.g. scrolled header)
+ *     --md-primary-bg-color          Text/icons ON the primary header
+ *     --md-accent-fg-color           Links hover, focus rings, active nav
+ *
+ *   Body content:
+ *     --md-default-fg-color          Main body text colour
+ *     --md-default-fg-color--light   Secondary text (~70% opacity)
+ *     --md-default-fg-color--lighter Muted text (~32%)
+ *     --md-default-bg-color          Page background
+ *     --md-typeset-a-color           In-content link colour
+ *
+ *   Code:
+ *     --md-code-fg-color             Inline/code-block text
+ *     --md-code-bg-color             Inline/code-block background
+ *
+ *   Fonts:
+ *     --md-text-font                 Body + headings font family
+ *     --md-code-font                 Monospace font family
+ * ------------------------------------------------------------------------- */
+
+/* Light mode ("default" scheme) ------------------------------------------- */
+[data-md-color-scheme="default"] {
+  /* TODO: replace with the real sweet-cross.ch brand values */
+  --md-primary-fg-color:        #3f51b5; /* header / nav background     */
+  --md-primary-fg-color--light: #5c6bc0;
+  --md-primary-fg-color--dark:  #303f9f;
+  --md-accent-fg-color:         #3f51b5; /* links, focus, active states */
+
+  /* In-content links — uncomment to decouple from the accent colour */
+  /* --md-typeset-a-color:      #3f51b5; */
+}
+
+/* Dark mode ("slate" scheme) ---------------------------------------------- */
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color:        #5c6bc0;
+  --md-accent-fg-color:         #7986cb;
+}
+
+/* Typography (uncomment once brand fonts are decided) ---------------------- */
+/* These apply to both schemes, so set them on :root, not per-scheme.        */
+/*
+:root {
+  --md-text-font:  "YourBodyFont";
+  --md-code-font:  "YourMonoFont";
+}
+*/
+
+/* Targeted overrides ------------------------------------------------------ *
+ * For anything not exposed as a `--md-*` token, add plain selectors here.
+ * Example: tighten the heading weight to match the sweet-cross.ch look.
+ *
+ * .md-typeset h1,
+ * .md-typeset h2 {
+ *   font-weight: 600;
+ * }
+ * ------------------------------------------------------------------------- */
