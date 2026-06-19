@@ -1,12 +1,28 @@
 # Orchestrator workflow that runs on every push to main. main is the public
 # release branch — when dev fast-forwards into it, the latest PSR-created tag
 # is at HEAD, and we publish that tag to PyPI and deploy the docs at it.
+#
+# The publish job runs *inline* here (not via a reusable `workflow_call`) on
+# purpose: PyPI Trusted Publishing keys both authentication and attestation
+# verification to the workflow file the job lives in. When the publish job is
+# called from a reusable workflow, GitHub's OIDC token splits into two refs —
+# `job_workflow_ref` (the reusable file) drives auth while `workflow_ref` (this
+# entrypoint) stamps the attestation — and PyPI rejects the upload because the
+# two no longer match. Keeping the job here collapses them to a single ref, so
+# the Trusted Publisher must be configured for `release_main_branch.yml`.
+#
 # The publish job is gated by the `pypi` GitHub Environment, which requires
 # manual approval before the upload happens.
 name: Release Main Branch
 
 on:
     workflow_dispatch:
+        inputs:
+            version:
+                description: "Version tag to publish (e.g. v0.2.1). Defaults to latest release."
+                required: false
+                type: string
+                default: ""
     push:
         branches:
             - main
@@ -15,14 +31,52 @@ jobs:
     test_and_coverage:
         uses: ./.github/workflows/test_and_coverage.yml
 
-    publish:
+    resolve_version:
         needs: test_and_coverage
         if: success()
-        uses: ./.github/workflows/publish_pypi.yml
+        runs-on: ubuntu-latest
+        outputs:
+            tag: ${{ steps.resolve.outputs.tag }}
+        steps:
+            - name: Get latest release tag
+              id: resolve
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  if [ -n "${{ inputs.version }}" ]; then
+                    echo "tag=${{ inputs.version }}" >> $GITHUB_OUTPUT
+                  else
+                    LATEST=$(gh release view --repo ${{ github.repository }} --json tagName -q .tagName)
+                    echo "tag=$LATEST" >> $GITHUB_OUTPUT
+                  fi
+            - name: Validate tag exists
+              if: inputs.version != ''
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  if ! gh release view ${{ inputs.version }} --repo ${{ github.repository }} > /dev/null 2>&1; then
+                    echo "Error: version '${{ inputs.version }}' not found in releases"
+                    exit 1
+                  fi
+
+    publish:
+        needs: resolve_version
+        if: success()
+        runs-on: ubuntu-latest
+        environment:
+            name: pypi
+            url: https://pypi.org/p/crosscontract
         permissions:
-            contents: read
             id-token: write
-        secrets: inherit
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ needs.resolve_version.outputs.tag }}
+            - uses: astral-sh/setup-uv@v5
+            - run: uv build
+            - name: Inspect wheel contents
+              run: unzip -l dist/*.whl
+            - uses: pypa/gh-action-pypi-publish@release/v1
 
     deploy_docs:
         needs: publish

@@ -1,17 +1,17 @@
-# Reusable workflow to publish the package to PyPI.
-# Invoked from release_main_branch.yml on push to main, or manually via
-# workflow_dispatch. Defaults to the latest GitHub release tag.
+# Standalone manual workflow to publish the package to PyPI.
+# Defaults to the latest GitHub release tag.
+#
+# This is intentionally NOT a reusable (`workflow_call`) workflow: routine
+# releases publish inline from release_main_branch.yml. Calling this file via
+# `uses:` would split GitHub's OIDC token into mismatched refs and break PyPI
+# Trusted Publishing attestations (see the note in release_main_branch.yml).
+#
+# Running this manually requires its own Trusted Publisher on PyPI configured
+# for `publish_pypi.yml` (the routine path uses `release_main_branch.yml`).
 name: Publish to PyPI
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Version tag to publish (e.g. v0.2.1). Defaults to latest release."
-        required: false
-        type: string
-        default: ""
-  workflow_call:
     inputs:
       version:
         description: "Version tag to publish (e.g. v0.2.1). Defaults to latest release."
