@@ -326,7 +326,7 @@ class ContractService:
         if project_name is not None:
             params["project_name"] = project_name
         if confirm_delete_all:
-            params["confirm_delete_all"] = "True"
+            params["delete_all"] = "True"
         endpoint = f"{self._route}{name}/data"
         response = self._client.delete(endpoint, params=params)
         raise_from_response(response)

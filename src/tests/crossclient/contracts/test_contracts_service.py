@@ -386,7 +386,7 @@ class TestDeleteData:
             f"/api/v1/contract/{contract_name}/data"
         )
         params = respx.calls.last.request.url.params
-        assert params.get_list("confirm_delete_all") == ["True"]
+        assert params.get_list("delete_all") == ["True"]
         assert result is None
 
     @respx.mock
