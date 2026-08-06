@@ -14,13 +14,15 @@ pure forwarding — no new logic, no project resolution, no validation.
 - [x] `ContractResource.delete_data` accepts **keyword-only** `project_name: str | None = None`
       and `confirm_delete_all: bool = False`, forwarding both to
       `ContractService._delete_data`.
-- [ ] `filters` remains a **required positional** argument on `delete_data` —
-      `delete_data()` with no arguments is a `TypeError`.
-- [ ] The existing `Active`-status check in `delete_data` still runs **first**, ahead of
+- [x] `filters` remains a **required positional** argument on `delete_data`.
+- [x] The existing `Active`-status check in `delete_data` still runs **first**, ahead of
       the empty-filter check and ahead of `confirm_delete_all`.
-- [ ] Passing either new parameter positionally raises `TypeError`.
-- [ ] The three pre-existing pinned delegation assertions are updated and pass.
-- [ ] Docstrings updated in Google style per `CLAUDE.md`.
+- [x] The three pre-existing pinned delegation assertions are updated and pass.
+- [x] A non-default value for each new parameter is pinned as reaching the service.
+- [x] Docstrings updated in Google style per `CLAUDE.md`.
+
+Keyword-only enforcement is left to mypy ("Too many positional arguments") rather than
+runtime `TypeError` tests — those would assert CPython behaviour, not ours.
 
 ## Implementation Details
 
@@ -71,15 +73,20 @@ These pin the exact delegation call and fail the moment a new argument is forwar
 
 ### Tests to add
 `src/tests/crossclient/contracts/test_contract_resource.py`, using the existing `Mock`
-delegation pattern and `ModelFactory` contract builders:
+delegation pattern and `ModelFactory` contract builders. This layer decides three things
+and only those are worth asserting here — the query-string behaviour belongs to the
+service's own tests and must not be restated:
 
-- `add_data(df, project_name="p")` forwards the value to `_add_data`.
-- `add_data(df)` forwards `None`.
-- `delete_data(filters, project_name="p")` forwards the value.
-- `delete_data({}, confirm_delete_all=True)` on an `Active` contract forwards both.
-- `delete_data({}, confirm_delete_all=True)` on a **non-`Active`** contract raises the
-  status `ValueError` and `_delete_data` is **not called**.
-- `add_data(df, True, "p")` positionally → `TypeError`, confirming keyword-only.
+- The three pinned delegation assertions, updated for the new defaults.
+- `add_data(df, project_name="p")` forwards the value. A default-valued assertion still
+  passes if the parameter is accepted and then dropped, which mypy does not catch, so a
+  non-default value is what actually pins the forwarding.
+- `delete_data({}, project_name="p", confirm_delete_all=True)` forwards both, same
+  reasoning.
+
+Deliberately **not** added: a status-check test parametrised over `confirm_delete_all`.
+The guard sits at the top of `delete_data` and does not reference the flag, so the
+existing `test_delete_data_non_active_status_raises` already covers every value of it.
 
 ### Not tested here
 Authorization outcomes (caller in multiple projects, unknown project, insufficient

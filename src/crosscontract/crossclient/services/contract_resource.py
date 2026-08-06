@@ -357,9 +357,10 @@ class ContractResource:
 
         This is a decommissioning operation: it discards the data of **every**
         project that submitted under this contract, not only the caller's, and
-        requires the contract to be `Retired`. To remove only the rows owned by
-        one project, use `delete_data()` — with `confirm_delete_all=True` to
-        clear that project's rows entirely.
+        requires the contract to be `Retired`. It is restricted to
+        administrators. To remove only the rows owned by one project, use
+        `delete_data()` — with `confirm_delete_all=True` to clear that
+        project's rows entirely.
 
         Raises:
             CrossClientError: If the request fails. Raised via

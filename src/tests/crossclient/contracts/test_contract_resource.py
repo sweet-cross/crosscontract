@@ -157,6 +157,25 @@ class TestAddData:
             project_name=None,
         )
 
+    def test_add_data_forwards_project_name(
+        self, contract_resource: ContractResource
+    ):
+        """A non-default project_name reaches the service.
+
+        The default-valued assertions above still pass if the parameter is
+        accepted and then dropped, so a non-default value is what pins the
+        forwarding.
+        """
+        contract_resource._service._add_data = Mock(return_value=None)
+        contract_resource.add_data(
+            self.data, validate=False, project_name="my_project"
+        )
+        contract_resource._service._add_data.assert_called_once_with(
+            contract_resource.name,
+            self.data,
+            project_name="my_project",
+        )
+
     def test_add_data_failed_validation(self, contract_resource: ContractResource):
         """Test adding data successfully."""
 
@@ -569,6 +588,28 @@ class TestDeleteData:
         assert result is None
         resource._service._delete_data.assert_called_once_with(
             resource.name, filters, project_name=None, confirm_delete_all=False
+        )
+
+    def test_delete_data_forwards_project_name_and_confirmation(
+        self, service: ContractService, contract_factory: type[ModelFactory]
+    ):
+        """Non-default values for both new parameters reach the service.
+
+        The default-valued assertion above still passes if either parameter is
+        accepted and then dropped, so non-default values are what pin the
+        forwarding.
+        """
+        contract: CrossContract = contract_factory.build(name="contract")
+        resource = _make_resource(service, contract, status="Active")
+        resource._service._delete_data = Mock(return_value=None)
+
+        resource.delete_data({}, project_name="my_project", confirm_delete_all=True)
+
+        resource._service._delete_data.assert_called_once_with(
+            resource.name,
+            {},
+            project_name="my_project",
+            confirm_delete_all=True,
         )
 
     @pytest.mark.parametrize("status", ["Draft", "Suspended", "Retired"])
