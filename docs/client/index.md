@@ -54,8 +54,9 @@ cover different use cases, differ in project scope, and are not interchangeable:
 
 Use `delete_data` for routine cleanup of subsets — for example, removing all
 rows for a specific country or a stale reporting year. Filters are required
-and must be non-empty; values may be `str`, `int`, `float`, `bool`, or a list
-of any of these (a list produces a multi-value equality match):
+unless you pass `confirm_delete_all=True` (see below); values may be `str`,
+`int`, `float`, `bool`, or a list of any of these (a list produces a
+multi-value equality match):
 
 ```python
 resource = client.contracts.get("my_contract")

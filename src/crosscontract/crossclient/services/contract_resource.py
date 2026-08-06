@@ -17,7 +17,7 @@ ContractStatus = Literal["Draft", "Active", "Suspended", "Retired"]
 
 
 class _ContractEntryPayload(BaseModel):
-    """Client-side mirror of the server's ``DataContractEntryResponse``.
+    """Client-side mirror of the server's `DataContractEntryResponse`.
 
     Centralizing the shape here gives us validation at the API boundary and a
     single place to adjust if the server response evolves.
@@ -33,16 +33,16 @@ class ContractResource:
     """A handle to a contract that exists on the CROSS platform.
 
     ContractResources are read-only wrappers around contract data fetched from
-    the CROSS platform. They are produced exclusively by ``ContractService``
-    methods (``create``, ``get``, ``get_list``); end users do not construct them
+    the CROSS platform. They are produced exclusively by `ContractService`
+    methods (`create`, `get`, `get_list`); end users do not construct them
     directly.
 
     Attributes:
         name (str): The name of the contract.
         status (str): The status of the contract.
         contract (CrossContract): The full contract details.
-        contract_type (str): The type of the contract, e.g. ``"General"``.
-        service (ContractService): The owning ``ContractService``.
+        contract_type (str): The type of the contract, e.g. `"General"`.
+        service (ContractService): The owning `ContractService`.
     """
 
     def __init__(

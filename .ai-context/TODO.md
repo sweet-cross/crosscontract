@@ -60,15 +60,19 @@ Deferred while landing the first `create_data_package` draft:
 
 The docstring convention in [CLAUDE.md](../.claude/CLAUDE.md) now bans reStructuredText
 syntax outright, matching the sibling `cross_back` repository. The existing docstrings
-predate that and use ``double-backtick literals`` throughout — roughly 98 occurrences
-across 11 files:
+predate that and use ``double-backtick literals`` throughout — roughly 90 occurrences
+across 9 files:
 
 `transformations/fetch/fetch_spec.py`, `contracts/contracts/base_contract.py`,
 `contracts/contracts/cross_contract.py`, `contracts/schema/schema.py`,
-`crossclient/services/contract_service.py`, `crossclient/services/contract_resource.py`,
 `registry/registry.py`, `registry/variables/base_dimension.py`,
 `registry/variables/dimension.py`, `registry/variables/data_variable.py`,
 `registry/variables/flexible_dimension.py`.
+
+The two `crossclient/services/` modules were converted while the project-scoping work
+was already editing their docstrings, so they are done and off this list. Grep for the
+double-backtick sequence under `src/crosscontract/` to confirm the remaining set
+before starting.
 
 Mechanical `` `` `` → `` ` `` substitution inside docstrings only — do not touch string
 literals or comments. mkdocstrings renders both today, so this is consistency rather
