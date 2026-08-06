@@ -10,22 +10,25 @@ guidance is misleading. This task brings the user-facing documentation in line.
 
 ## Acceptance Criteria
 
-- [ ] The "Deleting data" section of `docs/client/index.md` distinguishes all three
+- [x] The "Deleting data" section of `docs/client/index.md` distinguishes all three
       removal operations, including project scope and required contract status.
-- [ ] The section documents that `delete_data` and `add_data` accept `project_name`, and
+- [x] The section documents that `delete_data` and `add_data` accept `project_name`, and
       when it is required.
-- [ ] A worked example shows the unfiltered form and why the empty mapping alone is not
+- [x] A worked example shows the unfiltered form and why the empty mapping alone is not
       sufficient.
-- [ ] `docs/notebooks/client_tutorial.ipynb` gains a short markdown note on
-      `project_name`; **code cells are unchanged**.
-- [ ] `mkdocs` builds without warnings.
+- [x] `notebooks/client_tutorial.ipynb` gains a short markdown note on `project_name`;
+      **code cells are unchanged**.
+- [ ] `mkdocs` builds without warnings. Not run — validation commands require explicit
+      permission per `CLAUDE.md`; ask the user to run `uv run mkdocs build --strict`.
 
 ## Implementation Details
 
 ### Files to modify
 - `docs/client/index.md` — the "Deleting data" section (currently around lines 28–54).
-- `docs/notebooks/client_tutorial.ipynb` — markdown note only, near the `add_data`
-  narrative (currently around cell content at lines 1240 and 1372).
+- `notebooks/client_tutorial.ipynb` — markdown note only, near the `add_data` narrative.
+  **Not** `docs/notebooks/client_tutorial.ipynb` — that copy is a gitignored build
+  artifact, regenerated from `notebooks/` by the `scripts/copy_notebooks_to_docs.py`
+  mkdocs hook (mtime-gated, so editing the copy directly also desyncs the next build).
 
 No change needed to `docs/reference/client.md` — it is generated from docstrings via
 mkdocstrings, so it picks up the new parameters from tasks 01 and 02 automatically.

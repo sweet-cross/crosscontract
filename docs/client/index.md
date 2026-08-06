@@ -25,15 +25,32 @@ data associated with the contract and saved at the CROSS platform.
 
 The [tutorial](../notebooks/client_tutorial.ipynb) provides another overview of these basic principles with a code example.
 
+## Projects
+
+Data submitted to the CROSS platform is owned by a **project**, and a caller acts on
+behalf of one project when writing or deleting data. `add_data` and `delete_data` both
+accept an optional `project_name`:
+
+```python
+resource.add_data(df, project_name="my_project")
+resource.delete_data(filters={"country": "US"}, project_name="my_project")
+```
+
+If you belong to exactly one project, you can omit `project_name` — the platform infers
+it. If you belong to several, you must name one; omitting it raises a
+`PermissionDeniedError` naming the ambiguity. Reading is not scoped this way: reads span
+every project you may read, regardless of `project_name`.
+
 ## Deleting data
 
-The `ContractResource` exposes two distinct methods for removing data from the
-CROSS platform. They cover different use cases and are not interchangeable:
+The `ContractResource` exposes three ways to remove data from the CROSS platform. They
+cover different use cases, differ in project scope, and are not interchangeable:
 
 | Method | Scope | Required status | Reversible? |
 | --- | --- | --- | --- |
-| `delete_data(filters=...)` | Deletes rows matching the given equality filters | `Active` | No, but other rows are preserved |
-| `drop_data()` | Drops the entire storage table backing the contract | `Retired` | No — all data is lost |
+| `delete_data(filters=...)` | Rows matching the filters, within your project | `Active` | No, but other rows are preserved |
+| `delete_data({}, confirm_delete_all=True)` | Every row **your project** owns under this contract | `Active` | No |
+| `drop_data()` | The entire storage table, across **all** projects | `Retired` | No — all data is lost |
 
 Use `delete_data` for routine cleanup of subsets — for example, removing all
 rows for a specific country or a stale reporting year. Filters are required
@@ -46,8 +63,21 @@ resource.delete_data(filters={"country": "US"})
 resource.delete_data(filters={"year": [2019, 2020]})
 ```
 
-Use `drop_data` only as part of contract decommissioning: the contract must
-already have been transitioned to `Retired`, and the entire data table is
-discarded.
+To clear every row your project owns under a contract without dropping the table,
+pass `confirm_delete_all=True` alongside an empty filter mapping:
+
+```python
+resource.delete_data(filters={}, confirm_delete_all=True)
+```
+
+`confirm_delete_all` exists because an empty `filters` mapping is exactly the value a
+bug produces — for example, a dict comprehension over user input where every value
+happened to filter out. Treating `{}` alone as "delete everything" would make that bug
+indistinguishable from intent, so the empty-mapping form is rejected unless
+`confirm_delete_all=True` is passed explicitly.
+
+Use `drop_data` only as part of contract decommissioning, and only if you are an
+administrator: the contract must already have been transitioned to `Retired`, and the
+entire data table — every project's rows, not only yours — is discarded.
 
 See the [API reference](../reference/client.md) for full signatures.
