@@ -159,7 +159,13 @@ class ContractResource:
                 df_out[field.name] = df_out[field.name].dt.strftime(field.format)
         return df_out
 
-    def add_data(self, data: pd.DataFrame, validate: bool = True) -> None:
+    def add_data(
+        self,
+        data: pd.DataFrame,
+        validate: bool = True,
+        *,
+        project_name: str | None = None,
+    ) -> None:
         """Add data for the contract on in the CROSS platform.
 
         Args:
@@ -167,15 +173,18 @@ class ContractResource:
             validate (bool): Whether to validate the data against the contract
                 schema before uploading.
                 Defaults to True.
+            project_name (str | None): Optional project name under which the data
+                are submitted. If None, the CROSS platform infers the project from the
+                caller's memberships, which succeeds only when there is exactly one.
 
         Raises:
-            validationError: If the data does not conform to the contract schema.
+            ValidationError: If the data does not conform to the contract schema.
         """
         if validate:
             # validate data against contract schema at the client side
             self.validate_dataframe(data)
         data_out = self._prepare_dataframe_csv_upload(data)
-        self._service._add_data(self.name, data_out)
+        self._service._add_data(self.name, data_out, project_name=project_name)
 
     def get_data(
         self,
@@ -346,6 +355,9 @@ class ContractResource:
     def delete_data(
         self,
         filters: "dict[str, FilterValue | list[FilterValue]]",
+        *,
+        project_name: str | None = None,
+        confirm_delete_all: bool = False,
     ) -> None:
         """Delete rows from the contract's data matching the given equality filters.
 
@@ -353,6 +365,17 @@ class ContractResource:
             filters: Mapping of column name to value (or list of values) to
                 match. Values may be str/int/float/bool. Must be non-empty —
                 use ``drop_data()`` to delete all rows.
+            project_name (str | None): Optional project name for which project the
+                data are deleted. If None, the CROSS platform infers the project
+                from the caller's memberships, which succeeds only when there is
+                exactly one.
+            confirm_delete_all (bool): Confirms that an unfiltered delete is
+                intended, removing every row the resolved project owns under
+                this contract. Required when ``filters`` is empty, so that a
+                filter mapping which collapsed to empty cannot wipe the
+                project's rows by accident. Ignored when ``filters`` is
+                non-empty. Defaults to ``False``.
+
 
         Raises:
             ValueError: If the contract's cached status is not ``"Active"``,
@@ -369,4 +392,9 @@ class ContractResource:
                 f"'{self._status}', must be 'Active'. Call refresh() if the "
                 "status may have changed on the server."
             )
-        self._service._delete_data(self.name, filters)
+        self._service._delete_data(
+            self.name,
+            filters,
+            project_name=project_name,
+            confirm_delete_all=confirm_delete_all,
+        )

@@ -9,9 +9,9 @@ pure forwarding — no new logic, no project resolution, no validation.
 
 ## Acceptance Criteria
 
-- [ ] `ContractResource.add_data` accepts a **keyword-only** `project_name: str | None = None`
+- [x] `ContractResource.add_data` accepts a **keyword-only** `project_name: str | None = None`
       and forwards it to `ContractService._add_data`.
-- [ ] `ContractResource.delete_data` accepts **keyword-only** `project_name: str | None = None`
+- [x] `ContractResource.delete_data` accepts **keyword-only** `project_name: str | None = None`
       and `confirm_delete_all: bool = False`, forwarding both to
       `ContractService._delete_data`.
 - [ ] `filters` remains a **required positional** argument on `delete_data` —
