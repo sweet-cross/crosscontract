@@ -624,3 +624,25 @@ class TestDeleteData:
             resource.delete_data({"region": "DE"})
 
         resource._service._delete_data.assert_not_called()
+
+    @pytest.mark.parametrize("status", ["Draft", "Suspended", "Retired"])
+    def test_delete_data_status_check_precedes_confirm_delete_all(
+        self,
+        service: ContractService,
+        contract_factory: type[ModelFactory],
+        status: str,
+    ):
+        """The status check fires ahead of the confirmation, not after it.
+
+        An unfiltered delete on a non-Active contract must fail on the status,
+        so the widest deletion the client offers stays behind the same local
+        gate as a filtered one.
+        """
+        contract: CrossContract = contract_factory.build(name="contract")
+        resource = _make_resource(service, contract, status=status)
+        resource._service._delete_data = Mock(return_value=None)
+
+        with pytest.raises(ValueError, match="must be 'Active'"):
+            resource.delete_data({}, confirm_delete_all=True)
+
+        resource._service._delete_data.assert_not_called()

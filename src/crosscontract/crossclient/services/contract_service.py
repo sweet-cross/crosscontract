@@ -193,15 +193,22 @@ class ContractService:
         return res.json()
 
     def _drop_data_table(self, name: str) -> None:
-        """Drop the table storing the data for the given contract. This deletes all
-        data associated with the contract. Dropping the data table is irreversible.
-        It can only be performed if the contract is in "Retired" status.
+        """Drop the table storing the data for the given contract.
 
-        Note: This operation is irreversible and will delete all data associated
-            with the contract.
+        This is a decommissioning operation: it discards the data of **every**
+        project that submitted under the contract, not only the caller's, and
+        requires the contract to be ``Retired``. It is restricted to
+        administrators and is irreversible. ``_delete_data`` is the narrower,
+        separate operation: it removes only the rows one project owns and
+        requires the contract to be ``Active``.
 
         Args:
-            name (str): The name of the contract whose data to delete.
+            name (str): The name of the contract whose data table to drop.
+
+        Raises:
+            CrossClientError: If the request fails. Raised via
+                ``raise_from_response`` as a more specific client exception
+                such as ``ResourceNotFoundError`` or ``ConflictError``.
         """
         # delete the contract
         res = self._client.delete(f"{self._route}{name}/storage")

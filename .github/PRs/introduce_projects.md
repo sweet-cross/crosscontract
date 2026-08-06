@@ -1,4 +1,4 @@
-# Scope data writes and deletes to a project
+# feat: scope data writes and deletes to a project
 
 ## Summary
 The CROSS platform now owns submitted data by project and requires a caller to
@@ -77,12 +77,20 @@ scoped, `Active`-only operation a project owner actually wants.
   the three pre-existing pinned assertions only pinned the default (`None`
   / `False`) case, which would still pass if the parameter were accepted
   and silently dropped.
+- A parametrized test pinning that the `Active`-status check fires ahead of
+  `confirm_delete_all`, so the widest deletion the client offers stays
+  behind the same local gate as a filtered one. The pre-existing status
+  test only covered the filtered call, which would keep passing if the
+  ordering were inverted.
 - Full suite, `ruff check`, `ruff format --check`, and `mypy` all green.
 
 ## Notes for reviewer
 - `drop_data()` was deliberately left without its own confirmation
   parameter: it's already an admin-only route, so the extra ceremony
-  wasn't judged to buy anything.
+  wasn't judged to buy anything. Its service-level counterpart
+  `_drop_data_table` now carries the same "every project, `Retired`,
+  admin-only" framing as the public method, so the two layers no longer
+  describe the operation differently.
 - `_delete_data`'s empty-filters rule is mirrored client-side (raising
   before any request when `filters` is empty and `confirm_delete_all` is
   `False`), which duplicates a rule the platform also enforces. This was a
@@ -93,5 +101,3 @@ scoped, `Active`-only operation a project owner actually wants.
   (e.g. a contract column literally named `project_name`) — that would
   require copying a platform constant the platform doesn't expose, and the
   platform already rejects the realistic collision with a fast 404.
-- The full design discussion (rejected alternatives, edge-case table, wire
-  contracts) lives in `.ai-context/prds/2026-08-06-client-project-scoped-writes.md`.
