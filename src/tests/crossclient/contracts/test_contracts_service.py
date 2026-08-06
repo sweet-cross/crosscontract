@@ -369,6 +369,27 @@ class TestDeleteData:
             service._delete_data("any_contract", filters={})
 
     @respx.mock
+    def test_delete_data_confirm_delete_all(self, service: ContractService):
+        """Deleting all data requires confirm_delete_all=True but then empty
+        filters are allowed."""
+        contract_name = "contract_with_data"
+        delete_url = f"{CONTRACTS_URL}{contract_name}/data"
+
+        respx.delete(delete_url).respond(200, json={"detail": "Deleted all rows"})
+
+        result = service._delete_data(
+            contract_name, filters={}, confirm_delete_all=True
+        )
+
+        assert respx.calls.last.request.method == "DELETE"
+        assert respx.calls.last.request.url.path == (
+            f"/api/v1/contract/{contract_name}/data"
+        )
+        params = respx.calls.last.request.url.params
+        assert params.get_list("confirm_delete_all") == ["True"]
+        assert result is None
+
+    @respx.mock
     def test_delete_data_server_error(self, service: ContractService):
         """Server errors propagate via raise_from_response."""
         contract_name = "contract_with_data"
@@ -413,6 +434,35 @@ class TestAddData:
 
         assert respx.calls.last.request.method == "POST"
         assert respx.calls.last.request.url == add_data_url
+
+    @pytest.mark.parametrize(
+        "project_name",
+        ["my_project", ""],
+        ids=["valid_project", "empty_string"],
+    )
+    @respx.mock
+    def test_add_data_success_with_project(
+        self, service: ContractService, project_name: str
+    ):
+        """Test adding data to a contract successfully."""
+        contract_name = "contract_with_data"
+        add_data_url = f"{CONTRACTS_URL}{contract_name}/data"
+
+        respx.post(add_data_url).respond(200)
+
+        # Create sample DataFrame
+        data = pd.DataFrame({"column1": [1, 2], "column2": ["a", "b"]})
+
+        service._add_data(contract_name, data, project_name=project_name)
+
+        request = respx.calls.last.request
+        assert request.method == "POST"
+        assert (
+            add_data_url
+            == f"{request.url.scheme}://{request.url.host}{request.url.path}"
+        )
+        params = request.url.params
+        assert params.get("project_name") == project_name
 
 
 class TestGetData:

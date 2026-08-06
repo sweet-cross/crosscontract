@@ -12,22 +12,22 @@ top of the wire format established here.
 
 ## Acceptance Criteria
 
-- [ ] `ContractService._add_data` accepts `project_name: str | None = None` and sends it
+- [x] `ContractService._add_data` accepts `project_name: str | None = None` and sends it
       as a **query** parameter on the POST.
-- [ ] `ContractService._delete_data` accepts `project_name: str | None = None` and
+- [x] `ContractService._delete_data` accepts `project_name: str | None = None` and
       `confirm_delete_all: bool = False`.
-- [ ] `project_name` is absent from the query string when `None`, and **present** when
+- [x] `project_name` is absent from the query string when `None`, and **present** when
       `""` — the guard is `if project_name is not None`, never a truthiness test.
-- [ ] `confirm_delete_all=True` is sent as the query key **`delete_all`**;
+- [x] `confirm_delete_all=True` is sent as the query key **`delete_all`**;
       `confirm_delete_all=False` sends nothing.
-- [ ] Empty `filters` raises `ValueError` only when `confirm_delete_all` is `False`;
+- [x] Empty `filters` raises `ValueError` only when `confirm_delete_all` is `False`;
       with `confirm_delete_all=True` the request is issued.
-- [ ] The `ValueError` message names `confirm_delete_all=True` and no longer directs
+- [x] The `ValueError` message names `confirm_delete_all=True` and no longer directs
       users to `drop_data()`.
-- [ ] Docstrings updated in Google style per `CLAUDE.md` (they generate the API
+- [x] Docstrings updated in Google style per `CLAUDE.md` (they generate the API
       reference via mkdocstrings). No ADR/PRD/task references in docstrings — those are
       user-facing.
-- [ ] New tests in `src/tests/crossclient/contracts/test_contracts_service.py` pass, and
+- [x] New tests in `src/tests/crossclient/contracts/test_contracts_service.py` pass, and
       pre-existing `_delete_data` / `_add_data` tests still pass.
 
 ## Implementation Details

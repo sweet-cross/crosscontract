@@ -207,7 +207,9 @@ class ContractService:
         res = self._client.delete(f"{self._route}{name}/storage")
         raise_from_response(res)
 
-    def _add_data(self, name: str, data: pd.DataFrame) -> None:
+    def _add_data(
+        self, name: str, data: pd.DataFrame, project_name: str | None = None
+    ) -> None:
         """Add data for the contract on the CROSS platform. Note that this method
         does not perform schema validation. Use ContractResource.add_data() to
         validate data against the contract schema before uploading. I.e., it is
@@ -218,11 +220,16 @@ class ContractService:
         Args:
             name (str): The name of the contract to add data to.
             data (pd.DataFrame): The data to be added.
+            project_name (str | None): Optional project name under which the data
+                are submitted. If None, the CROSS platform infers the project from the
+                caller's memberships, which succeeds only when there is exactly one.
 
         Raises:
-            httpx.HTTPStatusError: If the request fails.
+            CrossClientError: If the request fails.
         """
         endpoint = f"{self._route}{name}/data"
+
+        params = {"project_name": project_name} if project_name is not None else None
 
         # construct the payload as parquet for type safety and efficiency.
         with io.BytesIO() as buffer:
@@ -231,7 +238,7 @@ class ContractService:
             files = {
                 "file": (f"{name}.parquet", buffer, "application/vnd.apache.parquet")
             }
-            res = self._client.post(endpoint, files=files)
+            res = self._client.post(endpoint, files=files, params=params)
         raise_from_response(res)
         return
 
@@ -278,6 +285,8 @@ class ContractService:
         self,
         name: str,
         filters: dict[str, FilterValue | list[FilterValue]],
+        project_name: str | None = None,
+        confirm_delete_all: bool = False,
     ) -> None:
         """Delete rows for the contract matching the given equality filters.
 
@@ -292,6 +301,12 @@ class ContractService:
             name (str): The name of the contract whose rows to delete.
             filters (dict): Mapping of column name to value (or list of values)
                 to match. Must be non-empty.
+            project_name (str | None): Optional project name for which project the
+                data are deleted. If None, the CROSS platform infers the project
+                from the caller's memberships, which succeeds only when there is
+                exactly one.
+            confirm_delete_all (bool): If True, allows deletion of all rows in the
+                contract for the given project.
 
         Raises:
             ValueError: If ``filters`` is empty.
@@ -300,15 +315,18 @@ class ContractService:
                 such as ``ResourceNotFoundError``, ``ConflictError``, or
                 ``ServerError``.
         """
-        if not filters:
+        if not filters and not confirm_delete_all:
             raise ValueError(
-                "filters must be a non-empty mapping. Use drop_data() to "
-                "delete all data associated with a contract."
+                "Filters must be non-empty unless confirm_delete_all=True is specified"
             )
         params: dict[str, str | list[str]] = {
             k: [str(x) for x in v] if isinstance(v, list) else str(v)
             for k, v in filters.items()
         }
+        if project_name is not None:
+            params["project_name"] = project_name
+        if confirm_delete_all:
+            params["confirm_delete_all"] = "True"
         endpoint = f"{self._route}{name}/data"
         response = self._client.delete(endpoint, params=params)
         raise_from_response(response)
