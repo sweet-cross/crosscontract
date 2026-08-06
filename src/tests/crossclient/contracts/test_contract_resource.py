@@ -134,7 +134,9 @@ class TestAddData:
         contract_resource._service._add_data = Mock(return_value=None)
         contract_resource.add_data(self.data, validate=False)
         contract_resource._service._add_data.assert_called_once_with(
-            contract_resource.name, self.data
+            contract_resource.name,
+            self.data,
+            project_name=None,
         )
 
     def test_add_data_success_validation(self, contract_resource: ContractResource):
@@ -150,7 +152,9 @@ class TestAddData:
         )
         contract_resource.add_data(self.data, validate=True)
         contract_resource._service._add_data.assert_called_once_with(
-            contract_resource.name, self.data
+            contract_resource.name,
+            self.data,
+            project_name=None,
         )
 
     def test_add_data_failed_validation(self, contract_resource: ContractResource):
@@ -563,7 +567,9 @@ class TestDeleteData:
         result = resource.delete_data(filters)
 
         assert result is None
-        resource._service._delete_data.assert_called_once_with(resource.name, filters)
+        resource._service._delete_data.assert_called_once_with(
+            resource.name, filters, project_name=None, confirm_delete_all=False
+        )
 
     @pytest.mark.parametrize("status", ["Draft", "Suspended", "Retired"])
     def test_delete_data_non_active_status_raises(
