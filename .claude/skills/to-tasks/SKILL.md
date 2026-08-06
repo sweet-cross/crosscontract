@@ -23,5 +23,5 @@ When asked to break down a PRD into tasks:
 
 - **Atomic Scope:** Each task must be small enough to be completed in a single development session by one person.
 - **Sequential Ordering:** Ensure the numbering of the files reflects a logical build order (e.g., define data models before creating API routes).
-- **Stack Consistency:** Implementation details in the tasks must align with the stack defined in the PRD (`uv`, `DuckDB`, `Pydantic v2`).
+- **Stack Consistency:** Implementation details in the tasks must align with the stack defined in the PRD (`uv`, `Pydantic v2`).
 - **File Paths:** Carry over the exact file paths defined in the PRD into the relevant tasks to guide the implementation agent.
