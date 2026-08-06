@@ -59,6 +59,14 @@ The lower-level access layer to the **CROSS platform**, and currently the *only*
 path — creating contracts, changing status, and submitting data go through it. (The
 **Registry** may gain write paths later; for now both are needed.)
 
+**Project**:
+The owner of submitted data on the **CROSS platform**. A caller acts *on behalf of* one
+project when writing or deleting data — named explicitly, or inferred by the platform
+when the caller belongs to exactly one. Reads are not narrowed this way: they span every
+project the caller may read. A **Contract** itself belongs to no project; only the rows
+stored under it do.
+_Avoid_: workspace, tenant, organisation, group
+
 ### Roles and lifecycle
 
 **Data provider**:
