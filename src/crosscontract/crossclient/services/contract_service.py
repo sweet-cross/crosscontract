@@ -290,26 +290,37 @@ class ContractService:
     ) -> None:
         """Delete rows for the contract matching the given equality filters.
 
-        Filters are required and must be non-empty; full-table wipes must go
-        through ``_drop_data_table`` instead. Values may be str/int/float/bool
-        (or lists thereof for multi-value equality) and are stringified before
-        being sent as query parameters. List values produce repeated query
-        params (e.g. ``?col=a&col=b``), which the server interprets as an
-        equality match against any of the listed values.
+        Filters must be non-empty unless ``confirm_delete_all`` is set, which
+        removes every row the resolved project owns under this contract while
+        leaving the table in place. ``_drop_data_table`` is the wider, separate
+        operation: it drops the whole table across every project and requires
+        the contract to be ``Retired``.
+
+        Values may be str/int/float/bool (or lists thereof for multi-value
+        equality) and are stringified before being sent as query parameters.
+        List values produce repeated query params (e.g. ``?col=a&col=b``),
+        which the CROSS platform interprets as an equality match against any
+        of the listed values.
 
         Args:
             name (str): The name of the contract whose rows to delete.
             filters (dict): Mapping of column name to value (or list of values)
-                to match. Must be non-empty.
+                to match. Must be non-empty unless ``confirm_delete_all`` is
+                set.
             project_name (str | None): Optional project name for which project the
                 data are deleted. If None, the CROSS platform infers the project
                 from the caller's memberships, which succeeds only when there is
                 exactly one.
-            confirm_delete_all (bool): If True, allows deletion of all rows in the
-                contract for the given project.
+            confirm_delete_all (bool): Confirms that an unfiltered delete is
+                intended, removing every row the resolved project owns under
+                this contract. Required when ``filters`` is empty, so that a
+                filter mapping which collapsed to empty cannot wipe the
+                project's rows by accident. Ignored when ``filters`` is
+                non-empty. Defaults to ``False``.
 
         Raises:
-            ValueError: If ``filters`` is empty.
+            ValueError: If ``filters`` is empty and ``confirm_delete_all`` is
+                False.
             CrossClientError: If the request fails. Raised via
                 ``raise_from_response`` as a more specific client exception
                 such as ``ResourceNotFoundError``, ``ConflictError``, or
