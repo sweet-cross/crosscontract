@@ -316,7 +316,9 @@ class ContractService:
                 this contract. Required when ``filters`` is empty, so that a
                 filter mapping which collapsed to empty cannot wipe the
                 project's rows by accident. Ignored when ``filters`` is
-                non-empty. Defaults to ``False``.
+                non-empty — the flag is then not sent at all, so a filtered
+                delete stays filtered regardless of how the CROSS platform
+                orders the two. Defaults to ``False``.
 
         Raises:
             ValueError: If ``filters`` is empty and ``confirm_delete_all`` is
@@ -336,7 +338,11 @@ class ContractService:
         }
         if project_name is not None:
             params["project_name"] = project_name
-        if confirm_delete_all:
+        # Only an unfiltered delete carries the flag: sending it alongside
+        # filters would make the scope of the deletion depend on how the
+        # platform prioritises the two, and the fallout of guessing wrong is
+        # every row the project owns.
+        if confirm_delete_all and not filters:
             params["delete_all"] = "True"
         endpoint = f"{self._route}{name}/data"
         response = self._client.delete(endpoint, params=params)

@@ -30,7 +30,11 @@ scoped, `Active`-only operation a project owner actually wants.
   longer points at `drop_data()`. The client parameter `confirm_delete_all`
   is mapped to the platform's `delete_all` query key in exactly this one
   place, so the client and wire vocabularies can differ without a rename
-  leaking through the resource → service boundary.
+  leaking through the resource → service boundary. The flag is sent only
+  when `filters` is empty: combining the two is allowed and resolves as
+  "filters win", enforced client-side by dropping the flag rather than by
+  assuming how the platform orders the two — the fallout of guessing that
+  wrong is every row the project owns.
 - `ContractResource.add_data` and `delete_data` gain the same parameters,
   both keyword-only, and forward to the service unchanged. `delete_data`'s
   existing `Active`-status check still runs first, ahead of the empty-filter
@@ -67,7 +71,7 @@ scoped, `Active`-only operation a project owner actually wants.
   the wire key `delete_all` (and `confirm_delete_all` itself never reaching
   the wire, where it would be swept up as a bogus filter); the empty-filters
   guard raising with no filters and no confirmation, issuing a request with
-  confirmation, and both filters and the flag riding together when combined.
+  confirmation, and `delete_all` being dropped when filters are also given.
 - New delegation tests in `test_contract_resource.py` asserting non-default
   `project_name` / `confirm_delete_all` values actually reach the service —
   the three pre-existing pinned assertions only pinned the default (`None`

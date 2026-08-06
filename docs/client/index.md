@@ -76,6 +76,10 @@ happened to filter out. Treating `{}` alone as "delete everything" would make th
 indistinguishable from intent, so the empty-mapping form is rejected unless
 `confirm_delete_all=True` is passed explicitly.
 
+Passing both is allowed, and filters win: `confirm_delete_all` governs the empty-filter
+case only, so `delete_data(filters={"country": "US"}, confirm_delete_all=True)` removes
+the US rows and nothing else.
+
 Use `drop_data` only as part of contract decommissioning, and only if you are an
 administrator: the contract must already have been transitioned to `Retired`, and the
 entire data table — every project's rows, not only yours — is discarded.

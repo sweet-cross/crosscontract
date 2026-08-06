@@ -157,9 +157,7 @@ class TestAddData:
             project_name=None,
         )
 
-    def test_add_data_forwards_project_name(
-        self, contract_resource: ContractResource
-    ):
+    def test_add_data_forwards_project_name(self, contract_resource: ContractResource):
         """A non-default project_name reaches the service.
 
         The default-valued assertions above still pass if the parameter is
@@ -167,9 +165,7 @@ class TestAddData:
         forwarding.
         """
         contract_resource._service._add_data = Mock(return_value=None)
-        contract_resource.add_data(
-            self.data, validate=False, project_name="my_project"
-        )
+        contract_resource.add_data(self.data, validate=False, project_name="my_project")
         contract_resource._service._add_data.assert_called_once_with(
             contract_resource.name,
             self.data,

@@ -396,7 +396,9 @@ class ContractResource:
                 this contract. Required when `filters` is empty, so that a
                 filter mapping which collapsed to empty cannot wipe the
                 project's rows by accident. Ignored when `filters` is
-                non-empty. Defaults to `False`.
+                non-empty — a filtered delete stays filtered, and the
+                confirmation never reaches the CROSS platform. Defaults to
+                `False`.
 
         Raises:
             ValueError: If the contract's cached status is not `"Active"`, or

@@ -403,7 +403,12 @@ class TestDeleteData:
     def test_delete_data_confirm_delete_all_with_filters(
         self, service: ContractService
     ):
-        """Filters and the confirmation flag both ride along when combined."""
+        """Filters win over the confirmation flag, which is dropped entirely.
+
+        Sending both would leave the scope of the deletion up to how the
+        platform prioritises them; suppressing the flag keeps a filtered
+        delete filtered no matter what the platform would have done.
+        """
         contract_name = "contract_with_data"
         delete_url = f"{CONTRACTS_URL}{contract_name}/data"
 
@@ -415,7 +420,7 @@ class TestDeleteData:
 
         params = respx.calls.last.request.url.params
         assert params.get_list("region") == ["DE"]
-        assert params.get_list("delete_all") == ["True"]
+        assert "delete_all" not in params
 
     @respx.mock
     def test_delete_data_omits_delete_all_when_not_confirmed(

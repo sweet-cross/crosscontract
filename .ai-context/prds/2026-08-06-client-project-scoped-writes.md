@@ -44,8 +44,9 @@ tells the platform to infer the project from the caller's memberships.
 ### R4 — `confirm_delete_all` on the delete path
 
 `ContractService._delete_data` and `ContractResource.delete_data` accept
-`confirm_delete_all: bool = False`. When `True` it is forwarded as the query parameter
-`delete_all`; when `False` it is omitted.
+`confirm_delete_all: bool = False`. When `True` **and** `filters` is empty it is
+forwarded as the query parameter `delete_all`; otherwise it is omitted. The flag governs
+the empty-filter case only, so a filtered delete never carries it (E8).
 
 The client parameter is deliberately named for the ceremony it performs, so the call
 site reads as a deliberate act rather than a configuration value. The platform declares
@@ -101,7 +102,7 @@ parameters from the docstrings.
 | E2 | `project_name=""` | **Sent** as an empty value, not omitted. The guard must be `if project_name is not None`, never a truthiness test — a truthiness test would silently convert an empty string into "infer the project", which can land the write in the wrong project. An empty name reaches the platform and is rejected there as a missing project (404). |
 | E3 | `project_name` on `POST` | Must be a **query** parameter. `post_data_for_contract` declares it as a bare scalar alongside `File(...)`, so FastAPI reads it from the query string. Placing it in the multipart body means it is silently ignored and the platform falls back to inference — a wrong-project write with no error. `_add_data` currently passes no `params` at all, so this argument is new. |
 | E4 | `confirm_delete_all=False` | Omitted from the query string. |
-| E5 | `confirm_delete_all=True` | Sent as `delete_all`, the platform's name for it. Value serialisation must be one the platform's bool parser accepts. |
+| E5 | `confirm_delete_all=True`, `filters` empty | Sent as `delete_all`, the platform's name for it. Value serialisation must be one the platform's bool parser accepts. |
 
 ### Filter and delete semantics
 
@@ -109,7 +110,7 @@ parameters from the docstrings.
 |---|---|---|
 | E6 | `delete_data({})` | `ValueError` raised client-side before any request. Message names `confirm_delete_all=True`, not `drop_data()`. |
 | E7 | `delete_data({}, confirm_delete_all=True)` | Request issued; every row the resolved project owns under the contract is removed. Table and contract survive. |
-| E8 | `delete_data({"year": 2020}, confirm_delete_all=True)` | Passed through unchanged. The platform applies the filters and ignores the flag, since the flag only governs the empty-filter case. Documented as "filters win"; no client-side rejection of the combination. |
+| E8 | `delete_data({"year": 2020}, confirm_delete_all=True)` | **Filters win, enforced client-side.** The combination is not rejected — the filters are sent and `delete_all` is dropped, so only matching rows are removed. The flag governs the empty-filter case only, and suppressing it means the scope of the deletion does not depend on how the platform prioritises the two. The blast radius of guessing that precedence wrong is every row the project owns, which is why the guarantee is made locally rather than assumed of the platform. |
 | E9 | `delete_data()` with no arguments | `TypeError` — `filters` stays required positional. |
 | E10 | Filter key shadows a reserved query parameter (`project_name`, `delete_all`, `limit`, `offset`, `format`, `columns`, `unique`) | **Accepted, unguarded.** The platform strips these from the filter set, so such a column is unreachable through this endpoint regardless of what the client does. In practice a value that is not also a real project name produces a fast 404. See §4 "Rejected alternatives" for why no client-side guard is added. |
 
@@ -122,7 +123,7 @@ surface is adequate.
 
 | # | Case | Platform response | Client exception |
 |---|---|---|---|
-| E11 | Caller belongs to multiple projects, `project_name` omitted | 403, *"Caller belongs to multiple projects. Please specify the project name."* | `PermissionDeniedError` | 
+| E11 | Caller belongs to multiple projects, `project_name` omitted | 403, *"Caller belongs to multiple projects. Please specify the project name."* | `PermissionDeniedError` |
 | E12 | Caller belongs to no project, `project_name` omitted | 403, *"Caller belongs to no project and cannot act on project data."* | `PermissionDeniedError` |
 | E13 | Service caller (holds no memberships), `project_name` omitted | 403 as E12 — service callers can only resolve a project by naming one | `PermissionDeniedError` |
 | E14 | `project_name` names a non-existent project | 404 | `ResourceNotFoundError` |
@@ -346,8 +347,9 @@ Query-string assertions on `respx.calls.last.request.url`:
 - `_delete_data({}, confirm_delete_all=False)` → `ValueError`; **no request issued**.
   Assert `respx.calls` is empty, not merely that the exception raised.
 - `_delete_data({"region": "DE"})` → `delete_all` absent from the query string.
-- `_delete_data({"region": "DE"}, confirm_delete_all=True)` → both filters and flag
-  present (E8).
+- `_delete_data({"region": "DE"}, confirm_delete_all=True)` → filters present,
+  `delete_all` **absent** (E8). This is the test that fails if the client ever starts
+  delegating the filters-vs-flag precedence to the platform.
 
 Existing `_delete_data` tests (list-value repetition, stringification, server error,
 empty-filter raise) stay as they are, except that the empty-filter test's message
