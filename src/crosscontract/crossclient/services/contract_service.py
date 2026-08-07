@@ -85,7 +85,7 @@ class ContractService:
         Args:
             contract_type (list[str] | None): Optional filter restricting the
                 result to one or more contract types (e.g.
-                ``["General", "Dimension"]``). If None, contracts of every type
+                `["General", "Dimension"]`). If None, contracts of every type
                 are returned.
 
         Returns:
@@ -193,21 +193,30 @@ class ContractService:
         return res.json()
 
     def _drop_data_table(self, name: str) -> None:
-        """Drop the table storing the data for the given contract. This deletes all
-        data associated with the contract. Dropping the data table is irreversible.
-        It can only be performed if the contract is in "Retired" status.
+        """Drop the table storing the data for the given contract.
 
-        Note: This operation is irreversible and will delete all data associated
-            with the contract.
+        This is a decommissioning operation: it discards the data of **every**
+        project that submitted under the contract, not only the caller's, and
+        requires the contract to be `Retired`. It is restricted to
+        administrators and is irreversible. `_delete_data` is the narrower,
+        separate operation: it removes only the rows one project owns and
+        requires the contract to be `Active`.
 
         Args:
-            name (str): The name of the contract whose data to delete.
+            name (str): The name of the contract whose data table to drop.
+
+        Raises:
+            CrossClientError: If the request fails. Raised via
+                `raise_from_response` as a more specific client exception
+                such as `ResourceNotFoundError` or `ConflictError`.
         """
         # delete the contract
         res = self._client.delete(f"{self._route}{name}/storage")
         raise_from_response(res)
 
-    def _add_data(self, name: str, data: pd.DataFrame) -> None:
+    def _add_data(
+        self, name: str, data: pd.DataFrame, *, project_name: str | None = None
+    ) -> None:
         """Add data for the contract on the CROSS platform. Note that this method
         does not perform schema validation. Use ContractResource.add_data() to
         validate data against the contract schema before uploading. I.e., it is
@@ -218,11 +227,16 @@ class ContractService:
         Args:
             name (str): The name of the contract to add data to.
             data (pd.DataFrame): The data to be added.
+            project_name (str | None): Optional project name under which the data
+                are submitted. If None, the CROSS platform infers the project from the
+                caller's memberships, which succeeds only when there is exactly one.
 
         Raises:
-            httpx.HTTPStatusError: If the request fails.
+            CrossClientError: If the request fails.
         """
         endpoint = f"{self._route}{name}/data"
+
+        params = {"project_name": project_name} if project_name is not None else None
 
         # construct the payload as parquet for type safety and efficiency.
         with io.BytesIO() as buffer:
@@ -231,7 +245,7 @@ class ContractService:
             files = {
                 "file": (f"{name}.parquet", buffer, "application/vnd.apache.parquet")
             }
-            res = self._client.post(endpoint, files=files)
+            res = self._client.post(endpoint, files=files, params=params)
         raise_from_response(res)
         return
 
@@ -278,37 +292,66 @@ class ContractService:
         self,
         name: str,
         filters: dict[str, FilterValue | list[FilterValue]],
+        *,
+        project_name: str | None = None,
+        confirm_delete_all: bool = False,
     ) -> None:
         """Delete rows for the contract matching the given equality filters.
 
-        Filters are required and must be non-empty; full-table wipes must go
-        through ``_drop_data_table`` instead. Values may be str/int/float/bool
-        (or lists thereof for multi-value equality) and are stringified before
-        being sent as query parameters. List values produce repeated query
-        params (e.g. ``?col=a&col=b``), which the server interprets as an
-        equality match against any of the listed values.
+        Filters must be non-empty unless `confirm_delete_all` is set, which
+        removes every row the resolved project owns under this contract while
+        leaving the table in place. `_drop_data_table` is the wider, separate
+        operation: it drops the whole table across every project and requires
+        the contract to be `Retired`.
+
+        Values may be str/int/float/bool (or lists thereof for multi-value
+        equality) and are stringified before being sent as query parameters.
+        List values produce repeated query params (e.g. `?col=a&col=b`),
+        which the CROSS platform interprets as an equality match against any
+        of the listed values.
 
         Args:
             name (str): The name of the contract whose rows to delete.
             filters (dict): Mapping of column name to value (or list of values)
-                to match. Must be non-empty.
+                to match. Must be non-empty unless `confirm_delete_all` is
+                set.
+            project_name (str | None): Optional project name for which project the
+                data are deleted. If None, the CROSS platform infers the project
+                from the caller's memberships, which succeeds only when there is
+                exactly one.
+            confirm_delete_all (bool): Confirms that an unfiltered delete is
+                intended, removing every row the resolved project owns under
+                this contract. Required when `filters` is empty, so that a
+                filter mapping which collapsed to empty cannot wipe the
+                project's rows by accident. Ignored when `filters` is
+                non-empty — the flag is then not sent at all, so a filtered
+                delete stays filtered regardless of how the CROSS platform
+                orders the two. Defaults to `False`.
 
         Raises:
-            ValueError: If ``filters`` is empty.
+            ValueError: If `filters` is empty and `confirm_delete_all` is
+                False.
             CrossClientError: If the request fails. Raised via
-                ``raise_from_response`` as a more specific client exception
-                such as ``ResourceNotFoundError``, ``ConflictError``, or
-                ``ServerError``.
+                `raise_from_response` as a more specific client exception
+                such as `ResourceNotFoundError`, `ConflictError`, or
+                `ServerError`.
         """
-        if not filters:
+        if not filters and not confirm_delete_all:
             raise ValueError(
-                "filters must be a non-empty mapping. Use drop_data() to "
-                "delete all data associated with a contract."
+                "Filters must be non-empty unless confirm_delete_all=True is specified"
             )
         params: dict[str, str | list[str]] = {
             k: [str(x) for x in v] if isinstance(v, list) else str(v)
             for k, v in filters.items()
         }
+        if project_name is not None:
+            params["project_name"] = project_name
+        # Only an unfiltered delete carries the flag: sending it alongside
+        # filters would make the scope of the deletion depend on how the
+        # platform prioritises the two, and the fallout of guessing wrong is
+        # every row the project owns.
+        if confirm_delete_all and not filters:
+            params["delete_all"] = "True"
         endpoint = f"{self._route}{name}/data"
         response = self._client.delete(endpoint, params=params)
         raise_from_response(response)

@@ -17,7 +17,7 @@ ContractStatus = Literal["Draft", "Active", "Suspended", "Retired"]
 
 
 class _ContractEntryPayload(BaseModel):
-    """Client-side mirror of the server's ``DataContractEntryResponse``.
+    """Client-side mirror of the server's `DataContractEntryResponse`.
 
     Centralizing the shape here gives us validation at the API boundary and a
     single place to adjust if the server response evolves.
@@ -33,16 +33,16 @@ class ContractResource:
     """A handle to a contract that exists on the CROSS platform.
 
     ContractResources are read-only wrappers around contract data fetched from
-    the CROSS platform. They are produced exclusively by ``ContractService``
-    methods (``create``, ``get``, ``get_list``); end users do not construct them
+    the CROSS platform. They are produced exclusively by `ContractService`
+    methods (`create`, `get`, `get_list`); end users do not construct them
     directly.
 
     Attributes:
         name (str): The name of the contract.
         status (str): The status of the contract.
         contract (CrossContract): The full contract details.
-        contract_type (str): The type of the contract, e.g. ``"General"``.
-        service (ContractService): The owning ``ContractService``.
+        contract_type (str): The type of the contract, e.g. `"General"`.
+        service (ContractService): The owning `ContractService`.
     """
 
     def __init__(
@@ -159,23 +159,36 @@ class ContractResource:
                 df_out[field.name] = df_out[field.name].dt.strftime(field.format)
         return df_out
 
-    def add_data(self, data: pd.DataFrame, validate: bool = True) -> None:
-        """Add data for the contract on in the CROSS platform.
+    def add_data(
+        self,
+        data: pd.DataFrame,
+        validate: bool = True,
+        *,
+        project_name: str | None = None,
+    ) -> None:
+        """Add data for the contract on the CROSS platform.
+
+        The rows are stored as owned by the resolved project.
 
         Args:
             data (pd.DataFrame): The data to be added.
             validate (bool): Whether to validate the data against the contract
-                schema before uploading.
-                Defaults to True.
+                schema before uploading. Defaults to True.
+            project_name (str | None): Optional project name under which the data
+                are submitted. If None, the CROSS platform infers the project from the
+                caller's memberships, which succeeds only when there is exactly one.
 
         Raises:
-            validationError: If the data does not conform to the contract schema.
+            ValidationError: If the data does not conform to the contract schema.
+            CrossClientError: If the upload fails. Raised via
+                `raise_from_response` as a more specific client exception such
+                as `ResourceNotFoundError` or `ConflictError`.
         """
         if validate:
             # validate data against contract schema at the client side
             self.validate_dataframe(data)
         data_out = self._prepare_dataframe_csv_upload(data)
-        self._service._add_data(self.name, data_out)
+        self._service._add_data(self.name, data_out, project_name=project_name)
 
     def get_data(
         self,
@@ -340,25 +353,59 @@ class ContractResource:
         return foreign_key_values
 
     def drop_data(self) -> None:
-        """Delete all data associated with the contract on the CROSS platform."""
+        """Drop the storage table backing the contract on the CROSS platform.
+
+        This is a decommissioning operation: it discards the data of **every**
+        project that submitted under this contract, not only the caller's, and
+        requires the contract to be `Retired`. It is restricted to
+        administrators. To remove only the rows owned by one project, use
+        `delete_data()` — with `confirm_delete_all=True` to clear that
+        project's rows entirely.
+
+        Raises:
+            CrossClientError: If the request fails. Raised via
+                `raise_from_response` as a more specific client exception such
+                as `ResourceNotFoundError` or `ConflictError`.
+        """
         self._service._drop_data_table(self.name)
 
     def delete_data(
         self,
         filters: "dict[str, FilterValue | list[FilterValue]]",
+        *,
+        project_name: str | None = None,
+        confirm_delete_all: bool = False,
     ) -> None:
         """Delete rows from the contract's data matching the given equality filters.
 
+        Only rows owned by the resolved project are removed, and the contract
+        must be `Active`. `drop_data()` is the wider, separate operation: it
+        drops the whole storage table across every project and requires the
+        contract to be `Retired`.
+
         Args:
-            filters: Mapping of column name to value (or list of values) to
-                match. Values may be str/int/float/bool. Must be non-empty —
-                use ``drop_data()`` to delete all rows.
+            filters (dict): Mapping of column name to value (or list of values)
+                to match. Values may be str/int/float/bool. Must be non-empty
+                unless `confirm_delete_all` is set.
+            project_name (str | None): Optional project name for which project the
+                data are deleted. If None, the CROSS platform infers the project
+                from the caller's memberships, which succeeds only when there is
+                exactly one.
+            confirm_delete_all (bool): Confirms that an unfiltered delete is
+                intended, removing every row the resolved project owns under
+                this contract. Required when `filters` is empty, so that a
+                filter mapping which collapsed to empty cannot wipe the
+                project's rows by accident. Ignored when `filters` is
+                non-empty — a filtered delete stays filtered, and the
+                confirmation never reaches the CROSS platform. Defaults to
+                `False`.
 
         Raises:
-            ValueError: If the contract's cached status is not ``"Active"``,
-                or if ``filters`` is empty. The status check is local and uses
-                the cached status; call ``refresh()`` first if the status may
-                have changed on the server.
+            ValueError: If the contract's cached status is not `"Active"`, or
+                if `filters` is empty and `confirm_delete_all` is False. The
+                status check is local and uses the cached status; call
+                `refresh()` first if the status may have changed on the CROSS
+                platform.
             CrossClientError: Propagated from the underlying service/HTTP
                 request if the deletion request fails due to client, server,
                 or network-related errors.
@@ -369,4 +416,9 @@ class ContractResource:
                 f"'{self._status}', must be 'Active'. Call refresh() if the "
                 "status may have changed on the server."
             )
-        self._service._delete_data(self.name, filters)
+        self._service._delete_data(
+            self.name,
+            filters,
+            project_name=project_name,
+            confirm_delete_all=confirm_delete_all,
+        )

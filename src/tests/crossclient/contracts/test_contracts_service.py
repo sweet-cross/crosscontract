@@ -363,10 +363,108 @@ class TestDeleteData:
         assert params.get_list("active") == ["True"]
         assert params.get_list("ids") == ["1", "2"]
 
+    @respx.mock
     def test_delete_data_empty_filters_raises(self, service: ContractService):
-        """Empty filters raise ValueError without making an HTTP call."""
-        with pytest.raises(ValueError, match="non-empty"):
+        """Empty filters raise ValueError without making an HTTP call.
+
+        The message must point at confirm_delete_all, not at drop_data().
+        """
+        with pytest.raises(ValueError, match="confirm_delete_all"):
             service._delete_data("any_contract", filters={})
+
+        assert not respx.calls
+
+    @respx.mock
+    def test_delete_data_confirm_delete_all(self, service: ContractService):
+        """Deleting all data requires confirm_delete_all=True but then empty
+        filters are allowed."""
+        contract_name = "contract_with_data"
+        delete_url = f"{CONTRACTS_URL}{contract_name}/data"
+
+        respx.delete(delete_url).respond(200, json={"detail": "Deleted all rows"})
+
+        result = service._delete_data(
+            contract_name, filters={}, confirm_delete_all=True
+        )
+
+        assert respx.calls.last.request.method == "DELETE"
+        assert respx.calls.last.request.url.path == (
+            f"/api/v1/contract/{contract_name}/data"
+        )
+        params = respx.calls.last.request.url.params
+        # The platform names this parameter `delete_all`; `confirm_delete_all`
+        # is the client-side name and must not reach the wire, where it would
+        # be swept up as a filter on a non-existent column.
+        assert params.get_list("delete_all") == ["True"]
+        assert "confirm_delete_all" not in params
+        assert result is None
+
+    @respx.mock
+    def test_delete_data_confirm_delete_all_with_filters(
+        self, service: ContractService
+    ):
+        """Filters win over the confirmation flag, which is dropped entirely.
+
+        Sending both would leave the scope of the deletion up to how the
+        platform prioritises them; suppressing the flag keeps a filtered
+        delete filtered no matter what the platform would have done.
+        """
+        contract_name = "contract_with_data"
+        delete_url = f"{CONTRACTS_URL}{contract_name}/data"
+
+        respx.delete(delete_url).respond(200, json={"detail": "Deleted 3 rows"})
+
+        service._delete_data(
+            contract_name, filters={"region": "DE"}, confirm_delete_all=True
+        )
+
+        params = respx.calls.last.request.url.params
+        assert params.get_list("region") == ["DE"]
+        assert "delete_all" not in params
+
+    @respx.mock
+    def test_delete_data_omits_delete_all_when_not_confirmed(
+        self, service: ContractService
+    ):
+        """A plain filtered delete sends no delete_all parameter at all."""
+        contract_name = "contract_with_data"
+        delete_url = f"{CONTRACTS_URL}{contract_name}/data"
+
+        respx.delete(delete_url).respond(200, json={"detail": "Deleted 3 rows"})
+
+        service._delete_data(contract_name, filters={"region": "DE"})
+
+        assert "delete_all" not in respx.calls.last.request.url.params
+
+    @pytest.mark.parametrize(
+        ("project_name", "expected"),
+        [("my_project", ["my_project"]), ("", [""]), (None, [])],
+        ids=["named", "empty_string", "omitted"],
+    )
+    @respx.mock
+    def test_delete_data_project_name(
+        self,
+        service: ContractService,
+        project_name: str | None,
+        expected: list[str],
+    ):
+        """project_name rides along as a query param, omitted only when None.
+
+        An empty string must still be sent: omitting it would silently mean
+        "infer the project", which can target the wrong project.
+        """
+        contract_name = "contract_with_data"
+        delete_url = f"{CONTRACTS_URL}{contract_name}/data"
+
+        respx.delete(delete_url).respond(200, json={"detail": "Deleted 3 rows"})
+
+        service._delete_data(
+            contract_name, filters={"region": "DE"}, project_name=project_name
+        )
+
+        params = respx.calls.last.request.url.params
+        assert params.get_list("project_name") == expected
+        assert params.get_list("region") == ["DE"]
 
     @respx.mock
     def test_delete_data_server_error(self, service: ContractService):
@@ -413,6 +511,45 @@ class TestAddData:
 
         assert respx.calls.last.request.method == "POST"
         assert respx.calls.last.request.url == add_data_url
+
+    @pytest.mark.parametrize(
+        ("project_name", "expected"),
+        [("my_project", ["my_project"]), ("", [""]), (None, [])],
+        ids=["named", "empty_string", "omitted"],
+    )
+    @respx.mock
+    def test_add_data_project_name(
+        self,
+        service: ContractService,
+        project_name: str | None,
+        expected: list[str],
+    ):
+        """project_name is sent as a query param, omitted only when None.
+
+        An empty string must still be sent: omitting it would silently mean
+        "infer the project", which can land the write in the wrong project.
+        """
+        contract_name = "contract_with_data"
+        add_data_url = f"{CONTRACTS_URL}{contract_name}/data"
+
+        respx.post(add_data_url).respond(200)
+
+        # Create sample DataFrame
+        data = pd.DataFrame({"column1": [1, 2], "column2": ["a", "b"]})
+
+        service._add_data(contract_name, data, project_name=project_name)
+
+        request = respx.calls.last.request
+        assert request.method == "POST"
+        assert (
+            add_data_url
+            == f"{request.url.scheme}://{request.url.host}{request.url.path}"
+        )
+        assert request.url.params.get_list("project_name") == expected
+        # The platform reads this from the query string; landing it in the
+        # multipart body instead would be silently ignored and fall back to
+        # inferring the project.
+        assert b"project_name" not in request.content
 
 
 class TestGetData:

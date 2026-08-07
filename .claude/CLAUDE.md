@@ -135,7 +135,9 @@ Not re-exported from the top-level package. `_pydantic.py` holds reusable pydant
 
 ## Docstring convention
 
-All Python docstrings in this package use **Google style** (rendered by mkdocs via mkdocstrings). Markdown is used for inline formatting — backticks for code/types, dashes for bullet lists. Do **not** use reStructuredText roles (`:attr:`, `:class:`, `:meth:`, `:func:`) or rST directives.
+All Python docstrings in this package use **Google style** (rendered by mkdocs via mkdocstrings). **Markdown formatting only** — single-backtick `code`, dashes for bullet lists, and **no reStructuredText syntax of any kind**: no ``double-backtick literals``, no `:param:` / `:returns:` / `:raises:` field markers, no `:attr:` / `:class:` / `:meth:` / `:func:` roles, no rST directives.
+
+**Every docstring** carries `Args:`, `Returns:`, and `Raises:` sections — each when applicable (e.g. no `Returns:` on `__init__`, no `Args:` on a no-argument method) — with parameter types in parentheses, e.g. `value (str | None): ...`.
 
 Standard sections (omit any that don't apply):
 
