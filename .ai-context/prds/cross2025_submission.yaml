@@ -1,0 +1,379 @@
+# ----------------------------------------------------------------------------
+#                         TABLE DESCRIPTION
+# ----------------------------------------------------------------------------
+name: submission_cross2025
+project: cross2025
+title: Result submission for the CROSS 2025 scenario runs
+description: |
+  This contract fixes the structure of the results submission for the CROSS 2025
+  scenario runs, and how each submitted variable is extracted into its own
+  result contract.
+
+# ----------------------------------------------------------------------------
+#              THE SUBMISSION FILE
+# ----------------------------------------------------------------------------
+# this describes the submission file itself (csv variant). The translation from the
+# Excel to csv version is done before hand. 
+# This part does not change as long as the the submission file structure is not 
+# changed. In fact we could even make that invisible for the moment. 
+tableschema:
+  primaryKey:
+    [
+      model,
+      scenario_group,
+      scenario_name,
+      scenario_variant,
+      country,
+      timestamp,
+      time_resolution,
+      unit,
+      variable,
+      use_technology_fuel,
+    ]
+
+  foreignKeys:
+    - fields: country
+      reference:
+        resource: dim_iso_region
+        fields: id
+    - fields: model
+      reference:
+        resource: dim_model
+        fields: id
+    - fields: [scenario_group, scenario_name, scenario_variant]
+      reference:
+        resource: dim_scenario
+        fields: [group, name, variant]
+
+  fields:
+    - name: model
+      type: string
+      title: Model
+      description: Name of the model producing the data
+      constraints:
+        required: true
+
+    - name: scenario_group
+      type: string
+      title: Scenario Group
+      description: Name of the scenario group this data is associated with
+      constraints:
+        required: true
+
+    - name: scenario_name
+      type: string
+      title: Scenario Name
+      description: Name of the specific scenario this data is associated with
+      constraints:
+        required: true
+
+    - name: scenario_variant
+      type: string
+      title: Scenario Variant
+      description: Variant of the scenario, if applicable
+      constraints:
+        required: true
+
+    # No `enum` here: this is the routing column, so its enum is derived from
+    # the `filters` of `extraction.targets` below. Authoring one is an error.
+    - name: variable
+      type: string
+      title: Variable
+      description: Name of the variable being measured
+      constraints:
+        required: true
+
+    - name: use_technology_fuel
+      type: string
+      title: Use, technology or fuel
+      description: Name of the end-use, technology or fuel being measured
+
+    - name: country
+      type: string
+      title: Country Code
+      description: ISO 3166-1 alpha-2 country code
+      constraints:
+        required: true
+        maxLength: 8
+
+    - name: time_resolution
+      type: string
+      title: Time Resolution
+      description: The time resolution of the data (e.g., annual, monthly)
+      constraints:
+        required: true
+        enum: ["annual", "typical-day", "monthly"]
+
+    - name: timestamp
+      type: string
+      title: Time Stamp
+      description: The specific time point the data refers to (e.g., year, month)
+      constraints:
+        required: true
+
+    - name: unit
+      type: string
+      title: Unit
+      description: Unit
+      constraints:
+        required: true
+        maxLength: 16
+
+    - name: value
+      type: number
+      title: Value
+      description: |
+        The value associated with the variable for the given scenario, model,
+      constraints:
+        required: true
+
+# ----------------------------------------------------------------------------
+#                          EXTRACTION INSTRUCTIONS
+# ----------------------------------------------------------------------------
+# this part describes two things:
+#   1. how to extract each variable from the submission file
+#   2. against which contract the data should be validated.
+extraction:
+  routing_column: variable. # name of the column that is used to route the data 
+                            # i.e., to filter out a variable 
+
+  # --------------------------------------------------------------------------
+  #                       TRANSFORMATION PROFILES
+  # --------------------------------------------------------------------------
+  # transformation profiles are reusable sequences of transformations that can be
+  # applied to multiple targets. They are defined once and reused later.
+
+  transformation_profiles:
+    # Demand variables typically come in annual resolution with the breakdown 
+    # column being `end_use`. The `timestamp` column is renamed to `year` and 
+    # cast to integer.
+    demand:
+      # transformation is always defined by its type (the name of the transformation)
+      # followed by the arguments that it takes that differ across transformations
+
+        # rename the columns
+      - type: rename_columns
+        mapping: { timestamp: year, use_technology_fuel: end_use }
+        # drop unused columns
+      - type: drop_columns
+        columns: [variable, time_resolution]
+        # convert the year column to integer type
+      - type: cast_column
+        column_name: year
+        to_type: integer
+
+    # The same for supply variables, but the breakdown column is `technology` 
+    # instead of `end_use`.
+    supply:
+      - type: rename_columns
+        mapping: { timestamp: year, use_technology_fuel: technology }
+      - type: drop_columns
+        columns: [variable, time_resolution]
+      - type: cast_column
+        column_name: year
+        to_type: integer
+
+  # --------------------------------------------------------------------------
+  #                                TARGETS
+  # --------------------------------------------------------------------------
+  # `targets` are the different variables to extract from the submission file. 
+  # Each target has a `filters` field that specifies how the data is filtered 
+  # from the submission file
+  targets:
+      # By default the "filters" field is applied to the `routing_column` defined 
+      # above. I.e., here we extract the data by taking the input data and quering
+      # on the `variable` column for the value "carbon_emissions".
+      #       df_extracted = df_input.query(f"variable == 'carbon_emissions'")
+    - filters: carbon_emissions
+      # Each submitted variable corresponds to one contract and the contract name
+      # must be given in the `contract` field.    
+      contract: result_carbon_emissions
+      transformation_profile: demand
+
+    - filters: carbon_price
+      contract: result_carbon_price
+      transformations:
+        - type: rename_columns
+          mapping: { timestamp: year }
+        - type: drop_columns
+          columns: [variable, time_resolution, use_technology_fuel]
+        - type: cast_column
+          column_name: year
+          to_type: integer
+
+    - filters: district_heat_useful_energy_production
+      contract: result_district_heat_energy_production
+      transformation_profile: supply
+      transformations:
+        # replace zero values with NaN, i.e., drop them from the dataset.
+        - type: drop_rows_by_value
+          column_name: value
+          values: [0.0]
+
+    - filters: electricity_consumption
+      contract: result_electricity_consumption
+      transformation_profile: demand
+      transformations:
+        - type: map_column_values
+          column_name: end_use
+          mapping: { other_elec: other }
+
+    - filters: electricity_consumption_monthly
+      contract: result_electricity_consumption_monthly
+      transformations:
+        - type: rename_columns
+          mapping: { timestamp: month, use_technology_fuel: end_use }
+        - type: drop_columns
+          columns: [variable, time_resolution]
+
+    - filters: electricity_consumption_typical_day
+      contract: result_elec_cons_typical_day
+      transformations:
+        - type: rename_columns
+          mapping: { use_technology_fuel: end_use }
+        - type: drop_columns
+          columns: [variable, time_resolution]
+        - type: parse_datetime_column
+          column_name: timestamp
+          format: mixed
+          dayfirst: true
+        - type: map_column_values
+          column_name: end_use
+          mapping: { other_elec: other }
+
+    - filters: electricity_supply
+      contract: result_electricity_supply
+      transformation_profile: supply
+
+    - filters: electricity_supply_monthly
+      contract: result_electricity_supply_monthly
+      transformations:
+        - type: rename_columns
+          mapping: { timestamp: month, use_technology_fuel: technology }
+        - type: drop_columns
+          columns: [variable, time_resolution]
+
+    - filters: electricity_supply_typical_day
+      contract: result_elec_supply_typical_day
+      transformations:
+        - type: rename_columns
+          mapping: { use_technology_fuel: technology }
+        - type: drop_columns
+          columns: [variable, time_resolution]
+        - type: parse_datetime_column
+          column_name: timestamp
+          format: mixed
+          dayfirst: true
+
+    - filters: freight_road_fec
+      contract: result_freight_road_fec
+      transformations:
+        - type: rename_columns
+          mapping: { timestamp: year, use_technology_fuel: fuel }
+        - type: drop_columns
+          columns: [variable, time_resolution]
+        - type: cast_column
+          column_name: year
+          to_type: integer
+
+    - filters: h2_fec
+      contract: result_h2_fec
+      transformation_profile: demand
+      transformations:
+        - type: map_column_values
+          column_name: end_use
+          mapping: { other_h2: other }
+
+    - filters: h2_supply
+      contract: result_h2_supply
+      transformation_profile: supply
+
+    - filters: installed_capacity
+      contract: result_installed_capacity
+      transformation_profile: supply
+
+    - filters: liquids_fec
+      contract: result_liquids_consumption
+      transformation_profile: demand
+      transformations:
+          # rename some values to be compliant with changes in the dimensions
+          # here we reanme the end_use value "other_liquids" to "other"
+          # note that since we use the demand transformation profile, the transformation
+          # acts on the renamed column "end_use" and not on the original column 
+          # "use_technology_fuel". I.e., the profile is always applied first
+        - type: map_column_values
+          column_name: end_use
+          mapping: { other_liquids: other }
+
+    - filters: liquids_supply
+      contract: result_liquids_supply
+      transformation_profile: supply
+
+    - filters: methane_fec
+      contract: result_methane_consumption
+      transformation_profile: demand
+      transformations:
+        - type: map_column_values
+          column_name: end_use
+          mapping: { other_methane: other }
+
+    - filters: methane_supply
+      contract: result_methane_supply
+      transformation_profile: supply
+
+    - filters: passenger_road_private_fec
+      contract: result_passenger_road_private_fec
+      transformations:
+        - type: rename_columns
+          mapping: { timestamp: year, use_technology_fuel: fuel }
+        - type: drop_columns
+          columns: [variable, time_resolution]
+        - type: cast_column
+          column_name: year
+          to_type: integer
+
+    - filters: passenger_road_public_fec
+      contract: result_passenger_road_public_fec
+      transformations:
+        - type: rename_columns
+          mapping: { timestamp: year, use_technology_fuel: fuel }
+        - type: drop_columns
+          columns: [variable, time_resolution]
+        - type: cast_column
+          column_name: year
+          to_type: integer
+
+    - filters: process_heat_useful_energy_production
+      contract: result_process_heat_energy_production
+      transformation_profile: supply
+      transformations:
+        - type: drop_rows_by_value
+          column_name: value
+          values: [0.0]
+
+    - filters: space_heat_useful_energy_supply
+      contract: result_space_heat_energy_supply
+      transformation_profile: supply
+      transformations:
+        - type: drop_rows_by_value
+          column_name: value
+          values: [0.0]
+
+    - filters: storage_installed_volume
+      contract: result_storage_installed_volume
+      transformation_profile: supply
+
+    - filters: storage_output
+      contract: result_storage_output
+      transformation_profile: supply
+
+    - filters: total_system_costs
+      contract: result_total_system_costs
+      transformations:
+        - type: rename_columns
+          mapping: { timestamp: year }
+        - type: drop_columns
+          columns: [variable, time_resolution, use_technology_fuel]
+        - type: cast_column
+          column_name: year
+          to_type: integer
