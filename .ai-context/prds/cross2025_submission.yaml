@@ -13,9 +13,9 @@ description: |
 #              THE SUBMISSION FILE
 # ----------------------------------------------------------------------------
 # this describes the submission file itself (csv variant). The translation from the
-# Excel to csv version is done before hand. 
-# This part does not change as long as the the submission file structure is not 
-# changed. In fact we could even make that invisible for the moment. 
+# Excel to csv version is done before hand.
+# This part does not change as long as the the submission file structure is not
+# changed. In fact we could even make that invisible for the moment.
 tableschema:
   primaryKey:
     [
@@ -134,8 +134,8 @@ tableschema:
 #   1. how to extract each variable from the submission file
 #   2. against which contract the data should be validated.
 extraction:
-  routing_column: variable. # name of the column that is used to route the data 
-                            # i.e., to filter out a variable 
+  routing_column: variable. # name of the column that is used to route the data
+                            # i.e., to filter out a variable
 
   # --------------------------------------------------------------------------
   #                       TRANSFORMATION PROFILES
@@ -144,8 +144,8 @@ extraction:
   # applied to multiple targets. They are defined once and reused later.
 
   transformation_profiles:
-    # Demand variables typically come in annual resolution with the breakdown 
-    # column being `end_use`. The `timestamp` column is renamed to `year` and 
+    # Demand variables typically come in annual resolution with the breakdown
+    # column being `end_use`. The `timestamp` column is renamed to `year` and
     # cast to integer.
     demand:
       # transformation is always defined by its type (the name of the transformation)
@@ -162,7 +162,7 @@ extraction:
         column_name: year
         to_type: integer
 
-    # The same for supply variables, but the breakdown column is `technology` 
+    # The same for supply variables, but the breakdown column is `technology`
     # instead of `end_use`.
     supply:
       - type: rename_columns
@@ -176,17 +176,17 @@ extraction:
   # --------------------------------------------------------------------------
   #                                TARGETS
   # --------------------------------------------------------------------------
-  # `targets` are the different variables to extract from the submission file. 
-  # Each target has a `filters` field that specifies how the data is filtered 
+  # `targets` are the different variables to extract from the submission file.
+  # Each target has a `filters` field that specifies how the data is filtered
   # from the submission file
   targets:
-      # By default the "filters" field is applied to the `routing_column` defined 
+      # By default the "filters" field is applied to the `routing_column` defined
       # above. I.e., here we extract the data by taking the input data and quering
       # on the `variable` column for the value "carbon_emissions".
       #       df_extracted = df_input.query(f"variable == 'carbon_emissions'")
     - filters: carbon_emissions
       # Each submitted variable corresponds to one contract and the contract name
-      # must be given in the `contract` field.    
+      # must be given in the `contract` field.
       contract: result_carbon_emissions
       transformation_profile: demand
 
@@ -299,7 +299,7 @@ extraction:
           # rename some values to be compliant with changes in the dimensions
           # here we reanme the end_use value "other_liquids" to "other"
           # note that since we use the demand transformation profile, the transformation
-          # acts on the renamed column "end_use" and not on the original column 
+          # acts on the renamed column "end_use" and not on the original column
           # "use_technology_fuel". I.e., the profile is always applied first
         - type: map_column_values
           column_name: end_use
