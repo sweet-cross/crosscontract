@@ -244,7 +244,7 @@ class CrossContract(BaseContract, CrossMetaData):
 
         # insert the table_type into the tableschema for the discriminator
         schema_copy = dict(schema_data)
-        schema_copy["table_type"] = contr_type
+        schema_copy["table_type"] = expected_schema_class.table_type
 
         # add the new schema back into the data
         data_copy = dict(data)
