@@ -101,5 +101,5 @@ rejects it, then use a corrected copy for the remaining assertions.
 
 **Tests:** `src/tests/contracts/contracts/` (PRD §7.3, §7.4).
 
-**Dependencies:** requires task 01 (`Submission` contract type and `SubmissionSchema`)
-and task 03 (`ExtractionInstructions`).
+**Dependencies:** requires task 01 (`Submission` contract type, mapped to the
+`General` table type) and task 03 (`ExtractionInstructions`).

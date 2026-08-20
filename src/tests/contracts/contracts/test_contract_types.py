@@ -77,8 +77,13 @@ class TestContractTypeDifferentiation:
                 TableSchema,
             ),  # Tests the default fallback when key is omitted
             ("ValueVariable", "ValueVariable", ValueVariableSchema),
+            (
+                "Submission",
+                "Submission",
+                TableSchema,
+            ),  # Submission maps to General schema
         ],
-        ids=["default_general", "value_variable"],
+        ids=["default_general", "value_variable", "submission"],
     )
     def test_contract_type_resolves_to_correct_schema(
         self, input_type, expected_type, expected_schema_cls

@@ -8,5 +8,4 @@ __all__ = [
     "ValueVariableSchema",
     "FlexibleDimensionSchema",
     "BaseDimensionSchema",
-    "SubmissionSchema",
 ]

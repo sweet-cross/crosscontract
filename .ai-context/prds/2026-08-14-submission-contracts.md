@@ -44,8 +44,8 @@ loads, validates, and executes with no platform connection.
    `description`, `tags`, `tableschema`, and the metadata block. Its `tableschema`
    describes the **submission file itself** and is the single authored source of
    truth for the bundle's shape.
-2. **A new `contract_type: Submission`**, with a corresponding `SubmissionSchema` in
-   the `AnyTableSchema` discriminated union.
+2. **A new `contract_type: Submission`**, mapped onto the existing `General` table
+   type via `CONTRACT_TYPE_TO_TABLE_TYPE`. No new schema class (§4.5).
 3. **A `project_name` field** naming the CROSS **Project** that extracted data is
    written under (see §5.4).
 4. **An `extraction` block** carrying:
@@ -189,7 +189,6 @@ src/crosscontract/contracts/extraction/__init__.py
 src/crosscontract/contracts/extraction/target.py                    # Target
 src/crosscontract/contracts/extraction/extraction_instructions.py   # ExtractionInstructions
 src/crosscontract/contracts/contracts/submission_contract.py        # SubmissionContract
-src/crosscontract/contracts/schema/subschemas/submission.py         # SubmissionSchema
 src/crosscontract/transformations/transformation/union.py           # TransformationUnion
 .ai-context/adrs/0004-submission-contracts-carry-extraction-instructions.md
 ```
@@ -206,9 +205,7 @@ src/crosscontract/transformations/transformation/dataframe_transformations.py
     + drop_rows_by_value / DropRowsByValue
 src/crosscontract/transformations/transformation/__init__.py       # exports
 src/crosscontract/transformations/__init__.py                      # re-exports
-src/crosscontract/contracts/contracts/cross_contract.py            # ContractType, AnyTableSchema
-src/crosscontract/contracts/schema/subschemas/__init__.py          # export SubmissionSchema
-src/crosscontract/contracts/schema/__init__.py                     # re-export
+src/crosscontract/contracts/contracts/cross_contract.py            # ContractType, CONTRACT_TYPE_TO_TABLE_TYPE
 src/crosscontract/contracts/__init__.py                            # export SubmissionContract
 src/crosscontract/__init__.py                                      # public surface
 .ai-context/CONTEXT.md                                             # new terms, resolve "General"
@@ -235,31 +232,32 @@ the sanctioned dispatch. `TransformationUnion` is defined centrally and referenc
 `ExtractionInstructions` through its own alias, so narrowing the admissible set per
 Build spec later stays a one-line change.
 
-### 4.5 `SubmissionSchema` — resolved
+### 4.5 No `SubmissionSchema` — resolved
 
-`SubmissionSchema` is `TableSchema` plus a `table_type` literal: **a discriminator
-target, nothing more.** It is required for a mechanical reason, not a modelling one —
-`SubmissionContract` inherits `tableschema: AnyTableSchema` from `CrossContract`, and
-`_inject_table_type` copies `contract_type` verbatim into `tableschema.table_type`, so
-without a union member the class does not validate at all.
+`Submission` gets **no schema class of its own**. It is mapped onto the existing
+`General` table type through `CONTRACT_TYPE_TO_TABLE_TYPE` in `cross_contract.py`, so
+`SubmissionContract.tableschema` validates as a plain `TableSchema`.
 
-The submission bundle genuinely *is* a standard flat table with a primary key and
-foreign keys, and `ValueVariableSchema` is the existing precedent for an
-otherwise-empty subclass. If constraints are ever wanted, they go into a class that
-already exists.
+This is what the contract-type/table-type split is for. A contract type says what the
+contract is *for*; a table type selects the schema that backs it. The submission bundle
+genuinely is a standard flat table with a primary key and foreign keys, so it needs a
+distinct contract type and no distinct schema. Minting an empty `SubmissionSchema`
+purely to satisfy a discriminator would have made "one contract type, one schema class"
+a standing rule, and every later contract-type distinction would have paid the same
+tax.
 
-The `RoutingFieldDescriptor` alternative was **not** taken. It would have let
-`SubmissionSchema` self-validate and removed `extraction.routing_column` from the
-authored YAML, but it widens the change into `field_descriptors/` for a concept that
-belongs to extraction rather than to the schema. The routing invariants of §3.1
-therefore land on `SubmissionContract` (WP3), which is the only layer that can see
-both the schema and `routing_column`.
+The `RoutingFieldDescriptor` alternative was also **not** taken. It would have let the
+schema self-validate and removed `extraction.routing_column` from the authored YAML,
+but it widens the change into `field_descriptors/` for a concept that belongs to
+extraction rather than to the schema. The routing invariants of §3.1 therefore land on
+`SubmissionContract` (WP3), the only layer that can see both the schema and
+`routing_column`.
 
 ### 4.6 Work packages
 
 | WP | Content | Depends on |
 |---|---|---|
-| **WP0** | `ContractType` gains `Submission`; `SubmissionSchema` added to `AnyTableSchema` | — |
+| **WP0** | `ContractType` gains `Submission`; `CONTRACT_TYPE_TO_TABLE_TYPE` maps it to `General` | — |
 | **WP1** | Three transformations + `TransformationUnion` | — |
 | **WP2** | `Target`, `ExtractionInstructions` + validators | WP1 |
 | **WP3** | `SubmissionContract`, column tracking | WP0, WP2 |

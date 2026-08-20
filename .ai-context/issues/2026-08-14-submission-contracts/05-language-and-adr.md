@@ -41,11 +41,13 @@ updated with the code that motivated them.
   the targets, not authored, so there is one copy and no drift. Where that derivation
   is assembled is deliberately still open (PRD §5.3) — record the invariant, not a
   method name.
-- **`contract_type: Submission`** rather than `General`, with the reasoning from
-  task 01. Record that `SubmissionSchema` exists as a **discriminator target** only:
-  `SubmissionContract` inherits `tableschema: AnyTableSchema`, so the union needs a
-  member for `"Submission"` or the class does not validate. It is not a claim that the
-  submission table needs a special schema.
+- **`contract_type: Submission`, with no schema class of its own.** It is mapped onto
+  the existing `General` table type through `CONTRACT_TYPE_TO_TABLE_TYPE`. This is the
+  first real use of the contract-type/table-type split: a contract type says what the
+  contract is *for*, a table type selects the schema that backs it, and the submission
+  bundle needs a distinct type but not a distinct schema. Minting an empty
+  `SubmissionSchema` to satisfy a discriminator would have made "one contract type, one
+  schema class" a standing rule and taxed every later contract-type distinction.
 - **`SubmissionContract` inherits `CrossContract`** rather than composing
   `BaseContract, CrossMetaData` as a sibling — for `validate_references`'s star-schema
   default and for staying usable wherever a `CrossContract` is accepted.
