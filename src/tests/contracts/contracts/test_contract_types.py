@@ -68,15 +68,10 @@ class TestContractTypeDifferentiation:
         """Ensure Pydantic's Literal typing catches unknown contract types."""
         data = {**data_base_contract, "contract_type": "InvalidType"}
 
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(
+            ValidationError, match="Unsupported contract_type 'InvalidType'"
+        ):
             CrossContract.model_validate(data)
-
-        errors = exc_info.value.errors()
-        assert any(
-            error.get("loc") == ("contract_type",)
-            and error.get("type") == "literal_error"
-            for error in errors
-        )
 
     def test_non_dict_input_raises_type_error(self):
         """Ensure the before validator blocks non-dictionary inputs like ORM objects

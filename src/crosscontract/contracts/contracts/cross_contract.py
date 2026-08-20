@@ -221,7 +221,7 @@ class CrossContract(BaseContract, CrossMetaData):
 
         # check existence and type of tableschema before proceeding
         if isinstance(schema_data, TableSchema):
-            if schema_data.table_type != expected_schema_class.table_type:
+            if not isinstance(schema_data, expected_schema_class):
                 raise ValueError(
                     f"Mismatch between contract_type '{contr_type}' and "
                     f"tableschema.table_type '{schema_data.table_type}'."
