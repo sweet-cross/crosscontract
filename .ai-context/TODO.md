@@ -90,7 +90,7 @@ they apply.
 Deprecated (`FutureWarning`) on `fix/filter_at_var_level`; the removal itself is gated
 on confirming there are no callers outside this repo. Full write-up, rationale, and
 removal checklist in
-[2026-08-20-remove-data-variable-filters.md](./issues/2026-08-20-remove-data-variable-filters.md).
+[issue #77](https://github.com/sweet-cross/crosscontract/issues/77).
 
 ## Related context (not TODO items)
 
