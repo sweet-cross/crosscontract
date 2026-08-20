@@ -24,7 +24,7 @@ custom contracts may define their own set.
 **Schema**:
 The structural half of a **Contract** — field names, data types, mandatory/optional,
 constraints, and the primary/foreign keys. *Is* a Frictionless Table Schema, more
-strictly defined (typed **contract types**, mandatory fields, dimension invariants) and
+strictly defined (typed **table types**, mandatory fields, dimension invariants) and
 slightly extended (**Field descriptors**). Describes logical content only, independent of
 file format. The correspondence is tight at this level only — a **Contract** above it is
 *not* a Frictionless Data Resource, which would bind to a physical file.
@@ -40,8 +40,16 @@ Extra semantic information attached to a **Schema** field beyond its type and
 constraints — e.g. unit information — enriching the Frictionless standard.
 
 **Contract type**:
-The kind of a **Contract**, fixing the shape of its **Schema**: **ValueVariable**,
-**Dimension**, **FlexibleDimension**, or **General**.
+The kind of a **Contract** — what the contract is *for*: **ValueVariable**,
+**Dimension**, **FlexibleDimension**, or **General**. It selects, but is not the same
+thing as, the **Table type** that shapes the contract's **Schema**.
+
+**Table type**:
+The kind of a **Schema** — which structural template the **Schema** follows. Each
+**Contract type** maps to exactly one table type. The two vocabularies carry the same
+four members today and the mapping is currently the identity, but they are deliberately
+kept apart so that several contract types may later share one schema. Never assume the
+two strings are equal — go through the mapping.
 
 ### The platform and its access layers
 
@@ -227,6 +235,8 @@ _Avoid_: spec (unqualified — ambiguous with **Data specification**)
 ## Relationships
 
 - A **Contract** is **Metadata** + **Schema**, and has exactly one **Contract type**.
+- Each **Contract type** maps to exactly one **Table type**, which fixes the shape of
+  the **Schema**. Several contract types may map to the same table type.
 - A **ValueVariable** contract declares a **Variable**; a **Dimension** /
   **FlexibleDimension** contract declares a **Dimension**.
 - A **Variable** references one or more **Dimensions** (star schema: Variable = fact,

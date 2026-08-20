@@ -92,6 +92,29 @@ on confirming there are no callers outside this repo. Full write-up, rationale, 
 removal checklist in
 [issue #77](https://github.com/sweet-cross/crosscontract/issues/77).
 
+### Key the remaining contract-type branches off the schema instead
+
+`CONTRACT_TYPE_TO_TABLE_TYPE` decoupled the discriminator injection, but three branches
+still hardcode a contract type against schema behaviour. Once a second contract type
+maps onto `DimensionSchema`, each of them silently does the wrong thing.
+
+- `CrossContract.from_server` / `CrossContract.to_server` in
+  `src/crosscontract/contracts/contracts/cross_contract.py` branch on
+  `contract_type == "Dimension"` to strip the `tableschema` the server owns. Rework
+  them to test the resolved schema — `isinstance(self.tableschema, DimensionSchema)`,
+  **not** `BaseDimensionSchema`: that also matches `FlexibleDimensionSchema`, whose
+  fields are user-defined and must round-trip, so the broader check would silently drop
+  them from the `to_server` payload. An explicit "server owns this schema" marker on
+  the schema class would work too.
+- `CrossRegistry.add_variable` in `src/crosscontract/registry/registry.py` picks
+  `CrossDimension` vs `CrossFlexibleDimension` off
+  `cr.contract.contract_type == "Dimension"`. The surrounding `cr.is_dimension` already
+  keys off the schema, so this should read
+  `isinstance(cr.contract.tableschema, DimensionSchema)` for consistency.
+
+Deferred because the first item touches the client round-trip and both want their own
+test pass.
+
 ## Related context (not TODO items)
 
 - The release layer is a contract → Frictionless adapter; `CrossDataResource` /
