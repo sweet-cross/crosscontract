@@ -19,4 +19,5 @@ class SubmissionContract(BaseContract, CrossMetaData):
         description="The name of the project associated with the submission.",
     )
 
-    extraction: ExtractionInstructions
+    # todo: inject the ExtractionInstructions model here once it is implemented
+    # extraction: ExtractionInstructions

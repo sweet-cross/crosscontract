@@ -30,6 +30,7 @@ TableType = Literal["General", "Dimension", "ValueVariable", "FlexibleDimension"
 # says so — several contract types may map onto the same schema later on.
 CONTRACT_TYPE_TO_TABLE_TYPE: dict[ContractType, TableType] = {
     "General": "General",
+    "Submission": "General",
     "Dimension": "Dimension",
     "ValueVariable": "ValueVariable",
     "FlexibleDimension": "FlexibleDimension",
