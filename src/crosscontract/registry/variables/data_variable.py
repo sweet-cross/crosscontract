@@ -1,3 +1,4 @@
+import warnings
 from typing import Any, Self
 
 import pandas as pd
@@ -23,7 +24,21 @@ class CrossDataVariable(CrossBaseVariable):
         Args:
             contract_resource: The contract resource associated with this variable.
             filters: Additional filters to apply when fetching data (optional).
+                **Deprecated:** applied server-side once, at fetch time, and then
+                cached — so it silently narrows every later `get_data()` call,
+                including aggregations. Will be removed in a future release; filter
+                at read time instead via `get_data(filters=...)`.
         """
+        if filters is not None:
+            warnings.warn(
+                "The 'filters' argument is deprecated and will be removed in a "
+                "future release. It is applied server-side and cached, so it "
+                "silently narrows every later get_data() call, including "
+                "aggregations. Filter at read time instead: "
+                "var.get_data(filters={'col': [values]}).",
+                FutureWarning,
+                stacklevel=2,
+            )
 
         super().__init__(contract_resource=contract_resource)
         self._filters = filters
@@ -40,13 +55,13 @@ class CrossDataVariable(CrossBaseVariable):
     ) -> Self:
         """Build from a contract fetched via the client.
 
-        Value variables can have filters applied when they are created, which
-        will be applied to all data fetched for that variable.
-
         Args:
             client: An instance of CrossClient to fetch contract details.
             contract_name: The name of the contract to fetch.
             filters: Additional filters to apply when fetching data (optional).
+                **Deprecated:** see `CrossDataVariable.__init__`. Will be removed
+                in a future release; filter at read time instead via
+                `get_data(filters=...)`.
         """
         cr = client.contracts.get(contract_name)
         return cls(contract_resource=cr, filters=filters)
@@ -413,8 +428,9 @@ class CrossDataVariable(CrossBaseVariable):
 
         Args:
             filters: Additional filters applied on top of any filters
-                specified at variable creation time. Keys are column names,
-                values are lists of allowed values for those columns.
+                specified at variable creation time (**deprecated**; see
+                `CrossDataVariable.__init__`). Keys are column names, values
+                are lists of allowed values for those columns.
             columns: Columns to include in the returned DataFrame. If
                 ``None``, all columns are included. Applied last, after
                 all other transformations.

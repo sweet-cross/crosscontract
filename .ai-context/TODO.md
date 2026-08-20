@@ -85,6 +85,13 @@ While sweeping, check the same files for docstrings missing an applicable
 `Args:` / `Returns:` / `Raises:` section — the convention now requires all three where
 they apply.
 
+### Remove the construction-time `filters` argument from `CrossDataVariable`
+
+Deprecated (`FutureWarning`) on `fix/filter_at_var_level`; the removal itself is gated
+on confirming there are no callers outside this repo. Full write-up, rationale, and
+removal checklist in
+[2026-08-20-remove-data-variable-filters.md](./issues/2026-08-20-remove-data-variable-filters.md).
+
 ## Related context (not TODO items)
 
 - The release layer is a contract → Frictionless adapter; `CrossDataResource` /

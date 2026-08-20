@@ -1,4 +1,5 @@
 # test_registry.py
+import warnings
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -297,6 +298,27 @@ class TestAddVariable:
         registry.add_variable("dim_region")
         with pytest.raises(ValueError, match="Dimension.*cannot be overwritten"):
             registry.add_variable("dim_region", overwrite=True)
+
+    def test_filters_on_value_variable_emits_deprecation_warning(
+        self, registry: CrossRegistry
+    ):
+        with pytest.warns(FutureWarning, match="deprecated"):
+            var = registry.add_variable("simple_data", filters={"category": "a"})
+        assert var._filters == {"category": "a"}
+
+    def test_filters_on_dimension_emits_deprecation_warning_and_is_ignored(
+        self, registry: CrossRegistry
+    ):
+        with pytest.warns(FutureWarning, match="deprecated"):
+            registry.add_variable("dim_region", filters={"id": "total"})
+        assert isinstance(registry._variables["dim_region"], CrossDimension)
+
+    def test_add_variable_without_filters_emits_no_warning(
+        self, registry: CrossRegistry
+    ):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            registry.add_variable("simple_data")
 
     def test_fk_dimension_not_fetched_twice(self, registry: CrossRegistry, mock_client):
         """If the dimension is already loaded, add_variable should reuse it."""
