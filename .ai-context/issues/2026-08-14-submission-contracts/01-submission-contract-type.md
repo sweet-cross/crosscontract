@@ -19,7 +19,6 @@ resolved decision below.
 - [ ] `ContractType` includes `"Submission"`.
 - [ ] `SubmissionSchema` exists with `table_type: Literal["Submission"]` and is a member of `AnyTableSchema`.
 - [ ] A contract dict with `contract_type: Submission` routes through `_inject_table_type` and validates to `SubmissionSchema`.
-- [ ] `SubmissionSchema` accepts the full cross2025 submission `tableschema` (11 fields, composite primary key, three foreign keys) unchanged.
 - [ ] Existing contract types (`General`, `Dimension`, `ValueVariable`, `FlexibleDimension`) still discriminate correctly — no regressions in `src/tests/contracts/schema/`.
 - [ ] The §4.5 decision is recorded in the ADR stub or `TODO.md`, whichever WP4 uses.
 
