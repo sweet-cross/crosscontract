@@ -20,12 +20,17 @@ AnyTableSchema = Annotated[
 
 ContractType = Literal["General", "Dimension", "ValueVariable", "FlexibleDimension"]
 
+TableType = Literal["General", "Dimension", "ValueVariable", "FlexibleDimension"]
 
-MAP_CONTRACT_TYPE_TO_SCHEMA: dict[ContractType, AnyTableSchema] = {
-    "General": TableSchema,
-    "Dimension": DimensionSchema,
-    "ValueVariable": ValueVariableSchema,
-    "FlexibleDimension": FlexibleDimensionSchema,
+# The contract vocabulary and the schema vocabulary are deliberately separate:
+# a contract type says what the contract is for, a table type selects the schema
+# that backs it. They coincide today, and this table is the single place that
+# says so — several contract types may map onto the same schema later on.
+CONTRACT_TYPE_TO_TABLE_TYPE: dict[ContractType, TableType] = {
+    "General": "General",
+    "Dimension": "Dimension",
+    "ValueVariable": "ValueVariable",
+    "FlexibleDimension": "FlexibleDimension",
 }
 
 
@@ -198,11 +203,23 @@ class CrossContract(BaseContract, CrossMetaData):
     def _inject_table_type_to_schema(data: dict[str, Any]) -> dict[str, Any]:
         """Helper method to inject the table_type into the tableschema.
 
+        The table type is looked up in `CONTRACT_TYPE_TO_TABLE_TYPE` rather than
+        reused from the contract type, so the two vocabularies stay independent.
+        An unmapped contract type is left untouched: the `contract_type` field is
+        typed as a literal, so the model itself reports it against the right
+        field.
+
         Args:
             data (dict[str, Any]): The input data dictionary to be processed.
 
         Returns:
             dict[str, Any]: The processed data dictionary with the table_type injected.
+
+        Raises:
+            TypeError: If `tableschema` is neither a `TableSchema` nor a dictionary.
+            ValueError: If a pre-built `tableschema` does not carry the table type
+                the contract type maps to, or if the incoming `tableschema` dict
+                already defines `table_type`.
         """
         contr_type = data.get("contract_type", "General")
         schema_data = data.get("tableschema")
@@ -211,17 +228,16 @@ class CrossContract(BaseContract, CrossMetaData):
         if schema_data is None:
             schema_data = {}
 
-        # expected table_type based on the contract_type
-        expected_schema_class = MAP_CONTRACT_TYPE_TO_SCHEMA.get(contr_type)
-        if expected_schema_class is None:
-            raise ValueError(
-                f"Unsupported contract_type '{contr_type}'. "
-                f"Expected one of {list(MAP_CONTRACT_TYPE_TO_SCHEMA.keys())}."
-            )
+        # expected table_type based on the contract_type; an unknown contract
+        # type is handed on unchanged so the literal field raises against
+        # `contract_type` instead of us masking it here
+        expected_table_type = CONTRACT_TYPE_TO_TABLE_TYPE.get(contr_type)
+        if expected_table_type is None:
+            return data
 
         # check existence and type of tableschema before proceeding
         if isinstance(schema_data, TableSchema):
-            if not isinstance(schema_data, expected_schema_class):
+            if schema_data.table_type != expected_table_type:
                 raise ValueError(
                     f"Mismatch between contract_type '{contr_type}' and "
                     f"tableschema.table_type '{schema_data.table_type}'."
@@ -244,7 +260,7 @@ class CrossContract(BaseContract, CrossMetaData):
 
         # insert the table_type into the tableschema for the discriminator
         schema_copy = dict(schema_data)
-        schema_copy["table_type"] = expected_schema_class.table_type
+        schema_copy["table_type"] = expected_table_type
 
         # add the new schema back into the data
         data_copy = dict(data)

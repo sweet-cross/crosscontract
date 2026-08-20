@@ -1,7 +1,14 @@
+from typing import get_args
+
 import pytest
 from pydantic import ValidationError
 
 from crosscontract.contracts import CrossContract
+from crosscontract.contracts.contracts.cross_contract import (
+    CONTRACT_TYPE_TO_TABLE_TYPE,
+    ContractType,
+    TableType,
+)
 from crosscontract.contracts.schema import (
     DimensionSchema,
     TableSchema,
@@ -18,6 +25,18 @@ data_base_contract = {
         ],
     },
 }
+
+
+class TestContractTypeToTableTypeMapping:
+    """Test suite guarding the contract type to table type table against drift."""
+
+    def test_every_contract_type_is_mapped(self):
+        """Ensure a newly added contract type cannot ship without a table type."""
+        assert set(get_args(ContractType)) == set(CONTRACT_TYPE_TO_TABLE_TYPE)
+
+    def test_every_mapped_table_type_is_known(self):
+        """Ensure the mapping only ever points at declared table types."""
+        assert set(CONTRACT_TYPE_TO_TABLE_TYPE.values()) <= set(get_args(TableType))
 
 
 class TestContractTypeDifferentiation:
@@ -68,10 +87,15 @@ class TestContractTypeDifferentiation:
         """Ensure Pydantic's Literal typing catches unknown contract types."""
         data = {**data_base_contract, "contract_type": "InvalidType"}
 
-        with pytest.raises(
-            ValidationError, match="Unsupported contract_type 'InvalidType'"
-        ):
+        with pytest.raises(ValidationError) as exc_info:
             CrossContract.model_validate(data)
+
+        errors = exc_info.value.errors()
+        assert any(
+            error.get("loc") == ("contract_type",)
+            and error.get("type") == "literal_error"
+            for error in errors
+        )
 
     def test_non_dict_input_raises_type_error(self):
         """Ensure the before validator blocks non-dictionary inputs like ORM objects
@@ -176,6 +200,25 @@ class TestInjectTableTypeToSchema:
             match=(
                 "Mismatch between contract_type 'Dimension' and tableschema.table_type"
                 " 'General'."
+            ),
+        ):
+            CrossContract._inject_table_type_to_schema(input_data)
+
+    def test_instantiated_subclass_schema_mismatch_raises_value_error(self):
+        """Ensure a specialized schema is rejected under a contract_type that maps to
+        its base schema, not just the other way around."""
+        schema_instance = ValueVariableSchema(fields=[{"name": "id", "type": "string"}])
+
+        input_data = {
+            "contract_type": "General",
+            "tableschema": schema_instance,
+        }
+
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Mismatch between contract_type 'General' and tableschema.table_type"
+                " 'ValueVariable'."
             ),
         ):
             CrossContract._inject_table_type_to_schema(input_data)
