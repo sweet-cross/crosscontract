@@ -1,33 +1,35 @@
 from .base import BaseTransformation
 from .column_transformations import (
-    CastType,
+    CastColumn,
     MapColumnValues,
     ParseDatetimeColumn,
-    cast_type,
+    cast_column,
     map_column_values,
     parse_datetime_column,
 )
 from .dataframe_transformations import (
     DropColumns,
-    DropRowsByValues,
+    DropRowsByValue,
     RenameColumns,
     drop_columns,
-    drop_rows_by_values,
+    drop_rows_by_value,
     rename_columns,
 )
+from .union import TransformationUnion
 
 __all__ = [
     "BaseTransformation",
+    "TransformationUnion",
+    "CastColumn",
+    "DropColumns",
+    "DropRowsByValue",
     "MapColumnValues",
     "ParseDatetimeColumn",
-    "CastType",
     "RenameColumns",
-    "DropColumns",
+    "cast_column",
+    "drop_columns",
+    "drop_rows_by_value",
     "map_column_values",
     "parse_datetime_column",
-    "cast_type",
     "rename_columns",
-    "drop_columns",
-    "DropRowsByValues",
-    "drop_rows_by_values",
 ]

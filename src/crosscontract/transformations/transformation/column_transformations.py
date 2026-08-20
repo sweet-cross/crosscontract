@@ -106,7 +106,7 @@ class MapColumnValues(BaseTransformation):
         return map_column_values(df, self.column_name, self.mapping, default_value)
 
 
-def cast_type(df: pd.DataFrame, column_name: Any, to_type: type) -> pd.DataFrame:
+def cast_column(df: pd.DataFrame, column_name: Any, to_type: type) -> pd.DataFrame:
     """Cast a column to a new type.
 
     The input DataFrame is not mutated; a new DataFrame is returned.
@@ -124,8 +124,8 @@ def cast_type(df: pd.DataFrame, column_name: Any, to_type: type) -> pd.DataFrame
     return result
 
 
-class CastType(BaseTransformation):
-    """Declarative spec for `cast_type`.
+class CastColumn(BaseTransformation):
+    """Declarative spec for `cast_column`.
 
     Casts a single column to a new type.
 
@@ -135,8 +135,8 @@ class CastType(BaseTransformation):
             (e.g., 'int', 'float', 'str') are accepted.
     """
 
-    type: Literal["cast_column_type"] = Field(
-        default="cast_column_type",
+    type: Literal["cast_column"] = Field(
+        default="cast_column",
         description="Discriminator identifying this transformation.",
     )
     column_name: str = Field(
@@ -158,7 +158,7 @@ class CastType(BaseTransformation):
         Returns:
             pd.DataFrame: A new DataFrame with the casted column.
         """
-        return cast_type(df, self.column_name, self.to_type)
+        return cast_column(df, self.column_name, self.to_type)
 
 
 def parse_datetime_column(

@@ -97,7 +97,7 @@ class DropColumns(BaseTransformation):
         return drop_columns(df, self.columns)
 
 
-def drop_rows_by_values(
+def drop_rows_by_value(
     df: pd.DataFrame, column_name: Any, values_to_drop: list[Any]
 ) -> pd.DataFrame:
     """Drop rows from the DataFrame where the specified column has any of the
@@ -117,8 +117,8 @@ def drop_rows_by_values(
     return df[~df[column_name].isin(values_to_drop)]
 
 
-class DropRowsByValues(BaseTransformation):
-    """Declarative spec for `drop_rows_by_values`.
+class DropRowsByValue(BaseTransformation):
+    """Declarative spec for `drop_rows_by_value`.
 
     Drops rows where the specified column has any of the given values.
 
@@ -128,8 +128,8 @@ class DropRowsByValues(BaseTransformation):
             specified column will be dropped.
     """
 
-    type: Literal["drop_rows_by_values"] = Field(
-        default="drop_rows_by_values",
+    type: Literal["drop_rows_by_value"] = Field(
+        default="drop_rows_by_value",
         description="Discriminator identifying this transformation.",
     )
     column_name: str = Field(
@@ -152,4 +152,4 @@ class DropRowsByValues(BaseTransformation):
         Returns:
             pd.DataFrame: A new DataFrame with the specified rows dropped.
         """
-        return drop_rows_by_values(df, self.column_name, self.values)
+        return drop_rows_by_value(df, self.column_name, self.values)
