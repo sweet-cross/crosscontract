@@ -18,7 +18,9 @@ AnyTableSchema = Annotated[
     Field(discriminator="table_type"),
 ]
 
-ContractType = Literal["General", "Dimension", "ValueVariable", "FlexibleDimension"]
+ContractType = Literal[
+    "General", "Dimension", "ValueVariable", "FlexibleDimension", "Submission"
+]
 
 
 class CrossMetaData(BaseMetaData):

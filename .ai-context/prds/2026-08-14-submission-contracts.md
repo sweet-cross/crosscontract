@@ -46,8 +46,8 @@ loads, validates, and executes with no platform connection.
    truth for the bundle's shape.
 2. **A new `contract_type: Submission`**, with a corresponding `SubmissionSchema` in
    the `AnyTableSchema` discriminated union.
-3. **A `project` field** naming the CROSS **Project** that extracted data is written
-   under (see §5.4).
+3. **A `project_name` field** naming the CROSS **Project** that extracted data is
+   written under (see §5.4).
 4. **An `extraction` block** carrying:
    - `routing_column` — the field whose value selects a target (default `variable`).
    - `transformation_profiles` — named, ordered, reusable step lists.
@@ -63,7 +63,9 @@ loads, validates, and executes with no platform connection.
    new members are required (§5.1); this is the first Build spec to consume the union
    at all.
 8. **The routing field's `enum` is derived** from the targets' filters, not authored.
-   `to_contract()` emits a plain `CrossContract` with that enum injected.
+   *Where* that derivation is assembled — a property on the model, a helper on
+   `ExtractionInstructions`, or the validator that checks data against the contract —
+   is deliberately left open (§5.3).
 9. **One variable → one contract.** Duplicate or overlapping filters, and duplicate
    target contracts, are spec errors.
 10. **The spec validates standalone.** Structural checks (routing field present and
@@ -74,9 +76,9 @@ loads, validates, and executes with no platform connection.
 ### Definition of done
 
 `SubmissionContract.from_file(".ai-context/prds/cross2025_submission.yaml")` loads,
-and `to_contract()` reproduces the `variable` enum of the current
-`submission_cross2025.yaml` **exactly** — all 24 entries, no more, no fewer. This has
-been confirmed by hand against the target list and is the acceptance test.
+and the routing values derived from its targets reproduce the `variable` enum of the
+current `submission_cross2025.yaml` **exactly** — all 24 entries, no more, no fewer.
+This has been confirmed by hand against the target list and is the acceptance test.
 
 ## 3. Edge Cases & Error Handling
 
@@ -156,10 +158,10 @@ Under (b):
 
 | Case | Behaviour |
 |---|---|
-| `to_contract()` output | Must satisfy `CrossContract`'s `extra="forbid"` — `extraction` and `project` stripped, `contract_type` remapped (see §5.3). |
+| Derived routing `enum` | Assembled from the targets, never authored. The assembly site is an open decision (§5.3); nothing in this scope depends on which is chosen. |
 | Round-trip `from_file` → `model_dump` → revalidate | Must be stable. |
 | YAML anchors in an authored file | Expand at load; re-dumping loses the sharing. Documented behaviour, not a bug. The reference example is deliberately anchor-free. |
-| A `contract_type: Submission` payload sent to a platform that does not yet accept it | **Sequencing hazard.** Adding the literal in this repo is inert; only `to_server()` exposes it. See §4.7. |
+| A `contract_type: Submission` payload sent to a platform that does not yet accept it | Adding the literal in this repo is inert for existing contracts. When the platform begins accepting submission contracts is its own rollout question, and errors would surface only on new submissions. Out of scope — see §4.7. |
 
 ## 4. Implementation Decisions & File Paths
 
@@ -233,21 +235,25 @@ the sanctioned dispatch. `TransformationUnion` is defined centrally and referenc
 `ExtractionInstructions` through its own alias, so narrowing the admissible set per
 Build spec later stays a one-line change.
 
-### 4.5 `SubmissionSchema` — open decision
+### 4.5 `SubmissionSchema` — resolved
 
-Under this layout the schema cannot see `extraction.routing_column` (one layer up), so
-the routing invariants of §3.1 land on `SubmissionContract`, leaving `SubmissionSchema`
-carrying only the discriminator. Two resolutions:
+`SubmissionSchema` is `TableSchema` plus a `table_type` literal: **a discriminator
+target, nothing more.** It is required for a mechanical reason, not a modelling one —
+`SubmissionContract` inherits `tableschema: AnyTableSchema` from `CrossContract`, and
+`_inject_table_type` copies `contract_type` verbatim into `tableschema.table_type`, so
+without a union member the class does not validate at all.
 
-- **Accept the label.** Minimal, honest, slightly hollow.
-- **Model the routing column as a field descriptor.**
-  `contracts/schema/field_descriptors/` already carries `ValueFieldDescriptor` /
-  `TimeFieldDescriptor` / `LocationFieldDescriptor`; a `RoutingFieldDescriptor` fits
-  that pattern, `SubmissionSchema` self-validates, and `extraction.routing_column`
-  leaves the YAML.
+The submission bundle genuinely *is* a standard flat table with a primary key and
+foreign keys, and `ValueVariableSchema` is the existing precedent for an
+otherwise-empty subclass. If constraints are ever wanted, they go into a class that
+already exists.
 
-The second is cleaner but widens the change into the descriptor layer. Decide before
-WP0; the rest of the PRD is unaffected either way.
+The `RoutingFieldDescriptor` alternative was **not** taken. It would have let
+`SubmissionSchema` self-validate and removed `extraction.routing_column` from the
+authored YAML, but it widens the change into `field_descriptors/` for a concept that
+belongs to extraction rather than to the schema. The routing invariants of §3.1
+therefore land on `SubmissionContract` (WP3), which is the only layer that can see
+both the schema and `routing_column`.
 
 ### 4.6 Work packages
 
@@ -256,7 +262,7 @@ WP0; the rest of the PRD is unaffected either way.
 | **WP0** | `ContractType` gains `Submission`; `SubmissionSchema` added to `AnyTableSchema` | — |
 | **WP1** | Three transformations + `TransformationUnion` | — |
 | **WP2** | `Target`, `ExtractionInstructions` + validators | WP1 |
-| **WP3** | `SubmissionContract`, `to_contract()`, column tracking | WP0, WP2 |
+| **WP3** | `SubmissionContract`, column tracking | WP0, WP2 |
 | **WP4** | `CONTEXT.md` terms, ADR 0004, `TODO.md` entries | WP3 |
 
 Critical path is **WP1 → WP2 → WP3**; WP0 runs in parallel. WP1 carries the most
@@ -320,27 +326,42 @@ the same concept (a row allow-list keyed by column) in the egress direction.
 
 ```python
 class SubmissionContract(CrossContract):    # contracts/contracts/submission_contract.py
-    contract_type: Literal["Submission"] = "Submission"
-    project: str
+    contract_type: Literal["Submission"] = Field(  # type: ignore[assignment]
+        default="Submission",
+        description="The type of the contract.",
+    )
+    project_name: str
     extraction: ExtractionInstructions
-
-    def to_contract(self) -> CrossContract: ...
 ```
 
-`to_contract()` drops `extraction` and `project`, injects the derived `enum` into the
-routing field, and returns a plain `CrossContract`. Because `CrossContract` is
-`extra="forbid"`, a stored `SubmissionContract` would break the backend's existing
-`CrossContract.from_server(...)` call — which is precisely why `to_contract()` exists
-and why the platform stores the contract half only, for now.
+**Why inherit `CrossContract` rather than compose as a sibling.** `CrossContract` is
+itself `BaseContract, CrossMetaData`, so a sibling was a live option. Inheriting wins
+on two counts: it keeps `validate_references`'s `enforce_star_schema=True` default,
+which is the correct behaviour here — the submission foreign keys all point at
+dimensions — and it keeps the contract usable wherever the client already accepts a
+`CrossContract`.
 
-`contract_type` on the emitted contract is a cross-repo question: `Submission` requires
-platform acceptance, so until that lands `to_contract()` may need to emit `General`.
-Decide alongside WP0.
+Two details on the `contract_type` override: it narrows the inherited `ContractType`,
+so it carries the same `# type: ignore[assignment]` the schema subclasses use; and it
+must **not** be `exclude=True`. Unlike `table_type`, which is injected and would break
+re-validation if it reappeared, `contract_type` is authored and serialized.
 
-### 5.4 The `project` field
+**No `to_server()` / `from_server()` overrides.** Whether the platform stores the
+extraction block whole, or only the contract half, is the platform's concern; nothing
+in this package needs to assume either.
 
-`project` names the CROSS **Project** the extracted data is written under —
-`add_data(..., project_name=...)` in `ContractService`. It is inert for extraction
+**Where the derived routing `enum` is assembled is left open.** Something must inject
+it before data is validated against the submission contract, but that site — a property
+on the model, a helper on `ExtractionInstructions`, or the future validator — is not
+needed to land WP3, and no `to_contract()` method is written. The acceptance test
+(§7.4) is phrased against the derived *values* so it holds whichever site is chosen.
+
+### 5.4 The `project_name` field
+
+`project_name` names the CROSS **Project** the extracted data is written under —
+`add_data(..., project_name=...)` in `ContractService`. The field takes the client's
+own keyword rather than shortening to `project`, so the authored YAML and the call site
+use one word. It is inert for extraction
 itself and exists so the eventual submission endpoint has the ownership binding
 without a second lookup. It replaces the `Extractor.name` key of the legacy registry
 (`cross2022`, `cross2025`, `nuclear2025`), which doubled as the project name.
@@ -371,9 +392,9 @@ dependency on a type whose deprecation is undecided.
   `DataInstructions` is the extension point awaiting transformations — WP1 supplies
   the union it has been waiting for.
 - **[ADR 0002 — Contract metadata follows Frictionless, with deviations](../adrs/0002-metadata-follows-frictionless-with-deviations.md).**
-  `SubmissionContract` adds `project` and `extraction`, which are **not** Frictionless
-  keys. This is a deliberate deviation of the kind ADR 0002 governs, and `to_contract()`
-  is what keeps the deviation off the wire.
+  `SubmissionContract` adds `project_name` and `extraction`, which are **not**
+  Frictionless keys. This is a deliberate deviation of the kind ADR 0002 governs, and
+  one the ADR 0004 stub should record.
 - **[ADR 0001 — Dimensions are strict trees](../adrs/0001-dimensions-are-strict-trees.md).**
   Not directly governing, but the reason §3.5's `map_column_values` conflict gap
   matters: silently merging two dimension members on a foreign-key column breaks the
@@ -413,8 +434,7 @@ Tests mirror the source tree under `src/tests/`, with YAML fixtures alongside th
 - Column tracking (§3.4, option (b)): a rename-then-cast chain validates; a
   cast naming the pre-rename column raises; an opaque transformation stops tracking
   without raising.
-- `to_contract()` produces a `CrossContract` that revalidates cleanly under
-  `extra="forbid"`.
+- Round-trip `from_file` → `model_dump` → `model_validate` is stable.
 
 ### 7.4 Integration — the reference example
 
@@ -424,8 +444,8 @@ The acceptance test, using
 
 1. It loads as a `SubmissionContract`.
 2. 24 targets, all filters unique, all profile references resolve.
-3. `to_contract().tableschema` — the `variable` field's derived `enum` equals the
-   24-entry enum of the legacy `submission_cross2025.yaml` **as a set, exactly**.
+3. The routing values derived from the targets equal the 24-entry enum of the legacy
+   `submission_cross2025.yaml` **as a set, exactly**.
 4. Full round-trip `from_file` → `model_dump` → `model_validate` is stable.
 
 Fix the `routing_column: variable.` typo in the fixture copy — or keep it, and assert

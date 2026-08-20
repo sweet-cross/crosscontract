@@ -1,22 +1,20 @@
-# WP3 — `SubmissionContract`, `to_contract()`, and column tracking
+# WP3 — `SubmissionContract` and column tracking
 
 ## Context
 **Part of PRD:** [2026-08-14-submission-contracts.md](../../prds/2026-08-14-submission-contracts.md) (§5.3, §3.1, §3.4, §7.4)
 
 The piece that joins the two halves: a `CrossContract` whose `tableschema` describes
 the submission file and whose `extraction` block says how to split it. It also owns
-the routing invariants (the schema can't see `routing_column`) and `to_contract()`,
-which derives the routing field's `enum` from the targets — the mechanism that makes
-the spec, not a separately maintained contract, the source of truth.
+the routing invariants, because the schema cannot see `routing_column` — that lives one
+layer up.
 
 ## Acceptance Criteria
-- [ ] `SubmissionContract(CrossContract)` exists with `contract_type` pinned to `Literal["Submission"]`, plus `project: str` and `extraction: ExtractionInstructions`.
+- [ ] `SubmissionContract(CrossContract)` exists with `contract_type` pinned to `Literal["Submission"]`, plus `project_name: str` and `extraction: ExtractionInstructions`.
 - [ ] `routing_column` naming a field absent from `tableschema.fields` raises — with a regression test using the literal string `"variable."` (the real typo in the reference YAML, where a stray period sits inside the value before an inline comment).
 - [ ] A routing field that is not `type: string` raises.
 - [ ] A routing field that is not `required: true` raises.
 - [ ] A routing field carrying an authored `enum` raises (it is derived).
-- [ ] `to_contract()` returns a plain `CrossContract` that revalidates cleanly under `extra="forbid"` — `extraction` and `project` stripped, derived `enum` injected into the routing field.
-- [ ] **Acceptance test:** `SubmissionContract.from_file()` loads the reference cross2025 YAML, yields 24 targets with unique filters and resolving profile references, and `to_contract()` produces a `variable` enum equal *as a set, exactly* to the 24-entry enum of the legacy `submission_cross2025.yaml`.
+- [ ] **Acceptance test:** `SubmissionContract.from_file()` loads the reference cross2025 YAML, yields 24 targets with unique filters and resolving profile references, and the routing values derived from those targets equal *as a set, exactly* the 24-entry enum of the legacy `submission_cross2025.yaml`.
 - [ ] Round-trip `from_file` → `model_dump` → `model_validate` is stable.
 - [ ] `SubmissionContract` is exported from the package's public surface.
 
@@ -33,28 +31,44 @@ the spec, not a separately maintained contract, the source of truth.
 
 ```python
 class SubmissionContract(CrossContract):
-    contract_type: Literal["Submission"] = "Submission"
-    project: str
+    contract_type: Literal["Submission"] = Field(  # type: ignore[assignment]
+        default="Submission",
+        description="The type of the contract.",
+    )
+    project_name: str = Field(
+        description="CROSS Project the extracted data is written under."
+    )
     extraction: ExtractionInstructions
-
-    def to_contract(self) -> CrossContract: ...
 ```
 
-`project` names the CROSS **Project** the extracted data is written under
-(`add_data(..., project_name=...)`). It is inert for extraction itself and replaces the
-`Extractor.name` key of the legacy registry, which doubled as the project name.
+Notes on the shape:
 
-**Why `to_contract()` exists.** `CrossContract` is `extra="forbid"`, so a stored
-`SubmissionContract` would break the backend's existing
-`CrossContract.from_server(contract_entry.contract)` call in
-`get_contract_validate_dataframe`. Emitting the contract half only keeps the platform
-untouched.
+- Inheriting `CrossContract` (rather than composing `BaseContract, CrossMetaData` as a
+  sibling) keeps the metadata block, `from_file`, the server methods, and
+  `validate_references`'s `enforce_star_schema=True` default — which is the correct
+  behaviour here, since the submission foreign keys all point at dimensions.
+- `contract_type` narrows the inherited `ContractType`, so it carries the same
+  `# type: ignore[assignment]` the schema subclasses use. It must **not** be
+  `exclude=True`: unlike `table_type`, it is authored and serialized, not injected.
+- `project_name` names the CROSS **Project** the extracted data is written under
+  (`add_data(..., project_name=...)`). The name matches the existing `ContractService`
+  keyword rather than shortening to `project`. It is inert for extraction itself and
+  replaces the `Extractor.name` key of the legacy registry, which doubled as the
+  project name.
+- No overrides of `to_server()` / `from_server()`. Whether the platform stores the
+  extraction block whole is the platform's concern; nothing here needs to assume it.
 
-### Decision required: `to_contract()` and `contract_type` (PRD §5.3)
+### Deferred: where the derived routing enum is assembled
 
-`Submission` needs platform acceptance before it can be stored. Until that lands,
-`to_contract()` may need to emit `General`. Decide alongside task 01 and keep the two
-consistent.
+The routing field's `enum` is derived from the targets rather than authored, so
+something must assemble it before data is validated against the submission contract.
+**Where that lives is deliberately left open** — a property on the model, a helper on
+`ExtractionInstructions`, or the future validator that checks data against the
+contract. It is not needed to land this task and no `to_contract()` method is written
+here.
+
+The acceptance test above is therefore phrased against the derived *values*, not
+against any particular method, and passes whichever site is eventually chosen.
 
 ### Decision required: how far column tracking goes (PRD §3.4)
 
@@ -87,5 +101,5 @@ rejects it, then use a corrected copy for the remaining assertions.
 
 **Tests:** `src/tests/contracts/contracts/` (PRD §7.3, §7.4).
 
-**Dependencies:** requires task 01 (`Submission` contract type) and task 03
-(`ExtractionInstructions`).
+**Dependencies:** requires task 01 (`Submission` contract type and `SubmissionSchema`)
+and task 03 (`ExtractionInstructions`).

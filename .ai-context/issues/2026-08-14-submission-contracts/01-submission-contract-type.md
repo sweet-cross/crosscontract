@@ -7,8 +7,13 @@ A submission bundle is a flat table with a primary key and foreign keys — genu
 neither a Variable nor a Dimension. `General` would fit mechanically, but `CONTEXT.md`
 documents it as legacy and "should no longer be chosen for new contracts", so a new
 `Submission` type is added rather than deepening the dependency on a type whose
-deprecation is undecided. Adding the literal here is inert until `to_server()` exposes
-it, which is why this can land independently of any platform change.
+deprecation is undecided.
+
+`SubmissionContract` inherits from `CrossContract` (task 04), so it inherits
+`tableschema: AnyTableSchema`, and `_inject_table_type` copies `contract_type` verbatim
+into `tableschema.table_type`. A `SubmissionSchema` member in the union is therefore
+required for the class to validate at all. That is the whole justification — see the
+resolved decision below.
 
 ## Acceptance Criteria
 - [ ] `ContractType` includes `"Submission"`.
@@ -32,19 +37,22 @@ Follow the existing subschema pattern (`dimension.py`, `flexible_dimension.py`,
 `value_variable.py`), including the comment convention about the `table_type`
 discriminator default.
 
-**Decision required before starting (PRD §4.5).** `SubmissionSchema` cannot see
-`extraction.routing_column` — that lives one layer up on the contract — so the routing
-invariants land on `SubmissionContract` (task 04) and this class is left carrying only
-the discriminator. Two options:
+### Resolved: `SubmissionSchema` carries only the discriminator (PRD §4.5, option (a))
 
-- **(a)** Accept the bare label. Minimal; `SubmissionSchema` is `TableSchema` plus a
-  `table_type` literal.
-- **(b)** Add a `RoutingFieldDescriptor` to `contracts/schema/field_descriptors/`
-  alongside `ValueFieldDescriptor` / `TimeFieldDescriptor` / `LocationFieldDescriptor`.
-  `SubmissionSchema` then self-validates via the `_mandatory_fields` pattern, and
-  `extraction.routing_column` leaves the YAML entirely.
+`SubmissionSchema` is `TableSchema` plus a `table_type` literal — no added fields, no
+added constraints. It exists as a **discriminator target**, not because the submission
+table needs a special schema; the bundle genuinely is a standard flat table, and
+`ValueVariableSchema` is the existing precedent for an otherwise-empty subclass.
+If constraints are ever wanted, they go into a class that already exists.
 
-(b) is cleaner but widens the change into the descriptor layer and changes the
-authored YAML. Pick before writing code; the rest of the PRD is unaffected either way.
+The `RoutingFieldDescriptor` alternative was **not** taken. It would have moved the
+routing invariants into the descriptor layer and removed `extraction.routing_column`
+from the authored YAML, but it widens the change into `field_descriptors/` for a
+concept that belongs to extraction rather than to the schema. The routing invariants
+(§3.1) therefore live on `SubmissionContract` in task 04.
+
+**Platform rollout is out of scope.** Adding the literal is inert for existing
+contracts, and when the platform begins accepting submission contracts is the
+platform's sequencing question, not this package's.
 
 **Dependencies:** none. Can run in parallel with task 02.

@@ -38,9 +38,17 @@ updated with the code that motivated them.
   `timestamp` has been renamed to `year`). If composition is ever added, the semantics
   that fit are "own steps first, then the base" — the inverse of `extends`.
 - **The spec is upstream of the contract.** The routing field's `enum` is derived from
-  the targets and `to_contract()` emits it, so there is one authored copy and no drift.
+  the targets, not authored, so there is one copy and no drift. Where that derivation
+  is assembled is deliberately still open (PRD §5.3) — record the invariant, not a
+  method name.
 - **`contract_type: Submission`** rather than `General`, with the reasoning from
-  task 01.
+  task 01. Record that `SubmissionSchema` exists as a **discriminator target** only:
+  `SubmissionContract` inherits `tableschema: AnyTableSchema`, so the union needs a
+  member for `"Submission"` or the class does not validate. It is not a claim that the
+  submission table needs a special schema.
+- **`SubmissionContract` inherits `CrossContract`** rather than composing
+  `BaseContract, CrossMetaData` as a sibling — for `validate_references`'s star-schema
+  default and for staying usable wherever a `CrossContract` is accepted.
 
 Cross-reference [ADR 0003](../../adrs/0003-release-is-a-contract-to-frictionless-adapter.md):
 this is its ingress mirror. `Target.contract` names a contract exactly as
@@ -52,8 +60,12 @@ one documented as awaiting transformations — is satisfied by the union from ta
 
 - **Execution package.** Applying a submission contract to a DataFrame. Belongs
   top-level, peer to `release/` — a pipeline, not a schema conversion.
-- **Cross-repo: platform acceptance of `contract_type: Submission`**, and migrating
-  the three legacy extractor modules (`cross2022`, `cross2025`, `nuclear2025`) to
+- **Where the derived routing `enum` is assembled** (PRD §5.3). Something must inject
+  it before data is validated against a submission contract; the candidate sites are a
+  property on `SubmissionContract`, a helper on `ExtractionInstructions`, or the
+  validator itself. Deliberately left open in WP3.
+- **Cross-repo: platform acceptance of `contract_type: Submission` and the
+  `extraction` block**, and migrating the three legacy extractor modules (`cross2022`, `cross2025`, `nuclear2025`) to
   YAML. Note that `nuclear2025` additionally needs a numeric string-format
   transformation for its `month` column, which no current transformation covers.
 - **`MapColumnValues` conflict guard** (PRD §5.5), if task 02 deferred rather than
