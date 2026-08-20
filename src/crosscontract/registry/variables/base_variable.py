@@ -91,9 +91,7 @@ class CrossBaseVariable(ABC):  # noqa: B024
         self._data = None
 
     def _fetch_data(self) -> pd.DataFrame:
-        """Fetch the data for this variable from the CROSS platform. The data
-        is filtered according to the filters specified when the variable was
-        created.
+        """Fetch the data for this variable from the CROSS platform.
 
         Returns:
             pd.DataFrame: A DataFrame containing the results for the specified contract.
