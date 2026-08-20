@@ -21,6 +21,14 @@ AnyTableSchema = Annotated[
 ContractType = Literal["General", "Dimension", "ValueVariable", "FlexibleDimension"]
 
 
+MAP_CONTRACT_TYPE_TO_SCHEMA: dict[ContractType, AnyTableSchema] = {
+    "General": TableSchema,
+    "Dimension": DimensionSchema,
+    "ValueVariable": ValueVariableSchema,
+    "FlexibleDimension": FlexibleDimensionSchema,
+}
+
+
 class CrossMetaData(BaseMetaData):
     """
     Metadata specific to the CrossContract system,
@@ -203,9 +211,17 @@ class CrossContract(BaseContract, CrossMetaData):
         if schema_data is None:
             schema_data = {}
 
+        # expected table_type based on the contract_type
+        expected_schema_class = MAP_CONTRACT_TYPE_TO_SCHEMA.get(contr_type)
+        if expected_schema_class is None:
+            raise ValueError(
+                f"Unsupported contract_type '{contr_type}'. "
+                f"Expected one of {list(MAP_CONTRACT_TYPE_TO_SCHEMA.keys())}."
+            )
+
         # check existence and type of tableschema before proceeding
         if isinstance(schema_data, TableSchema):
-            if schema_data.table_type != contr_type:
+            if schema_data.table_type != expected_schema_class.table_type:
                 raise ValueError(
                     f"Mismatch between contract_type '{contr_type}' and "
                     f"tableschema.table_type '{schema_data.table_type}'."
