@@ -7,24 +7,30 @@ edit_uri: edit/main/docs/
 
 theme:
   name: material
+  logo: stylesheets/logo.png
+  favicon: stylesheets/favicon.ico
+  font:
+    text: IBM Plex Sans
+    code: JetBrains Mono
   palette:
     # Light mode
     - scheme: default
-      primary: indigo
-      accent: indigo
+      primary: white
+      accent: red
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     # Dark mode
     - scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: black
+      accent: deep orange
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
   features:
     - navigation.tabs
     - navigation.sections
+    - navigation.indexes
     - navigation.top
     - navigation.tracking
     - search.suggest

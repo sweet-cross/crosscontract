@@ -1,82 +1,89 @@
-/* ---------------------------------------------------------------------------
- * Custom theming for the CrossContracts docs, aligned with sweet-cross.ch.
- *
- * Material for MkDocs is themed primarily through CSS custom properties
- * (the `--md-*` variables). Override them here rather than targeting deep
- * selectors so the changes survive theme upgrades.
- *
- * Reference: https://squidfunk.github.io/mkdocs-material/customization/
- * Full variable list (the source of truth):
- *   https://github.com/squidfunk/mkdocs-material/blob/master/src/templates/assets/stylesheets/main/_colors.scss
- *
- * HOW TO FIND THE RIGHT PROPERTY
- * ------------------------------
- * 1. `uv run mkdocs serve` and open http://127.0.0.1:8000
- * 2. Right-click the element you want to restyle -> "Inspect".
- * 3. In devtools, look at the "Computed" / "Styles" panel: Material's rules
- *    almost always read from a `var(--md-...)` token. Find that token name,
- *    then set it in the matching scheme block below.
- * 4. If a token doesn't cover what you need, add a normal selector at the
- *    bottom (see "Targeted overrides").
- *
- * CHEAT SHEET — the variables you'll most likely want
- * ---------------------------------------------------
- *   Brand / chrome:
- *     --md-primary-fg-color          Header bar + nav tabs background
- *     --md-primary-fg-color--light   Lighter shade of the primary
- *     --md-primary-fg-color--dark    Darker shade (e.g. scrolled header)
- *     --md-primary-bg-color          Text/icons ON the primary header
- *     --md-accent-fg-color           Links hover, focus rings, active nav
- *
- *   Body content:
- *     --md-default-fg-color          Main body text colour
- *     --md-default-fg-color--light   Secondary text (~70% opacity)
- *     --md-default-fg-color--lighter Muted text (~32%)
- *     --md-default-bg-color          Page background
- *     --md-typeset-a-color           In-content link colour
- *
- *   Code:
- *     --md-code-fg-color             Inline/code-block text
- *     --md-code-bg-color             Inline/code-block background
- *
- *   Fonts:
- *     --md-text-font                 Body + headings font family
- *     --md-code-font                 Monospace font family
- * ------------------------------------------------------------------------- */
+/* =============================================================================
+   Site-wide brand theme, matching sweet-cross.ch.
 
-/* Light mode ("default" scheme) ------------------------------------------- */
-[data-md-color-scheme="default"] {
-  /* TODO: replace with the real sweet-cross.ch brand values */
-  --md-primary-fg-color:        #3f51b5; /* header / nav background     */
-  --md-primary-fg-color--light: #5c6bc0;
-  --md-primary-fg-color--dark:  #303f9f;
-  --md-accent-fg-color:         #3f51b5; /* links, focus, active states */
+   Palette and font values are taken directly from sweet-cross.ch's compiled
+   CSS (--sweet-red/orange/yellow/green, Space Grotesk / IBM Plex Sans /
+   JetBrains Mono). Material for MkDocs is themed primarily through CSS
+   custom properties (the `--md-*` variables) — override those rather than
+   targeting deep selectors so the changes survive theme upgrades.
 
-  /* In-content links — uncomment to decouple from the accent colour */
-  /* --md-typeset-a-color:      #3f51b5; */
+   Reference: https://squidfunk.github.io/mkdocs-material/customization/
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap');
+
+/* Material caps page content at 61rem by default. These docs are code- and
+ * table-heavy (tutorials, schema tables), so a bit more horizontal room
+ * helps — ~80rem keeps prose comfortably readable while letting wide
+ * content breathe. */
+.md-grid {
+  max-width: 80rem;
 }
 
-/* Dark mode ("slate" scheme) ---------------------------------------------- */
-[data-md-color-scheme="slate"] {
-  --md-primary-fg-color:        #5c6bc0;
-  --md-accent-fg-color:         #7986cb;
-}
-
-/* Typography (uncomment once brand fonts are decided) ---------------------- */
-/* These apply to both schemes, so set them on :root, not per-scheme.        */
-/*
 :root {
-  --md-text-font:  "YourBodyFont";
-  --md-code-font:  "YourMonoFont";
+  --sweet-red: #e7181d;
+  --sweet-orange: #f46e20;
+  --sweet-yellow: #fac505;
+  --sweet-green: #0da546;
+  --sweet-gradient: linear-gradient(90deg, var(--sweet-red) 0%, var(--sweet-orange) 33%, var(--sweet-yellow) 66%, var(--sweet-green) 100%);
 }
-*/
 
-/* Targeted overrides ------------------------------------------------------ *
- * For anything not exposed as a `--md-*` token, add plain selectors here.
- * Example: tighten the heading weight to match the sweet-cross.ch look.
- *
- * .md-typeset h1,
- * .md-typeset h2 {
- *   font-weight: 600;
- * }
- * ------------------------------------------------------------------------- */
+/* Header background/contrast comes from Material's built-in `white`/`black`
+ * swatches (set in mkdocs.yml) — they already handle text/icon contrast
+ * correctly, which a hex override on --md-primary-fg-color would not. Only
+ * the accent and link colour are swapped in for the exact sweet-cross hues. */
+[data-md-color-scheme="default"] {
+  --md-accent-fg-color: var(--sweet-red);
+  --md-typeset-a-color: var(--sweet-red);
+}
+[data-md-color-scheme="slate"] {
+  --md-accent-fg-color: var(--sweet-orange);
+  --md-typeset-a-color: var(--sweet-orange);
+}
+
+/* Heading font: Space Grotesk, matching the site's display type. Deliberately
+ * scoped to page content only (.md-typeset), not .md-header__title/.md-nav__title:
+ * Space Grotesk loads async (@import, display=swap), so the fallback font
+ * renders first and swaps in once downloaded — a reflow. In the header/nav
+ * chrome that reflow happens after Material's JS has already measured
+ * header/nav height to size the sticky sidebar, leaving it with a stale,
+ * too-short scrollable height (the sidebar then runs out of "stickiness"
+ * and scrolls away early). Page content isn't measured that way, so it's safe. */
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4 {
+  font-family: "Space Grotesk", var(--md-text-font-family, sans-serif);
+  font-weight: 600;
+}
+/* Material mutes h1 to --md-default-fg-color--light by default; sweet-cross.ch
+ * uses full-strength near-black text for its headings. */
+.md-typeset h1 {
+  color: var(--md-default-fg-color);
+}
+
+/* Signature 4-colour gradient stripe under the header, echoing sweet-cross.ch
+ * branding. Sits on the header's bottom edge, between the tabs row and the
+ * page content — works with a white header since it's its own element, not
+ * a background color. */
+.md-header::after {
+  content: "";
+  display: block;
+  height: 4px;
+  background: var(--sweet-gradient);
+}
+
+/* Material scales the root font-size up on wide screens (137.5% above
+ * 1600px, 150% above 2000px) — meant to keep line length readable on an
+ * unconstrained layout, but this site already caps content at 80rem
+ * (.md-grid), so on a large monitor everything (nav, headings, tables)
+ * just looks oversized. One unconditional rule keeps it the same 110% at
+ * every width. */
+html {
+  font-size: 110%;
+}
+
+/* Sidebar/tabs nav — a touch smaller than Material's default .7rem. */
+.md-nav {
+  font-size: 0.62rem;
+}
