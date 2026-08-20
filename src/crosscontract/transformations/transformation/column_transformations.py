@@ -106,7 +106,16 @@ class MapColumnValues(BaseTransformation):
         return map_column_values(df, self.column_name, self.mapping, default_value)
 
 
-def cast_column(df: pd.DataFrame, column_name: Any, to_type: type) -> pd.DataFrame:
+# Spelled with the Frictionless field-type vocabulary used by
+# `contracts/schema/fields/`, not pandas dtype strings. Declared here rather
+# than imported: `contracts/` imports from this package, so the reverse import
+# would be circular.
+CastableType = Literal["integer", "number", "string", "boolean", "datetime"]
+
+
+def cast_column(
+    df: pd.DataFrame, column_name: Any, to_type: CastableType
+) -> pd.DataFrame:
     """Cast a column to a new type.
 
     The input DataFrame is not mutated; a new DataFrame is returned.
@@ -114,13 +123,41 @@ def cast_column(df: pd.DataFrame, column_name: Any, to_type: type) -> pd.DataFra
     Args:
         df (pd.DataFrame): The DataFrame to cast a column in.
         column_name (Any): The name of the column to cast.
-        to_type (type): The new type to cast the column to.
+        to_type (CastableType): The new type to cast the column to. Available
+            types are:
+            - `"integer"`: Casts to pandas nullable integer type (`Int64`).
+            - `"number"`: Casts to pandas nullable float type (`Float64`).
+            - `"string"`: Casts to pandas string type (`string`).
+            - `"boolean"`: Casts to pandas nullable boolean type (`boolean`).
+            - `"datetime"`: Raises a ValueError; use
+              `parse_datetime_column` for datetime parsing.
 
     Returns:
         pd.DataFrame: A new DataFrame with the casted column.
+
+    Raises:
+        ValueError: If `to_type` is `"datetime"` or is unsupported.
     """
     result = df.copy()
-    result[column_name] = result[column_name].astype(to_type)
+    match to_type:
+        case "integer":
+            result[column_name] = pd.to_numeric(
+                result[column_name], errors="raise"
+            ).astype("Int64")
+        case "number":
+            result[column_name] = pd.to_numeric(
+                result[column_name], errors="raise"
+            ).astype("Float64")
+        case "string":
+            result[column_name] = result[column_name].astype("string")
+        case "boolean":
+            result[column_name] = result[column_name].astype("boolean")
+        case "datetime":
+            raise ValueError(
+                "Use `parse_datetime_column` to parse a column as datetime."
+            )
+        case _:
+            raise ValueError(f"Unsupported type: {to_type}")
     return result
 
 
@@ -131,8 +168,14 @@ class CastColumn(BaseTransformation):
 
     Attributes:
         column_name (str): The name of the column to cast.
-        to_type (str): The new type to cast the column to. Pandas type strings
-            (e.g., 'int', 'float', 'str') are accepted.
+        to_type (CastableType): The new type to cast the column to. Available
+            types are:
+            - `"integer"`: Casts to pandas nullable integer type (`Int64`).
+            - `"number"`: Casts to pandas nullable float type (`Float64`).
+            - `"string"`: Casts to pandas string type (`string`).
+            - `"boolean"`: Casts to pandas nullable boolean type (`boolean`).
+            - `"datetime"`: Raises a ValueError; use `parse_datetime_column`
+              for datetime parsing.
     """
 
     type: Literal["cast_column"] = Field(
@@ -142,10 +185,12 @@ class CastColumn(BaseTransformation):
     column_name: str = Field(
         description="The name of the column to cast.",
     )
-    to_type: str = Field(
+    to_type: CastableType = Field(
         description=(
-            "The new type to cast the column to. Pandas type strings "
-            "(e.g., 'int', 'float', 'str') are accepted."
+            "The new type to cast the column to, named with the Frictionless "
+            "field-type vocabulary: `integer` (nullable `Int64`), `number` "
+            "(nullable `Float64`), `string`, or `boolean`. `datetime` is "
+            "rejected — use `parse_datetime_column` instead."
         ),
     )
 

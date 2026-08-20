@@ -48,6 +48,23 @@ making changes, stop and **ask for permission** before running any of them. Only
 a validation command when the user has explicitly asked for it or granted permission
 in the current exchange.
 
+### Implement only what was asked, as simply as possible
+
+When handed a scoped change, implement **exactly** that change and nothing adjacent.
+Acceptance criteria in a task or PRD file you happened to read, and findings from your
+own earlier review, are **not** authorization — they stay open until handed over
+separately. State the requested change in one line before editing, and let only that
+line justify each edit; everything else you noticed goes in the reply as a note, never
+into the code. If a fix seems to require adjacent work, say so and ask rather than
+bundling it in.
+
+Prefer the simplest implementation that satisfies the request. Do not add helper
+functions, module constants, curated error messages, or defensive branches unless the
+change cannot be expressed without them — a one-line change should land as a one-line
+change. The house style is deliberately plain (pure function plus thin pydantic model,
+`apply()` a single delegating call); match it. If you think an abstraction is
+warranted, propose it and let the user decide.
+
 ## Branching and releases
 
 - `main` is the public release branch. Pushes to main publish to PyPI (gated by the `pypi` GitHub Environment) and deploy the docs.

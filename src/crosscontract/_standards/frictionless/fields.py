@@ -76,7 +76,9 @@ class NumericConstraint(BaseConstraint):
     enum: list[Any] | None = Field(
         default=None,
         min_length=1,
-        description="The value of the field `MUST` exactly match one of the enum values.",
+        description=(
+            "The value of the field `MUST` exactly match one of the enum values."
+        ),
     )
 
 
@@ -94,7 +96,9 @@ class DateTimeConstraint(BaseConstraint):
     enum: list[Any] | None = Field(
         default=None,
         min_length=1,
-        description="The value of the field `MUST` exactly match one of the enum values.",
+        description=(
+            "The value of the field `MUST` exactly match one of the enum values."
+        ),
     )
 
 
@@ -104,7 +108,9 @@ class ArrayConstraint(BaseConstraint):
     enum: list[Any] | None = Field(
         default=None,
         min_length=1,
-        description="The value of the field `MUST` exactly match one of the enum values.",
+        description=(
+            "The value of the field `MUST` exactly match one of the enum values."
+        ),
     )
     minLength: int | None = Field(
         default=None,
@@ -122,7 +128,9 @@ class BooleanConstraint(BaseConstraint):
     enum: list[Any] | None = Field(
         default=None,
         min_length=1,
-        description="The value of the field `MUST` exactly match one of the enum values.",
+        description=(
+            "The value of the field `MUST` exactly match one of the enum values."
+        ),
     )
 
 
