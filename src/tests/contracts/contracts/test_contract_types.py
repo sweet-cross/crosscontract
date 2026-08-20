@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from crosscontract.contracts import CrossContract
 from crosscontract.contracts.contracts.cross_contract import (
     CONTRACT_TYPE_TO_TABLE_TYPE,
+    AnyTableSchema,
     ContractType,
     TableType,
 )
@@ -30,13 +31,37 @@ data_base_contract = {
 class TestContractTypeToTableTypeMapping:
     """Test suite guarding the contract type to table type table against drift."""
 
+    @staticmethod
+    def _schema_discriminator_tags() -> set[str]:
+        """Collect the `table_type` tags the schema union actually declares.
+
+        Reads the tags off the schema classes themselves rather than off
+        `TableType`, so these tests fail on a mapping that names a table type no
+        schema can resolve.
+
+        Returns:
+            set[str]: Every discriminator tag `AnyTableSchema` resolves.
+        """
+        union_members = get_args(get_args(AnyTableSchema)[0])
+        return {
+            get_args(member.model_fields["table_type"].annotation)[0]
+            for member in union_members
+        }
+
     def test_every_contract_type_is_mapped(self):
         """Ensure a newly added contract type cannot ship without a table type."""
         assert set(get_args(ContractType)) == set(CONTRACT_TYPE_TO_TABLE_TYPE)
 
-    def test_every_mapped_table_type_is_known(self):
-        """Ensure the mapping only ever points at declared table types."""
-        assert set(CONTRACT_TYPE_TO_TABLE_TYPE.values()) <= set(get_args(TableType))
+    def test_every_mapped_table_type_is_resolvable(self):
+        """Ensure the mapping only points at table types a schema really declares."""
+        assert (
+            set(CONTRACT_TYPE_TO_TABLE_TYPE.values())
+            <= self._schema_discriminator_tags()
+        )
+
+    def test_table_type_literal_matches_the_schema_union(self):
+        """Ensure the `TableType` alias does not drift from the schema classes."""
+        assert set(get_args(TableType)) == self._schema_discriminator_tags()
 
 
 class TestContractTypeDifferentiation:
@@ -84,7 +109,12 @@ class TestContractTypeDifferentiation:
         assert type(contract.tableschema) is DimensionSchema
 
     def test_invalid_contract_type_raises_validation_error(self):
-        """Ensure Pydantic's Literal typing catches unknown contract types."""
+        """Ensure Pydantic's Literal typing catches unknown contract types.
+
+        An unmapped contract type also leaves `tableschema` without its
+        discriminator, so pydantic reports a second error against `tableschema`.
+        Assert that the `contract_type` error is present, not on the error count.
+        """
         data = {**data_base_contract, "contract_type": "InvalidType"}
 
         with pytest.raises(ValidationError) as exc_info:
@@ -198,8 +228,8 @@ class TestInjectTableTypeToSchema:
         with pytest.raises(
             ValueError,
             match=(
-                "Mismatch between contract_type 'Dimension' and tableschema.table_type"
-                " 'General'."
+                "Mismatch between contract_type 'Dimension', which maps to table_type"
+                " 'Dimension', and the provided tableschema.table_type 'General'."
             ),
         ):
             CrossContract._inject_table_type_to_schema(input_data)
@@ -217,8 +247,8 @@ class TestInjectTableTypeToSchema:
         with pytest.raises(
             ValueError,
             match=(
-                "Mismatch between contract_type 'General' and tableschema.table_type"
-                " 'ValueVariable'."
+                "Mismatch between contract_type 'General', which maps to table_type"
+                " 'General', and the provided tableschema.table_type 'ValueVariable'."
             ),
         ):
             CrossContract._inject_table_type_to_schema(input_data)

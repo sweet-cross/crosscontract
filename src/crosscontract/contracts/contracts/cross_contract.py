@@ -205,9 +205,13 @@ class CrossContract(BaseContract, CrossMetaData):
 
         The table type is looked up in `CONTRACT_TYPE_TO_TABLE_TYPE` rather than
         reused from the contract type, so the two vocabularies stay independent.
-        An unmapped contract type is left untouched: the `contract_type` field is
-        typed as a literal, so the model itself reports it against the right
-        field.
+        An unmapped contract type is handed on untouched rather than rejected
+        here, so pydantic raises its own `literal_error` at
+        `loc=("contract_type",)` instead of a bespoke error from this helper.
+        The untouched `tableschema` then also fails the discriminator, so such
+        input surfaces a second error at `loc=("tableschema",)` — callers should
+        assert on the `contract_type` error being present, not on the error
+        count.
 
         Args:
             data (dict[str, Any]): The input data dictionary to be processed.
@@ -229,8 +233,8 @@ class CrossContract(BaseContract, CrossMetaData):
             schema_data = {}
 
         # expected table_type based on the contract_type; an unknown contract
-        # type is handed on unchanged so the literal field raises against
-        # `contract_type` instead of us masking it here
+        # type is handed on unchanged so pydantic's own literal_error anchors on
+        # `contract_type` instead of us raising a bespoke error here
         expected_table_type = CONTRACT_TYPE_TO_TABLE_TYPE.get(contr_type)
         if expected_table_type is None:
             return data
@@ -239,7 +243,8 @@ class CrossContract(BaseContract, CrossMetaData):
         if isinstance(schema_data, TableSchema):
             if schema_data.table_type != expected_table_type:
                 raise ValueError(
-                    f"Mismatch between contract_type '{contr_type}' and "
+                    f"Mismatch between contract_type '{contr_type}', which maps "
+                    f"to table_type '{expected_table_type}', and the provided "
                     f"tableschema.table_type '{schema_data.table_type}'."
                 )
             # If it's already a TableSchema instance, we can skip injection
