@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## v0.13.1 (2026-08-20)
+
+### Bug fixes
+
+
+- **deprecate the construction-time `filters` argument on `CrossDataVariable`** ([`56a24eb`](https://github.com/sweet-cross/crosscontract/commit/56a24eb1a65950554f94d9b2ec7b9434925f6bbe))
+
+- **deprecate the construction-time `filters` argument on** ([`56a24eb`](https://github.com/sweet-cross/crosscontract/commit/56a24eb1a65950554f94d9b2ec7b9434925f6bbe))
+
+
+### Code style
+
+
+- **apply sweet-cross branding to docs** ([`5357f0d`](https://github.com/sweet-cross/crosscontract/commit/5357f0d01ef3380c4929c9a24fca587c9786f3e5))
+
+  Match the docs theme to sweet-cross.ch: brand palette (red/orange/yellow/ green gradient, white/black header per scheme), Space Grotesk/IBM Plex Sans/JetBrains Mono fonts, logo/favicon, gradient stripe under the header, navigation.indexes so section titles link to their overview page, and a wider content column (80rem) to match the data-model docs.
+
+
+### Chores
+
+
+- **planning submission contract** ([`b462914`](https://github.com/sweet-cross/crosscontract/commit/b462914fe1fc4011cdf51840105a01b561f5d160))
+
+
+
+
+
 ## v0.13.0 (2026-08-07)
 
 ### Features
