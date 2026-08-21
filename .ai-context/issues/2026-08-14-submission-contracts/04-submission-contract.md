@@ -14,7 +14,7 @@ layer up.
 - [ ] A routing field that is not `type: string` raises.
 - [ ] A routing field that is not `required: true` raises.
 - [ ] A routing field carrying an authored `enum` raises (it is derived).
-- [ ] **Acceptance test:** `SubmissionContract.from_file()` loads the reference cross2025 YAML, yields 24 targets with unique filters and resolving profile references, and the routing values derived from those targets equal *as a set, exactly* the 24-entry enum of the legacy `submission_cross2025.yaml`.
+- [ ] **Acceptance test:** `SubmissionContract.from_file()` loads the reference cross2025 YAML, yields 24 targets with unique contracts and resolving profile references, and the **set** of routing values derived from those targets equals *exactly* the 24-entry enum of the legacy `submission_cross2025.yaml`. The derivation dedupes: repeated filters are legal (one variable may feed several contracts), so target count and enum size are independent facts and only the set is asserted. They coincide at 24 for this file because it happens to use no fan-out.
 - [ ] Round-trip `from_file` → `model_dump` → `model_validate` is stable.
 - [ ] `SubmissionContract` is exported from the package's public surface.
 

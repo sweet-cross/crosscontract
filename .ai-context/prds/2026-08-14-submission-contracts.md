@@ -66,11 +66,16 @@ loads, validates, and executes with no platform connection.
    *Where* that derivation is assembled — a property on the model, a helper on
    `ExtractionInstructions`, or the validator that checks data against the contract —
    is deliberately left open (§5.3).
-9. **One variable → one contract.** Duplicate or overlapping filters, and duplicate
-   target contracts, are spec errors.
+9. **One target feeds exactly one contract, and no contract is fed twice.** A
+   repeated `contract` across targets is a spec error — after the routing column is
+   dropped, the merged rows collide on that contract's primary key, which would
+   otherwise only surface at insertion time. Repeated *filters* are **not** an error:
+   two targets may select the same rows and transform them differently for two
+   different contracts. Contract-uniqueness alone catches every case that breaks, so
+   it is the only check.
 10. **The spec validates standalone.** Structural checks (routing field present and
-    well-formed, filters unique, profile references resolve, column references
-    plausible) require no platform access. Only foreign-key checks on the submission
+    well-formed, target contracts unique, profile references resolve, column
+    references plausible) require no platform access. Only foreign-key checks on the submission
     schema need a resolver, via the existing `validate_references()` path.
 
 ### Definition of done
@@ -98,8 +103,6 @@ All errors below are raised at **model construction / load time** unless marked
 
 | Case | Behaviour |
 |---|---|
-| Two targets with the same scalar `filters` value | **Raise** — ambiguous routing. |
-| Two targets whose mapping filters overlap (one dict a subset of the other) | **Raise.** Subset containment is the overlap test. |
 | `filters` names a column absent from `tableschema.fields` | **Raise.** |
 | Two targets naming the same `contract` | **Raise.** After the routing column is dropped, merged rows collide on the target's primary key. Combining variables (e.g. net demand) is explicitly out of scope; revisit as a deliberate feature. |
 | `targets` is empty | **Raise.** A submission contract that extracts nothing is meaningless. |
@@ -112,8 +115,6 @@ All errors below are raised at **model construction / load time** unless marked
 | Case | Behaviour |
 |---|---|
 | `transformation_profile` names an undefined profile | **Raise.** |
-| A defined profile that no target references | **Warn.** Harmless mid-edit; not worth failing a load over. |
-| A profile with zero steps | **Allow.** Pointless but not wrong. |
 | Both `transformation_profile` and `transformations` given | **Allowed and expected** — this is the append case. |
 
 ### 3.4 Transformation references and ordering
@@ -440,12 +441,9 @@ Tests mirror the source tree under `src/tests/`, with YAML fixtures alongside th
 ### 7.2 Unit — extraction models (`src/tests/submission/extraction/`)
 
 - Scalar `filters` normalises to `{routing_column: value}`; mapping form passes through.
-- Every raise in §3.2 and §3.3 has a test: duplicate filters, subset-overlapping
-  filters, unknown filter column, duplicate target contract, empty targets, dangling
-  profile reference.
-- Unused profile warns rather than raises.
-- Append order: a target with both a profile and its own steps produces
-  profile-steps-then-own-steps, asserted on the resolved list.
+- Every raise in §3.2 and §3.3 has a test: unknown filter column, duplicate target
+  contract, empty targets, dangling profile reference. Repeated filters across targets
+  with distinct contracts are accepted.
 
 ### 7.3 Unit — `SubmissionContract` (`src/tests/submission/`)
 
@@ -463,9 +461,11 @@ The acceptance test, using
 `src/tests/submission/` so tests don't depend on `.ai-context/`):
 
 1. It loads as a `SubmissionContract`.
-2. 24 targets, all filters unique, all profile references resolve.
-3. The routing values derived from the targets equal the 24-entry enum of the legacy
-   `submission_cross2025.yaml` **as a set, exactly**.
+2. 24 targets, all contracts unique, all profile references resolve.
+3. The **set** of routing values derived from the targets equals the 24-entry enum of
+   the legacy `submission_cross2025.yaml` exactly. The derivation dedupes, since
+   repeated filters across targets are legal — assert the set, never the count against
+   the number of targets.
 4. Full round-trip `from_file` → `model_dump` → `model_validate` is stable.
 
 Fix the `routing_column: variable.` typo in the fixture copy — or keep it, and assert

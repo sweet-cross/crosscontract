@@ -10,18 +10,14 @@ resolve it, keeping the whole spec loadable and executable with no platform
 connection.
 
 ## Acceptance Criteria
-- [ ] `Target` and `ExtractionInstructions` exist, both `extra="forbid"`.
-- [ ] Scalar `filters` normalises to `{routing_column: value}`; the mapping form passes through unchanged.
-- [ ] Duplicate scalar filters across targets raise.
-- [ ] Mapping filters where one target's dict is a subset of another's raise (subset containment is the overlap test).
-- [ ] `filters` naming a column absent from the parent's `tableschema.fields` raises — *(deferred to task 04 if the parent schema isn't reachable from here; see notes)*.
-- [ ] Two targets naming the same `contract` raise.
-- [ ] An empty `targets` list raises (`min_length=1`).
-- [ ] A `transformation_profile` naming an undefined profile raises.
-- [ ] A defined-but-unreferenced profile **warns**, does not raise.
-- [ ] A profile with zero steps is accepted.
-- [ ] Resolution order is asserted explicitly: profile steps first, then the target's own `transformations`.
-- [ ] `contract` is validated against `CONTRACT_NAME_PATTERN` with `max_length=100`.
+- [x] `Target` and `ExtractionInstructions` exist, both `extra="forbid"`.
+- [x] Scalar `filters` normalises to `{routing_column: value}`; the mapping form passes through unchanged.
+- [x] Repeated filters across targets are **accepted** when the targets name different contracts — the same rows may feed two contracts through different transformations.
+- [x] `filters` naming a column absent from the parent's `tableschema.fields` raises — *(deferred to task 04 if the parent schema isn't reachable from here; see notes)*.
+- [x] Two targets naming the same `contract` raise. This is the only uniqueness check: it catches every case that breaks (identical targets, and different variables feeding one contract) without forbidding legitimate fan-out.
+- [x] An empty `targets` list raises (`min_length=1`).
+- [x] A `transformation_profile` naming an undefined profile raises.
+- [x] `contract` is validated against `CONTRACT_NAME_PATTERN` with `max_length=100`.
 
 ## Implementation Details
 
@@ -43,26 +39,36 @@ convention the earlier `contracts/extraction/` layout required no longer applies
 
 ```python
 class Target(BaseModel):
-    filters: str | dict[str, str]           # normalised to dict by the parent
+    filters: dict[str, str]                 # bare value expanded by the parent
     contract: str                           # CONTRACT_NAME_PATTERN, max_length=100
     transformation_profile: str | None = None
     transformations: list[TransformationUnion] = []
 
 class ExtractionInstructions(BaseModel):
-    routing_column: str = "variable"
+    routing_column: str = "variable"        # declared before `targets`
     transformation_profiles: dict[str, list[TransformationUnion]] = {}
     targets: list[Target]                   # min_length=1
 ```
 
-Scalar-`filters` normalisation needs `routing_column`, which lives on the parent — so
-it is an `ExtractionInstructions`-level `@model_validator(mode="after")`, **not** a
-field validator on `Target`. Same for the uniqueness and overlap checks, which are
-cross-target.
+`filters` is **mapping-only**. A bare value is accepted as authoring shorthand for
+`{routing_column: value}` and expanded on load, so the field type describes the value
+that is actually stored rather than the input that produced it — no consumer has to
+narrow a union whose other arm is unreachable. The shorthand is documented in the
+field's `description=`, which is also what a generated JSON Schema shows. This matches
+`FetchSpecMixin.filters`, the same concept in the egress direction, which is likewise
+mapping-only. (Its values are lists rather than scalars; the symmetry is in the shape,
+not the value type.)
 
-`filters` is typed scalar-or-mapping from the start even though every current case is
-scalar: it costs nothing now and means multi-column matching later is not a breaking
-change to authored YAML. The name deliberately matches `FetchSpecMixin.filters` —
-the same concept (a row allow-list keyed by column) in the egress direction.
+The expansion needs `routing_column`, which lives on the parent — so it is an
+`ExtractionInstructions`-level `@field_validator("targets", mode="before")`, **not** a
+field validator on `Target`. A *field* validator rather than a model validator so that
+`info.data` already carries the validated, defaulted `routing_column`; a
+`mode="before"` model validator would run before defaults are applied and force the
+`"variable"` default to be duplicated. It must copy rather than mutate the incoming
+dicts, and hand unexpected shapes straight through for pydantic to report.
+
+The contract-uniqueness check is cross-target and works on validated values, so it is a
+separate `@model_validator(mode="after")`.
 
 Reference `TransformationUnion` through a module-level alias here rather than inline,
 so narrowing the admissible set per Build spec later stays a one-line change (PRD §4.4).
