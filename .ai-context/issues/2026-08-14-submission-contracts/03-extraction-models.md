@@ -45,7 +45,7 @@ class Target(BaseModel):
     transformations: list[TransformationUnion] = []
 
 class ExtractionInstructions(BaseModel):
-    routing_column: str = "variable"        # declared before `targets`
+    routing_column: str                     # required; declared before `targets`
     transformation_profiles: dict[str, list[TransformationUnion]] = {}
     targets: list[Target]                   # min_length=1
 ```
@@ -62,9 +62,9 @@ not the value type.)
 The expansion needs `routing_column`, which lives on the parent — so it is an
 `ExtractionInstructions`-level `@field_validator("targets", mode="before")`, **not** a
 field validator on `Target`. A *field* validator rather than a model validator so that
-`info.data` already carries the validated, defaulted `routing_column`; a
-`mode="before"` model validator would run before defaults are applied and force the
-`"variable"` default to be duplicated. It must copy rather than mutate the incoming
+`info.data` already carries the validated `routing_column`; a `mode="before"` model
+validator would run before field validation and would have to re-read it off the raw
+input, without knowing whether it was even valid. It must copy rather than mutate the incoming
 dicts, and hand unexpected shapes straight through for pydantic to report.
 
 The contract-uniqueness check is cross-target and works on validated values, so it is a

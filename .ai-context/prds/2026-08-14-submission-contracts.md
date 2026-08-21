@@ -49,7 +49,9 @@ loads, validates, and executes with no platform connection.
 3. **A `project_name` field** naming the CROSS **Project** that extracted data is
    written under (see §5.4).
 4. **An `extraction` block** carrying:
-   - `routing_column` — the field whose value selects a target (default `variable`).
+   - `routing_column` — the field whose value selects a target. Required: the
+     column that carries the routing values is a property of the bundle, so there is
+     no sensible default to fall back on.
    - `transformation_profiles` — named, ordered, reusable step lists.
    - `targets` — one entry per submitted variable.
 5. **A target** carries `filters` (scalar shorthand resolving against
@@ -322,7 +324,7 @@ class Target(BaseModel):                    # submission/extraction/target.py
     transformations: list[TransformationUnion] = []
 
 class ExtractionInstructions(BaseModel):    # submission/extraction/extraction_instructions.py
-    routing_column: str = "variable"
+    routing_column: str
     transformation_profiles: dict[str, list[TransformationUnion]] = {}
     targets: list[Target]                   # min_length=1
 ```

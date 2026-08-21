@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 
-from ...contracts.contracts.base_contract import CONTRACT_NAME_PATTERN
-from ...transformations.transformation import TransformationUnion
+from crosscontract.contracts.contracts.base_contract import CONTRACT_NAME_PATTERN
+from crosscontract.transformations.transformation import TransformationUnion
 
 
 class Target(BaseModel):
@@ -26,7 +26,7 @@ class Target(BaseModel):
     contract: str = Field(
         ...,
         description="The contract against which the data is being validated. ",
-        regex=CONTRACT_NAME_PATTERN,
+        pattern=CONTRACT_NAME_PATTERN,
         max_length=100,
     )
     transformation_profile: str | None = Field(

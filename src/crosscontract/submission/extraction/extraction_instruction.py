@@ -1,17 +1,27 @@
 from typing import Any, Self
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
-from ...transformations.transformation import TransformationUnion
+from crosscontract.transformations.transformation import TransformationUnion
+
 from .target import Target
 
 
 class ExtractionInstructions(BaseModel):
-    """
-    A class representing the extraction instructions for a cross-contract submission.
+    """How a submission bundle is split into per-contract datasets.
 
     Attributes:
-        instructions (str): The extraction instructions as a string.
+        routing_column (str): The column whose value selects a target.
+        transformation_profiles (dict[str, list[TransformationUnion]]): Named,
+            reusable transformation sequences referenced by targets.
+        targets (list[Target]): One entry per dataset extracted from the bundle.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -38,7 +48,7 @@ class ExtractionInstructions(BaseModel):
     )
 
     targets: list[Target] = Field(
-        default_factory=list,
+        ...,
         description=(
             "A list of targets, where each target specifies the filters, "
             "transformations, and contract to be used to validate the extracted "
@@ -73,7 +83,7 @@ class ExtractionInstructions(BaseModel):
             expanded.append(target)
         return expanded
 
-    @field_validator("targets", mode="after")
+    @model_validator(mode="after")
     def _check_contract_unique(self) -> Self:
         """Check that each contract is appearing at most once in the targets list.
         Raise if a contract is repeated.
@@ -92,7 +102,7 @@ class ExtractionInstructions(BaseModel):
             )
         return self
 
-    @field_validator("targets", mode="after")
+    @model_validator(mode="after")
     def _check_transformation_profiles(self) -> Self:
         """Check that transformation profiles are defined for all targets that
         specify them. Raise if a target specifies a transformation profile that is
@@ -117,3 +127,4 @@ class ExtractionInstructions(BaseModel):
                 f"Undefined transformation profiles referenced in targets: "
                 f"{', '.join(undefined_profiles)}"
             )
+        return self
