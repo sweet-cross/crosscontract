@@ -79,6 +79,12 @@ class TestExtractionInstructions:
         with pytest.raises(ValidationError, match="targets"):
             ExtractionInstructions.model_validate({"routing_column": "variable"})
 
+    def test_empty_targets_raises(self):
+        """Test that an empty `targets` list is rejected."""
+        data = {"routing_column": "variable", "targets": []}
+        with pytest.raises(ValidationError, match="targets"):
+            ExtractionInstructions.model_validate(data)
+
     def test_non_unique_contract_raises(self):
         """Test that a ValueError is raised when duplicate contracts are present."""
         data = {

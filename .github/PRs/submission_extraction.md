@@ -62,12 +62,13 @@ content is now in ADR 0004 and `CONTEXT.md`.
 
 ## Testing
 
-`src/tests/submission/` — 15 tests, no new dependencies.
+`src/tests/submission/` — 16 tests, no new dependencies.
 
-- **Extraction models** (7): valid construction, scalar-`filters` expansion, an invalid
-  contract name, omitted `targets`, duplicate contracts, an undefined profile reference,
-  and a missing `routing_column` — the last one pinning that the before-validator hands
-  input through so pydantic reports the real error rather than failing on raw data first.
+- **Extraction models** (8): valid construction, scalar-`filters` expansion, an invalid
+  contract name, omitted and empty `targets`, duplicate contracts, an undefined profile
+  reference, and a missing `routing_column` — the last one pinning that the
+  before-validator hands input through so pydantic reports the real error rather than
+  failing on raw data first.
 - **`SubmissionContract`** (6): each routing-column invariant separately, plus a filter
   key naming a column absent from the tableschema.
 - **Round-trip** (2): `example_submission.yaml` → model → YAML file → model, and the same

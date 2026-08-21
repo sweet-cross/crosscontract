@@ -46,7 +46,13 @@ class SubmissionContract(CrossContract):
         description="The name of the project associated with the submission.",
     )
 
-    extraction: ExtractionInstructions
+    extraction: ExtractionInstructions = Field(
+        ...,
+        description=(
+            "Instructions for splitting the submission bundle into the datasets "
+            "extracted from it."
+        ),
+    )
 
     @model_validator(mode="after")
     def _check_routing_column(self) -> Self:

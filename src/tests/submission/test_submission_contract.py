@@ -36,6 +36,8 @@ class TestSubmissionContract:
         assert submission_contract.name == "submission1"
         assert submission_contract.project_name == "project1"
         assert submission_contract.extraction.routing_column == "variable"
+        assert submission_contract.contract_type == "Submission"
+        assert submission_contract.tableschema.table_type == "General"
 
     def test_routing_column_does_not_exist(self):
         """Test that a ValidationError is raised when the routing column is invalid."""

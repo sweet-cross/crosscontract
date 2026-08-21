@@ -143,7 +143,7 @@ A stateless adapter that turns CROSS contracts into a Frictionless Data Package 
 
 The ingress mirror of `release/`, and top-level for the same reason: it owns its spec models *and* (later) the code that executes them, so the concept lives in one package. `release/` turns contracts into a published data package; `submission/` describes a delivered bundle — one wide file carrying many variables — and how it is split back into per-variable contracts.
 
-- `submission_contract.py` — `SubmissionContract`: a contract whose `tableschema` describes the bundle itself, plus `project_name` and (once WP2 lands) an `extraction` block.
+- `submission_contract.py` — `SubmissionContract`: a contract whose `tableschema` describes the bundle itself, plus `project_name` and an `extraction` block.
 - `extraction/` — the declarative split instructions: `Target` (which rows go to which target contract, and the transformations applied on the way) and `ExtractionInstructions` (the routing column, the reusable transformation profiles, and the targets).
 
 `SubmissionContract` lives here rather than in `contracts/` deliberately: that it *is* a contract is expressed by inheritance, not by file location, and `contracts/` describes what a dataset looks like while extraction is a process. Keeping it out of `contracts/` also keeps the import graph one-way — `transformations/fetch/fetch_spec.py` already imports `CONTRACT_NAME_PATTERN` out of `contracts`, so extraction living under `contracts/` and importing `transformations` would close a cycle.

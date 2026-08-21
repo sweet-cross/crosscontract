@@ -19,8 +19,10 @@ class Target(BaseModel):
         ...,
         description=(
             "Filters to apply to the source data before applying transformations. "
-            "A dictionary of key-value pairs to filter the source data. If it is "
-            "a string, it is interpreted as single filter on the routing column"
+            "A dictionary of key-value pairs to filter the source data. When "
+            "authored inside `ExtractionInstructions`, a bare value is accepted as "
+            "shorthand for a single filter on the routing column and expanded on "
+            "load."
         ),
     )
     contract: str = Field(
