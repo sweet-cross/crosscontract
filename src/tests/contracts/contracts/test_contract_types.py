@@ -77,8 +77,13 @@ class TestContractTypeDifferentiation:
                 TableSchema,
             ),  # Tests the default fallback when key is omitted
             ("ValueVariable", "ValueVariable", ValueVariableSchema),
+            (
+                "Submission",
+                "Submission",
+                TableSchema,
+            ),  # Submission maps to General schema
         ],
-        ids=["default_general", "value_variable"],
+        ids=["default_general", "value_variable", "submission"],
     )
     def test_contract_type_resolves_to_correct_schema(
         self, input_type, expected_type, expected_schema_cls
@@ -253,14 +258,25 @@ class TestInjectTableTypeToSchema:
         ):
             CrossContract._inject_table_type_to_schema(input_data)
 
-    def test_instantiated_schema_matching_passes_through(self):
-        """Ensure a pre-instantiated schema that matches the contract_type passes
-        through unmodified."""
+    @pytest.mark.parametrize(
+        "contract_type",
+        ["General", "Submission"],
+        ids=["identity_mapping", "non_identity_mapping"],
+    )
+    def test_instantiated_schema_matching_passes_through(self, contract_type):
+        """Ensure a pre-instantiated schema matching the mapped table type passes
+        through unmodified.
+
+        Covers both shapes of the mapping: `General` maps onto itself, while
+        `Submission` maps onto the `General` table type. The second case is the
+        one that breaks if the lookup ever regresses to comparing `contract_type`
+        against `table_type` directly.
+        """
         # TableSchema defaults to table_type "General"
         schema_instance = TableSchema(fields=[{"name": "id", "type": "string"}])
 
         input_data = {
-            "contract_type": "General",
+            "contract_type": contract_type,
             "tableschema": schema_instance,
         }
 
@@ -268,4 +284,4 @@ class TestInjectTableTypeToSchema:
 
         # Ensure the schema object was passed through by exact identity
         assert result["tableschema"] is schema_instance
-        assert result["contract_type"] == "General"
+        assert result["contract_type"] == contract_type

@@ -48,6 +48,23 @@ making changes, stop and **ask for permission** before running any of them. Only
 a validation command when the user has explicitly asked for it or granted permission
 in the current exchange.
 
+### Implement only what was asked, as simply as possible
+
+When handed a scoped change, implement **exactly** that change and nothing adjacent.
+Acceptance criteria in a task or PRD file you happened to read, and findings from your
+own earlier review, are **not** authorization — they stay open until handed over
+separately. State the requested change in one line before editing, and let only that
+line justify each edit; everything else you noticed goes in the reply as a note, never
+into the code. If a fix seems to require adjacent work, say so and ask rather than
+bundling it in.
+
+Prefer the simplest implementation that satisfies the request. Do not add helper
+functions, module constants, curated error messages, or defensive branches unless the
+change cannot be expressed without them — a one-line change should land as a one-line
+change. The house style is deliberately plain (pure function plus thin pydantic model,
+`apply()` a single delegating call); match it. If you think an abstraction is
+warranted, propose it and let the user decide.
+
 ## Branching and releases
 
 - `main` is the public release branch. Pushes to main publish to PyPI (gated by the `pypi` GitHub Environment) and deploy the docs.
@@ -71,7 +88,7 @@ The public surface — `contracts/`, `crossclient/`, and `registry/` — is re-e
 
 **`contracts/contracts/`** — The contract classes:
 - `BaseContract` (Pydantic model): minimal contract with `name` + `tableschema`. Intended for custom contract definitions outside the CROSS platform. Loads from YAML/JSON via `from_file()`.
-- `CrossContract(BaseContract, CrossMetaData)`: the full contract for the CROSS platform, adding `title`, `description`, `tags`, and `contract_type`. The `contract_type` field (`"General"` | `"Dimension"` | `"ValueVariable"` | `"FlexibleDimension"`) drives a discriminated union: it is resolved through `CONTRACT_TYPE_TO_TABLE_TYPE` and the resulting `table_type` is injected into the `tableschema` dict before validation, so callers never set `table_type` manually.
+- `CrossContract(BaseContract, CrossMetaData)`: the full contract for the CROSS platform, adding `title`, `description`, `tags`, and `contract_type`. The `contract_type` field (`"General"` | `"Dimension"` | `"ValueVariable"` | `"FlexibleDimension"` | `"Submission"`) drives a discriminated union: it is resolved through `CONTRACT_TYPE_TO_TABLE_TYPE` and the resulting `table_type` is injected into the `tableschema` dict before validation, so callers never set `table_type` manually.
 - `CrossContract.from_server()` / `to_server()`: strip/restore the `tableschema` for `Dimension` contracts because the server owns that schema.
 - `ContractResolver` protocol: used to look up contracts by name during `validate_references()`.
 
@@ -128,7 +145,7 @@ Not re-exported from the top-level package. `_pydantic.py` holds reusable pydant
 
 ### Key design patterns
 
-- **Discriminated unions**: `contract_type` on `CrossContract` selects the schema's `table_type` via the `CONTRACT_TYPE_TO_TABLE_TYPE` table in `contracts/contracts/cross_contract.py`. The mapping is the identity today, but the two vocabularies are deliberately separate so several contract types may later share one schema — never assume the two strings are equal. The `_inject_table_type` validator bridges them automatically.
+- **Discriminated unions**: `contract_type` on `CrossContract` selects the schema's `table_type` via the `CONTRACT_TYPE_TO_TABLE_TYPE` table in `contracts/contracts/cross_contract.py`. The mapping is **not** the identity: `Submission` resolves to the `General` table type, because a submission bundle needs its own contract type but not its own schema. The two vocabularies are deliberately separate so several contract types can share one schema — never assume the two strings are equal, and never add an empty schema class just to give a contract type a discriminator target. The `_inject_table_type` validator bridges them automatically.
 - **Adapters are stateless class methods**: call `Adapter.convert_schema(schema, ...)` directly; the adapter pattern exists for extensibility but doesn't require instantiation in practice.
 - **Two `name` patterns, deliberately distinct**: `CONTRACT_NAME_PATTERN` (in `contracts/contracts/base_contract.py`) is the strict contract/field identifier — no `/`; `FRICTIONLESS_NAME_PATTERN` (in `_standards/frictionless/metadata.py`) is the looser standard resource/package identifier that permits `/`. The contract pattern is a subset, so any contract name is also a valid Frictionless name.
 - **Tests live in `src/tests/`**, mirroring the `src/crosscontract/` structure. `pythonpath = "src"` in `pyproject.toml` means imports use `from crosscontract import ...` without editable install, though the package should be installed via `uv sync`.

@@ -18,16 +18,23 @@ AnyTableSchema = Annotated[
     Field(discriminator="table_type"),
 ]
 
-ContractType = Literal["General", "Dimension", "ValueVariable", "FlexibleDimension"]
+ContractType = Literal[
+    "General", "Dimension", "ValueVariable", "FlexibleDimension", "Submission"
+]
 
 TableType = Literal["General", "Dimension", "ValueVariable", "FlexibleDimension"]
 
 # The contract vocabulary and the schema vocabulary are deliberately separate:
 # a contract type says what the contract is for, a table type selects the schema
-# that backs it. They coincide today, and this table is the single place that
-# says so — several contract types may map onto the same schema later on.
+# that backs it. The mapping is not the identity — `Submission` resolves to the
+# `General` table type, because a submission bundle needs its own contract type
+# but not its own schema. This table is the single place the relation is stated,
+# and adding an empty schema class purely to give a contract type a discriminator
+# target is the thing it exists to avoid. Note the relation is many-to-one: a
+# table type does not determine a contract type.
 CONTRACT_TYPE_TO_TABLE_TYPE: dict[ContractType, TableType] = {
     "General": "General",
+    "Submission": "General",
     "Dimension": "Dimension",
     "ValueVariable": "ValueVariable",
     "FlexibleDimension": "FlexibleDimension",

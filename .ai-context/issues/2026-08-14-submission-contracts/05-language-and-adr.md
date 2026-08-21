@@ -38,9 +38,19 @@ updated with the code that motivated them.
   `timestamp` has been renamed to `year`). If composition is ever added, the semantics
   that fit are "own steps first, then the base" — the inverse of `extends`.
 - **The spec is upstream of the contract.** The routing field's `enum` is derived from
-  the targets and `to_contract()` emits it, so there is one authored copy and no drift.
-- **`contract_type: Submission`** rather than `General`, with the reasoning from
-  task 01.
+  the targets, not authored, so there is one copy and no drift. Where that derivation
+  is assembled is deliberately still open (PRD §5.3) — record the invariant, not a
+  method name.
+- **`contract_type: Submission`, with no schema class of its own.** It is mapped onto
+  the existing `General` table type through `CONTRACT_TYPE_TO_TABLE_TYPE`. This is the
+  first real use of the contract-type/table-type split: a contract type says what the
+  contract is *for*, a table type selects the schema that backs it, and the submission
+  bundle needs a distinct type but not a distinct schema. Minting an empty
+  `SubmissionSchema` to satisfy a discriminator would have made "one contract type, one
+  schema class" a standing rule and taxed every later contract-type distinction.
+- **`SubmissionContract` inherits `CrossContract`** rather than composing
+  `BaseContract, CrossMetaData` as a sibling — for `validate_references`'s star-schema
+  default and for staying usable wherever a `CrossContract` is accepted.
 
 Cross-reference [ADR 0003](../../adrs/0003-release-is-a-contract-to-frictionless-adapter.md):
 this is its ingress mirror. `Target.contract` names a contract exactly as
@@ -52,12 +62,22 @@ one documented as awaiting transformations — is satisfied by the union from ta
 
 - **Execution package.** Applying a submission contract to a DataFrame. Belongs
   top-level, peer to `release/` — a pipeline, not a schema conversion.
-- **Cross-repo: platform acceptance of `contract_type: Submission`**, and migrating
-  the three legacy extractor modules (`cross2022`, `cross2025`, `nuclear2025`) to
+- **Where the derived routing `enum` is assembled** (PRD §5.3). Something must inject
+  it before data is validated against a submission contract; the candidate sites are a
+  property on `SubmissionContract`, a helper on `ExtractionInstructions`, or the
+  validator itself. Deliberately left open in WP3.
+- **Cross-repo: platform acceptance of `contract_type: Submission` and the
+  `extraction` block**, and migrating the three legacy extractor modules (`cross2022`, `cross2025`, `nuclear2025`) to
   YAML. Note that `nuclear2025` additionally needs a numeric string-format
   transformation for its `month` column, which no current transformation covers.
-- **`MapColumnValues` conflict guard** (PRD §5.5), if task 02 deferred rather than
-  fixed it.
+- **`MapColumnValues` `on_conflict` guard** (PRD §5.5). Mapping a value onto one
+  already present in the column merges the two silently; on a foreign-key column that
+  produces duplicate primary keys downstream, breaking the sum invariant of
+  [ADR 0001](../../adrs/0001-dimensions-are-strict-trees.md). Task 02 fixed the other
+  half of §5.5 — `default_value` no longer collides with "keep original" — but left
+  this one. Note the original framing (that migrating legacy extractors would change
+  behaviour) does not apply: there are no legacy specifications to migrate. This is a
+  standalone correctness question about the transformation itself.
 - **`CONTRACT_NAME_PATTERN` placement.** Relocating it out of
   `contracts/contracts/base_contract.py` would make the `contracts` ↔ `transformations`
   import boundary structural rather than conventional.

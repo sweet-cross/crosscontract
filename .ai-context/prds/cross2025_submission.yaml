@@ -2,7 +2,7 @@
 #                         TABLE DESCRIPTION
 # ----------------------------------------------------------------------------
 name: submission_cross2025
-project: cross2025
+project_name: cross2025
 title: Result submission for the CROSS 2025 scenario runs
 description: |
   This contract fixes the structure of the results submission for the CROSS 2025
