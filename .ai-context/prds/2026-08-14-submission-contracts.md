@@ -147,7 +147,7 @@ Under (b):
 
 | Case | Behaviour |
 |---|---|
-| `cast_column` to `integer` on a column containing NaN | **Raise** with the offending row count. pandas' own error here is opaque. |
+| `cast_column` to `integer` on a column containing NaN | **Keep the nulls.** The target is the pandas nullable `Int64`, so missing values survive the cast. Whether nulls are permitted is the target contract's business, decided at validation; extraction only reshapes. |
 | `cast_column` to `integer` on floats with fractional parts | **Raise.** Silent truncation of `2050.5 → 2050` would corrupt data. |
 | `parse_datetime_column` with unparseable values | **Raise**, listing a bounded sample of offending values. |
 | `parse_datetime_column` with `format: mixed` | Pass through to pandas as-is; `dayfirst` applies. |

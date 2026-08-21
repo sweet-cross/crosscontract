@@ -15,7 +15,7 @@ what every future Build spec inherits.
 - [x] `TransformationUnion` dispatches all six transformations on `type` alone; an unknown `type` raises.
 - [x] Every new transformation returns a new frame and leaves its input **unmutated**.
 - [ ] `cast_column`'s `to_type` reuses the Frictionless field-type literals from `contracts/schema/fields/` — no parallel pandas-dtype vocabulary.
-- [x] Integer cast over NaN raises, naming the column and the offending row count.
+- [x] Integer cast over NaN keeps the nulls: the target is the pandas nullable `Int64`, so missing values survive the cast rather than raising. Whether nulls are permitted is the target contract's business, decided at validation; extraction only reshapes.
 - [x] Integer cast over floats with fractional parts raises rather than truncating.
 - [x] `parse_datetime_column` raises on unparseable values with a bounded sample in the message; `format: mixed` and `dayfirst` pass through to pandas.
 - [x] Every field carries a `description=`; no bare `Any` where a narrower type will do.
