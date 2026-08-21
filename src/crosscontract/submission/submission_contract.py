@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from . import BaseContract, CrossMetaData
+from crosscontract.contracts.contracts import BaseContract, CrossMetaData
 
 
 class SubmissionContract(BaseContract, CrossMetaData):

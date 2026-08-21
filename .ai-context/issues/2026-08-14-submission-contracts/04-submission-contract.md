@@ -21,10 +21,10 @@ layer up.
 ## Implementation Details
 
 **Create:**
-- `src/crosscontract/contracts/contracts/submission_contract.py`
+- `src/crosscontract/submission/submission_contract.py`
 
 **Modify:**
-- `src/crosscontract/contracts/__init__.py` — export `SubmissionContract`
+- `src/crosscontract/submission/__init__.py` — export `SubmissionContract`
 - `src/crosscontract/__init__.py` — public surface
 
 **Model shape (PRD §5.3):**
@@ -97,11 +97,11 @@ but the decision should be made at the real price.
 
 **Test fixture.** Copy the reference YAML from
 [`.ai-context/prds/cross2025_submission.yaml`](../../prds/cross2025_submission.yaml)
-into `src/tests/contracts/contracts/` so tests don't depend on `.ai-context/`. Either
+into `src/tests/submission/` so tests don't depend on `.ai-context/`. Either
 fix the `routing_column: variable.` typo in the copy, or keep it and assert the loader
 rejects it, then use a corrected copy for the remaining assertions.
 
-**Tests:** `src/tests/contracts/contracts/` (PRD §7.3, §7.4).
+**Tests:** `src/tests/submission/` (PRD §7.3, §7.4).
 
 **Dependencies:** requires task 01 (`Submission` contract type, mapped to the
 `General` table type) and task 03 (`ExtractionInstructions`).

@@ -165,30 +165,44 @@ Under (b):
 
 ## 4. Implementation Decisions & File Paths
 
-### 4.1 Where extraction lives
+### 4.1 Where submission lives
 
-`contracts/extraction/`, a sibling of `contracts/schema/`. A submission contract is
-metadata + schema + extraction, and its two structural parts belong side by side under
-the package that owns the contract concept.
+A new top-level `submission/` package, peer to `release/`, holding **all three parts**:
+`SubmissionContract`, the extraction models, and — when it lands — the code that
+executes them.
 
-`transformations/` stays pure — only transformations, no new spec models. The
-alternative of housing extraction there was rejected: it would put a
-submission-specific concept in a schema-agnostic package.
+`release/` is the precedent and the exact mirror. This feature is repeatedly described
+as the ingress counterpart of ADR 0003, and `release/data_package/` keeps its spec
+models (`release_specification.py`), its orchestrator (`create_data_package.py`) and its
+resolvers together at top level rather than under `contracts/`. Egress specs do not live
+in `contracts/`; ingress specs should not either.
 
-**Import hygiene:** `contracts/extraction/` must import from
-`crosscontract.transformations.transformation` (the leaf subpackage — pandas and
-pydantic only), **not** from `crosscontract.transformations`, whose `__init__` pulls in
-`fetch`, which imports `CONTRACT_NAME_PATTERN` back out of `contracts`. This works
-today and is purely a convention; if the guarantee is wanted instead, relocating that
-constant is a small separate change (recorded in `TODO.md`).
+Three consequences settled this:
+
+- **§4.7 already puts execution top-level**, peer to `release/`. Housing the spec models
+  under `contracts/` would guarantee the submission concept ends up split across two
+  packages.
+- **`contracts/` describes what a dataset looks like.** Extraction is a process, not a
+  structure. `transformations/` also stays pure — only transformations, no spec models.
+- **The import graph rewards it.** `transformations/fetch/fetch_spec.py` already imports
+  `CONTRACT_NAME_PATTERN` out of `contracts`, so `transformations → contracts` exists at
+  package level. Extraction living under `contracts/` and importing `transformations`
+  would close that cycle, avoidable only by the leaf-import convention. From
+  `submission/`, both edges run one way and no convention is needed.
+
+`SubmissionContract` lives here too. That it *is* a `CrossContract` is expressed by
+inheritance, not by file location — `CrossDataPackageReleaseSpec` names contracts
+without living among them. The public surface re-exports from `crosscontract/__init__.py`
+either way, so the physical module is invisible to users.
 
 ### 4.2 Files to create
 
 ```
-src/crosscontract/contracts/extraction/__init__.py
-src/crosscontract/contracts/extraction/target.py                    # Target
-src/crosscontract/contracts/extraction/extraction_instructions.py   # ExtractionInstructions
-src/crosscontract/contracts/contracts/submission_contract.py        # SubmissionContract
+src/crosscontract/submission/__init__.py
+src/crosscontract/submission/submission_contract.py                 # SubmissionContract
+src/crosscontract/submission/extraction/__init__.py
+src/crosscontract/submission/extraction/target.py                   # Target
+src/crosscontract/submission/extraction/extraction_instructions.py  # ExtractionInstructions
 src/crosscontract/transformations/transformation/union.py           # TransformationUnion
 .ai-context/adrs/0004-submission-contracts-carry-extraction-instructions.md
 ```
@@ -206,7 +220,6 @@ src/crosscontract/transformations/transformation/dataframe_transformations.py
 src/crosscontract/transformations/transformation/__init__.py       # exports
 src/crosscontract/transformations/__init__.py                      # re-exports
 src/crosscontract/contracts/contracts/cross_contract.py            # ContractType, CONTRACT_TYPE_TO_TABLE_TYPE
-src/crosscontract/contracts/__init__.py                            # export SubmissionContract
 src/crosscontract/__init__.py                                      # public surface
 .ai-context/CONTEXT.md                                             # new terms, resolve "General"
 .ai-context/TODO.md                                                # deferred items
@@ -269,8 +282,8 @@ release spec is already documented as waiting for.
 
 ### 4.7 Explicitly out of scope
 
-- **Execution.** Applying a submission contract to a DataFrame. When it lands it
-  belongs top-level, peer to `release/` — a pipeline, not a schema conversion.
+- **Execution.** Applying a submission contract to a DataFrame. It joins `submission/`
+  alongside the spec models — a pipeline, not a schema conversion.
 - **Bundle file reading.** Excel-to-CSV normalisation stays upstream; the models
   assume a long CSV matching `tableschema`.
 - **`delete_filter`.** The legacy `Extractor.delete_filter` deletes server data. It is
@@ -301,13 +314,13 @@ stored* form, so they legitimately differ per submission (cross2025 uses `mixed`
 ### 5.2 New extraction models
 
 ```python
-class Target(BaseModel):                    # contracts/extraction/target.py
+class Target(BaseModel):                    # submission/extraction/target.py
     filters: str | dict[str, str]           # normalised to dict by the parent
     contract: str                           # CONTRACT_NAME_PATTERN, max_length=100
     transformation_profile: str | None = None
     transformations: list[TransformationUnion] = []
 
-class ExtractionInstructions(BaseModel):    # contracts/extraction/extraction_instructions.py
+class ExtractionInstructions(BaseModel):    # submission/extraction/extraction_instructions.py
     routing_column: str = "variable"
     transformation_profiles: dict[str, list[TransformationUnion]] = {}
     targets: list[Target]                   # min_length=1
@@ -325,7 +338,7 @@ the same concept (a row allow-list keyed by column) in the egress direction.
 ### 5.3 `SubmissionContract`
 
 ```python
-class SubmissionContract(CrossContract):    # contracts/contracts/submission_contract.py
+class SubmissionContract(CrossContract):    # submission/submission_contract.py
     contract_type: Literal["Submission"] = Field(  # type: ignore[assignment]
         default="Submission",
         description="The type of the contract.",
@@ -424,7 +437,7 @@ Tests mirror the source tree under `src/tests/`, with YAML fixtures alongside th
 - Error paths from §3.5: integer cast over NaN, integer cast over fractional floats,
   unparseable datetimes — each asserting the *message* names the offending column.
 
-### 7.2 Unit — extraction models (`src/tests/contracts/extraction/`)
+### 7.2 Unit — extraction models (`src/tests/submission/extraction/`)
 
 - Scalar `filters` normalises to `{routing_column: value}`; mapping form passes through.
 - Every raise in §3.2 and §3.3 has a test: duplicate filters, subset-overlapping
@@ -434,7 +447,7 @@ Tests mirror the source tree under `src/tests/`, with YAML fixtures alongside th
 - Append order: a target with both a profile and its own steps produces
   profile-steps-then-own-steps, asserted on the resolved list.
 
-### 7.3 Unit — `SubmissionContract` (`src/tests/contracts/contracts/`)
+### 7.3 Unit — `SubmissionContract` (`src/tests/submission/`)
 
 - Routing-column invariants from §3.1, including a regression test using the literal
   string `"variable."` — the real typo in the current annotated example.
@@ -447,7 +460,7 @@ Tests mirror the source tree under `src/tests/`, with YAML fixtures alongside th
 
 The acceptance test, using
 [`cross2025_submission.yaml`](./cross2025_submission.yaml) as the fixture (copied into
-`src/tests/contracts/contracts/` so tests don't depend on `.ai-context/`):
+`src/tests/submission/` so tests don't depend on `.ai-context/`):
 
 1. It loads as a `SubmissionContract`.
 2. 24 targets, all filters unique, all profile references resolve.

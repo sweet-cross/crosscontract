@@ -60,8 +60,8 @@ one documented as awaiting transformations — is satisfied by the union from ta
 
 ### `TODO.md` entries
 
-- **Execution package.** Applying a submission contract to a DataFrame. Belongs
-  top-level, peer to `release/` — a pipeline, not a schema conversion.
+- **Execution package.** Applying a submission contract to a DataFrame. It joins
+  `submission/` alongside the spec models — a pipeline, not a schema conversion.
 - **Where the derived routing `enum` is assembled** (PRD §5.3). Something must inject
   it before data is validated against a submission contract; the candidate sites are a
   property on `SubmissionContract`, a helper on `ExtractionInstructions`, or the

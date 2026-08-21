@@ -1,4 +1,4 @@
-# WP2 — `Target` and `ExtractionInstructions` in `contracts/extraction/`
+# WP2 — `Target` and `ExtractionInstructions` in `submission/extraction/`
 
 ## Context
 **Part of PRD:** [2026-08-14-submission-contracts.md](../../prds/2026-08-14-submission-contracts.md) (§4.1, §5.2, §3.2, §3.3)
@@ -26,20 +26,18 @@ connection.
 ## Implementation Details
 
 **Create:**
-- `src/crosscontract/contracts/extraction/__init__.py`
-- `src/crosscontract/contracts/extraction/target.py` — `Target`
-- `src/crosscontract/contracts/extraction/extraction_instructions.py` — `ExtractionInstructions`
+- `src/crosscontract/submission/extraction/__init__.py`
+- `src/crosscontract/submission/extraction/target.py` — `Target`
+- `src/crosscontract/submission/extraction/extraction_instructions.py` — `ExtractionInstructions`
 
-`contracts/extraction/` is a sibling of `contracts/schema/`: a submission contract is
-metadata + schema + extraction, so its two structural parts sit side by side.
+`submission/` is a top-level package, peer to `release/`, holding the submission
+contract, the extraction models, and later the code that executes them (PRD §4.1).
 `transformations/` stays pure — no spec models are added there.
 
-**Import hygiene (PRD §4.1).** Import from
-`crosscontract.transformations.transformation` (the leaf subpackage — pandas and
-pydantic only), **not** from `crosscontract.transformations`, whose `__init__` pulls in
-`fetch`, which imports `CONTRACT_NAME_PATTERN` back out of `contracts`. This is a
-convention, not an enforced boundary; if the guarantee is wanted, relocating that
-constant is a separate small change for `TODO.md`.
+**Imports are unconstrained here.** Because `submission/` sits outside `contracts/`,
+importing `crosscontract.transformations` wholesale is safe — the leaf-import
+convention the earlier `contracts/extraction/` layout required no longer applies, since
+`transformations → contracts` and `submission → transformations` both run one way.
 
 **Model shapes (PRD §5.2):**
 
@@ -74,6 +72,6 @@ field requires the submission `tableschema`, which lives on `SubmissionContract`
 it cannot be reached from `ExtractionInstructions`, move that criterion to task 04 and
 say so in the module docstring rather than dropping it.
 
-**Tests:** `src/tests/contracts/extraction/` (PRD §7.2).
+**Tests:** `src/tests/submission/extraction/` (PRD §7.2).
 
 **Dependencies:** requires task 02 (`TransformationUnion`). Blocks task 04.
