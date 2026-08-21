@@ -145,6 +145,23 @@ class TestMapColumnValues:
         expected_df["B"] = expected_df["B"].map(lambda x: mapping.get(x, None))
         assert_frame_equal(result_df, expected_df)
 
+    @pytest.mark.parametrize(
+        "default",
+        [KEEP_ORIGINAL, None, "DEFAULT"],
+        ids=["keep_original", "none", "default"],
+    )
+    def test_spec_round_trip(self, default):
+        """Dumping and reloading a `MapColumnValues` spec retains the same
+        attributes."""
+        mapping = {"foo": "FOO", "baz": "BAZ"}
+        spec = MapColumnValues(column_name="B", mapping=mapping, default_value=default)
+        dumped = spec.model_dump()
+        reloaded_spec = MapColumnValues.model_validate(dumped)
+        assert spec == reloaded_spec
+        dumped_json = spec.model_dump_json()
+        reloaded_spec_from_json = MapColumnValues.model_validate_json(dumped_json)
+        assert spec == reloaded_spec_from_json
+
 
 class TestCastColumn:
     @pytest.mark.parametrize(

@@ -1,7 +1,7 @@
 from typing import Any, Literal
 
 import pandas as pd
-from pydantic import Field
+from pydantic import Field, SerializerFunctionWrapHandler, model_serializer
 
 from .base import BaseTransformation
 
@@ -79,8 +79,12 @@ class MapColumnValues(BaseTransformation):
     mapping: dict[Any, Any] = Field(
         description="Maps current values (keys) to new values.",
     )
+    # `exclude=True` keeps the standard serializer away from the sentinel, which
+    # has no serialized form and would crash the JSON encoder. The wrap
+    # serializer below puts the key back whenever it holds a real value.
     default_value: Any = Field(
         default=KEEP_ORIGINAL,
+        exclude=True,
         description=(
             "Value used for entries absent from `mapping`. When omitted the original"
             " values are kept unchanged. When set to `None`, unmapped values are "
@@ -91,10 +95,6 @@ class MapColumnValues(BaseTransformation):
     def apply(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply the value mapping, returning a new DataFrame.
 
-        A `default_value` of `None` is interpreted as "keep original"; the spec
-        therefore cannot remap unmapped entries to `None` (use the
-        `map_column_values` function directly for that).
-
         Args:
             df (pd.DataFrame): The DataFrame to transform.
 
@@ -102,6 +102,29 @@ class MapColumnValues(BaseTransformation):
             pd.DataFrame: A new DataFrame with the mapped column.
         """
         return map_column_values(df, self.column_name, self.mapping, self.default_value)
+
+    @model_serializer(mode="wrap")
+    def _restore_default_value(
+        self, handler: SerializerFunctionWrapHandler
+    ) -> dict[str, Any]:
+        """Re-add `default_value` unless it holds the `KEEP_ORIGINAL` sentinel.
+
+        The field is excluded from the standard serializer, so omitting it is
+        the default and an omitted key is exactly what "keep the original
+        values" means on reload. Delegating to the handler keeps the standard
+        behaviour — the `exclude_*` flags, aliases and JSON conversion — intact.
+
+        Args:
+            handler (SerializerFunctionWrapHandler): The standard serializer.
+
+        Returns:
+            dict[str, Any]: The serialized model, carrying `default_value` only
+                when it was authored.
+        """
+        data = handler(self)
+        if self.default_value is not KEEP_ORIGINAL:
+            data["default_value"] = self.default_value
+        return data
 
 
 # Spelled with the Frictionless field-type vocabulary used by
