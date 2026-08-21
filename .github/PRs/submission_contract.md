@@ -5,9 +5,10 @@
 Lays the two independent foundations for submission contracts (PRD
 `2026-08-14-submission-contracts.md`, WP0 and WP1): a `Submission` contract type, and
 the vocabulary of transformations plus the discriminated union that authored extraction
-specs will dispatch on. Neither half depends on the other, and neither changes existing
-behaviour — `Submission` is inert until something emits it, and the three new
-transformations are additive.
+specs will dispatch on. Neither half depends on the other — `Submission` is inert until
+something emits it, and the three new transformations are additive. The one behavioural
+change is to `MapColumnValues.default_value` (below); no authored specs exist yet, so
+nothing in the wild changes meaning.
 
 The union is the higher-leverage half: no discriminated union over transformations had
 ever been defined, and `DataInstructions` in the release spec is documented as an
@@ -29,18 +30,22 @@ rewritten accordingly — including the note that the relation is many-to-one, s
 `BaseTransformation` subclass whose `apply()` is a single delegating call:
 
 - `cast_column` / `CastColumn` — `to_type` is a `CastableType` literal spelled with the
-  Frictionless field-type vocabulary (`integer`, `number`, `string`, `boolean`,
-  `datetime`), not pandas dtype strings, so a bad value fails at load rather than at
-  execution. Integer and number casts target the pandas nullable `Int64` / `Float64`,
-  so fractional floats raise rather than truncating and nulls survive the cast.
-  `datetime` raises with a pointer to `parse_datetime_column`. The literal is declared
-  locally rather than imported from `contracts/schema/fields/`, because `contracts/`
-  imports from this package and the reverse import would be circular.
+  Frictionless field-type vocabulary (`integer`, `number`, `string`, `boolean`), not
+  pandas dtype strings, so a bad value fails at load rather than at execution. Integer
+  and number casts target the pandas nullable `Int64` / `Float64`, so fractional floats
+  raise rather than truncating and nulls survive the cast. `datetime` is deliberately
+  *not* a member: including it would let a spec validate at load and then fail at
+  `apply()` time, which is precisely what the literal exists to prevent. The pure
+  function keeps a dedicated branch raising a pointer to `parse_datetime_column`, since
+  it is the obvious thing a direct caller tries. The literal is declared locally rather
+  than imported from `contracts/schema/fields/`, because `contracts/` imports from this
+  package and the reverse import would be circular.
 - `parse_datetime_column` / `ParseDatetimeColumn` — `format` defaults to `None`
   (pandas infers); `format: mixed` and `dayfirst` pass through. Parse errors propagate
   from pandas unchanged.
-- `drop_rows_by_value` / `DropRowsByValue` — boolean-mask filter; the original index is
-  preserved deliberately and pinned by tests.
+- `drop_rows_by_value` / `DropRowsByValue` — boolean-mask filter, copied before it is
+  returned so callers do not inherit a slice and the `SettingWithCopyWarning` that comes
+  with it. The original index is preserved deliberately and pinned by tests.
 
 **`TransformationUnion`.** New `transformation/union.py` holding
 `Annotated[... , Field(discriminator="type")]` over all six transformations, following
@@ -67,6 +72,12 @@ throughout: don't re-test pandas, and test spec pass-through by patching the und
 function. `MapColumnValues` is the deliberate exception — its default handling is
 involved enough to be worth exercising end to end.
 
+That file's two chained-application tests (`test_ordered_application` and
+`test_rename_after_drop_raises_on_missing_column`) are dropped rather than moved. There
+is no function yet that applies a list of specs to a DataFrame, so a hand-rolled `for`
+loop over `apply()` tests the test rather than the package. They return as integration
+tests once that function exists.
+
 **Docs.** PRD and task files updated as decisions were settled: §4.5 (no
 `SubmissionSchema`), §5.3 (`SubmissionContract` shape and the deferred routing-enum
 question), §5.4 (`project` renamed `project_name` to match the existing
@@ -80,15 +91,16 @@ four over-long `description=` strings in `_standards/frictionless/fields.py`.
 
 ## Testing
 
-Tests were added and the suite was reported green by the author; I did not run it
-myself as part of writing this description.
+Suite reported green by the author.
 
 - `test_union.py` — discriminator resolution parametrized over all six members,
   `extra="forbid"` through the union, and rejection of an unknown `type`.
 - `test_column_transformations.py` — cast success matrix and error cases (kept
   deliberately broad, since type casting is sensitive and the behaviour is worth
   documenting), datetime wiring and kwarg pass-through, and a three-case round-trip test
-  for `MapColumnValues` across both the python and JSON dump paths.
+  for `MapColumnValues` across both the python and JSON dump paths. The two halves of
+  the `datetime` decision are pinned separately: the spec rejects it at load, while a
+  direct call to `cast_column` still gets the pointer to `parse_datetime_column`.
 - `test_dataframe_transformations.py` — per-transformation success and error cases plus
   a patched pass-through test for each spec.
 - `test_contract_types.py` — `contract_type: Submission` resolving to `TableSchema`, and
@@ -98,14 +110,20 @@ myself as part of writing this description.
 
 ## Notes for reviewer
 
-**`submission_contract.py` is an early draft and does not match the agreed shape.** It
-composes `BaseContract, CrossMetaData` as a sibling and has `extraction` commented out
-behind a TODO. The design settled later on inheriting `CrossContract` — for
+**`submission_contract.py` lands as a draft and is finished in WP3.** It composes
+`BaseContract, CrossMetaData` as a sibling and has `extraction` commented out behind a
+TODO. The design settled later on inheriting `CrossContract` — for
 `validate_references`'s `enforce_star_schema=True` default, which is correct here since
 the submission foreign keys all point at dimensions, and to stay usable wherever a
-`CrossContract` is accepted. PRD §5.3 and the WP3 task file record that shape. Either
-finish it in WP3 or drop the file from this PR; leaving it as-is puts a stub in the tree
-that contradicts the spec.
+`CrossContract` is accepted. PRD §5.3 and the WP3 task file record that shape.
+
+Until then the class is deliberately inert: it is exported from nowhere, has no tests,
+and — because it is not a `CrossContract` — has no `to_server()`, so
+`ContractService.create()` cannot accept it. Nothing can reach it by accident. It
+carries drafted docstrings so the file reads as intended rather than as an orphan; the
+class docstring states the `Submission` → `General` mapping as a design fact rather than
+as something this class performs, since `_inject_table_type` only runs on
+`CrossContract`. That sentence can take its stronger form once WP3 changes the base.
 
 **The `output_columns` hook was not implemented.** WP1's task file noted that adding it
 while the transformations were being written is cheap and retrofitting is not. It went
