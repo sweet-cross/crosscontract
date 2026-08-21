@@ -1,0 +1,105 @@
+# A deliberately small submission bundle, kept just complex enough to exercise the
+# parts of loading that can silently break:
+#   - a scalar `filters` shorthand, which is coerced to `{routing_column: value}`
+#   - an explicit mapping `filters`, which passes through untouched
+#   - a transformation profile shared by two targets
+#   - a target appending its own transformations after a profile
+#   - `map_column_values` with `default_value` omitted, i.e. holding the
+#     KEEP_ORIGINAL sentinel, which has no serialized form of its own
+#
+# Not a realistic campaign file — see .ai-context/prds/cross2025_submission.yaml
+# for that. Keep this one minimal.
+
+name: example_submission
+title: Example Submission
+description: A small submission bundle used to exercise contract round-tripping.
+project_name: example_project
+
+tableschema:
+  primaryKey: [model, scenario, country, timestamp, variable, use_technology_fuel]
+
+  fields:
+    - name: model
+      type: string
+      title: Model
+      description: Name of the model producing the data.
+      constraints:
+        required: true
+
+    - name: scenario
+      type: string
+      constraints:
+        required: true
+
+    - name: country
+      type: string
+      constraints:
+        required: true
+        maxLength: 8
+
+    # The routing column: required, string, and deliberately without an `enum`,
+    # which is derived from the targets below.
+    - name: variable
+      type: string
+      title: Variable
+      description: Name of the variable carried by the row.
+      constraints:
+        required: true
+
+    - name: use_technology_fuel
+      type: string
+
+    - name: timestamp
+      type: string
+      constraints:
+        required: true
+
+    - name: value
+      type: number
+      constraints:
+        required: true
+
+extraction:
+  routing_column: variable
+
+  transformation_profiles:
+    annual:
+      - type: rename_columns
+        mapping: { timestamp: year, use_technology_fuel: end_use }
+      - type: drop_columns
+        columns: [variable]
+      - type: cast_column
+        column_name: year
+        to_type: integer
+
+  targets:
+    # Scalar shorthand plus a profile plus its own appended step.
+    - filters: electricity_consumption
+      contract: result_electricity_consumption
+      transformation_profile: annual
+      transformations:
+        # `default_value` omitted on purpose: unmapped values keep their original.
+        - type: map_column_values
+          column_name: end_use
+          mapping: { other_elec: other }
+
+    # Scalar shorthand, profile only, no appended steps.
+    - filters: electricity_supply
+      contract: result_electricity_supply
+      transformation_profile: annual
+
+    # Explicit mapping form, own transformations only.
+    - filters:
+        variable: carbon_price
+      contract: result_carbon_price
+      transformations:
+        - type: rename_columns
+          mapping: { timestamp: year }
+        - type: drop_columns
+          columns: [variable, use_technology_fuel]
+        - type: cast_column
+          column_name: year
+          to_type: integer
+        - type: drop_rows_by_value
+          column_name: value
+          values: [0.0]

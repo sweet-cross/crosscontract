@@ -81,13 +81,14 @@ class SubmissionContract(CrossContract):
 
     @model_validator(mode="after")
     def _check_filters(self) -> Self:
-        """Check that the filters in each target are valid.
+        """Check that every filter key names a field in the tableschema.
 
         Returns:
             Self: The validated SubmissionContract instance.
 
         Raises:
-            ValueError: If any of the filters in the targets are invalid.
+            ValueError: If a target filters on a column absent from the
+                tableschema.
         """
         field_set = set(self.tableschema.field_names)
         for target in self.extraction.targets:
@@ -96,6 +97,6 @@ class SubmissionContract(CrossContract):
             if not_valid:
                 raise ValueError(
                     f"Target for contract: {target.contract}: Filter columns "
-                    f"{not_valid} do not exist in the tableschema."
+                    f"{', '.join(sorted(not_valid))} do not exist in the tableschema."
                 )
         return self

@@ -1,6 +1,9 @@
 from copy import deepcopy
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pytest
+import yaml
 
 from crosscontract.submission import SubmissionContract
 
@@ -76,3 +79,29 @@ class TestSubmissionContract:
         }
         with pytest.raises(ValueError, match="Filter columns"):
             SubmissionContract.model_validate(invalid_data)
+
+
+class TestRoundTrip:
+    fn_yaml = Path(__file__).parent / "example_submission.yaml"
+
+    def test_yaml_round_trip(self):
+        """Test that a SubmissionContract can be serialized to YAML and then
+        deserialized back to an equivalent object."""
+        read_spec = SubmissionContract.from_file(self.fn_yaml)
+        with TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir) / "spec.yaml"
+            tmp_path.write_text(
+                yaml.safe_dump(read_spec.model_dump(mode="json"), sort_keys=False)
+            )
+            deserialized_spec = SubmissionContract.from_file(tmp_path)
+        assert read_spec == deserialized_spec
+
+    def test_json_round_trip(self):
+        """Test that a SubmissionContract can be serialized to JSON and then
+        deserialized back to an equivalent object."""
+        read_spec = SubmissionContract.from_file(self.fn_yaml)
+        with TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir) / "spec.json"
+            tmp_path.write_text(read_spec.model_dump_json(indent=2))
+            deserialized_spec = SubmissionContract.from_file(tmp_path)
+        assert read_spec == deserialized_spec
