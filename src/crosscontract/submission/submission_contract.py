@@ -37,7 +37,7 @@ class SubmissionContract(CrossContract):
             variable from the submission file.
     """
 
-    contract_type: Literal["Submission"] = Field(
+    contract_type: Literal["Submission"] = Field(  # type: ignore[assignment]
         default="Submission", description="Type of the contract."
     )
 
