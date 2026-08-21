@@ -149,10 +149,10 @@ Under (b):
 |---|---|
 | `cast_column` to `integer` on a column containing NaN | **Keep the nulls.** The target is the pandas nullable `Int64`, so missing values survive the cast. Whether nulls are permitted is the target contract's business, decided at validation; extraction only reshapes. |
 | `cast_column` to `integer` on floats with fractional parts | **Raise.** Silent truncation of `2050.5 → 2050` would corrupt data. |
-| `parse_datetime_column` with unparseable values | **Raise**, listing a bounded sample of offending values. |
+| `parse_datetime_column` with unparseable values | **Raise** — pandas' own parse error propagates unchanged. It already names the offending value, so no bespoke message is added. |
 | `parse_datetime_column` with `format: mixed` | Pass through to pandas as-is; `dayfirst` applies. |
 | `drop_rows_by_value` removing every row | Falls through to the "zero rows" case in §3.2 — warn and skip. |
-| `map_column_values` mapping a value onto one already present | **Known gap.** The legacy `rename_items_in_column` raised on this; `MapColumnValues` merges silently, and on a foreign-key column that means duplicate primary keys downstream. See §5.5 — resolve as part of this work or record in `TODO.md`, but do not migrate without deciding. |
+| `map_column_values` mapping a value onto one already present | **Known gap.** The two values merge silently, and on a foreign-key column that means duplicate primary keys downstream. See §5.5 — resolve or record in `TODO.md`, but do not leave it undecided. |
 
 ### 3.6 Serialization and platform interaction
 
@@ -286,15 +286,17 @@ release spec is already documented as waiting for.
 | `type` | Fields | Module |
 |---|---|---|
 | `cast_column` | `column_name: str`, `to_type` | `column_transformations.py` |
-| `parse_datetime_column` | `column_name: str`, `format: str = "%Y-%m-%d %H:%M"`, `dayfirst: bool = False` | `column_transformations.py` |
+| `parse_datetime_column` | `column_name: str`, `format: str | None = None`, `dayfirst: bool = False` | `column_transformations.py` |
 | `drop_rows_by_value` | `column_name: str`, `values: list[Any]` | `dataframe_transformations.py` |
 
 `to_type` **reuses the Frictionless field-type literals** already used by
 `contracts/schema/fields/` (`string`, `integer`, `number`, `datetime`, …) rather than
-a parallel pandas-dtype vocabulary. `parse_datetime_column`'s default mirrors
-`DateTimeField.format`; note the contract's `format` describes the *canonical stored*
-form, while this one describes the *incoming* form — they legitimately differ per
-submission (cross2022 uses `%m/%d/%y %H:%M`, cross2025 uses `mixed` + `dayfirst`).
+a parallel pandas-dtype vocabulary. `parse_datetime_column`'s `format` defaults to
+`None`, letting pandas infer: an explicit default would misparse silently whenever it
+did not match, and there is no one right incoming format — this `format` describes the
+*incoming* form, while the contract's `DateTimeField.format` describes the *canonical
+stored* form, so they legitimately differ per submission (cross2025 uses `mixed` +
+`dayfirst`).
 
 ### 5.2 New extraction models
 
@@ -366,11 +368,18 @@ without a second lookup. It replaces the `Extractor.name` key of the legacy regi
 
 ### 5.5 Behavioural gap in `MapColumnValues`
 
-`MapColumnValues` has no equivalent of `rename_items_in_column`'s conflict guard, and
-its `default_value=None` sentinel collides with "keep original" (documented in its own
-docstring). Migrating the legacy extractors changes behaviour on both counts. Either
-add an `on_conflict` option here or record it in `TODO.md` — but do not migrate
-silently.
+Two separate problems, one resolved and one open.
+
+**Resolved.** `default_value` no longer collides with "keep original": the sentinel is
+the field's default, `apply()` is a pure delegation, and a serializer omits the key when
+the sentinel is in place so the spec still round-trips.
+
+**Open.** `MapColumnValues` has no conflict guard: mapping a value onto one already
+present in the column merges the two silently, and on a foreign-key column that produces
+duplicate primary keys downstream, breaking the sum invariant of ADR 0001. Either add an
+`on_conflict` option or record it in `TODO.md` — but decide, rather than leaving it
+silent. This is a correctness question about the transformation itself; there are no
+legacy specifications whose migration it would affect.
 
 ### 5.6 Terminology to add to `CONTEXT.md`
 

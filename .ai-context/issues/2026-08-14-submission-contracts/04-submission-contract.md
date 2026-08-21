@@ -90,8 +90,10 @@ Strictness on `drop_columns` is deliberate — it is what removes the
 `uploaded_by` / `uploaded_at` wart, which exists today only because `admin_tools`
 reads back from the server while the backend reads the raw upload.
 
-**Coordinate with task 02** before finalising: if (b) is adopted, the three new
-transformations should implement the hook while they are being written.
+**Task 02 has landed without the hook**, so the cost has moved: adopting (a) or (b) now
+means retrofitting `output_columns` onto all six transformations rather than writing it
+into three while they were being drafted. That does not change which option is right,
+but the decision should be made at the real price.
 
 **Test fixture.** Copy the reference YAML from
 [`.ai-context/prds/cross2025_submission.yaml`](../../prds/cross2025_submission.yaml)

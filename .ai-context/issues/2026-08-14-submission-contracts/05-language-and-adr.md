@@ -70,8 +70,14 @@ one documented as awaiting transformations — is satisfied by the union from ta
   `extraction` block**, and migrating the three legacy extractor modules (`cross2022`, `cross2025`, `nuclear2025`) to
   YAML. Note that `nuclear2025` additionally needs a numeric string-format
   transformation for its `month` column, which no current transformation covers.
-- **`MapColumnValues` conflict guard** (PRD §5.5), if task 02 deferred rather than
-  fixed it.
+- **`MapColumnValues` `on_conflict` guard** (PRD §5.5). Mapping a value onto one
+  already present in the column merges the two silently; on a foreign-key column that
+  produces duplicate primary keys downstream, breaking the sum invariant of
+  [ADR 0001](../../adrs/0001-dimensions-are-strict-trees.md). Task 02 fixed the other
+  half of §5.5 — `default_value` no longer collides with "keep original" — but left
+  this one. Note the original framing (that migrating legacy extractors would change
+  behaviour) does not apply: there are no legacy specifications to migrate. This is a
+  standalone correctness question about the transformation itself.
 - **`CONTRACT_NAME_PATTERN` placement.** Relocating it out of
   `contracts/contracts/base_contract.py` would make the `contracts` ↔ `transformations`
   import boundary structural rather than conventional.
