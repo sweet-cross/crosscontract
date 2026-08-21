@@ -13,7 +13,7 @@ implemented.
 A formal, documented agreement describing a tabular dataset — a blueprint shared between
 a **Data provider** and a **Data consumer**. It is **Metadata** + **Schema**, and
 carries no data itself. Every contract has a **contract type** (**ValueVariable**,
-**Dimension**, **FlexibleDimension**, or **General**).
+**Dimension**, **FlexibleDimension**, **Submission**, or **General**).
 _Avoid_: spec, model, definition (when meaning the whole Contract)
 
 **Metadata**:
@@ -41,15 +41,17 @@ constraints — e.g. unit information — enriching the Frictionless standard.
 
 **Contract type**:
 The kind of a **Contract** — what the contract is *for*: **ValueVariable**,
-**Dimension**, **FlexibleDimension**, or **General**. It selects, but is not the same
-thing as, the **Table type** that shapes the contract's **Schema**.
+**Dimension**, **FlexibleDimension**, **Submission**, or **General**. It selects, but is
+not the same thing as, the **Table type** that shapes the contract's **Schema**.
 
 **Table type**:
 The kind of a **Schema** — which structural template the **Schema** follows. Each
-**Contract type** maps to exactly one table type. The two vocabularies carry the same
-four members today and the mapping is currently the identity, but they are deliberately
-kept apart so that several contract types may later share one schema. Never assume the
-two strings are equal — go through the mapping.
+**Contract type** maps to exactly one table type, but several contract types may share
+one: there are five contract types and four table types, and **Submission** maps onto
+the **General** table type because a submission bundle needs its own contract type but
+not its own schema. The mapping is therefore *not* the identity — never assume the two
+strings are equal, and never mint an empty schema class just to give a contract type a
+name of its own. Go through the mapping.
 
 ### The platform and its access layers
 
@@ -131,7 +133,13 @@ The legacy fallback **contract type**, predating the typed contracts. Any tabula
 contract that isn't a **Variable** or a **Dimension** (e.g. a mapping/bridge or lookup
 table). Should no longer be chosen for new contracts; its long-term fate (deprecate vs.
 keep as a generic escape hatch) is undecided while existing contracts migrate to the
-typed forms.
+typed forms. **Submission** was added rather than reusing it, precisely to avoid
+deepening a dependency on a type whose deprecation is open.
+
+The **General** *table type* is not legacy in the same way, and this is the one place
+the two vocabularies visibly come apart: **Submission** maps onto it, so the structural
+template outlives the contract type that shares its name. "General is legacy" is a
+statement about the contract type only.
 
 ### Dimensions — the anchors of the model
 
@@ -232,6 +240,42 @@ permitted set of **Transformations**. Distinct from a **Data specification**, wh
 file-binding part of a single **Data Resource**, not a build recipe.
 _Avoid_: spec (unqualified — ambiguous with **Data specification**)
 
+### Submission and extraction
+
+**Submission contract**:
+A **Contract** describing a delivered *bundle* — one file carrying rows for many
+datasets at once — together with the **Extraction instructions** for splitting it. Its
+**Schema** describes the bundle itself, not any dataset extracted from it. Contract type
+**Submission**.
+_Avoid_: extractor (the legacy hand-written Python form), submission spec
+
+**Extraction instructions**:
+The declarative half of a **Submission contract**: a **Routing column**, reusable
+**Transformation profiles**, and one **Target** per dataset to extract. They *name* their
+target **Contracts** and never resolve them — extraction is a pure bundle → tabular data
+function, and validating each result against its target contract happens downstream.
+_Avoid_: extractor, mapping, rules
+
+**Transformation profile**:
+A named, ordered list of **Transformations** defined once in **Extraction instructions**
+and referenced by several **Targets**. A target's own transformations run *after* its
+profile's. Profiles do not compose and do not inherit from one another.
+_Avoid_: template, base, mixin (each implies composition, which is deliberately absent)
+
+**Target**:
+One entry in **Extraction instructions**: which rows to take from the bundle, the
+**Transformations** to apply to them, and the name of the **Contract** the result is
+validated against. Exactly one target per contract — a contract is never fed twice —
+though several targets may take the same rows and reshape them differently.
+_Avoid_: output, destination, extractor
+
+**Routing column**:
+The bundle column whose value selects a **Target**, conventionally `variable`. Its
+permitted values are *derived* from the targets, never authored, so the **Extraction
+instructions** stay the single source of truth and cannot drift from the **Schema**.
+_Avoid_: discriminator (reserved for the `type` / `table_type` tags of the pydantic
+unions), variable column
+
 ## Relationships
 
 - A **Contract** is **Metadata** + **Schema**, and has exactly one **Contract type**.
@@ -259,6 +303,19 @@ _Avoid_: spec (unqualified — ambiguous with **Data specification**)
   **Transformations** per variable; each kind of **Build spec** permits its own subset of
   **Transformations**. A **Transformation** touches tabular data only — never
   **Contracts**, **Schema**, or **Dimensions**.
+- A **Submission contract** is a **Contract** whose **Schema** describes a delivered
+  bundle, plus **Extraction instructions**. Its **Contract type** is **Submission**,
+  which maps to the **General** **Table type** — the first contract type not backed by a
+  table type of its own name.
+- **Extraction instructions** hold a **Routing column**, zero or more **Transformation
+  profiles**, and one **Target** per extracted dataset. Each **Target** names the
+  **Contract** its output is validated against and never resolves it; one contract is fed
+  by exactly one target.
+- Submission is the ingress mirror of the **Release adapter**: release turns
+  **Contracts** into a **Data Package** for distribution, submission describes a
+  delivered bundle and how it splits back into per-contract datasets. Both name
+  **Contracts** without resolving them. Executing the instructions against actual data is
+  a separate concern from the spec that describes them.
 
 ## Example dialogue
 

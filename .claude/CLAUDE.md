@@ -139,6 +139,15 @@ A stateless adapter that turns CROSS contracts into a Frictionless Data Package 
 - `_resolve_resource.py` — `fetch_data` (fetch via the registry's trusted path), `build_data_resource` (overlay contract metadata with the spec field-by-field, embed the contract `schema`, derive `path`/`profile` from `format`), and `resolve_resources` (the per-resource loop: empty data is warned-and-skipped; an all-empty release raises).
 - `_resolve_package.py` — `save_data_package`: writes each resource's data file plus `datapackage.json` and `datapackage.yaml` into the output zip.
 
+### `submission/` — Submission contracts and extraction instructions
+
+The ingress mirror of `release/`, and top-level for the same reason: it owns its spec models *and* (later) the code that executes them, so the concept lives in one package. `release/` turns contracts into a published data package; `submission/` describes a delivered bundle — one wide file carrying many variables — and how it is split back into per-variable contracts.
+
+- `submission_contract.py` — `SubmissionContract`: a contract whose `tableschema` describes the bundle itself, plus `project_name` and an `extraction` block.
+- `extraction/` — the declarative split instructions: `Target` (which rows go to which target contract, and the transformations applied on the way) and `ExtractionInstructions` (the routing column, the reusable transformation profiles, and the targets).
+
+`SubmissionContract` lives here rather than in `contracts/` deliberately: that it *is* a contract is expressed by inheritance, not by file location, and `contracts/` describes what a dataset looks like while extraction is a process. Keeping it out of `contracts/` also keeps the import graph one-way — `transformations/fetch/fetch_spec.py` already imports `CONTRACT_NAME_PATTERN` out of `contracts`, so extraction living under `contracts/` and importing `transformations` would close a cycle.
+
 ### `_helpers/` — Internal, dependency-free helpers
 
 Not re-exported from the top-level package. `_pydantic.py` holds reusable pydantic types (`OptionalNonEmptyList`, which collapses `[]`→`None` for Frictionless `minItems: 1` optional arrays); `_io.py` holds `read_yaml_or_json_file` and `dump_to_file`.

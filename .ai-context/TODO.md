@@ -115,6 +115,56 @@ maps onto `DimensionSchema`, each of them silently does the wrong thing.
 Deferred because the first item touches the client round-trip and both want their own
 test pass.
 
+### Submission extraction follow-ups
+
+Deferred while landing the extraction spec models
+([ADR 0004](./adrs/0004-submission-contracts-carry-extraction-instructions.md)). The PRD
+and task files that carried the analysis are deleted, so the detail is reproduced here.
+
+- **Assemble the derived routing `enum`.** The routing field's permitted values come from
+  the targets' filters and are never authored — `_check_routing_column` in
+  [submission_contract.py](../src/crosscontract/submission/submission_contract.py)
+  rejects an authored `enum` for exactly that reason, but nothing yet builds the derived
+  set, so the claim is enforced without being delivered. Where the assembly lives is
+  deliberately open: a property on `SubmissionContract`, a helper on
+  `ExtractionInstructions`, or the future validator that checks data against the
+  contract. Whichever site is chosen, the values are the `routing_column` entry of each
+  target's `filters`.
+
+- **Decide how far column tracking goes.** Column references are order-dependent: after
+  `rename_columns {timestamp: year}` a later `cast_column year` is correct and
+  `cast_column timestamp` is not, so static checking needs the column set tracked
+  *through* the pipeline rather than compared against the schema fields. The options are
+  (a) every transformation declares `output_columns(input_columns) -> set[str]` —
+  strongest checking, but it raises the cost of adding a transformation, which cuts
+  against the extensibility goal; (b) *recommended* — the method is optional, a
+  transformation that omits it returns `None` and tracking stops there with the remainder
+  unchecked; (c) no static checking, rely on runtime failures. Under (a) or (b) these
+  raise: a `rename_columns` key not in the tracked set, a `drop_columns` naming an
+  untracked column, and a `column_name` not in the tracked set. Strictness on
+  `drop_columns` is deliberate — it is what removes the `uploaded_by` / `uploaded_at`
+  wart, which exists today only because `admin_tools` reads back from the server while
+  the backend reads the raw upload. The hook was never added to the six transformations
+  in [transformation/](../src/crosscontract/transformations/transformation/), so adopting
+  (a) or (b) now means retrofitting all six rather than writing it into three while they
+  were being drafted. That changes the price, not which option is right.
+
+- **`MapColumnValues` has no conflict guard.** Mapping a value onto one already present
+  in the column merges the two silently; on a foreign-key column that produces duplicate
+  primary keys downstream and breaks the sum invariant of
+  [ADR 0001](./adrs/0001-dimensions-are-strict-trees.md). Either add an `on_conflict`
+  option to `MapColumnValues` in
+  [column_transformations.py](../src/crosscontract/transformations/transformation/column_transformations.py)
+  or decide that the silent merge is acceptable — but decide, rather than leaving it
+  undecided. This is a correctness question about the transformation itself; no legacy
+  specification depends on the current behaviour.
+
+- **Execution.** Applying a submission contract to actual data — filter rows per target,
+  apply the transformation profile and then the target's own transformations, hand the
+  result to the named contract for validation — is not written. When it lands it joins
+  [submission/](../src/crosscontract/submission/) alongside the spec models, as a
+  pipeline rather than a schema conversion.
+
 ## Related context (not TODO items)
 
 - The release layer is a contract → Frictionless adapter; `CrossDataResource` /
