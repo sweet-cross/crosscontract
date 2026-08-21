@@ -62,6 +62,15 @@ one documented as awaiting transformations — is satisfied by the union from ta
 
 - **Execution package.** Applying a submission contract to a DataFrame. It joins
   `submission/` alongside the spec models — a pipeline, not a schema conversion.
+- **Column tracking through a transformation pipeline** (PRD §3.4). Column references
+  are order-dependent — after `rename_columns {timestamp: year}`, `cast_column year` is
+  correct and `cast_column timestamp` is not — so static checking needs the column set
+  tracked *through* the pipeline, not compared against the source fields. Options: (a)
+  every transformation declares `output_columns(input_columns) -> set[str]`; (b) the
+  method is optional and tracking stops at the first transformation that omits it; (c)
+  no static checking. (b) was the standing recommendation. WP3 shipped without any of
+  them, so the cost is now retrofitting all six transformations rather than writing the
+  hook into three while they were being drafted.
 - **Where the derived routing `enum` is assembled** (PRD §5.3). Something must inject
   it before data is validated against a submission contract; the candidate sites are a
   property on `SubmissionContract`, a helper on `ExtractionInstructions`, or the

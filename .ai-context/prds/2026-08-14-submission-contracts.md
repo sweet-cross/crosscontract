@@ -22,10 +22,11 @@ providers may author their own.
 Execution (actually applying the instructions to a DataFrame) is deliberately a
 follow-on — see §4.7.
 
-A validated, complete example for the CROSS 2025 campaign — all 24 extractors
-translated — lives at
-[`cross2025_submission.yaml`](./cross2025_submission.yaml) and is the reference the
-models must load.
+A worked example for the CROSS 2025 campaign lives at
+[`cross2025_submission.yaml`](./cross2025_submission.yaml). It was written to drive the
+design discussion and to check that the format can express a real campaign; it is
+**not** a fixture and nothing is required to load it. The models are exercised against
+a smaller, purpose-built example in the test tree (§7.4).
 
 ### The boundary that shapes everything else
 
@@ -82,10 +83,13 @@ loads, validates, and executes with no platform connection.
 
 ### Definition of done
 
-`SubmissionContract.from_file(".ai-context/prds/cross2025_submission.yaml")` loads,
-and the routing values derived from its targets reproduce the `variable` enum of the
-current `submission_cross2025.yaml` **exactly** — all 24 entries, no more, no fewer.
-This has been confirmed by hand against the target list and is the acceptance test.
+A submission spec authored as a single YAML file loads into a `SubmissionContract`,
+validates standalone — routing invariants, filter columns, contract uniqueness, profile
+references — and survives a full round-trip back through YAML and JSON unchanged.
+
+Reproducing the cross2025 campaign was considered as the acceptance criterion and
+dropped: this is all new work with no legacy specification to match, so pinning the
+models against one hand-written file would measure that file rather than the format.
 
 ## 3. Edge Cases & Error Handling
 
@@ -96,7 +100,7 @@ All errors below are raised at **model construction / load time** unless marked
 
 | Case | Behaviour |
 |---|---|
-| `routing_column` names a field absent from `tableschema.fields` | **Raise.** The current annotated example has `routing_column: variable.` — a stray period before an inline comment yields the string `"variable."`. This validator is what catches it. |
+| `routing_column` names a field absent from `tableschema.fields` | **Raise.** Trailing punctuation before an inline YAML comment silently becomes part of the value (`routing_column: variable.` yields the string `"variable."`), so a typo here is invisible in the authored file. This validator is what catches it. |
 | Routing field is not `type: string` | **Raise.** Routing values are compared as strings. |
 | Routing field is not `required: true` | **Raise.** A null routing value cannot be routed. |
 | Routing field carries an authored `enum` | **Raise.** It is derived; silently overwriting it would hide a real disagreement between author intent and target list. |
@@ -126,7 +130,10 @@ The hard one. Column references are **order-dependent**: after
 `cast_column timestamp` is not. Static checking therefore requires tracking the column
 set *through* the pipeline, not against the source fields.
 
-**Decision required before implementation** (WP3):
+**Deferred, not decided.** WP3 shipped without column tracking; the options below are
+recorded in `TODO.md` (WP4) rather than blocking anything. Note the cost has moved:
+adopting (a) or (b) now means retrofitting `output_columns` onto all six transformations
+instead of writing it into three as they were drafted.
 
 - **(a)** Every transformation declares `output_columns(input_columns) -> set[str]`.
   Strongest checking; raises the cost of adding a transformation, which cuts against
@@ -449,29 +456,28 @@ Tests mirror the source tree under `src/tests/`, with YAML fixtures alongside th
 
 ### 7.3 Unit — `SubmissionContract` (`src/tests/submission/`)
 
-- Routing-column invariants from §3.1, including a regression test using the literal
-  string `"variable."` — the real typo in the current annotated example.
-- Column tracking (§3.4, option (b)): a rename-then-cast chain validates; a
-  cast naming the pre-rename column raises; an opaque transformation stops tracking
-  without raising.
-- Round-trip `from_file` → `model_dump` → `model_validate` is stable.
+- Routing-column invariants from §3.1: the column must exist in `tableschema.fields`,
+  be `type: string`, be `required: true`, and carry no authored `enum`.
+- Filter columns: every key of a target's `filters` names a field in
+  `tableschema.fields`.
+- Round-trip `from_file` → `model_dump` → `model_validate` is stable (see §7.4).
 
-### 7.4 Integration — the reference example
+### 7.4 Integration — the round-trip example
 
-The acceptance test, using
-[`cross2025_submission.yaml`](./cross2025_submission.yaml) as the fixture (copied into
-`src/tests/submission/` so tests don't depend on `.ai-context/`):
+`src/tests/submission/example_submission.yaml` is a small purpose-built spec, kept just
+complex enough to cover what can silently break on the way through a file: a scalar
+`filters` shorthand alongside an explicit mapping form, a transformation profile shared
+by two targets, a target appending its own steps after a profile, and a
+`map_column_values` with `default_value` omitted — the `KEEP_ORIGINAL` sentinel, which
+has no serialized form and is nested inside a contract here for the first time.
 
 1. It loads as a `SubmissionContract`.
-2. 24 targets, all contracts unique, all profile references resolve.
-3. The **set** of routing values derived from the targets equals the 24-entry enum of
-   the legacy `submission_cross2025.yaml` exactly. The derivation dedupes, since
-   repeated filters across targets are legal — assert the set, never the count against
-   the number of targets.
-4. Full round-trip `from_file` → `model_dump` → `model_validate` is stable.
+2. `from_file` → `model_dump(mode="json")` → YAML → `from_file` compares equal.
+3. `from_file` → `model_dump_json` → `from_file` compares equal.
 
-Fix the `routing_column: variable.` typo in the fixture copy — or keep it, and assert
-the loader rejects it, then use a corrected copy for the rest.
+Both hops go through an actual file rather than a dict, so the dump is proven
+serializable rather than merely re-validatable. Model equality is the assertion; equal
+models dump identically, so no separate fixed-point check is needed.
 
 ### 7.5 Not tested here
 
