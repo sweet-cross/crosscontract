@@ -3,6 +3,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
+from pydantic import ValidationError
 
 from crosscontract.transformations.transformation.column_transformations import (
     KEEP_ORIGINAL,
@@ -216,6 +217,15 @@ class TestCastColumn:
         df = pd.DataFrame({"A": ["2023-01-01"], "B": ["x"]})
         with pytest.raises(ValueError, match="`parse_datetime_column`"):
             cast_column(df, "A", "datetime")
+
+    def test_spec_rejects_datetime_at_load(self):
+        """`datetime` is outside `CastableType`, so the spec fails at load.
+
+        The function keeps a pointed error for direct callers, but a spec must
+        never validate and then fail at `apply()` time.
+        """
+        with pytest.raises(ValidationError):
+            CastColumn(column_name="A", to_type="datetime")
 
     def test_spec_cast_column(self, sample_df: pd.DataFrame):
         """Test that the `CastColumn` spec correctly casts a column."""

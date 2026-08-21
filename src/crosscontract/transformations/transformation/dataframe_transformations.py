@@ -114,7 +114,7 @@ def drop_rows_by_value(
     Returns:
         pd.DataFrame: A new DataFrame with the specified rows dropped.
     """
-    return df[~df[column_name].isin(values_to_drop)]
+    return df[~df[column_name].isin(values_to_drop)].copy()
 
 
 class DropRowsByValue(BaseTransformation):

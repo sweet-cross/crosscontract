@@ -130,8 +130,10 @@ class MapColumnValues(BaseTransformation):
 # Spelled with the Frictionless field-type vocabulary used by
 # `contracts/schema/fields/`, not pandas dtype strings. Declared here rather
 # than imported: `contracts/` imports from this package, so the reverse import
-# would be circular.
-CastableType = Literal["integer", "number", "string", "boolean", "datetime"]
+# would be circular. `datetime` is deliberately absent — including it would let
+# a spec validate at load and then fail at execution; `parse_datetime_column`
+# carries the datetime case instead.
+CastableType = Literal["integer", "number", "string", "boolean"]
 
 
 def cast_column(
@@ -150,14 +152,16 @@ def cast_column(
             - `"number"`: Casts to pandas nullable float type (`Float64`).
             - `"string"`: Casts to pandas string type (`string`).
             - `"boolean"`: Casts to pandas nullable boolean type (`boolean`).
-            - `"datetime"`: Raises a ValueError; use
-              `parse_datetime_column` for datetime parsing.
+
+            `"datetime"` is not a member; use `parse_datetime_column` instead.
 
     Returns:
         pd.DataFrame: A new DataFrame with the casted column.
 
     Raises:
-        ValueError: If `to_type` is `"datetime"` or is unsupported.
+        ValueError: If `to_type` is `"datetime"` or is otherwise unsupported,
+            or if the column holds values that cannot be parsed as the
+            requested type.
         TypeError: If the column cannot be converted to the specified type.
     """
     result = df.copy()
@@ -196,8 +200,8 @@ class CastColumn(BaseTransformation):
             - `"number"`: Casts to pandas nullable float type (`Float64`).
             - `"string"`: Casts to pandas string type (`string`).
             - `"boolean"`: Casts to pandas nullable boolean type (`boolean`).
-            - `"datetime"`: Raises a ValueError; use `parse_datetime_column`
-              for datetime parsing.
+
+            `"datetime"` is not a member; use `ParseDatetimeColumn` instead.
     """
 
     type: Literal["cast_column"] = Field(
@@ -211,8 +215,8 @@ class CastColumn(BaseTransformation):
         description=(
             "The new type to cast the column to, named with the Frictionless "
             "field-type vocabulary: `integer` (nullable `Int64`), `number` "
-            "(nullable `Float64`), `string`, or `boolean`. `datetime` is "
-            "rejected — use `parse_datetime_column` instead."
+            "(nullable `Float64`), `string`, or `boolean`. `datetime` is not "
+            "accepted — use `ParseDatetimeColumn` instead."
         ),
     )
 
@@ -226,7 +230,8 @@ class CastColumn(BaseTransformation):
             pd.DataFrame: A new DataFrame with the casted column.
 
         Raises:
-            ValueError: If `to_type` is `"datetime"` or is unsupported.
+            ValueError: If the column holds values that cannot be parsed as the
+                requested type.
             TypeError: If the column cannot be converted to the specified type.
         """
         return cast_column(df, self.column_name, self.to_type)
@@ -252,6 +257,10 @@ def parse_datetime_column(
 
     Returns:
         pd.DataFrame: A new DataFrame with the parsed datetime column.
+
+    Raises:
+        ValueError: If a value cannot be parsed as a datetime, or does not match
+            `format` when one is given. Raised by pandas and propagated unchanged.
     """
     result = df.copy()
     result[column_name] = pd.to_datetime(
