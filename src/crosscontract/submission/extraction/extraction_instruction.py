@@ -98,7 +98,7 @@ class ExtractionInstructions(BaseModel):
         duplicates = {name for name in contract_names if contract_names.count(name) > 1}
         if duplicates:
             raise ValueError(
-                f"Duplicate contracts found in targets: {', '.join(duplicates)}"
+                f"Duplicate contracts found in targets: {', '.join(sorted(duplicates))}"
             )
         return self
 
