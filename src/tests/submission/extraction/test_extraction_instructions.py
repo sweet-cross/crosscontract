@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from crosscontract.submission.extraction import ExtractionInstructions, Target
 from crosscontract.transformations import DropColumns
@@ -51,13 +52,32 @@ class TestExtractionInstructions:
         data = {
             "targets": [
                 {
-                    "filters": "Sas",  # Invalid type
+                    "filters": "Sas",  # shorthand form
                     "contract": "contract1",
                 }
             ],
         }
         with pytest.raises(ValueError, match="routing_column"):
             ExtractionInstructions.model_validate(data)
+
+    def test_invalid_contract_name_raises(self):
+        """Test that a contract name violating CONTRACT_NAME_PATTERN is rejected."""
+        data = {
+            "routing_column": "variable",
+            "targets": [
+                {
+                    "filters": {"variable": "var1"},
+                    "contract": "Not A Valid Name",
+                }
+            ],
+        }
+        with pytest.raises(ValidationError):
+            ExtractionInstructions.model_validate(data)
+
+    def test_missing_targets_raises(self):
+        """Test that omitting `targets` is rejected, not defaulted to an empty list."""
+        with pytest.raises(ValidationError, match="targets"):
+            ExtractionInstructions.model_validate({"routing_column": "variable"})
 
     def test_non_unique_contract_raises(self):
         """Test that a ValueError is raised when duplicate contracts are present."""
