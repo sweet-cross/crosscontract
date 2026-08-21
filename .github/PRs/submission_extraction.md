@@ -96,12 +96,6 @@ as a fixture; this is all new work with no legacy specification to match, so pin
 models to one hand-written file would have measured that file rather than the format. If
 the PRD directory goes, decide whether that YAML goes with it.
 
-**`submission_contract.py` imports `from crosscontract import CrossContract`** — the
-top-level package. This works because `.submission` is imported last in
-`crosscontract/__init__.py`, so `CrossContract` is already bound by then. It is an
-ordering dependency rather than a guarantee; `from crosscontract.contracts import
-CrossContract` would remove it at no cost.
-
 **Deferred, recorded for planning rather than fixed here:** column tracking through a
 transformation pipeline (the `output_columns` hook was never added, so adopting it now
 means retrofitting all six transformations), the `MapColumnValues` `on_conflict` guard,
