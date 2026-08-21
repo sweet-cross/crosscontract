@@ -80,10 +80,11 @@ class MapColumnValues(BaseTransformation):
         description="Maps current values (keys) to new values.",
     )
     default_value: Any = Field(
-        default=None,
+        default=KEEP_ORIGINAL,
         description=(
-            "Value used for entries absent from `mapping`. When omitted or "
-            "`None`, unmapped values are kept unchanged."
+            "Value used for entries absent from `mapping`. When omitted the original"
+            " values are kept unchanged. When set to `None`, unmapped values are "
+            "replaced with `None`. Can be set to any other fallback value."
         ),
     )
 
@@ -100,10 +101,7 @@ class MapColumnValues(BaseTransformation):
         Returns:
             pd.DataFrame: A new DataFrame with the mapped column.
         """
-        default_value = (
-            KEEP_ORIGINAL if self.default_value is None else self.default_value
-        )
-        return map_column_values(df, self.column_name, self.mapping, default_value)
+        return map_column_values(df, self.column_name, self.mapping, self.default_value)
 
 
 # Spelled with the Frictionless field-type vocabulary used by
@@ -137,6 +135,7 @@ def cast_column(
 
     Raises:
         ValueError: If `to_type` is `"datetime"` or is unsupported.
+        TypeError: If the column cannot be converted to the specified type.
     """
     result = df.copy()
     match to_type:
@@ -202,6 +201,10 @@ class CastColumn(BaseTransformation):
 
         Returns:
             pd.DataFrame: A new DataFrame with the casted column.
+
+        Raises:
+            ValueError: If `to_type` is `"datetime"` or is unsupported.
+            TypeError: If the column cannot be converted to the specified type.
         """
         return cast_column(df, self.column_name, self.to_type)
 
