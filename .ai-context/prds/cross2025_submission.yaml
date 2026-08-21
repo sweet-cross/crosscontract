@@ -134,7 +134,7 @@ tableschema:
 #   1. how to extract each variable from the submission file
 #   2. against which contract the data should be validated.
 extraction:
-  routing_column: variable. # name of the column that is used to route the data
+  routing_column: variable # name of the column that is used to route the data
                             # i.e., to filter out a variable
 
   # --------------------------------------------------------------------------

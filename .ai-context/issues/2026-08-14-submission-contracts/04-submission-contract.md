@@ -9,11 +9,12 @@ the routing invariants, because the schema cannot see `routing_column` — that 
 layer up.
 
 ## Acceptance Criteria
-- [ ] `SubmissionContract(CrossContract)` exists with `contract_type` pinned to `Literal["Submission"]`, plus `project_name: str` and `extraction: ExtractionInstructions`.
-- [ ] `routing_column` naming a field absent from `tableschema.fields` raises — with a regression test using the literal string `"variable."` (the real typo in the reference YAML, where a stray period sits inside the value before an inline comment).
-- [ ] A routing field that is not `type: string` raises.
-- [ ] A routing field that is not `required: true` raises.
-- [ ] A routing field carrying an authored `enum` raises (it is derived).
+- [x] `SubmissionContract(CrossContract)` exists with `contract_type` pinned to `Literal["Submission"]`, plus `project_name: str` and `extraction: ExtractionInstructions`.
+- [x] `routing_column` naming a field absent from `tableschema.fields` raises — with a regression test using the literal string `"variable."` (the real typo in the reference YAML, where a stray period sits inside the value before an inline comment).
+- [x] A routing field that is not `type: string` raises.
+- [x] A routing field that is not `required: true` raises.
+- [x] A routing field carrying an authored `enum` raises (it is derived).
+- [x] A `filters` key naming a column absent from `tableschema.fields` raises. Deferred here from WP2: `ExtractionInstructions` has no path to the submission schema, which lives on this class — so the check can only be made at this layer, alongside the routing invariants (PRD §3.2).
 - [ ] **Acceptance test:** `SubmissionContract.from_file()` loads the reference cross2025 YAML, yields 24 targets with unique contracts and resolving profile references, and the **set** of routing values derived from those targets equals *exactly* the 24-entry enum of the legacy `submission_cross2025.yaml`. The derivation dedupes: repeated filters are legal (one variable may feed several contracts), so target count and enum size are independent facts and only the set is asserted. They coincide at 24 for this file because it happens to use no fan-out.
 - [ ] Round-trip `from_file` → `model_dump` → `model_validate` is stable.
 - [ ] `SubmissionContract` is exported from the package's public surface.

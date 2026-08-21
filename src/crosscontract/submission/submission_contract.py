@@ -5,24 +5,22 @@ contract describes that file, records how each variable is extracted from it,
 and states how the extracted variables are validated.
 """
 
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
-from crosscontract.contracts.contracts import BaseContract, CrossMetaData
+from crosscontract import CrossContract
+
+from .extraction import ExtractionInstructions
 
 
-class SubmissionContract(BaseContract, CrossMetaData):
+class SubmissionContract(CrossContract):
     """A contract describing a submitted file that bundles several variables.
 
     Unlike a variable contract, which describes one table, a submission contract
     describes the delivered file as a whole: the table it lands as, the project
     it belongs to, and (once implemented) the instructions for extracting each
     variable out of it.
-
-    The submission bundle is a standard flat table, so `"Submission"` maps onto
-    the `"General"` table type in `CONTRACT_TYPE_TO_TABLE_TYPE` rather than
-    binding a schema class of its own.
 
     Attributes:
         name (str): A unique identifier for the contract. Inherited from
@@ -46,5 +44,27 @@ class SubmissionContract(BaseContract, CrossMetaData):
         description="The name of the project associated with the submission.",
     )
 
-    # todo: inject the ExtractionInstructions model here once it is implemented
-    # extraction: ExtractionInstructions
+    extraction: ExtractionInstructions
+
+    @model_validator(mode="after")
+    def _check_routing_column(self) -> Self:
+        """Check that the routing column exists in the tableschema, that it is
+        required and that it is a string column. Also the routing column cannot
+        have an enum constraint as this is derived from the ExtractionInstructions."""
+        routing_column = self.extraction.routing_column
+        routing_field = self.tableschema.get(routing_column)
+        if routing_field is None:
+            raise ValueError(
+                f"Routing column '{routing_column}' does not exist in the tableschema."
+            )
+        if not routing_field.constraints.required:
+            raise ValueError(f"Routing column '{routing_column}' must be required")
+        if not routing_field.type == "string":
+            raise ValueError(
+                f"Routing column '{routing_column}' must be a string column"
+            )
+        if routing_field.constraints.enum is not None:
+            raise ValueError(
+                f"Routing column '{routing_column}' cannot have an enum constraint"
+            )
+        return self
