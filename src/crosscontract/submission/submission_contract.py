@@ -19,7 +19,7 @@ class SubmissionContract(CrossContract):
 
     Unlike a variable contract, which describes one table, a submission contract
     describes the delivered file as a whole: the table it lands as, the project
-    it belongs to, and (once implemented) the instructions for extracting each
+    it belongs to, and the instructions for extracting each
     variable out of it.
 
     Attributes:
@@ -33,6 +33,8 @@ class SubmissionContract(CrossContract):
         contract_type (Literal["Submission"]): Fixed discriminator identifying
             this contract type.
         project_name (str): The name of the project the submission belongs to.
+        extraction (ExtractionInstructions): Instructions for extracting each
+            variable from the submission file.
     """
 
     contract_type: Literal["Submission"] = Field(
@@ -50,7 +52,15 @@ class SubmissionContract(CrossContract):
     def _check_routing_column(self) -> Self:
         """Check that the routing column exists in the tableschema, that it is
         required and that it is a string column. Also the routing column cannot
-        have an enum constraint as this is derived from the ExtractionInstructions."""
+        have an enum constraint as this is derived from the ExtractionInstructions.
+
+        Returns:
+            Self: The validated SubmissionContract instance.
+
+        Raises:
+            ValueError: If the routing column does not exist in the tableschema,
+                is not required, is not a string column, or has an enum constraint.
+        """
         routing_column = self.extraction.routing_column
         routing_field = self.tableschema.get(routing_column)
         if routing_field is None:
@@ -59,7 +69,7 @@ class SubmissionContract(CrossContract):
             )
         if not routing_field.constraints.required:
             raise ValueError(f"Routing column '{routing_column}' must be required")
-        if not routing_field.type == "string":
+        if routing_field.type != "string":
             raise ValueError(
                 f"Routing column '{routing_column}' must be a string column"
             )
@@ -67,4 +77,25 @@ class SubmissionContract(CrossContract):
             raise ValueError(
                 f"Routing column '{routing_column}' cannot have an enum constraint"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _check_filters(self) -> Self:
+        """Check that the filters in each target are valid.
+
+        Returns:
+            Self: The validated SubmissionContract instance.
+
+        Raises:
+            ValueError: If any of the filters in the targets are invalid.
+        """
+        field_set = set(self.tableschema.field_names)
+        for target in self.extraction.targets:
+            used_filter_columns = set(target.filters.keys())
+            not_valid = used_filter_columns - field_set
+            if not_valid:
+                raise ValueError(
+                    f"Target for contract: {target.contract}: Filter columns "
+                    f"{not_valid} do not exist in the tableschema."
+                )
         return self

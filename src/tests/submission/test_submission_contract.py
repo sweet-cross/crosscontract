@@ -1,10 +1,8 @@
 from copy import deepcopy
 
 import pytest
-from pydantic import ValidationError
 
 from crosscontract.submission import SubmissionContract
-from crosscontract.transformations import DropColumns
 
 valid_data = {
     "name": "submission1",
@@ -68,4 +66,13 @@ class TestSubmissionContract:
             "var2",
         ]
         with pytest.raises(ValueError, match="cannot have an enum constraint"):
+            SubmissionContract.model_validate(invalid_data)
+
+    def test_invalid_filter_in_target(self):
+        """Test that a ValidationError is raised when a target has an invalid filter."""
+        invalid_data = deepcopy(valid_data)
+        invalid_data["extraction"]["targets"][0]["filters"] = {
+            "invalid_column": "value"
+        }
+        with pytest.raises(ValueError, match="Filter columns"):
             SubmissionContract.model_validate(invalid_data)
