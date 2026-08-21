@@ -1,5 +1,126 @@
 # CHANGELOG
 
+## v0.14.0 (2026-08-21)
+
+### Features
+
+
+- **Submission contract I - Initial contract and transformations** ([`fd55e43`](https://github.com/sweet-cross/crosscontract/commit/fd55e4328ce8c336d0bdebe30d75cffce2dfd9dd))
+
+  # feat: add the Submission contract type and the first transformation union
+
+  ## Summary
+
+  Lays the two independent foundations for submission contracts (PRD `2026-08-14-submission-contracts.md`, WP0 and WP1): a `Submission` contract type, and the vocabulary of transformations plus the discriminated union that authored extraction specs will dispatch on. Neither half depends on the other — `Submission` is inert until something emits it, and the three new transformations are additive. The one behavioural change is to `MapColumnValues.default_value` (below); no authored specs exist yet, so nothing in the wild changes meaning.
+
+  The union is the higher-leverage half: no discriminated union over transformations had ever been defined, and `DataInstructions` in the release spec is documented as an extension point waiting for one. This PR supplies it.
+
+  Base branch is `dev`.
+
+  ## Changes
+
+  **`Submission` contract type (WP0).** `ContractType` gains `"Submission"`, and `CONTRACT_TYPE_TO_TABLE_TYPE` maps it onto the existing `General` table type. No new schema class: the submission bundle is a standard flat table with a primary key and foreign keys, so it needs its own contract type but not its own schema. This is the first entry that makes the mapping non-identity, and the comment above the table was rewritten accordingly — including the note that the relation is many-to-one, so a `table_type` no longer determines a `contract_type`.
+
+  **Three new transformations (WP1).** Each is a pure function plus a thin `BaseTransformation` subclass whose `apply()` is a single delegating call:
+
+  - `cast_column` / `CastColumn` — `to_type` is a `CastableType` literal spelled with the Frictionless field-type vocabulary (`integer`, `number`, `string`, `boolean`), not pandas dtype strings, so a bad value fails at load rather than at execution. Integer and number casts target the pandas nullable `Int64` / `Float64`, so fractional floats raise rather than truncating and nulls survive the cast. `datetime` is deliberately
+  *not* a member: including it would let a spec validate at load and then fail at `apply()` time, which is precisely what the literal exists to prevent. The pure function keeps a dedicated branch raising a pointer to `parse_datetime_column`, since it is the obvious thing a direct caller tries. The literal is declared locally rather than imported from `contracts/schema/fields/`, because `contracts/` imports from this
+    package and the reverse import would be circular.
+  - `parse_datetime_column` / `ParseDatetimeColumn` — `format` defaults to `None` (pandas infers); `format: mixed` and `dayfirst` pass through. Parse errors propagate
+    from pandas unchanged.
+  - `drop_rows_by_value` / `DropRowsByValue` — boolean-mask filter, copied before it is returned so callers do not inherit a slice and the `SettingWithCopyWarning` that comes with it. The original index is preserved deliberately and pinned by tests.
+
+  **`TransformationUnion`.** New `transformation/union.py` holding `Annotated[... , Field(discriminator="type")]` over all six transformations, following the house idiom and the `field_descriptors/` split of classes from union. It imports the leaf modules rather than the package `__init__`, which re-exports it — going through `__init__` would be circular. Exported from both `transformation/` and `transformations/`, along with the four new symbols that were previously reachable only from the leaf module.
+
+  **`MapColumnValues` serialization.** `default_value` now defaults to the `KEEP_ORIGINAL` sentinel directly, so `apply()` is a pure delegation instead of translating `None` into the sentinel — which is what previously made "map unmapped entries to `None`" unreachable from a spec. Because the sentinel has no serialized form and would crash the JSON encoder, the field carries `exclude=True` and a `mode="wrap"` serializer re-adds the key only when it holds a real value. Omission is therefore the default path, which is exactly what "keep the original values" means on reload. Three cases now round-trip: omitted → keep original, explicit `null` → `None` is the fallback, explicit value → that value.
+
+  **Test restructure.** Function tests and spec tests for a transformation now live in the same file and class, so `test_transformation_specs.py` is deleted and its union-and-discrimination tests move to a new `test_union.py`. Two principles are applied throughout: don't re-test pandas, and test spec pass-through by patching the underlying function. `MapColumnValues` is the deliberate exception — its default handling is involved enough to be worth exercising end to end.
+
+  That file's two chained-application tests (`test_ordered_application` and `test_rename_after_drop_raises_on_missing_column`) are dropped rather than moved. There is no function yet that applies a list of specs to a DataFrame, so a hand-rolled `for` loop over `apply()` tests the test rather than the package. They return as integration tests once that function exists.
+
+  **Docs.** PRD and task files updated as decisions were settled: §4.5 (no `SubmissionSchema`), §5.3 (`SubmissionContract` shape and the deferred routing-enum question), §5.4 (`project` renamed `project_name` to match the existing `ContractService` keyword), §3.5 and §5.1 (integer casts keep nulls; datetime parse errors come from pandas; the `format` default). WP0's task file is deleted, per the convention of removing a task description once it lands. `CLAUDE.md` gains a section on implementing only what was asked, as simply as possible.
+
+  **Housekeeping.** Removed two stale PR descriptions from `.github/PRs/`, and wrapped four over-long `description=` strings in `_standards/frictionless/fields.py`.
+
+  ## Testing
+
+  Suite reported green by the author.
+
+  - `test_union.py` — discriminator resolution parametrized over all six members, `extra="forbid"` through the union, and rejection of an unknown `type`.
+  - `test_column_transformations.py` — cast success matrix and error cases (kept deliberately broad, since type casting is sensitive and the behaviour is worth documenting), datetime wiring and kwarg pass-through, and a three-case round-trip test for `MapColumnValues` across both the python and JSON dump paths. The two halves of the `datetime` decision are pinned separately: the spec rejects it at load, while a direct call to `cast_column` still gets the pointer to `parse_datetime_column`.
+  - `test_dataframe_transformations.py` — per-transformation success and error cases plus
+    a patched pass-through test for each spec.
+  - `test_contract_types.py` — `contract_type: Submission` resolving to `TableSchema`, and the pre-instantiated-schema pass-through parametrized over `General` and `Submission`, which is the branch that breaks if the lookup ever regresses to comparing
+    `contract_type` against `table_type` directly.
+
+  ## Notes for reviewer
+
+  **`submission_contract.py` lands as a draft and is finished in WP3.** It composes `BaseContract, CrossMetaData` as a sibling and has `extraction` commented out behind a TODO. The design settled later on inheriting `CrossContract` — for `validate_references`'s `enforce_star_schema=True` default, which is correct here since the submission foreign keys all point at dimensions, and to stay usable wherever a `CrossContract` is accepted. PRD §5.3 and the WP3 task file record that shape.
+
+  Until then the class is deliberately inert: it is exported from nowhere, has no tests, and — because it is not a `CrossContract` — has no `to_server()`, so `ContractService.create()` cannot accept it. Nothing can reach it by accident. It carries drafted docstrings so the file reads as intended rather than as an orphan; the class docstring states the `Submission` → `General` mapping as a design fact rather than as something this class performs, since `_inject_table_type` only runs on `CrossContract`. That sentence can take its stronger form once WP3 changes the base.
+
+  **The `output_columns` hook was not implemented.** WP1's task file noted that adding it while the transformations were being written is cheap and retrofitting is not. It went in without. If WP3 adopts option (a) or (b) for column tracking, the cost is now retrofitting all six rather than writing three — recorded in the WP3 task file.
+
+  **Still open, tracked in the WP4 task file:** `MapColumnValues` has no `on_conflict` guard, so mapping a value onto one already present in the column merges the two silently. On a foreign-key column that produces duplicate primary keys downstream, breaking the sum invariant of ADR 0001.
+
+  **Worth extra scrutiny:** the `exclude=True` plus wrap-serializer pattern on `MapColumnValues.default_value` is the only place in the package where a field is hidden from the standard serializer and reinstated by hand. An earlier attempt using only a wrap serializer crashed inside `handler(self)`, because the handler serializes the sentinel before the callback can drop it; `exclude=True` is what keeps the handler away from it. `model_json_schema()` emits a `PydanticJsonSchemaWarning` about the non-serializable default and omits it — the resulting schema is correct, but the warning is visible.
+
+
+### Refactoring
+
+
+- **decouple `contract_type` from `table_type` via an explicit mapping** ([`abb7a91`](https://github.com/sweet-cross/crosscontract/commit/abb7a91961d91dc966874a51fc92fef77419ac34))
+
+  # refactor: decouple `contract_type` from `table_type` via an explicit mapping
+
+  ## Summary
+
+  `CrossContract._inject_table_type_to_schema` established the schema discriminator by copying the contract type straight into the tableschema (`schema_copy["table_type"] = contr_type`). That made the two vocabularies string-identical by construction: a contract type could never map onto an existing schema, and the identity was implicit in an assignment rather than stated anywhere. This branch replaces that assignment with an explicit `CONTRACT_TYPE_TO_TABLE_TYPE` table, so adding a contract type that reuses `DimensionSchema` (or any other) becomes a one-line dict entry.
+
+  The mapping is the identity today, so **behaviour is unchanged** apart from the wording of one error message (below). This is a refactor that opens a door, not a fix.
+
+  ## Changes
+
+  - Added a `TableType` literal alias alongside `ContractType`. The two carry identical members today; declaring them separately is the statement that they are different
+    vocabularies that happen to coincide.
+  - Added `CONTRACT_TYPE_TO_TABLE_TYPE: dict[ContractType, TableType]` as the single place relating the two. Both the discriminator injection and the mismatch check now
+    read from it.
+  - An unmapped `contract_type` is no longer rejected inside the before-validator. The helper returns the data untouched so the `Literal`-typed `contract_type` field raises pydantic's own `literal_error` at `loc=("contract_type",)`, preserving field
+    anchoring for callers that inspect `.errors()`.
+  - **Reworded the mismatch error** to name the expected table type. It previously read `Mismatch between contract_type 'X' and tableschema.table_type 'Y'`, which silently assumed the two vocabularies are equal; it now reads `... contract_type 'X', which maps to table_type 'Z', and the provided tableschema.table_type 'Y'`. This is the
+    only observable change on the branch.
+  - Documented the design in the helper docstring and added the missing `Raises:`
+    section.
+  - Recorded the branches that still key schema behaviour off a contract type in
+    `.ai-context/TODO.md` — `from_server` / `to_server`, plus
+    `CrossRegistry.add_variable`.
+  - Added a **Table type** term to `.ai-context/CONTEXT.md` and updated the **Contract type** entry, since this change splits one concept into two. `CLAUDE.md`'s
+    "maps 1:1" note was updated to point at the mapping table.
+
+  ## Testing
+
+  New tests, none run in this session (per the repo's no-automatic-validation rule):
+
+  - `TestContractTypeToTableTypeMapping` — three guards: every `ContractType` member has a mapping; every mapped value is a `table_type` some schema class actually declares; and the `TableType` alias itself still matches the schema union. The latter two read the tags off `AnyTableSchema`'s members rather than off `TableType`, so a mapping pointing at a table type no schema can resolve fails here instead of at runtime.
+  - `test_instantiated_subclass_schema_mismatch_raises_value_error` — covers the subclass direction of the mismatch check, which had no coverage. Note this passes on `dev`
+    too; it is a regression guard, not new behaviour.
+  - Updated the two mismatch-message assertions for the reworded error.
+
+  **Please run `uv run pytest` and `uv run mypy src/crosscontract/` before merging.**
+
+  ## Notes for reviewer
+
+  - **Two identical literal definitions.** `ContractType` and `TableType` list the same four members. That is deliberate, but it reads as duplication and invites someone to alias one to the other later, which would re-introduce the coupling. The mapping
+    tests are the guard against that.
+  - **The unknown-contract-type path produces two validation errors**, not one: the `literal_error` on `contract_type`, plus a discriminator error on `tableschema` because no `table_type` was injected. This is unchanged from `dev` (which produced a `union_tag_invalid` there instead), and is now stated in the helper docstring and in
+    the test docstring so nobody tightens the assertion to an error count.
+  - **`refactor:` rather than `fix:`.** The mapping is the identity, so no input changes its outcome; the only observable delta is the error-message wording. Under PSR a `refactor:` prefix does not bump the version, which is the right outcome for a change with no user-visible behaviour. The branch name still says `fix/` — harmless,
+    since the squash-commit message comes from this title.
+  - **`uv.lock` carries an incidental one-line change** syncing `crosscontract` to `0.13.1` to match `pyproject.toml`; it was picked up by a `uv run` during the
+    session and is unrelated to the logic here.
+
+
+
 ## v0.13.1 (2026-08-20)
 
 ### Bug fixes
