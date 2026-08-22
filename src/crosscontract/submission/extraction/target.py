@@ -15,6 +15,16 @@ class Target(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    name: str = Field(
+        ...,
+        description=(
+            "The name of the target. This is used to identify the target in the "
+            "extraction instructions. The name is unique in a submission contract. "
+            "If no filter is provided, the name will be used as filter on the "
+            "routing column."
+        ),
+        min_length=1,
+    )
     filters: dict[str, str] = Field(
         ...,
         description=(

@@ -15,12 +15,14 @@ class TestExtractionInstructions:
             },
             targets=[
                 Target(
+                    name="target1",
                     filters={"variable": "var1"},
                     contract="contract1",
                     transformation_profile="profile1",
                     transformations=[DropColumns(columns=["col3"])],
                 ),
                 Target(
+                    name="target2",
                     filters={"variable": "var2"},
                     contract="contract2",
                 ),
@@ -37,6 +39,7 @@ class TestExtractionInstructions:
             "targets": [
                 {
                     "filters": "var1",
+                    "name": "target1",
                     "contract": "contract1",
                 }
             ],
@@ -67,6 +70,7 @@ class TestExtractionInstructions:
             "targets": [
                 {
                     "filters": {"variable": "var1"},
+                    "name": "target1",
                     "contract": "Not A Valid Name",
                 }
             ],
@@ -92,10 +96,12 @@ class TestExtractionInstructions:
             "targets": [
                 {
                     "filters": {"variable": "var1"},
+                    "name": "target1",
                     "contract": "contract1",
                 },
                 {
                     "filters": {"variable": "var2"},
+                    "name": "target2",
                     "contract": "contract1",  # Duplicate contract
                 },
             ],
@@ -117,6 +123,7 @@ class TestExtractionInstructions:
             "targets": [
                 {
                     "filters": {"variable": "var1"},
+                    "name": "target1",
                     "contract": "contract1",
                     "transformation_profile": "undefined_profile",  # Undefined profile
                 }
@@ -126,5 +133,27 @@ class TestExtractionInstructions:
             ValueError,
             match="Undefined transformation profiles referenced in targets: "
             "undefined_profile",
+        ):
+            ExtractionInstructions.model_validate(data)
+
+    def test_duplicated_target_name_raises(self):
+        """Test that a ValueError is raised when duplicate target names are present."""
+        data = {
+            "routing_column": "variable",
+            "targets": [
+                {
+                    "filters": {"variable": "var1"},
+                    "name": "target1",
+                    "contract": "contract1",
+                },
+                {
+                    "filters": {"variable": "var2"},
+                    "name": "target1",  # Duplicate name
+                    "contract": "contract2",
+                },
+            ],
+        }
+        with pytest.raises(
+            ValueError, match="Duplicate target names found in targets: target1"
         ):
             ExtractionInstructions.model_validate(data)

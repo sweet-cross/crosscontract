@@ -103,6 +103,26 @@ class ExtractionInstructions(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def _check_name_unique(self) -> Self:
+        """Check that each target name is unique in the targets list.
+        Raise if a name is repeated.
+
+        Returns:
+            Self: The validated instance of ExtractionInstructions.
+
+        Raises:
+            ValueError: If a name is repeated in the targets list.
+        """
+        names = [target.name for target in self.targets]
+        duplicates = {name for name in names if names.count(name) > 1}
+        if duplicates:
+            raise ValueError(
+                "Duplicate target names found in targets: "
+                f"{', '.join(sorted(duplicates))}"
+            )
+        return self
+
+    @model_validator(mode="after")
     def _check_transformation_profiles(self) -> Self:
         """Check that transformation profiles are defined for all targets that
         specify them. Raise if a target specifies a transformation profile that is

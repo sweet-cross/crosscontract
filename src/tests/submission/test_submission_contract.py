@@ -24,7 +24,13 @@ valid_data = {
     },
     "extraction": {
         "routing_column": "variable",
-        "targets": [{"filters": {"variable": "var1"}, "contract": "contract1"}],
+        "targets": [
+            {
+                "name": "target1",
+                "filters": {"variable": "var1"},
+                "contract": "contract1",
+            }
+        ],
     },
 }
 

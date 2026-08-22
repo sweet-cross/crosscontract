@@ -17,10 +17,10 @@ motivation is a possible future step that combines several targets into one data
 that identity stops riding on `contract`.
 
 ## Acceptance Criteria
-- [ ] `Target` has `name: str`, required, `min_length=1`, **no pattern** and no maximum length.
-- [ ] Two targets sharing a `name` raise, with a message distinct from the duplicate-contract one.
-- [ ] Contract uniqueness is unchanged — same rule, same message, its own validator.
-- [ ] A name that is not a well-formed identifier (e.g. `"StUpid nAming 0f a V@riable"`) is accepted.
+- [x] `Target` has `name: str`, required, `min_length=1`, **no pattern** and no maximum length.
+- [x] Two targets sharing a `name` raise, with a message distinct from the duplicate-contract one.
+- [x] Contract uniqueness is unchanged — same rule, same message, its own validator.
+- [x] A name that is not a well-formed identifier (e.g. `"StUpid nAming 0f a V@riable"`) is accepted.
 
 ## Implementation Details
 
