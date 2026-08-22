@@ -263,10 +263,14 @@ profile's. Profiles do not compose and do not inherit from one another.
 _Avoid_: template, base, mixin (each implies composition, which is deliberately absent)
 
 **Target**:
-One entry in **Extraction instructions**: which rows to take from the bundle, the
-**Transformations** to apply to them, and the name of the **Contract** the result is
-validated against. Exactly one target per contract — a contract is never fed twice —
-though several targets may take the same rows and reshape them differently.
+One entry in **Extraction instructions**, identified by its **name**: which rows to take
+from the bundle, the **Transformations** to apply to them, and the name of the
+**Contract** the result is validated against. Where the rows to take are not stated
+explicitly, they default to those whose **Routing column** holds the target's name — the
+one place in this language where an identifier doubles as data. A target's name is
+otherwise unconstrained, unlike a **Contract**'s: it identifies the target inside its own
+spec and never leaves it. Exactly one target per contract — a contract is never fed twice
+— though several targets may take the same rows and reshape them differently.
 _Avoid_: output, destination, extractor
 
 **Routing column**:
