@@ -1,6 +1,6 @@
 [project]
 name = "crosscontract"
-version = "0.15.0"
+version = "0.16.0"
 description = "Provides data contracts with frictionless schemas and client to interact with CROSS data platform.   "
 readme = "README.md"
 requires-python = ">=3.11"
