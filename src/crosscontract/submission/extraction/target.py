@@ -38,6 +38,7 @@ class Target(BaseModel):
             "authored inside `ExtractionInstructions` and omitted entirely, it is "
             "derived as a single filter on the routing column using the target name."
         ),
+        min_length=1,
     )
     contract: str = Field(
         ...,

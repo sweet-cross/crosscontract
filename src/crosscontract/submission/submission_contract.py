@@ -102,7 +102,7 @@ class SubmissionContract(CrossContract):
             not_valid = used_filter_columns - field_set
             if not_valid:
                 raise ValueError(
-                    f"Target for contract: {target.contract}: Filter columns "
+                    f"Target: {target.name}: Filter columns "
                     f"{', '.join(sorted(not_valid))} do not exist in the tableschema."
                 )
         return self
