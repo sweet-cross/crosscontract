@@ -72,10 +72,11 @@ its usual meaning would be a silent correctness bug, not a feature.
   assembled — a property on the contract, a helper on the instructions, or the validator
   that checks data against the contract — is still open; see `TODO.md`.
 - **A target is identified by its `name`, not by its contract.** `name` is spec-local and
-  deliberately unconstrained — what an author calls their own target is their decision —
-  where `contract` carries `CONTRACT_NAME_PATTERN` because it names a platform resource
-  that ends up in a URL. Names are unique across targets; that rule is structural and
-  permanent, and it is what any later reference to a target would use.
+  deliberately carries no pattern and no maximum length — what an author calls their own
+  target is their decision — where `contract` carries `CONTRACT_NAME_PATTERN` because it
+  names a platform resource that ends up in a URL. Names are unique across targets; that
+  rule is structural and permanent, and it is what any later reference to a target would
+  use.
 - **Contract-uniqueness is a separate rule, and a relaxable one.** A contract may not be
   fed twice, because after the routing column is dropped the merged rows collide on that
   contract's primary key — a failure that would otherwise surface only at insertion time.

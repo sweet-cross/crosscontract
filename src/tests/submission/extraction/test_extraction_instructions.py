@@ -48,6 +48,27 @@ class TestExtractionInstructions:
         assert isinstance(my_target.filters, dict)
         assert my_target.filters == {"variable": "target1"}
 
+    def test_derived_filter_uses_the_stripped_name(self):
+        """Test that a padded name is stripped in the name and the derived filter.
+
+        `strip_whitespace` on `Target.name` runs after the derivation, so the
+        derivation strips as well: otherwise the stored name and the routing
+        value derived from it would differ.
+        """
+        data = {
+            "routing_column": "variable",
+            "targets": [
+                {
+                    "name": "  target1  ",
+                    "contract": "contract1",
+                }
+            ],
+        }
+        instructions = ExtractionInstructions.model_validate(data)
+        my_target = instructions.targets[0]
+        assert my_target.name == "target1"
+        assert my_target.filters == {"variable": "target1"}
+
     def test_filter_raises_validation_error_no_routing_column(self):
         """Test that a missing `routing_column` is reported rather than swallowed.
 

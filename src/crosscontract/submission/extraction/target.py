@@ -25,7 +25,8 @@ class Target(BaseModel):
             description=(
                 "The name of the target. This is used to identify the target in the "
                 "extraction instructions. The name is unique in a submission "
-                "contract. If no filter is provided, the name will be used as filter "
+                "contract. When authored inside `ExtractionInstructions` and the "
+                "`filters` key is omitted entirely, the name is used as the filter "
                 "on the routing column."
             ),
         )
