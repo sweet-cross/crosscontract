@@ -177,20 +177,20 @@ extraction:
   #                                TARGETS
   # --------------------------------------------------------------------------
   # `targets` are the different variables to extract from the submission file.
-  # Each target has a `filters` field that specifies how the data is filtered
-  # from the submission file
+  # Each target has a `name` that identifies it and, unless an explicit `filters`
+  # field is given, also selects the rows to extract from the submission file.
   targets:
-      # By default the "filters" field is applied to the `routing_column` defined
-      # above. I.e., here we extract the data by taking the input data and quering
-      # on the `variable` column for the value "carbon_emissions".
+      # With no `filters` given, the target `name` is applied to the `routing_column`
+      # defined above. I.e., here we extract the data by taking the input data and
+      # quering on the `variable` column for the value "carbon_emissions".
       #       df_extracted = df_input.query(f"variable == 'carbon_emissions'")
-    - filters: carbon_emissions
+    - name: carbon_emissions
       # Each submitted variable corresponds to one contract and the contract name
       # must be given in the `contract` field.
       contract: result_carbon_emissions
       transformation_profile: demand
 
-    - filters: carbon_price
+    - name: carbon_price
       contract: result_carbon_price
       transformations:
         - type: rename_columns
@@ -201,7 +201,7 @@ extraction:
           column_name: year
           to_type: integer
 
-    - filters: district_heat_useful_energy_production
+    - name: district_heat_useful_energy_production
       contract: result_district_heat_energy_production
       transformation_profile: supply
       transformations:
@@ -210,7 +210,7 @@ extraction:
           column_name: value
           values: [0.0]
 
-    - filters: electricity_consumption
+    - name: electricity_consumption
       contract: result_electricity_consumption
       transformation_profile: demand
       transformations:
@@ -218,7 +218,7 @@ extraction:
           column_name: end_use
           mapping: { other_elec: other }
 
-    - filters: electricity_consumption_monthly
+    - name: electricity_consumption_monthly
       contract: result_electricity_consumption_monthly
       transformations:
         - type: rename_columns
@@ -226,7 +226,7 @@ extraction:
         - type: drop_columns
           columns: [variable, time_resolution]
 
-    - filters: electricity_consumption_typical_day
+    - name: electricity_consumption_typical_day
       contract: result_elec_cons_typical_day
       transformations:
         - type: rename_columns
@@ -241,11 +241,11 @@ extraction:
           column_name: end_use
           mapping: { other_elec: other }
 
-    - filters: electricity_supply
+    - name: electricity_supply
       contract: result_electricity_supply
       transformation_profile: supply
 
-    - filters: electricity_supply_monthly
+    - name: electricity_supply_monthly
       contract: result_electricity_supply_monthly
       transformations:
         - type: rename_columns
@@ -253,7 +253,7 @@ extraction:
         - type: drop_columns
           columns: [variable, time_resolution]
 
-    - filters: electricity_supply_typical_day
+    - name: electricity_supply_typical_day
       contract: result_elec_supply_typical_day
       transformations:
         - type: rename_columns
@@ -265,7 +265,7 @@ extraction:
           format: mixed
           dayfirst: true
 
-    - filters: freight_road_fec
+    - name: freight_road_fec
       contract: result_freight_road_fec
       transformations:
         - type: rename_columns
@@ -276,7 +276,7 @@ extraction:
           column_name: year
           to_type: integer
 
-    - filters: h2_fec
+    - name: h2_fec
       contract: result_h2_fec
       transformation_profile: demand
       transformations:
@@ -284,15 +284,15 @@ extraction:
           column_name: end_use
           mapping: { other_h2: other }
 
-    - filters: h2_supply
+    - name: h2_supply
       contract: result_h2_supply
       transformation_profile: supply
 
-    - filters: installed_capacity
+    - name: installed_capacity
       contract: result_installed_capacity
       transformation_profile: supply
 
-    - filters: liquids_fec
+    - name: liquids_fec
       contract: result_liquids_consumption
       transformation_profile: demand
       transformations:
@@ -305,11 +305,11 @@ extraction:
           column_name: end_use
           mapping: { other_liquids: other }
 
-    - filters: liquids_supply
+    - name: liquids_supply
       contract: result_liquids_supply
       transformation_profile: supply
 
-    - filters: methane_fec
+    - name: methane_fec
       contract: result_methane_consumption
       transformation_profile: demand
       transformations:
@@ -317,11 +317,11 @@ extraction:
           column_name: end_use
           mapping: { other_methane: other }
 
-    - filters: methane_supply
+    - name: methane_supply
       contract: result_methane_supply
       transformation_profile: supply
 
-    - filters: passenger_road_private_fec
+    - name: passenger_road_private_fec
       contract: result_passenger_road_private_fec
       transformations:
         - type: rename_columns
@@ -332,7 +332,7 @@ extraction:
           column_name: year
           to_type: integer
 
-    - filters: passenger_road_public_fec
+    - name: passenger_road_public_fec
       contract: result_passenger_road_public_fec
       transformations:
         - type: rename_columns
@@ -343,7 +343,7 @@ extraction:
           column_name: year
           to_type: integer
 
-    - filters: process_heat_useful_energy_production
+    - name: process_heat_useful_energy_production
       contract: result_process_heat_energy_production
       transformation_profile: supply
       transformations:
@@ -351,7 +351,7 @@ extraction:
           column_name: value
           values: [0.0]
 
-    - filters: space_heat_useful_energy_supply
+    - name: space_heat_useful_energy_supply
       contract: result_space_heat_energy_supply
       transformation_profile: supply
       transformations:
@@ -359,15 +359,15 @@ extraction:
           column_name: value
           values: [0.0]
 
-    - filters: storage_installed_volume
+    - name: storage_installed_volume
       contract: result_storage_installed_volume
       transformation_profile: supply
 
-    - filters: storage_output
+    - name: storage_output
       contract: result_storage_output
       transformation_profile: supply
 
-    - filters: total_system_costs
+    - name: total_system_costs
       contract: result_total_system_costs
       transformations:
         - type: rename_columns

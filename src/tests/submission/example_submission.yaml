@@ -1,6 +1,6 @@
 # A deliberately small submission bundle, kept just complex enough to exercise the
 # parts of loading that can silently break:
-#   - a scalar `filters` shorthand, which is coerced to `{routing_column: value}`
+#   - an omitted `filters`, derived as `{routing_column: name}` from the target name
 #   - an explicit mapping `filters`, which passes through untouched
 #   - a transformation profile shared by two targets
 #   - a target appending its own transformations after a profile
@@ -73,8 +73,8 @@ extraction:
         to_type: integer
 
   targets:
-    # Scalar shorthand plus a profile plus its own appended step.
-    - filters: electricity_consumption
+    # Derived filter plus a profile plus its own appended step.
+    - name: electricity_consumption
       contract: result_electricity_consumption
       transformation_profile: annual
       transformations:
@@ -83,13 +83,14 @@ extraction:
           column_name: end_use
           mapping: { other_elec: other }
 
-    # Scalar shorthand, profile only, no appended steps.
-    - filters: electricity_supply
+    # Derived filter, profile only, no appended steps.
+    - name: electricity_supply
       contract: result_electricity_supply
       transformation_profile: annual
 
     # Explicit mapping form, own transformations only.
-    - filters:
+    - name: carbon_price
+      filters:
         variable: carbon_price
       contract: result_carbon_price
       transformations:

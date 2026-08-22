@@ -71,12 +71,20 @@ its usual meaning would be a silent correctness bug, not a feature.
   authored `enum` is rejected rather than silently overwritten. *Where* the derivation is
   assembled — a property on the contract, a helper on the instructions, or the validator
   that checks data against the contract — is still open; see `TODO.md`.
-- **One target per contract; repeated filters are fine.** Two targets may select the same
-  rows and reshape them differently for two different contracts. What is rejected is a
-  contract appearing twice, because after the routing column is dropped the merged rows
-  collide on that contract's primary key — a failure that would otherwise surface only at
-  insertion time. Contract-uniqueness alone catches every case that breaks, so it is the
-  only uniqueness check.
+- **A target is identified by its `name`, not by its contract.** `name` is spec-local and
+  deliberately carries no pattern and no maximum length — what an author calls their own
+  target is their decision — where `contract` carries `CONTRACT_NAME_PATTERN` because it
+  names a platform resource that ends up in a URL. Names are unique across targets; that
+  rule is structural and permanent, and it is what any later reference to a target would
+  use.
+- **Contract-uniqueness is a separate rule, and a relaxable one.** A contract may not be
+  fed twice, because after the routing column is dropped the merged rows collide on that
+  contract's primary key — a failure that would otherwise surface only at insertion time.
+  This is a guard against a concrete breakage, *not* an identity constraint, and keeping
+  it distinct from `name` is what leaves it relaxable: if combining several targets into
+  one contract ever becomes a deliberate feature, nothing that identifies a target has to
+  change. Repeated *filters* are already fine — two targets may select the same rows and
+  reshape them differently for two different contracts.
 - **`contract_type: Submission` maps to the `General` table type.** A submission bundle
   needs its own contract type but not its own schema; see the **Table type** entry in
   [CONTEXT.md](../CONTEXT.md) for why no empty schema class was minted.
@@ -91,7 +99,9 @@ its usual meaning would be a silent correctness bug, not a feature.
   `transformations` would have closed a cycle.
 - **Execution is not in this package yet.** Applying a submission contract to actual data
   is deferred; when it arrives it joins `submission/` alongside the spec models.
-- **Filters are mapping-only in the model.** A bare value is accepted as authoring
-  shorthand for `{routing_column: value}` and expanded on load, so the stored type
-  describes the value rather than the input that produced it, and no consumer narrows a
-  union whose other arm is unreachable.
+- **Filters are mapping-only in the model.** Two authoring forms reach it: an explicit
+  mapping, or an omitted `filters` derived on load as `{routing_column: name}`. Either
+  way the stored type describes the value rather than the input that produced it, so no
+  consumer narrows a union whose other arm is unreachable. A bare scalar `filters` was a
+  third form and was removed — it did the same job as the derivation by a second route,
+  which gave the routing values two paths to the same place.

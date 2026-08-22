@@ -59,8 +59,15 @@ class ExtractionInstructions(BaseModel):
 
     @field_validator("targets", mode="before")
     @classmethod
-    def _expand_scalar_filters(cls, targets: Any, info: ValidationInfo) -> Any:
-        """Expand a bare `filters` value into `{routing_column: value}`.
+    def _derive_filter_from_name(cls, targets: Any, info: ValidationInfo) -> Any:
+        """If `filters` is not provided, derive it from the target name as
+        `{routing_column: name}`.
+
+        Only an omitted `filters` key is derived; an explicitly null one is left
+        for pydantic to reject. The name is stripped here to match the
+        `strip_whitespace` constraint applied to `Target.name`, which runs after
+        this validator — otherwise the stored name and the derived routing value
+        could differ.
 
         Input that is not the expected shape is handed on untouched, so pydantic
         reports it rather than this validator failing on raw data.
@@ -70,7 +77,7 @@ class ExtractionInstructions(BaseModel):
             info (ValidationInfo): Carries the fields validated so far.
 
         Returns:
-            Any: The input with any scalar `filters` expanded to a mapping.
+            Any: The input with a derived `filters` wherever the key was omitted.
         """
         routing_column = info.data.get("routing_column")
         if routing_column is None or not isinstance(targets, list):
@@ -78,8 +85,12 @@ class ExtractionInstructions(BaseModel):
 
         expanded = []
         for target in targets:
-            if isinstance(target, dict) and isinstance(target.get("filters"), str):
-                target = {**target, "filters": {routing_column: target["filters"]}}
+            if (
+                isinstance(target, dict)
+                and "filters" not in target
+                and isinstance(target.get("name"), str)
+            ):
+                target = {**target, "filters": {routing_column: target["name"].strip()}}
             expanded.append(target)
         return expanded
 
@@ -99,6 +110,26 @@ class ExtractionInstructions(BaseModel):
         if duplicates:
             raise ValueError(
                 f"Duplicate contracts found in targets: {', '.join(sorted(duplicates))}"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _check_name_unique(self) -> Self:
+        """Check that each target name is unique in the targets list.
+        Raise if a name is repeated.
+
+        Returns:
+            Self: The validated instance of ExtractionInstructions.
+
+        Raises:
+            ValueError: If a name is repeated in the targets list.
+        """
+        names = [target.name for target in self.targets]
+        duplicates = {name for name in names if names.count(name) > 1}
+        if duplicates:
+            raise ValueError(
+                "Duplicate target names found in targets: "
+                f"{', '.join(sorted(duplicates))}"
             )
         return self
 

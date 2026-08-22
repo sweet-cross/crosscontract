@@ -15,12 +15,14 @@ class TestExtractionInstructions:
             },
             targets=[
                 Target(
+                    name="target1",
                     filters={"variable": "var1"},
                     contract="contract1",
                     transformation_profile="profile1",
                     transformations=[DropColumns(columns=["col3"])],
                 ),
                 Target(
+                    name="target2",
                     filters={"variable": "var2"},
                     contract="contract2",
                 ),
@@ -36,7 +38,7 @@ class TestExtractionInstructions:
             "routing_column": "variable",
             "targets": [
                 {
-                    "filters": "var1",
+                    "name": "target1",
                     "contract": "contract1",
                 }
             ],
@@ -44,15 +46,40 @@ class TestExtractionInstructions:
         instructions = ExtractionInstructions.model_validate(data)
         my_target = instructions.targets[0]
         assert isinstance(my_target.filters, dict)
-        assert my_target.filters == {"variable": "var1"}
+        assert my_target.filters == {"variable": "target1"}
+
+    def test_derived_filter_uses_the_stripped_name(self):
+        """Test that a padded name is stripped in the name and the derived filter.
+
+        `strip_whitespace` on `Target.name` runs after the derivation, so the
+        derivation strips as well: otherwise the stored name and the routing
+        value derived from it would differ.
+        """
+        data = {
+            "routing_column": "variable",
+            "targets": [
+                {
+                    "name": "  target1  ",
+                    "contract": "contract1",
+                }
+            ],
+        }
+        instructions = ExtractionInstructions.model_validate(data)
+        my_target = instructions.targets[0]
+        assert my_target.name == "target1"
+        assert my_target.filters == {"variable": "target1"}
 
     def test_filter_raises_validation_error_no_routing_column(self):
-        """Test that a ValidationError is raised when filters are provided but
-        routing_column is missing."""
+        """Test that a missing `routing_column` is reported rather than swallowed.
+
+        The target itself is well-formed and relies on the derivation, so the
+        missing `routing_column` is the only defect: the before-validator must
+        hand the input through instead of failing on it first.
+        """
         data = {
             "targets": [
                 {
-                    "filters": "Sas",  # shorthand form
+                    "name": "target1",
                     "contract": "contract1",
                 }
             ],
@@ -67,6 +94,7 @@ class TestExtractionInstructions:
             "targets": [
                 {
                     "filters": {"variable": "var1"},
+                    "name": "target1",
                     "contract": "Not A Valid Name",
                 }
             ],
@@ -92,10 +120,12 @@ class TestExtractionInstructions:
             "targets": [
                 {
                     "filters": {"variable": "var1"},
+                    "name": "target1",
                     "contract": "contract1",
                 },
                 {
                     "filters": {"variable": "var2"},
+                    "name": "target2",
                     "contract": "contract1",  # Duplicate contract
                 },
             ],
@@ -117,6 +147,7 @@ class TestExtractionInstructions:
             "targets": [
                 {
                     "filters": {"variable": "var1"},
+                    "name": "target1",
                     "contract": "contract1",
                     "transformation_profile": "undefined_profile",  # Undefined profile
                 }
@@ -126,5 +157,27 @@ class TestExtractionInstructions:
             ValueError,
             match="Undefined transformation profiles referenced in targets: "
             "undefined_profile",
+        ):
+            ExtractionInstructions.model_validate(data)
+
+    def test_duplicated_target_name_raises(self):
+        """Test that a ValueError is raised when duplicate target names are present."""
+        data = {
+            "routing_column": "variable",
+            "targets": [
+                {
+                    "filters": {"variable": "var1"},
+                    "name": "target1",
+                    "contract": "contract1",
+                },
+                {
+                    "filters": {"variable": "var2"},
+                    "name": "target1",  # Duplicate name
+                    "contract": "contract2",
+                },
+            ],
+        }
+        with pytest.raises(
+            ValueError, match="Duplicate target names found in targets: target1"
         ):
             ExtractionInstructions.model_validate(data)
