@@ -35,8 +35,8 @@ class Target(BaseModel):
         description=(
             "Filters to apply to the source data before applying transformations. "
             "A dictionary of key-value pairs to filter the source data. When "
-            "authored inside `ExtractionInstructions` and the filter is omitted, "
-            "a single filter is derived from the target name and the routing column. "
+            "authored inside `ExtractionInstructions` and omitted entirely, it is "
+            "derived as a single filter on the routing column using the target name."
         ),
     )
     contract: str = Field(

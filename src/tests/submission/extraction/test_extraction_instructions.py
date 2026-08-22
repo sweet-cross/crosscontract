@@ -49,12 +49,16 @@ class TestExtractionInstructions:
         assert my_target.filters == {"variable": "target1"}
 
     def test_filter_raises_validation_error_no_routing_column(self):
-        """Test that a ValidationError is raised when filters are provided but
-        routing_column is missing."""
+        """Test that a missing `routing_column` is reported rather than swallowed.
+
+        The target itself is well-formed and relies on the derivation, so the
+        missing `routing_column` is the only defect: the before-validator must
+        hand the input through instead of failing on it first.
+        """
         data = {
             "targets": [
                 {
-                    "filters": "Sas",  # shorthand form
+                    "name": "target1",
                     "contract": "contract1",
                 }
             ],

@@ -12,12 +12,12 @@ This work package settles on two forms — `name`-derived or explicit mapping �
 the scalar shorthand.
 
 ## Acceptance Criteria
-- [ ] `filters` omitted with `name` given yields `{routing_column: name}`.
-- [ ] `filters` given as a mapping is stored verbatim; `name` plays no part in routing.
-- [ ] A scalar `filters` is rejected.
-- [ ] `filters` remains `dict[str, str]` and required on `Target` — the validator populates it, so the annotation never describes a shape the stored value cannot hold.
-- [ ] `example_submission.yaml` loads and both round-trip tests pass; the fixture keeps one `name`-derived target and one explicit-mapping target.
-- [ ] A missing or invalid `routing_column` still hands the input through untouched, so pydantic reports it rather than this validator failing first.
+- [x] `filters` omitted with `name` given yields `{routing_column: name}`.
+- [x] `filters` given as a mapping is stored verbatim; `name` plays no part in routing.
+- [x] A scalar `filters` is rejected.
+- [x] `filters` remains `dict[str, str]` and required on `Target` — the validator populates it, so the annotation never describes a shape the stored value cannot hold.
+- [x] `example_submission.yaml` loads and both round-trip tests pass; the fixture keeps one `name`-derived target and one explicit-mapping target.
+- [x] A missing or invalid `routing_column` still hands the input through untouched, so pydantic reports it rather than this validator failing first.
 
 ## Implementation Details
 

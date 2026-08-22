@@ -60,8 +60,14 @@ class ExtractionInstructions(BaseModel):
     @field_validator("targets", mode="before")
     @classmethod
     def _derive_filter_from_name(cls, targets: Any, info: ValidationInfo) -> Any:
-        """If not `filters` is provided, derive it from the target name into
-        `{routing_column: value}`.
+        """If `filters` is not provided, derive it from the target name as
+        `{routing_column: name}`.
+
+        Only an omitted `filters` key is derived; an explicitly null one is left
+        for pydantic to reject. The name is stripped here to match the
+        `strip_whitespace` constraint applied to `Target.name`, which runs after
+        this validator — otherwise the stored name and the derived routing value
+        could differ.
 
         Input that is not the expected shape is handed on untouched, so pydantic
         reports it rather than this validator failing on raw data.
@@ -71,7 +77,7 @@ class ExtractionInstructions(BaseModel):
             info (ValidationInfo): Carries the fields validated so far.
 
         Returns:
-            Any: The input with any scalar `filters` expanded to a mapping.
+            Any: The input with a derived `filters` wherever the key was omitted.
         """
         routing_column = info.data.get("routing_column")
         if routing_column is None or not isinstance(targets, list):
@@ -81,10 +87,10 @@ class ExtractionInstructions(BaseModel):
         for target in targets:
             if (
                 isinstance(target, dict)
-                and target.get("filters") is None
+                and "filters" not in target
                 and isinstance(target.get("name"), str)
             ):
-                target = {**target, "filters": {routing_column: target["name"]}}
+                target = {**target, "filters": {routing_column: target["name"].strip()}}
             expanded.append(target)
         return expanded
 
