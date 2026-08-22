@@ -59,8 +59,9 @@ class ExtractionInstructions(BaseModel):
 
     @field_validator("targets", mode="before")
     @classmethod
-    def _expand_scalar_filters(cls, targets: Any, info: ValidationInfo) -> Any:
-        """Expand a bare `filters` value into `{routing_column: value}`.
+    def _derive_filter_from_name(cls, targets: Any, info: ValidationInfo) -> Any:
+        """If not `filters` is provided, derive it from the target name into
+        `{routing_column: value}`.
 
         Input that is not the expected shape is handed on untouched, so pydantic
         reports it rather than this validator failing on raw data.
@@ -78,8 +79,12 @@ class ExtractionInstructions(BaseModel):
 
         expanded = []
         for target in targets:
-            if isinstance(target, dict) and isinstance(target.get("filters"), str):
-                target = {**target, "filters": {routing_column: target["filters"]}}
+            if (
+                isinstance(target, dict)
+                and target.get("filters") is None
+                and isinstance(target.get("name"), str)
+            ):
+                target = {**target, "filters": {routing_column: target["name"]}}
             expanded.append(target)
         return expanded
 

@@ -38,7 +38,6 @@ class TestExtractionInstructions:
             "routing_column": "variable",
             "targets": [
                 {
-                    "filters": "var1",
                     "name": "target1",
                     "contract": "contract1",
                 }
@@ -47,7 +46,7 @@ class TestExtractionInstructions:
         instructions = ExtractionInstructions.model_validate(data)
         my_target = instructions.targets[0]
         assert isinstance(my_target.filters, dict)
-        assert my_target.filters == {"variable": "var1"}
+        assert my_target.filters == {"variable": "target1"}
 
     def test_filter_raises_validation_error_no_routing_column(self):
         """Test that a ValidationError is raised when filters are provided but

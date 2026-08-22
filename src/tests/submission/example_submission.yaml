@@ -75,7 +75,6 @@ extraction:
   targets:
     # Scalar shorthand plus a profile plus its own appended step.
     - name: electricity_consumption
-      filters: electricity_consumption
       contract: result_electricity_consumption
       transformation_profile: annual
       transformations:
@@ -86,7 +85,6 @@ extraction:
 
     # Scalar shorthand, profile only, no appended steps.
     - name: electricity_supply
-      filters: electricity_supply
       contract: result_electricity_supply
       transformation_profile: annual
 
