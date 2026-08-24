@@ -275,11 +275,24 @@ differently.
 _Avoid_: output, destination, extractor
 
 **Routing column**:
-The bundle column whose value selects a **Target**, conventionally `variable`. Its
-permitted values are *derived* from the targets, never authored, so the **Extraction
-instructions** stay the single source of truth and cannot drift from the **Schema**.
+The bundle column whose value selects a **Target**, conventionally `variable`, required
+and string-typed. When a **Target** omits its `filters`, they default to a single filter
+on this column. Its permitted values are *not* derivable from the targets — a target may
+constrain other columns entirely and never mention this one — so no `enum` is derived and
+an authored one is an ordinary field constraint. Whether every row actually reaches a
+target is answered against data instead; see **Unclaimed rows**.
 _Avoid_: discriminator (reserved for the `type` / `table_type` tags of the pydantic
 unions), variable column
+
+**Unclaimed rows**:
+The rows of a submitted bundle that no **Target**'s filters match, and which extraction
+would therefore silently drop. Reported by the **Submission contract** against a given
+bundle and never acted on by it — whether an unclaimed row is an error or a warning is
+the caller's policy. Filters are matched against the column's string form, which can only
+under-match, so a filter that fails to match surfaces here rather than passing unnoticed.
+Rows claimed by *more* than one target are legal and a separate question; they have no
+term yet.
+_Avoid_: leftover, unpacked, orphan rows, unrouted, uncovered
 
 ## Relationships
 

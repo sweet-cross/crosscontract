@@ -7,6 +7,7 @@ and states how the extracted variables are validated.
 
 from typing import Literal, Self
 
+import pandas as pd
 from pydantic import Field, model_validator
 
 from crosscontract.contracts import CrossContract
@@ -57,15 +58,14 @@ class SubmissionContract(CrossContract):
     @model_validator(mode="after")
     def _check_routing_column(self) -> Self:
         """Check that the routing column exists in the tableschema, that it is
-        required and that it is a string column. Also the routing column cannot
-        have an enum constraint as this is derived from the ExtractionInstructions.
+        required and that it is a string column.
 
         Returns:
             Self: The validated SubmissionContract instance.
 
         Raises:
             ValueError: If the routing column does not exist in the tableschema,
-                is not required, is not a string column, or has an enum constraint.
+                is not required, or is not a string column.
         """
         routing_column = self.extraction.routing_column
         routing_field = self.tableschema.get(routing_column)
@@ -78,10 +78,6 @@ class SubmissionContract(CrossContract):
         if routing_field.type != "string":
             raise ValueError(
                 f"Routing column '{routing_column}' must be a string column"
-            )
-        if routing_field.constraints.enum is not None:
-            raise ValueError(
-                f"Routing column '{routing_column}' cannot have an enum constraint"
             )
         return self
 
@@ -106,3 +102,36 @@ class SubmissionContract(CrossContract):
                     f"{', '.join(sorted(not_valid))} do not exist in the tableschema."
                 )
         return self
+
+    def unclaimed_rows(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Return the rows of a submission bundle that no target claims.
+
+        A row is claimed by a target when it satisfies every entry of that
+        target's `filters`. Filter values are matched against the string form
+        of the column, so a filter on a typed column compares against
+        `str(value)` rather than against the typed value.
+
+        Rows that no target claims are the rows extraction would silently drop.
+        This method reports them and nothing more — whether an unclaimed row is
+        an error or a warning is the caller's decision.
+
+        Args:
+            df (pd.DataFrame): The submission bundle, conforming to
+                `tableschema`. Every column named by a target's `filters` must
+                be present.
+
+        Returns:
+            pd.DataFrame: The unclaimed rows, keeping their index labels. Empty
+                when every row is claimed.
+        """
+        # filters use string comparison
+        filter_columns = {c for t in self.extraction.targets for c in t.filters}
+        as_str = df[list(filter_columns)].astype(str)
+
+        claimed = pd.Series(False, index=df.index)
+        for target in self.extraction.targets:
+            matches = pd.Series(True, index=df.index)
+            for column, value in target.filters.items():
+                matches &= as_str[column] == value
+            claimed |= matches
+        return df[~claimed]

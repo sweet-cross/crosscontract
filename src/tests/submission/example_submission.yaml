@@ -37,8 +37,8 @@ tableschema:
         required: true
         maxLength: 8
 
-    # The routing column: required, string, and deliberately without an `enum`,
-    # which is derived from the targets below.
+    # The routing column: required and string. An `enum` is permitted here but
+    # omitted, which is the ordinary case.
     - name: variable
       type: string
       title: Variable

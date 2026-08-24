@@ -25,8 +25,9 @@ composite primary key, foreign keys into dimensions — and that schema and the
 instructions for splitting it are two halves of one authored thing. Separating them
 would mean two files that must agree about the bundle's shape, with nothing enforcing
 the agreement. Keeping them together is what lets the routing column be checked against
-real fields at load time, and what lets the routing field's permitted values be derived
-from the targets instead of authored twice.
+real fields at load time, and what lets a delivered bundle be checked against the targets
+that claim its rows — only an artifact holding both halves can tell whether extraction
+would silently drop a row.
 
 The cost is that a submission contract is not interchangeable with a plain contract on
 the wire: it carries two keys — `project_name` and `extraction` — that `CrossContract`'s
@@ -66,11 +67,19 @@ its usual meaning would be a silent correctness bug, not a feature.
 
 ## Consequences
 
-- **The routing field's `enum` is derived, never authored.** It comes from the targets'
-  filters, so there is one copy and no drift, and a spec whose routing field carries an
-  authored `enum` is rejected rather than silently overwritten. *Where* the derivation is
-  assembled — a property on the contract, a helper on the instructions, or the validator
-  that checks data against the contract — is still open; see `TODO.md`.
+- **The routing field's `enum` is neither derived nor banned.** An earlier revision of
+  this ADR had it derived from the targets and rejected an authored one. That is
+  withdrawn: `filters` is an arbitrary column → value conjunction, so a target need not
+  constrain the routing column at all and the permitted set is underivable — and deriving
+  it from only the targets that *do* mention it would wrongly reject rows destined for the
+  rest. The `enum` also never expressed the property it appeared to. It asserts that a
+  routing vocabulary is *known*, not that a row is *consumed*: a row carrying a valid
+  routing value still vanishes when a second filter over another column fails. That
+  property is row coverage, it is decidable only against data, and it lives in
+  `SubmissionContract.unclaimed_rows`, which reports the rows no target claims and does
+  nothing with them — whether an unclaimed row is an error or a warning is the caller's
+  decision, deliberately still open. An authored `enum` is now an ordinary field
+  constraint, useful to an author who does know the closed set.
 - **A target is identified by its `name`, not by its contract.** `name` is spec-local and
   deliberately carries no pattern and no maximum length — what an author calls their own
   target is their decision — where `contract` carries `CONTRACT_NAME_PATTERN` because it
