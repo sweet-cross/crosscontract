@@ -181,3 +181,34 @@ class TestExtractionInstructions:
             ValueError, match="Duplicate target names found in targets: target1"
         ):
             ExtractionInstructions.model_validate(data)
+
+    def test_get_target_success(self):
+        """Get a target by its name."""
+        target_data = {
+            "filters": {"variable": "var1"},
+            "name": "target1",
+            "contract": "contract1",
+        }
+        expected = Target.model_validate(target_data)
+        data = {
+            "routing_column": "variable",
+            "targets": [target_data],
+        }
+        instructions = ExtractionInstructions.model_validate(data)
+        given = instructions.get_target("target1")
+        assert given == expected
+
+    def test_get_target_key_error(self):
+        """Test that getting a non-existent target raises a KeyError."""
+        target_data = {
+            "filters": {"variable": "var1"},
+            "name": "target1",
+            "contract": "contract1",
+        }
+        data = {
+            "routing_column": "variable",
+            "targets": [target_data],
+        }
+        instructions = ExtractionInstructions.model_validate(data)
+        with pytest.raises(KeyError, match="No target with name 'target2' found."):
+            instructions.get_target("target2")

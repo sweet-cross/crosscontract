@@ -247,14 +247,15 @@ A **Contract** describing a delivered *bundle* — one file carrying rows for ma
 datasets at once — together with the **Extraction instructions** for splitting it. Its
 **Schema** describes the bundle itself, not any dataset extracted from it. Contract type
 **Submission**.
-_Avoid_: extractor (the legacy hand-written Python form), submission spec
+_Avoid_: extractor (the legacy hand-written Python form; the thing that *executes* a
+submission contract is the **Submission handler**), submission spec
 
 **Extraction instructions**:
 The declarative half of a **Submission contract**: a **Routing column**, reusable
 **Transformation profiles**, and one **Target** per dataset to extract. They *name* their
 target **Contracts** and never resolve them — extraction is a pure bundle → tabular data
 function, and validating each result against its target contract happens downstream.
-_Avoid_: extractor, mapping, rules
+_Avoid_: extractor (say **Submission handler** for the executor), mapping, rules
 
 **Transformation profile**:
 A named, ordered list of **Transformations** defined once in **Extraction instructions**
@@ -272,7 +273,7 @@ no pattern and no maximum length, unlike a **Contract**'s: it identifies the tar
 inside its own spec and never leaves it. Exactly one target per contract — a contract is
 never fed twice — though several targets may take the same rows and reshape them
 differently.
-_Avoid_: output, destination, extractor
+_Avoid_: output, destination, extractor (say **Submission handler** for the executor)
 
 **Routing column**:
 The bundle column whose value selects a **Target**, conventionally `variable`, required
@@ -286,13 +287,23 @@ unions), variable column
 
 **Unclaimed rows**:
 The rows of a submitted bundle that no **Target**'s filters match, and which extraction
-would therefore silently drop. Reported by the **Submission contract** against a given
-bundle and never acted on by it — whether an unclaimed row is an error or a warning is
-the caller's policy. Filters are matched against the column's string form, which can only
-under-match, so a filter that fails to match surfaces here rather than passing unnoticed.
-Rows claimed by *more* than one target are legal and a separate question; they have no
-term yet.
+would therefore silently drop. Reported by the **Submission handler** and never acted on
+by it — whether an unclaimed row is an error or a warning is the caller's policy. Filters
+are matched against the column's string form, which can only under-match, so a filter
+that fails to match surfaces here rather than passing unnoticed. Rows claimed by *more*
+than one target are legal and a separate question; they have no term yet.
 _Avoid_: leftover, unpacked, orphan rows, unrouted, uncovered
+
+**Submission handler**:
+The executor that applies a **Submission contract**'s **Extraction instructions** to a
+delivered bundle: select the rows a **Target** claims, apply its **Transformation
+profile** and then the target's own **Transformations**. It works **one target at a
+time** and never loops over all of them — so whether a run aborts on the first failing
+target or collects every failure is the caller's decision, not the library's. Like the
+**Extraction instructions** it reads, it *names* target **Contracts** and never resolves
+them: a validation step, should one arrive, takes its contract from the caller rather
+than looking it up.
+_Avoid_: extractor, processor, pipeline
 
 ## Relationships
 
@@ -334,6 +345,10 @@ _Avoid_: leftover, unpacked, orphan rows, unrouted, uncovered
   delivered bundle and how it splits back into per-contract datasets. Both name
   **Contracts** without resolving them. Executing the instructions against actual data is
   a separate concern from the spec that describes them.
+- The **Submission handler** is that execution: it holds a **Submission contract** and a
+  bundle, and answers per **Target**. **Unclaimed rows** are a property of the pairing —
+  the bundle against the instructions — not of either alone, which is why the handler
+  rather than the contract reports them.
 
 ## Example dialogue
 

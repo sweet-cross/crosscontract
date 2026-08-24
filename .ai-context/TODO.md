@@ -121,22 +121,18 @@ Deferred while landing the extraction spec models
 ([ADR 0004](./adrs/0004-submission-contracts-carry-extraction-instructions.md)). The PRD
 and task files that carried the analysis are deleted, so the detail is reproduced here.
 
-- **Decide whether unclaimed rows raise or warn.**
-  `SubmissionContract.unclaimed_rows` in
-  [submission_contract.py](../src/crosscontract/submission/submission_contract.py)
-  returns the rows no target claims and deliberately does nothing with them, so the
-  policy is still unmade. It belongs wherever extraction is executed (below), not on the
-  method — keeping the computation a pure query is what leaves the choice reversible.
-
 - **Decide whether contested rows are worth detecting.** A row claimed by *more* than one
   target. [ADR 0004](./adrs/0004-submission-contracts-carry-extraction-instructions.md)
   makes overlap deliberately legal — two targets may take the same rows and reshape them
   for two different contracts — so this is not a bug to fix but a question to answer:
   *unintentional* overlap is as damaging as an unclaimed row, since the same rows land in
-  two contracts, and nothing surfaces it. It falls out of the same per-target matching as
-  unclaimed rows — a sum over the masks instead of an OR — but `unclaimed_rows` folds each
-  target's mask into a single accumulator and keeps no intermediates, so adding it means
-  reshaping that loop. It needs its own raise-or-warn call, independent of the one above.
+  two contracts, and nothing surfaces it. `SubmissionHandler._mask_target` in
+  [submission_handler.py](../src/crosscontract/submission/submission_handler.py) makes
+  this cheap — the per-target mask is already the primitive both public methods stand on,
+  so contested rows are a sum over the masks where unclaimed rows are an OR. What is left
+  is the decision, not the plumbing. Note it needs its own raise-or-warn call: the handler
+  answers one target at a time and reports rather than acts, so any such policy belongs
+  in the caller's loop.
 
 - **Consider checking filter values against their field type at load time.** `filters`
   values are matched against the column's *string* form, so `{year: "abc"}` on an integer

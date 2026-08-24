@@ -57,6 +57,23 @@ class ExtractionInstructions(BaseModel):
         min_length=1,
     )
 
+    def get_target(self, name: str) -> Target:
+        """Return the target with the given name.
+
+        Args:
+            name (str): The name of the target to retrieve.
+
+        Returns:
+            Target: The target with the specified name.
+
+        Raises:
+            KeyError: If no target with the given name exists.
+        """
+        for target in self.targets:
+            if target.name == name:
+                return target
+        raise KeyError(f"No target with name '{name}' found.")
+
     @field_validator("targets", mode="before")
     @classmethod
     def _derive_filter_from_name(cls, targets: Any, info: ValidationInfo) -> Any:
