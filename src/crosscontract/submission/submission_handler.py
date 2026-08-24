@@ -1,3 +1,10 @@
+"""Execution of a submission contract against a delivered bundle.
+
+The counterpart to the spec models in this package: a `SubmissionContract`
+describes how a bundle splits into per-variable datasets, and a
+`SubmissionHandler` carries that description out against actual data.
+"""
+
 import pandas as pd
 
 from crosscontract.submission.extraction import Target
@@ -7,7 +14,36 @@ from .submission_contract import SubmissionContract
 
 
 class SubmissionHandler:
+    """Apply a submission contract's extraction instructions to a bundle.
+
+    The handler answers one target at a time: `extract_target_data` selects the
+    rows a target claims, `transform_target_data` applies that target's
+    transformation profile and then its own transformations, and
+    `get_target_data` composes the two. There is deliberately no method that runs
+    every target, so whether a run aborts on the first failing target or collects
+    every failure is the caller's decision rather than this class's.
+
+    Like the extraction instructions it reads, the handler *names* target
+    contracts and never resolves them, so it loads and runs with no platform
+    connection.
+
+    Attributes:
+        specs (SubmissionContract): The contract describing the bundle and how it
+            is split into targets.
+        bundle (pd.DataFrame): The submitted data the instructions are applied
+            to.
+    """
+
     def __init__(self, specs: SubmissionContract, df: pd.DataFrame):
+        """Bind a submission contract to the bundle it describes.
+
+        Args:
+            specs (SubmissionContract): The contract describing the bundle and
+                how it is split into targets.
+            df (pd.DataFrame): The submitted data, conforming to the contract's
+                `tableschema`. Every column named by a target's `filters` must be
+                present.
+        """
         self.specs = specs
         self.bundle = df
 
