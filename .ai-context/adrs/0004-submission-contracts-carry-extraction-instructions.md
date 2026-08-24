@@ -76,7 +76,7 @@ its usual meaning would be a silent correctness bug, not a feature.
   routing vocabulary is *known*, not that a row is *consumed*: a row carrying a valid
   routing value still vanishes when a second filter over another column fails. That
   property is row coverage, it is decidable only against data, and it lives in
-  `SubmissionContract.unclaimed_rows`, which reports the rows no target claims and does
+  `SubmissionHandler.unclaimed_rows`, which reports the rows no target claims and does
   nothing with them — whether an unclaimed row is an error or a warning is the caller's
   decision, deliberately still open. An authored `enum` is now an ordinary field
   constraint, useful to an author who does know the closed set.
@@ -106,8 +106,28 @@ its usual meaning would be a silent correctness bug, not a feature.
   keeps the import graph one-way: `transformations` already imports `CONTRACT_NAME_PATTERN`
   out of `contracts`, so extraction living under `contracts/` and importing
   `transformations` would have closed a cycle.
-- **Execution is not in this package yet.** Applying a submission contract to actual data
-  is deferred; when it arrives it joins `submission/` alongside the spec models.
+- **Execution lives in `submission/` as `SubmissionHandler`.** It holds a submission
+  contract and a bundle, and answers **one target at a time**: select the rows a target
+  claims, apply its transformation profile and then the target's own transformations.
+  There is deliberately no method that runs every target, so whether a run aborts on the
+  first failure or collects them all stays the caller's decision — with no aggregate
+  return type, that choice can change without anything to retrofit. `unclaimed_rows`
+  lives here too rather than on the contract: the spec models' contact with pandas is
+  otherwise adapter-mediated and backend-parameterized, and unclaimed rows are a property
+  of a bundle *paired with* instructions, not of either alone.
+- **The handler is pandas, and that is settled rather than provisional.** Not because
+  bundles are small — they are, around 15 MB — but because `BaseTransformation.apply` is
+  typed `pd.DataFrame -> pd.DataFrame`, every transformation is a pandas function, and
+  `ContractService._add_data` serializes a `pd.DataFrame` on the way out. Another engine
+  would mean reimplementing all six transformations in SQL, forking the layer this format
+  is built to keep extensible, or round-tripping back to pandas per target for nothing.
+- **The handler resolves nothing either.** It holds to the second decision above: target
+  contracts are named, never looked up, so a handler loads and runs with no platform
+  connection. Should a validation step join it, the contract must arrive from the
+  caller — passed in directly, or through the `ContractResolver` protocol `BaseContract`
+  already defines for `validate_references` — rather than being resolved inside
+  `submission/`. Adding a lookup here would quietly undo the property that the whole
+  format is built around.
 - **Filters are mapping-only in the model.** Two authoring forms reach it: an explicit
   mapping, or an omitted `filters` derived on load as `{routing_column: name}`. Either
   way the stored type describes the value rather than the input that produced it, so no
