@@ -68,8 +68,8 @@ class TestSubmissionContract:
         with pytest.raises(ValueError, match="must be a string column"):
             SubmissionContract.model_validate(invalid_data)
 
-    def test_routing_column_has_enum_constraint(self):
-        """Test enum is allowed for the submission contract"""
+    def test_routing_column_may_have_enum_constraint(self):
+        """Test enum is allowed for the submission contract."""
         data = deepcopy(valid_data)
         data["tableschema"]["fields"][0]["constraints"]["enum"] = [
             "var1",

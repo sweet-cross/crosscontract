@@ -64,7 +64,7 @@ class SubmissionContract(CrossContract):
 
         Raises:
             ValueError: If the routing column does not exist in the tableschema,
-                is not required, is not a string column, or has an enum constraint.
+                is not required, or is not a string column.
         """
         routing_column = self.extraction.routing_column
         routing_field = self.tableschema.get(routing_column)
