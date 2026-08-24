@@ -2,7 +2,7 @@ import pandas as pd
 
 from crosscontract.submission.extraction import Target
 
-from .. import SubmissionContract
+from . import SubmissionContract
 
 
 class SubmissionHandler:

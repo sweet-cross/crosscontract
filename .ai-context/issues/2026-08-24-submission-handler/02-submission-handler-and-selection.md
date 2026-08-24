@@ -30,9 +30,9 @@ target, which buys nothing. This stays true well beyond the current data size, s
 
 - [x] `SubmissionHandler(specs: SubmissionContract, df: pd.DataFrame)` stores
       `self.specs` and `self.bundle`.
-- [ ] A private per-target **boolean mask** is the single implementation of the filter
+- [x] A private per-target **boolean mask** is the single implementation of the filter
       semantics.
-- [ ] `extract_target_data(target_name)` returns the rows the target claims, before any
+- [x] `extract_target_data(target_name)` returns the rows the target claims, before any
       transformation.
 - [x] `unclaimed_rows` moves here from `SubmissionContract` and is re-expressed on the
       mask.
