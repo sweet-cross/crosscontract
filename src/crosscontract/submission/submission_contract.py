@@ -57,8 +57,7 @@ class SubmissionContract(CrossContract):
     @model_validator(mode="after")
     def _check_routing_column(self) -> Self:
         """Check that the routing column exists in the tableschema, that it is
-        required and that it is a string column. Also the routing column cannot
-        have an enum constraint as this is derived from the ExtractionInstructions.
+        required and that it is a string column.
 
         Returns:
             Self: The validated SubmissionContract instance.
