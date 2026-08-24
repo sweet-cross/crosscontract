@@ -140,9 +140,7 @@ class TestTransformTargetData:
         """Test that a target carrying only a transformation profile gets the
         profile's steps."""
         handler = SubmissionHandler(contract=contract, bundle=claimed_bundle())
-        data = handler.transform_target_data(
-            handler.extract_target_data("t_a"), "t_a"
-        )
+        data = handler.transform_target_data(handler.extract_target_data("t_a"), "t_a")
         assert list(data.columns) == ["region", "year", "value"]
 
     def test_applies_own_steps_when_the_target_has_no_profile(
@@ -173,9 +171,7 @@ class TestTransformTargetData:
         assert data["period"].dtype == "string"
         assert list(data["period"]) == ["2030"]
 
-    def test_is_a_no_op_when_the_target_has_neither(
-        self, contract: SubmissionContract
-    ):
+    def test_is_a_no_op_when_the_target_has_neither(self, contract: SubmissionContract):
         """Test that a target with no profile and no transformations returns the
         claimed rows unchanged, as a new frame rather than the one handed in."""
         handler = SubmissionHandler(contract=contract, bundle=claimed_bundle())
@@ -201,9 +197,7 @@ class TestTransformTargetData:
 
 
 class TestGetTargetData:
-    def test_composes_extraction_and_transformation(
-        self, contract: SubmissionContract
-    ):
+    def test_composes_extraction_and_transformation(self, contract: SubmissionContract):
         """Test that the composition equals transforming the extracted rows."""
         handler = SubmissionHandler(contract=contract, bundle=claimed_bundle())
         expected = handler.transform_target_data(
