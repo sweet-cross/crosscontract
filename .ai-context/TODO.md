@@ -147,10 +147,12 @@ and task files that carried the analysis are deleted, so the detail is reproduce
   the existing filter-key check in
   [submission_contract.py](../src/crosscontract/submission/submission_contract.py).
   Deferred because the unclaimed-row report already surfaces the failure; this only
-  sharpens *where* it is reported. Note it would **not** catch the datetime case: against
-  a datetime column the string form is `2030-01-01 00:00:00`, so `{date: "2030-01-01"}`
-  parses fine and still claims nothing. That trap is documented on `Target.filters`
-  instead.
+  sharpens *where* it is reported. Note it would **not** catch the cases where the value
+  parses but the string form differs: against a datetime column the string form is
+  `2030-01-01 00:00:00`, so `{date: "2030-01-01"}` parses fine and still claims nothing,
+  and against a column that lands as `float64` — which any numeric bundle column carrying
+  a missing value does — the string form is `2030.0`, so `{year: "2030"}` parses fine and
+  still claims nothing. Those traps are documented on `Target.filters` instead.
 
 - **Decide how far column tracking goes.** Column references are order-dependent: after
   `rename_columns {timestamp: year}` a later `cast_column year` is correct and

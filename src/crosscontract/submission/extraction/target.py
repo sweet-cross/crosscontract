@@ -39,7 +39,8 @@ class Target(BaseModel):
             "entries must match for a row to be taken. Values are matched against "
             "the column's string form, so a filter on a typed column is compared "
             "against `str(value)` — a datetime column matches "
-            "`2030-01-01 00:00:00` rather than `2030-01-01`. When "
+            "`2030-01-01 00:00:00` rather than `2030-01-01`, and a float column "
+            "matches `2030.0` rather than `2030`. When "
             "authored inside `ExtractionInstructions` and omitted entirely, it is "
             "derived as a single filter on the routing column using the target name."
         ),

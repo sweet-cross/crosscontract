@@ -199,6 +199,12 @@ class TestUnclaimedRows:
         df = bundle(("b", "DE", 2020, 3.0))
         assert list(self.contract.unclaimed_rows(df).index) == [0]
 
+    def test_row_claimed_by_two_targets_is_claimed(self):
+        """Test that a row matched by more than one target is claimed, since
+        overlapping targets are legal."""
+        df = bundle(("b", "CH", 2030, 6.0))  # claimed by both t_b_ch and t_year
+        assert self.contract.unclaimed_rows(df).empty
+
     def test_input_frame_is_not_mutated(self):
         """Test that the submitted frame is left untouched."""
         df = bundle(("a", "CH", 2020, 1.0), ("c", "DE", 2020, 5.0))
