@@ -75,6 +75,39 @@ class TestExtractTargetData:
         assert list(t_a_data.index) == [0]
         assert list(t_a_data["value"]) == [1.0]
 
+    def test_returns_an_empty_frame_when_no_row_matches(
+        self, contract: SubmissionContract
+    ):
+        """Test that a target claiming no rows yields an empty frame, not an
+        error."""
+        df = bundle(("c", "DE", 2020, 5.0))
+        handler = SubmissionHandler(specs=contract, df=df)
+        claimed = handler.extract_target_data("t_a")
+        assert claimed.empty
+        assert list(claimed.columns) == list(df.columns)
+
+    def test_non_routing_filter_column_claims_rows(
+        self, contract: SubmissionContract
+    ):
+        """Test that a target constraining only a non-routing integer column
+        claims every matching row, matched against the column's string form."""
+        df = bundle(
+            ("c", "DE", 2030, 4.0),  # claimed by t_year
+            ("d", "CH", 2030, 6.0),  # claimed by t_year
+            ("c", "DE", 2020, 5.0),  # wrong year
+        )
+        handler = SubmissionHandler(specs=contract, df=df)
+        claimed = handler.extract_target_data("t_year")
+        assert list(claimed.index) == [0, 1]
+        assert list(claimed["value"]) == [4.0, 6.0]
+
+    def test_unknown_target_name_raises(self, contract: SubmissionContract):
+        """Test that an unknown target name surfaces the lookup's KeyError."""
+        df = bundle(("a", "CH", 2020, 1.0))
+        handler = SubmissionHandler(specs=contract, df=df)
+        with pytest.raises(KeyError, match="No target with name 'nope' found."):
+            handler.extract_target_data("nope")
+
 
 class TestUnclaimedRows:
     def test_returns_the_rows_no_target_claims(self, contract: SubmissionContract):
