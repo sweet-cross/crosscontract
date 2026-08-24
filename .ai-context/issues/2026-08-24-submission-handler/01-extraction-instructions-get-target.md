@@ -19,9 +19,9 @@ model and an executor respectively and the suffix distinguishes them.
 
 ## Acceptance Criteria
 
-- [ ] `ExtractionInstructions.get_target(name)` returns the `Target` carrying that name.
-- [ ] An unknown name raises — see the open decision below.
-- [ ] No caching, no precomputed index. There are ~24 targets in the reference spec; a
+- [x] `ExtractionInstructions.get_target(name)` returns the `Target` carrying that name.
+- [x] An unknown name raises — see the open decision below.
+- [x] No caching, no precomputed index. There are ~24 targets in the reference spec; a
       linear scan is not worth an accessor's worth of state.
 
 ## Implementation Details
