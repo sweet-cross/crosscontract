@@ -121,15 +121,36 @@ Deferred while landing the extraction spec models
 ([ADR 0004](./adrs/0004-submission-contracts-carry-extraction-instructions.md)). The PRD
 and task files that carried the analysis are deleted, so the detail is reproduced here.
 
-- **Assemble the derived routing `enum`.** The routing field's permitted values come from
-  the targets' filters and are never authored — `_check_routing_column` in
+- **Decide whether unclaimed rows raise or warn.**
+  `SubmissionContract.unclaimed_rows` in
   [submission_contract.py](../src/crosscontract/submission/submission_contract.py)
-  rejects an authored `enum` for exactly that reason, but nothing yet builds the derived
-  set, so the claim is enforced without being delivered. Where the assembly lives is
-  deliberately open: a property on `SubmissionContract`, a helper on
-  `ExtractionInstructions`, or the future validator that checks data against the
-  contract. Whichever site is chosen, the values are the `routing_column` entry of each
-  target's `filters`.
+  returns the rows no target claims and deliberately does nothing with them, so the
+  policy is still unmade. It belongs wherever extraction is executed (below), not on the
+  method — keeping the computation a pure query is what leaves the choice reversible.
+
+- **Decide whether contested rows are worth detecting.** A row claimed by *more* than one
+  target. [ADR 0004](./adrs/0004-submission-contracts-carry-extraction-instructions.md)
+  makes overlap deliberately legal — two targets may take the same rows and reshape them
+  for two different contracts — so this is not a bug to fix but a question to answer:
+  *unintentional* overlap is as damaging as an unclaimed row, since the same rows land in
+  two contracts, and nothing surfaces it. It falls out of the same per-target matching as
+  unclaimed rows — a sum over the masks instead of an OR — but `unclaimed_rows` folds each
+  target's mask into a single accumulator and keeps no intermediates, so adding it means
+  reshaping that loop. It needs its own raise-or-warn call, independent of the one above.
+
+- **Consider checking filter values against their field type at load time.** `filters`
+  values are matched against the column's *string* form, so `{year: "abc"}` on an integer
+  column is not an authoring error today — it simply claims nothing, and the rows surface
+  as unclaimed at runtime. A check in `_check_filters` that each authored value parses as
+  its field's Frictionless type would move that to load time. It needs no backend — it
+  compares a string against a Frictionless type, not a pandas dtype — so it sits beside
+  the existing filter-key check in
+  [submission_contract.py](../src/crosscontract/submission/submission_contract.py).
+  Deferred because the unclaimed-row report already surfaces the failure; this only
+  sharpens *where* it is reported. Note it would **not** catch the datetime case: against
+  a datetime column the string form is `2030-01-01 00:00:00`, so `{date: "2030-01-01"}`
+  parses fine and still claims nothing. That trap is documented on `Target.filters`
+  instead.
 
 - **Decide how far column tracking goes.** Column references are order-dependent: after
   `rename_columns {timestamp: year}` a later `cast_column year` is correct and

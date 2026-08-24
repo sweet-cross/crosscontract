@@ -35,7 +35,11 @@ class Target(BaseModel):
         ...,
         description=(
             "Filters to apply to the source data before applying transformations. "
-            "A dictionary of key-value pairs to filter the source data. When "
+            "A dictionary of key-value pairs to filter the source data. All "
+            "entries must match for a row to be taken. Values are matched against "
+            "the column's string form, so a filter on a typed column is compared "
+            "against `str(value)` — a datetime column matches "
+            "`2030-01-01 00:00:00` rather than `2030-01-01`. When "
             "authored inside `ExtractionInstructions` and omitted entirely, it is "
             "derived as a single filter on the routing column using the target name."
         ),
