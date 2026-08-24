@@ -80,7 +80,7 @@ class SubmissionHandler:
             target_name (str): The name of the target to extract rows for.
 
         Returns:
-            pd.DataFrame: A DataFrame containing the rows claimed by the target.
+            pd.DataFrame: A DataFrame containing the rows claimed by the target, after applying the target's transformation profile and transformations.
 
         Raises:
             KeyError: If no target with the given name exists, or if a column
