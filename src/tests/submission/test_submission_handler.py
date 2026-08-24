@@ -108,22 +108,107 @@ def bundle(*rows: tuple[str, str, int, float]) -> pd.DataFrame:
     ).astype({"year": "Int64"})
 
 
+def claimed_bundle() -> pd.DataFrame:
+    """Build a frame holding one row for each transforming target.
+
+    Returns:
+        pd.DataFrame: One row claimed by `t_a`, `t_b_ch`, `t_year` and `t_none`
+            respectively.
+    """
+    return bundle(
+        ("a", "CH", 2020, 1.0),  # claimed by t_a
+        ("b", "CH", 2020, 2.0),  # claimed by t_b_ch
+        ("c", "DE", 2030, 4.0),  # claimed by t_year
+        ("d", "DE", 2020, 5.0),  # claimed by t_none
+    )
+
+
 class TestTransformTargetData:
-    def test_drops_columns_specified_in_target_contract(
+    def test_applies_the_profile_when_the_target_has_no_own_steps(
         self, contract: SubmissionContract
     ):
-        """Test that the target's contract's transformations are applied to the
-        extracted rows."""
-        df = bundle(
-            ("a", "CH", 2020, 1.0),  # claimed by t_a
-            ("b", "CH", 2020, 2.0),  # claimed by t_b_ch
-            ("c", "DE", 2030, 4.0),  # claimed by t_year
-        )
-        handler = SubmissionHandler(specs=contract, df=df)
-        t_a_data = handler.transform_target_data(
+        """Test that a target carrying only a transformation profile gets the
+        profile's steps."""
+        handler = SubmissionHandler(specs=contract, df=claimed_bundle())
+        data = handler.transform_target_data(
             handler.extract_target_data("t_a"), "t_a"
         )
-        assert list(t_a_data.columns) == ["value"]
+        assert list(data.columns) == ["region", "year", "value"]
+
+    def test_applies_own_steps_when_the_target_has_no_profile(
+        self, contract: SubmissionContract
+    ):
+        """Test that a target carrying only its own transformations gets them."""
+        handler = SubmissionHandler(specs=contract, df=claimed_bundle())
+        data = handler.transform_target_data(
+            handler.extract_target_data("t_b_ch"), "t_b_ch"
+        )
+        assert list(data.columns) == ["country", "year", "value"]
+        assert list(data["country"]) == ["ch"]
+
+    def test_applies_the_profile_before_the_targets_own_steps(
+        self, contract: SubmissionContract
+    ):
+        """Test that the profile runs first when a target carries both.
+
+        `t_year`'s own step casts `period`, a column that exists only after the
+        `annual` profile has renamed `year` to it — so the reverse order raises
+        on a missing column rather than returning a different frame.
+        """
+        handler = SubmissionHandler(specs=contract, df=claimed_bundle())
+        data = handler.transform_target_data(
+            handler.extract_target_data("t_year"), "t_year"
+        )
+        assert list(data.columns) == ["country", "period", "value"]
+        assert data["period"].dtype == "string"
+        assert list(data["period"]) == ["2030"]
+
+    def test_is_a_no_op_when_the_target_has_neither(
+        self, contract: SubmissionContract
+    ):
+        """Test that a target with no profile and no transformations returns the
+        claimed rows unchanged."""
+        handler = SubmissionHandler(specs=contract, df=claimed_bundle())
+        claimed = handler.extract_target_data("t_none")
+        data = handler.transform_target_data(claimed, "t_none")
+        pd.testing.assert_frame_equal(data, claimed)
+
+    def test_unknown_target_name_raises(self, contract: SubmissionContract):
+        """Test that an unknown target name surfaces the lookup's KeyError."""
+        df = claimed_bundle()
+        handler = SubmissionHandler(specs=contract, df=df)
+        with pytest.raises(KeyError, match="No target with name 'nope' found."):
+            handler.transform_target_data(df, "nope")
+
+    def test_input_frame_is_not_mutated(self, contract: SubmissionContract):
+        """Test that transforming leaves the frame it was handed untouched."""
+        df = claimed_bundle()
+        before = df.copy()
+        handler = SubmissionHandler(specs=contract, df=df)
+        handler.transform_target_data(df, "t_b_ch")
+        pd.testing.assert_frame_equal(df, before)
+
+
+class TestGetTargetData:
+    def test_composes_extraction_and_transformation(
+        self, contract: SubmissionContract
+    ):
+        """Test that the composition equals transforming the extracted rows."""
+        handler = SubmissionHandler(specs=contract, df=claimed_bundle())
+        expected = handler.transform_target_data(
+            handler.extract_target_data("t_year"), "t_year"
+        )
+        pd.testing.assert_frame_equal(handler.get_target_data("t_year"), expected)
+
+    def test_returns_only_the_targets_rows_transformed(
+        self, contract: SubmissionContract
+    ):
+        """Test that the result carries the target's rows in their transformed
+        shape."""
+        handler = SubmissionHandler(specs=contract, df=claimed_bundle())
+        data = handler.get_target_data("t_year")
+        assert list(data.columns) == ["country", "period", "value"]
+        assert list(data["value"]) == [4.0]
 
 
 class TestExtractTargetData:
