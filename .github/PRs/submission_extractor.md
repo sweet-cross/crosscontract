@@ -20,13 +20,20 @@ instructions rather than of the contract alone.
 owns `targets`. Raises `KeyError` for an unknown name. Target names are already validated
 unique, so no tie-breaking is needed.
 
-**`SubmissionHandler(specs, df)`** in a new `submission/submission_handler.py`, exported
-from `submission/__init__.py` and the top-level package:
+**`SubmissionHandler(contract, bundle)`** in a new `submission/submission_handler.py`,
+exported from `submission/__init__.py` and the top-level package. The bundle is copied on
+construction, so later changes to the frame handed in do not alter the handler's answers.
 
 - `extract_target_data(name)` — rows the target claims, untransformed.
 - `transform_target_data(df, name)` — profile steps first, then the target's own.
 - `get_target_data(name)` — the composition.
 - `unclaimed_rows()` — rows no target claims, moved here from `SubmissionContract`.
+
+Every path returns a new frame: `transform_target_data` copies before applying its steps,
+so a target with neither a profile nor transformations hands back a copy rather than the
+frame it was given, matching the convention every transformation in `transformations/`
+states explicitly. The `KeyError` an unknown target name — or a filter column absent from
+the bundle — surfaces is documented on each method that propagates it.
 
 Two design points that are decisions rather than details:
 
@@ -70,17 +77,13 @@ transformations only, both, and neither.
   `test_submission_contract.py` unchanged in substance, which is the regression proof
   that relocating the computation did not alter it, plus a new case pinning that a row
   claimed by two targets counts as claimed.
-- Non-mutation on both the transform and coverage paths.
-
-Suite green locally.
+- Non-mutation on both the transform and coverage paths, plus that the no-op transform
+  path returns a new frame rather than the one it was handed, and that changing the
+  bundle after construction does not reach the handler.
 
 ## Notes for reviewer
 
 **Base is `dev`, not `main`.**
-
-**`SubmissionHandler` has no class or `__init__` docstring.** Every other public class in
-the package carries one, and CLAUDE.md requires them. Known gap, not an oversight in
-review.
 
 **The handler resolves nothing, deliberately.** ADR 0004's second named decision is that
 target contracts are named and never looked up, so a spec loads and runs with no platform
@@ -91,13 +94,10 @@ the format is built around. This is now written into the ADR rather than left to
 
 **`transform_target_data(df, name)` takes the frame and the name independently**, so a
 caller can pass one target's rows with another target's name and get a plausible-looking
-wrong answer. Left unguarded; worth a second opinion on whether it should be.
-
-**For a target with neither a profile nor transformations, `transform_target_data`
-returns the frame it was handed rather than a copy** — the one path in this module that
-doesn't return a new DataFrame, against the convention every transformation in
-`transformations/` states explicitly. Only observable when called directly; via
-`get_target_data` the frame is already a boolean-indexed copy.
+wrong answer. Left unguarded deliberately — the per-target design is what makes it useful
+for rows fetched some other way, and a guard would need a notion of "these rows belong to
+that target" the class does not have — but the docstring now states it rather than leaving
+it to be discovered.
 
 **Still deferred, in `TODO.md`:** contested-row detection (now a sum over the masks rather
 than a loop reshape, so what remains is the decision, not the plumbing), and load-time

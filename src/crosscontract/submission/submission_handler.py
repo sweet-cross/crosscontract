@@ -28,24 +28,27 @@ class SubmissionHandler:
     connection.
 
     Attributes:
-        specs (SubmissionContract): The contract describing the bundle and how it
-            is split into targets.
-        bundle (pd.DataFrame): The submitted data the instructions are applied
-            to.
+        contract (SubmissionContract): The contract describing the bundle and how
+            it is split into targets.
+        bundle (pd.DataFrame): A copy of the submitted data the instructions are
+            applied to.
     """
 
-    def __init__(self, specs: SubmissionContract, df: pd.DataFrame):
+    def __init__(self, contract: SubmissionContract, bundle: pd.DataFrame):
         """Bind a submission contract to the bundle it describes.
 
+        The bundle is copied, so later changes to the frame handed in do not
+        alter the handler's answers.
+
         Args:
-            specs (SubmissionContract): The contract describing the bundle and
+            contract (SubmissionContract): The contract describing the bundle and
                 how it is split into targets.
-            df (pd.DataFrame): The submitted data, conforming to the contract's
-                `tableschema`. Every column named by a target's `filters` must be
-                present.
+            bundle (pd.DataFrame): The submitted data, conforming to the
+                contract's `tableschema`. Every column named by a target's
+                `filters` must be present.
         """
-        self.specs = specs
-        self.bundle = df
+        self.contract = contract
+        self.bundle = bundle.copy()
 
     def _mask_target(self, target: Target) -> pd.Series:
         """Return a boolean mask selecting the bundle rows a target claims.
@@ -59,6 +62,10 @@ class SubmissionHandler:
 
         Returns:
             pd.Series: A boolean mask over the bundle's index.
+
+        Raises:
+            KeyError: If a column named by the target's `filters` is absent from
+                the bundle.
         """
         mask = pd.Series(True, index=self.bundle.index)
         for column, value in target.filters.items():
@@ -74,6 +81,10 @@ class SubmissionHandler:
 
         Returns:
             pd.DataFrame: A DataFrame containing the rows claimed by the target.
+
+        Raises:
+            KeyError: If no target with the given name exists, or if a column
+                named by the target's `filters` is absent from the bundle.
         """
         df = self.extract_target_data(target_name)
         df = self.transform_target_data(df, target_name)
@@ -87,33 +98,45 @@ class SubmissionHandler:
 
         Returns:
             pd.DataFrame: A DataFrame containing the rows claimed by the target.
+
+        Raises:
+            KeyError: If no target with the given name exists, or if a column
+                named by the target's `filters` is absent from the bundle.
         """
-        target = self.specs.extraction.get_target(target_name)
+        target = self.contract.extraction.get_target(target_name)
         return self.bundle[self._mask_target(target)]
 
     def transform_target_data(self, df: pd.DataFrame, target_name: str) -> pd.DataFrame:
         """Apply all transformations specified in the submission contract to the
         target variable.
 
+        `df` is not checked against `target_name`: passing one target's rows
+        under another target's name returns a plausible-looking wrong answer
+        rather than raising. Pair them yourself, or use `get_target_data`.
+
         Args:
             df (pd.DataFrame): The DataFrame containing the rows claimed by the
-                target.
+                target. Not mutated; a new DataFrame is returned.
             target_name (str): The name of the target to transform.
 
         Returns:
             pd.DataFrame: A DataFrame containing the transformed rows of the
                 target variable.
+
+        Raises:
+            KeyError: If no target with the given name exists.
         """
-        target = self.specs.extraction.get_target(target_name)
+        target = self.contract.extraction.get_target(target_name)
         steps_to_apply: list[BaseTransformation] = []
         if target.transformation_profile:
             steps_to_apply.extend(
-                self.specs.extraction.transformation_profiles[
+                self.contract.extraction.transformation_profiles[
                     target.transformation_profile
                 ]
             )
 
         steps_to_apply.extend(target.transformations)
+        df = df.copy()
         for step in steps_to_apply:
             df = step.apply(df)
 
@@ -134,9 +157,13 @@ class SubmissionHandler:
         Returns:
             pd.DataFrame: The unclaimed rows, keeping their index labels. Empty
                 when every row is claimed.
+
+        Raises:
+            KeyError: If a column named by any target's `filters` is absent from
+                the bundle.
         """
 
         claimed = pd.Series(False, index=self.bundle.index)
-        for target in self.specs.extraction.targets:
+        for target in self.contract.extraction.targets:
             claimed |= self._mask_target(target)
         return self.bundle[~claimed]

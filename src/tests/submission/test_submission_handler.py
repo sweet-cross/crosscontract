@@ -123,13 +123,23 @@ def claimed_bundle() -> pd.DataFrame:
     )
 
 
+class TestInit:
+    def test_the_bundle_is_copied(self, contract: SubmissionContract):
+        """Test that changing the frame after construction does not reach the
+        handler."""
+        df = claimed_bundle()
+        handler = SubmissionHandler(contract=contract, bundle=df)
+        df.loc[0, "value"] = 99.0
+        assert list(handler.bundle["value"]) == [1.0, 2.0, 4.0, 5.0]
+
+
 class TestTransformTargetData:
     def test_applies_the_profile_when_the_target_has_no_own_steps(
         self, contract: SubmissionContract
     ):
         """Test that a target carrying only a transformation profile gets the
         profile's steps."""
-        handler = SubmissionHandler(specs=contract, df=claimed_bundle())
+        handler = SubmissionHandler(contract=contract, bundle=claimed_bundle())
         data = handler.transform_target_data(
             handler.extract_target_data("t_a"), "t_a"
         )
@@ -139,7 +149,7 @@ class TestTransformTargetData:
         self, contract: SubmissionContract
     ):
         """Test that a target carrying only its own transformations gets them."""
-        handler = SubmissionHandler(specs=contract, df=claimed_bundle())
+        handler = SubmissionHandler(contract=contract, bundle=claimed_bundle())
         data = handler.transform_target_data(
             handler.extract_target_data("t_b_ch"), "t_b_ch"
         )
@@ -155,7 +165,7 @@ class TestTransformTargetData:
         `annual` profile has renamed `year` to it — so the reverse order raises
         on a missing column rather than returning a different frame.
         """
-        handler = SubmissionHandler(specs=contract, df=claimed_bundle())
+        handler = SubmissionHandler(contract=contract, bundle=claimed_bundle())
         data = handler.transform_target_data(
             handler.extract_target_data("t_year"), "t_year"
         )
@@ -167,16 +177,17 @@ class TestTransformTargetData:
         self, contract: SubmissionContract
     ):
         """Test that a target with no profile and no transformations returns the
-        claimed rows unchanged."""
-        handler = SubmissionHandler(specs=contract, df=claimed_bundle())
+        claimed rows unchanged, as a new frame rather than the one handed in."""
+        handler = SubmissionHandler(contract=contract, bundle=claimed_bundle())
         claimed = handler.extract_target_data("t_none")
         data = handler.transform_target_data(claimed, "t_none")
         pd.testing.assert_frame_equal(data, claimed)
+        assert data is not claimed
 
     def test_unknown_target_name_raises(self, contract: SubmissionContract):
         """Test that an unknown target name surfaces the lookup's KeyError."""
         df = claimed_bundle()
-        handler = SubmissionHandler(specs=contract, df=df)
+        handler = SubmissionHandler(contract=contract, bundle=df)
         with pytest.raises(KeyError, match="No target with name 'nope' found."):
             handler.transform_target_data(df, "nope")
 
@@ -184,7 +195,7 @@ class TestTransformTargetData:
         """Test that transforming leaves the frame it was handed untouched."""
         df = claimed_bundle()
         before = df.copy()
-        handler = SubmissionHandler(specs=contract, df=df)
+        handler = SubmissionHandler(contract=contract, bundle=df)
         handler.transform_target_data(df, "t_b_ch")
         pd.testing.assert_frame_equal(df, before)
 
@@ -194,7 +205,7 @@ class TestGetTargetData:
         self, contract: SubmissionContract
     ):
         """Test that the composition equals transforming the extracted rows."""
-        handler = SubmissionHandler(specs=contract, df=claimed_bundle())
+        handler = SubmissionHandler(contract=contract, bundle=claimed_bundle())
         expected = handler.transform_target_data(
             handler.extract_target_data("t_year"), "t_year"
         )
@@ -205,7 +216,7 @@ class TestGetTargetData:
     ):
         """Test that the result carries the target's rows in their transformed
         shape."""
-        handler = SubmissionHandler(specs=contract, df=claimed_bundle())
+        handler = SubmissionHandler(contract=contract, bundle=claimed_bundle())
         data = handler.get_target_data("t_year")
         assert list(data.columns) == ["country", "period", "value"]
         assert list(data["value"]) == [4.0]
@@ -221,7 +232,7 @@ class TestExtractTargetData:
             ("c", "DE", 2030, 4.0),  # claimed by t_year
             ("c", "DE", 2020, 5.0),  # unclaimed: no target wants it
         )
-        handler = SubmissionHandler(specs=contract, df=df)
+        handler = SubmissionHandler(contract=contract, bundle=df)
         t_a_data = handler.extract_target_data("t_a")
         assert list(t_a_data.index) == [0]
         assert list(t_a_data["value"]) == [1.0]
@@ -232,7 +243,7 @@ class TestExtractTargetData:
         """Test that a target claiming no rows yields an empty frame, not an
         error."""
         df = bundle(("c", "DE", 2020, 5.0))
-        handler = SubmissionHandler(specs=contract, df=df)
+        handler = SubmissionHandler(contract=contract, bundle=df)
         claimed = handler.extract_target_data("t_a")
         assert claimed.empty
         assert list(claimed.columns) == list(df.columns)
@@ -245,7 +256,7 @@ class TestExtractTargetData:
             ("d", "CH", 2030, 6.0),  # claimed by t_year
             ("c", "DE", 2020, 5.0),  # wrong year
         )
-        handler = SubmissionHandler(specs=contract, df=df)
+        handler = SubmissionHandler(contract=contract, bundle=df)
         claimed = handler.extract_target_data("t_year")
         assert list(claimed.index) == [0, 1]
         assert list(claimed["value"]) == [4.0, 6.0]
@@ -253,7 +264,7 @@ class TestExtractTargetData:
     def test_unknown_target_name_raises(self, contract: SubmissionContract):
         """Test that an unknown target name surfaces the lookup's KeyError."""
         df = bundle(("a", "CH", 2020, 1.0))
-        handler = SubmissionHandler(specs=contract, df=df)
+        handler = SubmissionHandler(contract=contract, bundle=df)
         with pytest.raises(KeyError, match="No target with name 'nope' found."):
             handler.extract_target_data("nope")
 
@@ -269,7 +280,7 @@ class TestUnclaimedRows:
             ("c", "DE", 2030, 4.0),  # claimed by t_year
             ("c", "DE", 2020, 5.0),  # unclaimed: no target wants it
         )
-        handler = SubmissionHandler(specs=contract, df=df)
+        handler = SubmissionHandler(contract=contract, bundle=df)
         unclaimed = handler.unclaimed_rows()
         assert list(unclaimed.index) == [2, 4]
         assert list(unclaimed["value"]) == [3.0, 5.0]
@@ -279,7 +290,7 @@ class TestUnclaimedRows:
     ):
         """Test that a fully claimed bundle yields an empty frame, not None."""
         df = bundle(("a", "CH", 2020, 1.0), ("b", "CH", 2020, 2.0))
-        handler = SubmissionHandler(specs=contract, df=df)
+        handler = SubmissionHandler(contract=contract, bundle=df)
         unclaimed = handler.unclaimed_rows()
         assert unclaimed.empty
         assert list(unclaimed.columns) == list(df.columns)
@@ -288,27 +299,27 @@ class TestUnclaimedRows:
         """Test that a target constraining only a non-routing integer column
         claims its rows, matched against the column's string form."""
         df = bundle(("c", "DE", 2030, 4.0))
-        handler = SubmissionHandler(specs=contract, df=df)
+        handler = SubmissionHandler(contract=contract, bundle=df)
         assert handler.unclaimed_rows().empty
 
     def test_filters_are_a_conjunction(self, contract: SubmissionContract):
         """Test that a row matching one filter entry but not the other is
         unclaimed."""
         df = bundle(("b", "DE", 2020, 3.0))
-        handler = SubmissionHandler(specs=contract, df=df)
+        handler = SubmissionHandler(contract=contract, bundle=df)
         assert list(handler.unclaimed_rows().index) == [0]
 
     def test_row_claimed_by_two_targets_is_claimed(self, contract: SubmissionContract):
         """Test that a row matched by more than one target is claimed, since
         overlapping targets are legal."""
         df = bundle(("b", "CH", 2030, 6.0))  # claimed by both t_b_ch and t_year
-        handler = SubmissionHandler(specs=contract, df=df)
+        handler = SubmissionHandler(contract=contract, bundle=df)
         assert handler.unclaimed_rows().empty
 
     def test_input_frame_is_not_mutated(self, contract: SubmissionContract):
         """Test that the submitted frame is left untouched."""
         df = bundle(("a", "CH", 2020, 1.0), ("c", "DE", 2020, 5.0))
         before = df.copy()
-        handler = SubmissionHandler(specs=contract, df=df)
+        handler = SubmissionHandler(contract=contract, bundle=df)
         handler.unclaimed_rows()
         pd.testing.assert_frame_equal(df, before)
