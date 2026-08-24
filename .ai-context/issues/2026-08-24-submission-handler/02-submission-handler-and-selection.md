@@ -28,16 +28,16 @@ target, which buys nothing. This stays true well beyond the current data size, s
 
 ## Acceptance Criteria
 
-- [ ] `SubmissionHandler(specs: SubmissionContract, df: pd.DataFrame)` stores
+- [x] `SubmissionHandler(specs: SubmissionContract, df: pd.DataFrame)` stores
       `self.specs` and `self.bundle`.
 - [ ] A private per-target **boolean mask** is the single implementation of the filter
       semantics.
 - [ ] `extract_target_data(target_name)` returns the rows the target claims, before any
       transformation.
-- [ ] `unclaimed_rows` moves here from `SubmissionContract` and is re-expressed on the
+- [x] `unclaimed_rows` moves here from `SubmissionContract` and is re-expressed on the
       mask.
-- [ ] `SubmissionContract` no longer imports pandas.
-- [ ] `SubmissionHandler` is exported from `submission/__init__.py` and the top-level
+- [x] `SubmissionContract` no longer imports pandas.
+- [x] `SubmissionHandler` is exported from `submission/__init__.py` and the top-level
       `crosscontract/__init__.py`, where `SubmissionContract` already sits.
 
 ## Implementation Details

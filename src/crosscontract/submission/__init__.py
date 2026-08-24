@@ -7,5 +7,6 @@ that executes them, so the concept lives in one place.
 """
 
 from .submission_contract import SubmissionContract
+from .submission_handler import SubmissionHandler
 
-__all__ = ["SubmissionContract"]
+__all__ = ["SubmissionContract", "SubmissionHandler"]
