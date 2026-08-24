@@ -7,15 +7,14 @@ that is the method most callers will actually use.
 
 ## Acceptance Criteria
 
-- [ ] `transform_target_data(df, target_name)` applies the target's
+- [x] `transform_target_data(df, target_name)` applies the target's
       **transformation profile first, then the target's own `transformations`**.
-- [ ] A target with a profile and no `transformations` of its own gets the profile's
+- [x] A target with a profile and no `transformations` of its own gets the profile's
       steps.
-- [ ] A target with `transformations` and no profile gets its own steps.
-- [ ] A target with neither is a no-op returning equivalent data.
-- [ ] `get_target_data(target_name)` returns
-      `transform_target_data(extract_target_data(target_name), target_name)`.
-- [ ] No transformation is reimplemented — each step is applied through its existing
+- [x] A target with `transformations` and no profile gets its own steps.
+- [x] A target with neither is a no-op returning equivalent data.
+- [x] `get_target_data(target_name)` returns  `transform_target_data(extract_target_data(target_name), target_name)`.
+- [x] No transformation is reimplemented — each step is applied through its existing
       `TransformationUnion.apply`.
 
 ## Implementation Details

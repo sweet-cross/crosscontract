@@ -26,17 +26,65 @@ def contract() -> SubmissionContract:
         },
         "extraction": {
             "routing_column": "variable",
+            "transformation_profiles": {
+                # Renames, then drops the routing column — the rename-then-act shape
+                # the real `demand` / `supply` profiles have.
+                "regional": [
+                    {"type": "rename_columns", "mapping": {"country": "region"}},
+                    {"type": "drop_columns", "columns": ["variable"]},
+                ],
+                # A second profile, so profile selection is per target rather than
+                # global.
+                "annual": [
+                    {"type": "rename_columns", "mapping": {"year": "period"}},
+                    {"type": "drop_columns", "columns": ["variable"]},
+                ],
+            },
             "targets": [
-                {"name": "t_a", "filters": {"variable": "a"}, "contract": "contract_a"},
+                # Profile only — no transformations of its own. The shape that
+                # `carbon_emissions` has in the real spec, and the one an
+                # implementation looping `target.transformations` alone gets wrong.
+                {
+                    "name": "t_a",
+                    "filters": {"variable": "a"},
+                    "contract": "contract_a",
+                    "transformation_profile": "regional",
+                },
+                # Own transformations only, no profile.
                 {
                     "name": "t_b_ch",
                     "filters": {"variable": "b", "country": "CH"},
                     "contract": "contract_b",
+                    "transformations": [
+                        {"type": "drop_columns", "columns": ["variable"]},
+                        {
+                            "type": "map_column_values",
+                            "column_name": "country",
+                            "mapping": {"CH": "ch"},
+                        },
+                    ],
                 },
+                # Both. The own step addresses `period`, which only exists *after*
+                # the profile has run — so a reversed order raises rather than
+                # quietly producing something else.
                 {
                     "name": "t_year",
                     "filters": {"year": "2030"},
                     "contract": "contract_c",
+                    "transformation_profile": "annual",
+                    "transformations": [
+                        {
+                            "type": "cast_column",
+                            "column_name": "period",
+                            "to_type": "string",
+                        },
+                    ],
+                },
+                # Neither.
+                {
+                    "name": "t_none",
+                    "filters": {"variable": "d"},
+                    "contract": "contract_d",
                 },
             ],
         },
@@ -45,7 +93,7 @@ def contract() -> SubmissionContract:
 
 
 def bundle(*rows: tuple[str, str, int, float]) -> pd.DataFrame:
-    """Build a submission frame with the columns `coverage_data` describes.
+    """Build a submission frame according to the submission contract's schema.
 
     Args:
         *rows (tuple[str, str, int, float]): One tuple per row, holding
@@ -58,6 +106,24 @@ def bundle(*rows: tuple[str, str, int, float]) -> pd.DataFrame:
     return pd.DataFrame(
         list(rows), columns=["variable", "country", "year", "value"]
     ).astype({"year": "Int64"})
+
+
+class TestTransformTargetData:
+    def test_drops_columns_specified_in_target_contract(
+        self, contract: SubmissionContract
+    ):
+        """Test that the target's contract's transformations are applied to the
+        extracted rows."""
+        df = bundle(
+            ("a", "CH", 2020, 1.0),  # claimed by t_a
+            ("b", "CH", 2020, 2.0),  # claimed by t_b_ch
+            ("c", "DE", 2030, 4.0),  # claimed by t_year
+        )
+        handler = SubmissionHandler(specs=contract, df=df)
+        t_a_data = handler.transform_target_data(
+            handler.extract_target_data("t_a"), "t_a"
+        )
+        assert list(t_a_data.columns) == ["value"]
 
 
 class TestExtractTargetData:
@@ -86,9 +152,7 @@ class TestExtractTargetData:
         assert claimed.empty
         assert list(claimed.columns) == list(df.columns)
 
-    def test_non_routing_filter_column_claims_rows(
-        self, contract: SubmissionContract
-    ):
+    def test_non_routing_filter_column_claims_rows(self, contract: SubmissionContract):
         """Test that a target constraining only a non-routing integer column
         claims every matching row, matched against the column's string form."""
         df = bundle(

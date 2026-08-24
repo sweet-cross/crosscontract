@@ -1,6 +1,7 @@
 import pandas as pd
 
 from crosscontract.submission.extraction import Target
+from crosscontract.transformations import BaseTransformation
 
 from .submission_contract import SubmissionContract
 
@@ -67,7 +68,20 @@ class SubmissionHandler:
             pd.DataFrame: A DataFrame containing the transformed rows of the
                 target variable.
         """
-        # apply transformation profile and then transformations
+        target = self.specs.extraction.get_target(target_name)
+        steps_to_apply: list[BaseTransformation] = []
+        if target.transformation_profile:
+            steps_to_apply.extend(
+                self.specs.extraction.transformation_profiles[
+                    target.transformation_profile
+                ]
+            )
+
+        steps_to_apply.extend(target.transformations)
+        for step in steps_to_apply:
+            df = step.apply(df)
+
+        return df
 
     def unclaimed_rows(self) -> pd.DataFrame:
         """Return the rows of a submission bundle that no target claims.
