@@ -26,13 +26,13 @@ closed set may write one and get early, client-side feedback from schema validat
 
 ## Acceptance Criteria
 
-- [ ] `_check_routing_column` no longer rejects an authored `enum` on the routing field.
-- [ ] The remaining routing-column rules are untouched: the field exists in the
+- [x] `_check_routing_column` no longer rejects an authored `enum` on the routing field.
+- [x] The remaining routing-column rules are untouched: the field exists in the
       `tableschema`, is `required`, and is `type: string`. They still underwrite the
       derive-`filters`-from-`name` mechanism in `ExtractionInstructions`.
-- [ ] A `SubmissionContract` whose routing field carries an authored `enum` validates
+- [x] A `SubmissionContract` whose routing field carries an authored `enum` validates
       successfully, with a test asserting it (replacing the test that asserted the raise).
-- [ ] No enum-assembly helper, property, or method is added anywhere. This WP only
+- [x] No enum-assembly helper, property, or method is added anywhere. This WP only
       removes; the derived enum is not being relocated.
 
 ## Implementation Details

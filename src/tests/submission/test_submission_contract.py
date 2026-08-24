@@ -69,15 +69,14 @@ class TestSubmissionContract:
             SubmissionContract.model_validate(invalid_data)
 
     def test_routing_column_has_enum_constraint(self):
-        """Test that a ValidationError is raised when the routing column has an
-        enum constraint."""
-        invalid_data = deepcopy(valid_data)
-        invalid_data["tableschema"]["fields"][0]["constraints"]["enum"] = [
+        """Test enum is allowed for the submission contract"""
+        data = deepcopy(valid_data)
+        data["tableschema"]["fields"][0]["constraints"]["enum"] = [
             "var1",
             "var2",
         ]
-        with pytest.raises(ValueError, match="cannot have an enum constraint"):
-            SubmissionContract.model_validate(invalid_data)
+        spec = SubmissionContract.model_validate(data)
+        assert spec.tableschema.fields[0].constraints.enum == ["var1", "var2"]
 
     def test_invalid_filter_in_target(self):
         """Test that a ValidationError is raised when a target has an invalid filter."""

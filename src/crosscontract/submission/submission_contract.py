@@ -79,10 +79,6 @@ class SubmissionContract(CrossContract):
             raise ValueError(
                 f"Routing column '{routing_column}' must be a string column"
             )
-        if routing_field.constraints.enum is not None:
-            raise ValueError(
-                f"Routing column '{routing_column}' cannot have an enum constraint"
-            )
         return self
 
     @model_validator(mode="after")
