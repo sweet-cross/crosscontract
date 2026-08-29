@@ -18,11 +18,11 @@ the expensive part.
 - [x] The flags are named `check_existing_primary_key` / `check_existing_foreign_key`, both defaulting to `False`, and they read in the positive: `True` means *additionally consult stored values*.
 - [x] `resolver` is optional (`ContractResolver | None = None`), so a `BaseContract` used off-platform can validate without one.
 - [x] Requesting either check without a resolver raises a `ValueError` that names the contract and both remedies. Raised unconditionally on the flag-plus-`None` combination, not only when the schema happens to have keys to fetch.
-- [ ] With both flags `False` and no resolver, **no data is fetched** — `get_data` is never called.
-- [ ] A dict-backed fake resolver proves the derivation, **including a case where `fk.fields` and `fk.reference.fields` differ** — that is where a direction error hides.
-- [ ] A **composite** foreign key whose resolver returns the requested columns in a *different order* still validates. Without the `df[columns]` reindex this fails silently, so it needs its own test.
-- [ ] A stale explicit subclass of `ContractResolver` (one that implements `resolve` but not `get_data`) raises `TypeError` at construction.
-- [ ] `FakeResolver` in `src/tests/contracts/contracts/test_contract_reference_validation.py` gains a `get_data` stub. It keeps working untouched at runtime, but no longer satisfies the protocol structurally, and the stub is what keeps that honest.
+- [x] With both flags `False` and no resolver, **no data is fetched** — `get_data` is never called.
+- [x] A dict-backed fake resolver proves the derivation, **including a case where `fk.fields` and `fk.reference.fields` differ** — that is where a direction error hides.
+- [x] A **composite** foreign key whose resolver returns the requested columns in a *different order* still validates. Without the `df[columns]` reindex this fails silently, so it needs its own test.
+- [x] A stale explicit subclass of `ContractResolver` (one that implements `resolve` but not `get_data`) raises `TypeError` at construction.
+- [x] `FakeResolver` in `src/tests/contracts/contracts/test_contract_reference_validation.py` gains a `get_data` stub. It keeps working untouched at runtime, but no longer satisfies the protocol structurally, and the stub is what keeps that honest.
 
 ## Implementation Details
 - **Modify:** `src/crosscontract/contracts/contracts/resolvers.py`

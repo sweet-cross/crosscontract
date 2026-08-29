@@ -8,6 +8,7 @@ from crosscontract.contracts.schema import SchemaValidationError
 from crosscontract.contracts.schema.subschemas import BaseDimensionSchema
 
 from ..exceptions import ValidationError
+from .resolver import ClientContractResolver
 
 if TYPE_CHECKING:  # pragma: no cover
     from .contract_service import ContractService, FilterValue
@@ -217,8 +218,8 @@ class ContractResource:
     def validate_dataframe(
         self,
         df: pd.DataFrame,
-        skip_primary_key_validation: bool = True,
-        skip_foreign_key_validation: bool = True,
+        check_existing_primary_key: bool = False,
+        check_existing_foreign_key: bool = False,
         lazy: bool = True,
     ):
         """Validate a DataFrame against the schema of the contract.
@@ -233,10 +234,10 @@ class ContractResource:
 
         Args:
             df (pd.DataFrame): The DataFrame to validate.
-            skip_primary_key_validation (bool): If True, skip primary key validation.
-                Default is False.
-            skip_foreign_key_validation (bool): If True, skip foreign key validation.
-                Default is False.
+            check_existing_primary_key (bool): If True, check existing primary
+                key values. Default is False.
+            check_existing_foreign_key (bool): If True, check existing foreign key
+                values. Default is False.
             lazy (bool): If True, collect all validation errors and raise them together.
                 If False, raise the first validation error encountered.
                 Default is True.
@@ -244,29 +245,13 @@ class ContractResource:
         Raises:
             ValidationError: If the DataFrame does not conform to the schema.
         """
-        schema = self.contract.tableschema
-
-        # get the existing primary key values from the platform if needed
-        if skip_primary_key_validation:
-            primary_key_values = None
-        else:
-            # fetch the existing primary key values from the platform
-            primary_key_values = self.get_primary_key_values()
-
-        # get the existing foreign key values from the platform if needed
-        if skip_foreign_key_validation:
-            foreign_key_values = None
-        else:
-            foreign_key_values = self.get_foreign_key_values()
-
-        # validate the dataframe against the schema
+        resolver = ClientContractResolver(self._service)
         try:
-            schema.validate_dataframe(
-                df=df,
-                primary_key_values=primary_key_values,
-                foreign_key_values=foreign_key_values,
-                skip_primary_key_validation=skip_primary_key_validation,
-                skip_foreign_key_validation=skip_foreign_key_validation,
+            self.contract.validate_data(
+                df,
+                resolver=resolver,
+                check_existing_primary_key=check_existing_primary_key,
+                check_existing_foreign_key=check_existing_foreign_key,
                 lazy=lazy,
             )
         except SchemaValidationError as e:
@@ -276,81 +261,6 @@ class ContractResource:
                 "schema failed.",
                 validation_errors=e.to_list(),
             ) from e
-
-    def get_primary_key_values(self) -> list[tuple] | None:
-        """Get the existing primary key values for the contract from the CROSS platform.
-        This is needed if you want to perform primary key validation including existing
-        values, i.e., to ensure uniqueness of the primary key across both existing
-        and new data.
-
-        Returns:
-            list[tuple]: A list of tuples representing the existing primary key values.
-
-        Returns:
-            list[tuple] | None: A list of tuples representing the existing primary key
-                values. Returns None if the contract does not have a primary key defined
-                or if there are no existing primary key values.
-        """
-        schema = self.contract.tableschema
-
-        # if there is no primary key defined, return None
-        if not schema.primaryKey:
-            return None
-
-        # get the existing primary key values from the platform
-        df_primary_key_values = self.get_data(
-            columns=schema.primaryKey.root,
-            unique=True,
-        )
-
-        # if there are no existing primary key values, return None else return the
-        # values as list of tuples
-        if df_primary_key_values.empty:
-            primary_key_values = None
-        else:
-            primary_key_values = [
-                tuple(row)
-                for row in df_primary_key_values.itertuples(index=False, name=None)
-            ]
-        return primary_key_values
-
-    def get_foreign_key_values(self) -> dict[tuple, list[tuple]] | None:
-        """Get the existing foreign key values for the contract from the CROSS platform.
-        This is needed if you want to perform foreign key validation including existing
-        values, i.e., to ensure referential integrity of the foreign keys across both
-        existing and new data.
-
-        Returns:
-            dict[tuple, list[tuple]] | None: A dictionary where the keys are tuples
-                representing the foreign key fields, and the values are lists of tuples
-                representing the existing foreign key values. Returns None if the
-                contract does not have foreign keys defined or if there are no existing
-                foreign key values.
-        """
-        schema = self.contract.tableschema
-
-        # if there are no foreign keys defined, return None
-        if not schema.foreignKeys:
-            return None
-
-        foreign_key_values: dict[tuple, list[tuple]] = {}
-
-        # for each foreign key, get the existing foreign key values from the platform
-        for fk in schema.foreignKeys.root:
-            fk_contract_name = fk.reference.resource or self.name
-            fk_field_names = fk.reference.fields
-
-            df_fk = self._service._get_data(
-                name=fk_contract_name,
-                columns=fk_field_names,
-                unique=True,
-            )
-
-            foreign_key_values[tuple(fk.fields)] = [
-                tuple(row) for row in df_fk.itertuples(index=False, name=None)
-            ]
-
-        return foreign_key_values
 
     def drop_data(self) -> None:
         """Drop the storage table backing the contract on the CROSS platform.

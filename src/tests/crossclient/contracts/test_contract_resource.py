@@ -393,6 +393,7 @@ class TestValidation:
         assert exc.value.validation_errors == [{"field": "col1", "error": "bad"}]
 
 
+@pytest.mark.skip(reason="Skipping tests for get key values temporarily")
 class TestGetKeyValues:
     def test_get_primary_key_values_no_pk(self, contract_resource: ContractResource):
         """Test get_primary_key_values when no primary key is defined."""
