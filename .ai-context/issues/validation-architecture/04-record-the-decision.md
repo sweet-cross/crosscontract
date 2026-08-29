@@ -10,16 +10,16 @@ deliberately ignore the caller's permissions — which reads as a bug without th
 rationale. Write it once the shape is real.
 
 ## Acceptance Criteria
-- [ ] `.ai-context/adrs/0005-*.md` exists, following `ADR-FORMAT.md` and the house style of ADRs 0001–0004.
-- [ ] It records **why one resolver rather than two protocols**: the two lookups are one job seen twice — a contract cannot answer anything about the world outside itself. It names the accepted cost (`validate_references` asks for a `get_data` it never calls; `FakeResolver` grows a stub).
-- [ ] It records **why the derivation lives in the library** — `fk.fields` vs `fk.reference.fields` is silently wrong rather than a crash, so it must not be copy-pasted into consumers.
-- [ ] It records **why scope is an unparameterized obligation** — the library has no notion of projects and never should.
-- [ ] It records **why the flags name the *existing-values* half** (`check_existing_primary_key` / `check_existing_foreign_key`) rather than being `skip_*`: the positive polarity makes the default call honest about what it did not check, so the caller does not need an exception to tell them. It also notes that `cross_back` already used this polarity and had to invert it at the boundary.
-- [ ] It records **why the resolver is optional** — `BaseContract` exists for use off the platform, where there is nothing to pass; and a null-object resolver returning empty frames is unsafe post-WP1, because `[]` now means "the referenced table is empty" and fails every row.
-- [ ] It records **why `validate_data` sits on the contract, not the schema** — the name is load-bearing, and `TableSchema` has none.
-- [ ] It records **why `None` ≠ `[]` for external foreign keys only** — for a primary key the two genuinely mean the same thing, and a self-referencing foreign key takes its valid set from the frame.
-- [ ] The ADR links to [`CONTEXT.md`](../../CONTEXT.md) for terminology rather than redefining terms.
-- [ ] A **handoff section** for the next PRD exists (see below). The deliverable is the written handoff, not the planning session itself.
+- [x] `.ai-context/adrs/0005-*.md` exists, following `ADR-FORMAT.md` and the house style of ADRs 0001–0004.
+- [x] It records **why one resolver rather than two protocols**: the two lookups are one job seen twice — a contract cannot answer anything about the world outside itself. It names the accepted cost (`validate_references` asks for a `get_data` it never calls; `FakeResolver` grows a stub).
+- [x] It records **why the derivation lives in the library** — `fk.fields` vs `fk.reference.fields` is silently wrong rather than a crash, so it must not be copy-pasted into consumers.
+- [x] It records **why scope is an unparameterized obligation** — the library has no notion of projects and never should.
+- [x] It records **why the flags name the *existing-values* half** (`check_existing_primary_key` / `check_existing_foreign_key`) rather than being `skip_*`: the positive polarity makes the default call honest about what it did not check, so the caller does not need an exception to tell them. It also notes that `cross_back` already used this polarity and had to invert it at the boundary.
+- [x] It records **why the resolver is optional** — `BaseContract` exists for use off the platform, where there is nothing to pass; and a null-object resolver returning empty frames is unsafe post-WP1, because `[]` now means "the referenced table is empty" and fails every row.
+- [x] It records **why `validate_data` sits on the contract, not the schema** — the name is load-bearing, and `TableSchema` has none.
+- [x] It records **why `None` ≠ `[]` for external foreign keys only** — for a primary key the two genuinely mean the same thing, and a self-referencing foreign key takes its valid set from the frame.
+- [x] The ADR links to [`CONTEXT.md`](../../CONTEXT.md) for terminology rather than redefining terms.
+- [x] A **handoff section** for the next PRD exists (see below). The deliverable is the written handoff, not the planning session itself.
 
 ## Hand off to the next PRD — validator-level checks
 

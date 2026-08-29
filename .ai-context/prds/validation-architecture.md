@@ -132,19 +132,35 @@ TypeError: Can't instantiate abstract class Inherits without an implementation
            for abstract method 'get_data'
 ```
 
-while duck-typed implementors still satisfy the protocol structurally. A full ABC would
-also catch it, but at the cost of forcing every implementor to inherit — including
-`ClientContractResolver` (WP3), which lives in `crossclient/` and would then inherit
-across a layer boundary into `contracts/`. A structural dependency in that direction is
-fine; an inheritance one is not.
+while duck-typed implementors still satisfy the protocol structurally. **That
+combination is the point, and it is what a full ABC would take away.** An ABC forces
+*every* implementor to inherit. A Protocol with `@abstractmethod` lets each one choose:
 
-This is deliberately *not* the `FakeResolver` argument. Because the protocol carries
-both members, `FakeResolver` in
-[test_contract_reference_validation.py:6](../../src/tests/contracts/contracts/test_contract_reference_validation.py#L6)
-needs a `get_data` stub under either choice — see WP2's verification.
+- **Real implementors inherit**, and get the construction-time failure.
+  `ClientContractResolver` (WP3) does, and `DbContractResolver` already does.
+- **Test doubles duck-type**, and skip the ceremony — `FakeResolver` in
+  [test_contract_reference_validation.py:6](../../src/tests/contracts/contracts/test_contract_reference_validation.py#L6)
+  and `RecordingResolver` in
+  [test_validate_data.py](../../src/tests/contracts/contracts/test_validate_data.py)
+  both satisfy the protocol without a base class.
 
-`cross_back` should drop the explicit base and satisfy the protocol structurally,
-so mypy flags the missing method at the call site on the version bump.
+Two earlier arguments for this choice were made and have since been overtaken; they are
+recorded here so they are not re-proposed. Neither survives:
+
+- *"`FakeResolver` stays untouched."* False once the protocol carried two members — it
+  needs a `get_data` stub under either choice.
+- *"`ClientContractResolver` should not inherit across a layer boundary."* WP3 decided
+  the opposite, on purpose: failing loudly at construction is worth more than avoiding
+  the inheritance edge, and `crossclient` already imports from `contracts` anyway.
+
+So `cross_back` should **keep** its explicit base rather than dropping it — inheriting is
+now the convention for real implementors, and it is what turns a missed method into a
+build-time error instead of an `AttributeError` at data-submission time.
+
+Note also that `ContractResolver` is now exported from `crosscontract.contracts`. It was
+reachable only by full module path before, which is what made adding `get_data` cheap.
+It is public API from here on, so a further change to it is a breaking change for any
+implementor outside these two repositories.
 
 ### `BaseContract.validate_data`
 
