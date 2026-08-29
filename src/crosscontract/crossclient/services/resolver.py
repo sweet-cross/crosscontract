@@ -7,7 +7,7 @@ import pandas as pd
 from crosscontract.contracts import ContractResolver, CrossContract
 from crosscontract.crossclient.exceptions import ResourceNotFoundError
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from crosscontract.crossclient import ContractService
 
 
