@@ -514,13 +514,18 @@ class PanderaPandasAdapter(AbstractAdapter):
         Args:
             fk (ForeignKey): The foreign key to create the check for.
             foreign_key_values (list[tuple[Any, ...]] | None):
-                Existing foreign key values to check against.
+                Existing foreign key values to check against. `None` means no
+                values were supplied at all, which for a reference to another
+                resource makes validation impossible. An empty list means the
+                referenced table exists and holds no rows, so every non-null
+                referring row fails the check.
 
         Returns:
             pa.Check: A Pandera Check object that can be added to a DataFrameSchema.
 
         Raises:
-            ValueError: If no referenced values are provided for validation.
+            ValueError: If the foreign key references another resource and no
+                referenced values are provided (`None`).
         """
         fk_fields = fk.fields
 
@@ -533,9 +538,11 @@ class PanderaPandasAdapter(AbstractAdapter):
             fk.reference.fields if fk.reference.resource is None else None
         )
 
-        # If no external values and not self-reference, we can't validate
-        # so we raise a ValueError
-        if not valid_values and referenced_fields is None:
+        # If nothing was supplied and this is not a self-reference, we can't
+        # validate, so we raise a ValueError. An empty list is a different case:
+        # the referenced table exists and holds no rows, which every non-null
+        # referring row legitimately fails.
+        if foreign_key_values is None and referenced_fields is None:
             raise ValueError(
                 f"Cannot validate foreign key {fk_fields} as no referenced values "
                 "are provided."

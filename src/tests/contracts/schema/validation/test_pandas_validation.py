@@ -172,6 +172,30 @@ class TestForeignKeyValidation:
         with pytest.raises(ValueError, match="Cannot validate foreign key"):
             validate_dataframe(fk_schema, df)
 
+    def test_empty_external_values_fails_validation(self, fk_schema):
+        """An empty referenced table is a validation result, not an inability."""
+        df = pd.DataFrame({"id": [1, 2], "other_id": [10, 11]})
+        fk_values = {("other_id",): []}
+        with pytest.raises(SchemaValidationError) as exc_info:
+            validate_dataframe(fk_schema, df, foreign_key_values=fk_values)
+        error = exc_info.value
+        # Both referring rows fail, and to_list() names them
+        assert len(error.to_pandas()) == 2
+        assert error.to_list()
+
+    def test_empty_external_values_pass_for_null_rows(self, fk_schema):
+        """Null referring values pass even when the referenced table is empty."""
+        df = pd.DataFrame({"id": [1], "other_id": [pd.NA]})
+        fk_values = {("other_id",): []}
+        validate_dataframe(fk_schema, df, foreign_key_values=fk_values)
+
+    def test_empty_external_values_ok_for_self_reference(self, self_ref_schema):
+        """A self-reference takes its valid set from the frame, so [] still passes."""
+        df = pd.DataFrame({"id": [1, 2], "parent_id": [None, 1]})
+        df["parent_id"] = df["parent_id"].astype("Int64")
+        fk_values = {("parent_id",): []}
+        validate_dataframe(self_ref_schema, df, foreign_key_values=fk_values)
+
     def test_valid_self_reference(self, self_ref_schema):
         df = pd.DataFrame({"id": [1, 2], "parent_id": [None, 1]})
         # Ensure nullable int

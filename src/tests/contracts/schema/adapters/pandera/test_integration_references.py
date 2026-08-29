@@ -131,6 +131,32 @@ class TestForeignKeyValidation:
         with pytest.raises(ValueError, match="Cannot validate foreign key"):
             PanderaPandasAdapter.convert_schema(fk_schema).validate(df)
 
+    def test_empty_external_values_fails_validation(self, fk_schema):
+        """An empty referenced table is a validation result, not an inability."""
+        df = pd.DataFrame({"id": [1], "other_id": [10]})
+        fk_values = {("other_id",): []}
+        with pytest.raises(SchemaError):
+            PanderaPandasAdapter.convert_schema(
+                fk_schema, foreign_key_values=fk_values
+            ).validate(df)
+
+    def test_empty_external_values_pass_for_null_rows(self, fk_schema):
+        """Null referring values pass even when the referenced table is empty."""
+        df = pd.DataFrame({"id": [1], "other_id": [pd.NA]})
+        fk_values = {("other_id",): []}
+        PanderaPandasAdapter.convert_schema(
+            fk_schema, foreign_key_values=fk_values
+        ).validate(df)
+
+    def test_empty_external_values_ok_for_self_reference(self, self_ref_schema):
+        """A self-reference takes its valid set from the frame, so [] still passes."""
+        df = pd.DataFrame({"id": [1, 2], "parent_id": [None, 1]})
+        df["parent_id"] = df["parent_id"].astype("Int64")
+        fk_values = {("parent_id",): []}
+        PanderaPandasAdapter.convert_schema(
+            self_ref_schema, foreign_key_values=fk_values
+        ).validate(df)
+
     def test_valid_self_reference(self, self_ref_schema):
         df = pd.DataFrame({"id": [1, 2], "parent_id": [None, 1]})
         # Ensure nullable int
