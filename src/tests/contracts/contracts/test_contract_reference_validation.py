@@ -1,3 +1,4 @@
+import pandas as pd
 import pytest
 
 from crosscontract.contracts import BaseContract, CrossContract
@@ -11,6 +12,18 @@ class FakeResolver:
 
     def resolve(self, name: str) -> BaseContract | None:
         return self._by_name.get(name)
+
+    def get_data(
+        self, name: str, columns: list[str], *, unique: bool = True
+    ) -> pd.DataFrame:
+        """Satisfy the protocol; `validate_references` never reads data.
+
+        Raising rather than returning an empty frame keeps an accidental call
+        loud — an empty frame would now mean "the referenced table is empty".
+        """
+        raise NotImplementedError(
+            "FakeResolver serves contract definitions only, not data."
+        )
 
 
 def _base_contract(name: str, foreign_keys: list | None = None) -> BaseContract:

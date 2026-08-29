@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Self
 
+import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..._helpers import read_yaml_or_json_file
@@ -173,3 +174,110 @@ class BaseContract(BaseMetaData):
                 f"Reference validation failed for '{self.name}':\n  - "
                 + "\n  - ".join(errors)
             )
+
+    def validate_data(
+        self,
+        df: pd.DataFrame,
+        resolver: ContractResolver | None = None,
+        check_existing_primary_key: bool = False,
+        check_existing_foreign_key: bool = False,
+        lazy: bool = True,
+    ) -> pd.DataFrame:
+        """Validate the data for this contract.
+
+        The check flags govern only whether the data is additionally compared
+        against the values already stored — the contract's own primary keys, and
+        the referenced fields of the contracts it points to. Fetching those needs
+        a `resolver`; without one the data is validated on its own.
+
+        Note that a `False` flag currently suppresses the corresponding check
+        *entirely*, rather than only its stored-value half: with
+        `check_existing_primary_key=False` no uniqueness is checked within the
+        data either, and with `check_existing_foreign_key=False` a
+        self-referencing foreign key is not checked against the data's own rows.
+
+        Args:
+            df (pd.DataFrame): The data to validate.
+            resolver (ContractResolver | None, optional): Supplier of the stored
+                values. Required only when one of the check flags is set.
+                Defaults to `None`.
+            check_existing_primary_key (bool): If True, also check the primary
+                key against the values already stored for this contract.
+                Defaults to False.
+            check_existing_foreign_key (bool): If True, also check the foreign
+                keys against the values already stored for the contracts they
+                reference. Defaults to False.
+            lazy (bool): If True, collect all validation errors and raise them
+                together. If False, raise the first error encountered. Defaults
+                to True.
+
+        Returns:
+            pd.DataFrame: The validated data.
+
+        Raises:
+            ValueError: If a check against stored values is requested without a
+                `resolver`.
+            SchemaValidationError: If the data does not conform to the schema.
+        """
+        existing_primary_keys: list[tuple] | None = None
+        foreign_key_values: dict[tuple[str, ...], list[tuple]] | None = None
+        if resolver is None:
+            if check_existing_primary_key or check_existing_foreign_key:
+                raise ValueError(
+                    f"Contract '{self.name}': checking against existing values requires"
+                    " a resolver. Pass resolver=, or leave check_existing_primary_key "
+                    "and check_existing_foreign_key False to validate the data on its "
+                    "own."
+                )
+        else:
+            if check_existing_primary_key and self.tableschema.primaryKey:
+                existing_primary_keys = self._get_existing_values(
+                    resolver, self.name, list(self.tableschema.primaryKey)
+                )
+
+            if check_existing_foreign_key and self.tableschema.foreignKeys:
+                foreign_key_values = {}
+                for fk in self.tableschema.foreignKeys.root:
+                    existing_values = self._get_existing_values(
+                        resolver,
+                        fk.reference.resource or self.name,
+                        fk.reference.fields,
+                    )
+                    foreign_key_values[tuple(fk.fields)] = existing_values
+
+        df = self.tableschema.validate_dataframe(
+            df,
+            primary_key_values=existing_primary_keys,
+            foreign_key_values=foreign_key_values,
+            skip_primary_key_validation=not check_existing_primary_key,
+            skip_foreign_key_validation=not check_existing_foreign_key,
+            lazy=lazy,
+        )
+        return df
+
+    def _get_existing_values(
+        self, resolver: ContractResolver, contract_name: str, columns: list[str]
+    ) -> list[tuple]:
+        """Get the stored values of the given columns as tuples.
+
+        Serves both the primary key lookup against this contract and the
+        foreign key lookups against the contracts it references. The returned
+        frame is reindexed by `columns` before tuple-ification, because a
+        foreign key's referring and referenced fields correspond by position,
+        while a frame's own column order is whatever the resolver returned.
+
+        Args:
+            resolver (ContractResolver): Supplier of the stored values.
+            contract_name (str): The name of the contract to read from.
+            columns (list[str]): The columns to read, in the order the returned
+                tuples must follow.
+
+        Returns:
+            list[tuple]: One tuple per row, with the values ordered as `columns`.
+        """
+        df_ = resolver.get_data(
+            name=contract_name,
+            columns=columns,
+            unique=True,
+        )[columns]
+        return [tuple(row) for row in df_.itertuples(index=False, name=None)]

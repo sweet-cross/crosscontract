@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pandas as pd
 import pytest
@@ -10,6 +10,7 @@ from crosscontract.contracts.schema import SchemaValidationError, TableSchema
 from crosscontract.crossclient.exceptions.exceptions import ValidationError
 from crosscontract.crossclient.services.contract_resource import ContractResource
 from crosscontract.crossclient.services.contract_service import ContractService
+from crosscontract.crossclient.services.resolver import ClientContractResolver
 
 CONTRACTS_URL = "https://api.example.com/api/v1/contract/"
 
@@ -273,100 +274,78 @@ class TestImmutability:
             contract_resource.contract = "3"
 
 
+def _keyed_contract() -> CrossContract:
+    """A contract with a primary key, for exercising the resolver path."""
+    return CrossContract(
+        name="facts",
+        title="t",
+        description="d",
+        contract_type="General",
+        tableschema={
+            "primaryKey": ["id"],
+            "fields": [
+                {"name": "id", "type": "integer"},
+                {"name": "value", "type": "number"},
+            ],
+        },
+    )
+
+
 class TestValidation:
-    def test_validate_dataframe_defaults_success(
-        self, contract_resource: ContractResource
-    ):
-        """Test validate_dataframe with defaults (skipping PK and FK validation)."""
-        df = pd.DataFrame({"col1": [1, 2]})
-
-        # Mock schema.validate_dataframe
-        validate_mock = Mock(return_value=None)
-        object.__setattr__(
-            contract_resource.contract.tableschema, "validate_dataframe", validate_mock
+    def test_defaults_perform_no_fetch(self, service: ContractService):
+        """The default call validates without reading anything from the platform."""
+        resource = _make_resource(service, _keyed_contract())
+        resource._service._get_data = Mock(
+            side_effect=AssertionError("no data should be fetched")
         )
 
-        # Mock internal methods to ensure they are NOT called
-        with (
-            patch.object(contract_resource, "get_primary_key_values") as pk_mock,
-            patch.object(contract_resource, "get_foreign_key_values") as fk_mock,
-        ):
-            contract_resource.validate_dataframe(df)
+        resource.validate_dataframe(pd.DataFrame({"id": [1, 2], "value": [1.0, 2.0]}))
 
-            pk_mock.assert_not_called()
-            fk_mock.assert_not_called()
+        resource._service._get_data.assert_not_called()
 
-            validate_mock.assert_called_once_with(
-                df=df,
-                primary_key_values=None,
-                foreign_key_values=None,
-                skip_primary_key_validation=True,
-                skip_foreign_key_validation=True,
-                lazy=True,
-            )
-
-    def test_validate_dataframe_with_pk_success(
+    def test_flags_are_forwarded_with_a_resolver(
         self, contract_resource: ContractResource
     ):
-        """Test validate_dataframe with primary key validation enabled."""
+        """The flags reach `validate_data`, together with a client-backed resolver."""
         df = pd.DataFrame({"col1": [1, 2]})
-        pk_values = [(1,), (2,)]
+        validate_mock = Mock(return_value=df)
+        object.__setattr__(contract_resource.contract, "validate_data", validate_mock)
 
-        validate_mock = Mock(return_value=None)
-        object.__setattr__(
-            contract_resource.contract.tableschema, "validate_dataframe", validate_mock
+        contract_resource.validate_dataframe(
+            df, check_existing_primary_key=True, check_existing_foreign_key=True
         )
 
-        with (
-            patch.object(
-                contract_resource, "get_primary_key_values", return_value=pk_values
-            ) as pk_mock,
-            patch.object(contract_resource, "get_foreign_key_values") as fk_mock,
-        ):
-            contract_resource.validate_dataframe(df, skip_primary_key_validation=False)
+        validate_mock.assert_called_once()
+        args, kwargs = validate_mock.call_args
+        assert args[0] is df
+        assert kwargs["check_existing_primary_key"] is True
+        assert kwargs["check_existing_foreign_key"] is True
+        assert kwargs["lazy"] is True
+        assert isinstance(kwargs["resolver"], ClientContractResolver)
 
-            pk_mock.assert_called_once()
-            fk_mock.assert_not_called()
+    def test_checking_existing_keys_reads_own_contract(self, service: ContractService):
+        """The resolver reads the contract's own stored primary keys."""
+        resource = _make_resource(service, _keyed_contract())
+        resource._service._get_data = Mock(return_value=pd.DataFrame({"id": [10]}))
 
-            validate_mock.assert_called_once_with(
-                df=df,
-                primary_key_values=pk_values,
-                foreign_key_values=None,
-                skip_primary_key_validation=False,
-                skip_foreign_key_validation=True,
-                lazy=True,
-            )
-
-    def test_validate_dataframe_with_fk_success(
-        self, contract_resource: ContractResource
-    ):
-        """Test validate_dataframe with foreign key validation enabled."""
-        df = pd.DataFrame({"col1": [1, 2]})
-        fk_values = {("col1",): [(1,), (2,)]}
-
-        validate_mock = Mock(return_value=None)
-        object.__setattr__(
-            contract_resource.contract.tableschema, "validate_dataframe", validate_mock
+        resource.validate_dataframe(
+            pd.DataFrame({"id": [1, 2], "value": [1.0, 2.0]}),
+            check_existing_primary_key=True,
         )
 
-        with (
-            patch.object(contract_resource, "get_primary_key_values") as pk_mock,
-            patch.object(
-                contract_resource, "get_foreign_key_values", return_value=fk_values
-            ) as fk_mock,
-        ):
-            contract_resource.validate_dataframe(df, skip_foreign_key_validation=False)
+        resource._service._get_data.assert_called_once_with(
+            "facts", columns=["id"], unique=True
+        )
 
-            pk_mock.assert_not_called()
-            fk_mock.assert_called_once()
+    def test_checking_existing_keys_reports_a_collision(self, service: ContractService):
+        """A key already stored on the platform fails validation."""
+        resource = _make_resource(service, _keyed_contract())
+        resource._service._get_data = Mock(return_value=pd.DataFrame({"id": [1]}))
 
-            validate_mock.assert_called_once_with(
-                df=df,
-                primary_key_values=None,
-                foreign_key_values=fk_values,
-                skip_primary_key_validation=True,
-                skip_foreign_key_validation=False,
-                lazy=True,
+        with pytest.raises(ValidationError):
+            resource.validate_dataframe(
+                pd.DataFrame({"id": [1, 2], "value": [1.0, 2.0]}),
+                check_existing_primary_key=True,
             )
 
     def test_validate_dataframe_validation_error(
@@ -391,108 +370,6 @@ class TestValidation:
             in str(exc.value)
         )
         assert exc.value.validation_errors == [{"field": "col1", "error": "bad"}]
-
-
-class TestGetKeyValues:
-    def test_get_primary_key_values_no_pk(self, contract_resource: ContractResource):
-        """Test get_primary_key_values when no primary key is defined."""
-        # Mock schema.primaryKey as None
-        object.__setattr__(contract_resource.contract.tableschema, "primaryKey", None)
-
-        assert contract_resource.get_primary_key_values() is None
-
-    def test_get_primary_key_values_empty_result(
-        self, contract_resource: ContractResource
-    ):
-        """Test get_primary_key_values when no existing values found."""
-        # Mock schema.primaryKey
-        pk_mock = Mock()
-        pk_mock.root = ["id"]
-        object.__setattr__(
-            contract_resource.contract.tableschema, "primaryKey", pk_mock
-        )
-
-        # Mock get_data to return empty DataFrame
-        with patch.object(
-            contract_resource, "get_data", return_value=pd.DataFrame()
-        ) as get_data_mock:
-            assert contract_resource.get_primary_key_values() is None
-            get_data_mock.assert_called_once_with(columns=["id"], unique=True)
-
-    def test_get_primary_key_values_success(self, contract_resource: ContractResource):
-        """Test get_primary_key_values success."""
-        # Mock schema.primaryKey
-        pk_mock = Mock()
-        pk_mock.root = ["id", "version"]
-        object.__setattr__(
-            contract_resource.contract.tableschema, "primaryKey", pk_mock
-        )
-
-        # Mock get_data
-        df = pd.DataFrame({"id": [1, 2], "version": [1, 1]})
-        with patch.object(
-            contract_resource, "get_data", return_value=df
-        ) as get_data_mock:
-            expected = [(1, 1), (2, 1)]
-            assert contract_resource.get_primary_key_values() == expected
-            get_data_mock.assert_called_once_with(
-                columns=["id", "version"], unique=True
-            )
-
-    def test_get_foreign_key_values_no_fk(self, contract_resource: ContractResource):
-        """Test get_foreign_key_values when no foreign keys are defined."""
-        # Mock schema.foreignKeys as None
-        object.__setattr__(contract_resource.contract.tableschema, "foreignKeys", None)
-
-        assert contract_resource.get_foreign_key_values() is None
-
-    def test_get_foreign_key_values_success(self, contract_resource: ContractResource):
-        """Test get_foreign_key_values success."""
-        # Define mock Foreign Object
-        fk1 = Mock()
-        fk1.fields = ["user_id"]
-        fk1.reference.resource = "UserContract"
-        fk1.reference.fields = ["id"]
-
-        fk2 = Mock()
-        fk2.fields = ["parent_id"]
-        fk2.reference.resource = None  # Self Reference
-        fk2.reference.fields = ["id"]
-
-        # Mock schema.foreignKeys
-        fks_mock = Mock()
-        fks_mock.root = [fk1, fk2]
-        object.__setattr__(
-            contract_resource.contract.tableschema, "foreignKeys", fks_mock
-        )
-
-        # Mock get_data
-        df1 = pd.DataFrame({"id": [101, 102]})
-        df2 = pd.DataFrame({"id": [1, 2]})
-
-        with patch.object(
-            contract_resource._service, "_get_data", side_effect=[df1, df2]
-        ) as get_data_mock:
-            result = contract_resource.get_foreign_key_values()
-
-            # Since dictionary usage order depends on execution, but here it's
-            # list order. The order corresponds to schema.foreignKeys.root order
-            expected = {
-                ("user_id",): [(101,), (102,)],
-                ("parent_id",): [(1,), (2,)],
-            }
-            assert result == expected
-
-            assert get_data_mock.call_count == 2
-            # 1st call
-            get_data_mock.assert_any_call(
-                name="UserContract", columns=["id"], unique=True
-            )
-            # 2nd call - resource or self.name. fk2.reference.resource is "None"
-            # so it uses self.name
-            get_data_mock.assert_any_call(
-                name=contract_resource.name, columns=["id"], unique=True
-            )
 
 
 class TestIsDimension:
