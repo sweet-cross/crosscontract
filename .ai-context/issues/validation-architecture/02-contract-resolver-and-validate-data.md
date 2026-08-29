@@ -14,10 +14,10 @@ the expensive part.
 - [x] `ContractResolver` carries **both** `resolve` and `get_data`, as a single protocol, with `@abstractmethod` on both members.
 - [x] `get_data`'s docstring states the scope obligation: it returns rows *irrespective of the caller's read permissions*, and is never narrowed by project.
 - [x] `get_data`'s docstring states that `unique` is a cost hint — correctness does not depend on it, because both key checks build a `set()`.
-- [ ] `BaseContract.validate_data` exists with the agreed signature and owns the whole derivation.
-- [ ] The flags are named `check_existing_primary_key` / `check_existing_foreign_key`, both defaulting to `False`, and they read in the positive: `True` means *additionally consult stored values*.
-- [ ] `resolver` is optional (`ContractResolver | None = None`), so a `BaseContract` used off-platform can validate without one.
-- [ ] Requesting either check without a resolver raises a `ValueError` that names the contract and both remedies. Raised unconditionally on the flag-plus-`None` combination, not only when the schema happens to have keys to fetch.
+- [x] `BaseContract.validate_data` exists with the agreed signature and owns the whole derivation.
+- [x] The flags are named `check_existing_primary_key` / `check_existing_foreign_key`, both defaulting to `False`, and they read in the positive: `True` means *additionally consult stored values*.
+- [x] `resolver` is optional (`ContractResolver | None = None`), so a `BaseContract` used off-platform can validate without one.
+- [x] Requesting either check without a resolver raises a `ValueError` that names the contract and both remedies. Raised unconditionally on the flag-plus-`None` combination, not only when the schema happens to have keys to fetch.
 - [ ] With both flags `False` and no resolver, **no data is fetched** — `get_data` is never called.
 - [ ] A dict-backed fake resolver proves the derivation, **including a case where `fk.fields` and `fk.reference.fields` differ** — that is where a direction error hides.
 - [ ] A **composite** foreign key whose resolver returns the requested columns in a *different order* still validates. Without the `df[columns]` reindex this fails silently, so it needs its own test.
