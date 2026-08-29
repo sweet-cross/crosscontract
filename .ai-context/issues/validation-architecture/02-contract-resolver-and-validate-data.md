@@ -15,10 +15,13 @@ the expensive part.
 - [x] `get_data`'s docstring states the scope obligation: it returns rows *irrespective of the caller's read permissions*, and is never narrowed by project.
 - [x] `get_data`'s docstring states that `unique` is a cost hint — correctness does not depend on it, because both key checks build a `set()`.
 - [ ] `BaseContract.validate_data` exists with the agreed signature and owns the whole derivation.
+- [ ] The flags are named `check_existing_primary_key` / `check_existing_foreign_key`, both defaulting to `False`, and they read in the positive: `True` means *additionally consult stored values*.
+- [ ] `resolver` is optional (`ContractResolver | None = None`), so a `BaseContract` used off-platform can validate without one.
+- [ ] Requesting either check without a resolver raises a `ValueError` that names the contract and both remedies. Raised unconditionally on the flag-plus-`None` combination, not only when the schema happens to have keys to fetch.
+- [ ] With both flags `False` and no resolver, **no data is fetched** — `get_data` is never called.
 - [ ] A dict-backed fake resolver proves the derivation, **including a case where `fk.fields` and `fk.reference.fields` differ** — that is where a direction error hides.
 - [ ] A **composite** foreign key whose resolver returns the requested columns in a *different order* still validates. Without the `df[columns]` reindex this fails silently, so it needs its own test.
 - [ ] A stale explicit subclass of `ContractResolver` (one that implements `resolve` but not `get_data`) raises `TypeError` at construction.
-- [ ] `resolver=None` with `skip_primary_key_validation=False` still runs in-frame primary-key uniqueness — it must **not** collapse into "skip both".
 - [ ] `FakeResolver` in `src/tests/contracts/contracts/test_contract_reference_validation.py` gains a `get_data` stub. It keeps working untouched at runtime, but no longer satisfies the protocol structurally, and the stub is what keeps that honest.
 
 ## Implementation Details
@@ -46,8 +49,8 @@ the expensive part.
       self,
       df: pd.DataFrame,
       resolver: ContractResolver | None = None,
-      skip_primary_key_validation: bool = False,
-      skip_foreign_key_validation: bool = False,
+      check_existing_primary_key: bool = False,
+      check_existing_foreign_key: bool = False,
       lazy: bool = True,
   ) -> pd.DataFrame
   ```
@@ -62,7 +65,26 @@ the expensive part.
   It then hands materialized values to `self.tableschema.validate_dataframe`, which is
   **unchanged**.
 
-- **Defaults are `False` / `False`**, matching `TableSchema.validate_dataframe`, not the client. A method one layer up must not validate less than the thing it delegates to.
+- **The flags name the *external* half, and default to `False`.** `check_existing_*=True`
+  means "also consult stored values"; `False` means "check what is in the frame". The
+  polarity is positive because that is how the caller thinks and how `cross_back` already
+  names it (`check_primary_key` / `check_foreign_keys`, which it currently has to invert
+  at the boundary). Translate to the schema layer with
+  `skip_primary_key_validation=not check_existing_primary_key` and likewise for foreign
+  keys. Do **not** derive the skip flags from the schema — see the known gap below.
+
+- **Known gap, deliberate — the names promise more than the validator currently
+  delivers.** `check_existing_foreign_key=False` reads as "do not consult other
+  contracts", but today it maps onto `skip_foreign_key_validation=True`, which suppresses
+  the check *entirely* — so a `Dimension` validated through `validate_data` does not get
+  its self-referencing foreign key checked, and no contract gets in-frame primary-key
+  uniqueness. That matches the client's current behaviour, so it is not a regression, and
+  fixing it belongs at the validator, not here. The name is the specification; the
+  handoff PRD described in `04-record-the-decision.md` brings the validator up to it.
+  Renaming once, now, is cheaper than letting `cross_back` and the submission handler
+  bind to `skip_*` and churning them later. State this gap in `validate_data`'s
+  docstring so it is not mistaken for a bug.
+
 - **No `backend` parameter** — one legal value, and the schema layer already defaults it.
 - **The parameter is `resolver`, not `references`** — matches `validate_references` and the **Contract resolver** entry in [`CONTEXT.md`](../../CONTEXT.md).
 - **Tests:** `src/tests/contracts/contracts/`.

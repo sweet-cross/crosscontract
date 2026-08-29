@@ -179,8 +179,8 @@ class BaseContract(BaseMetaData):
         self,
         df: pd.DataFrame,
         resolver: ContractResolver,
-        skip_primary_key_validation: bool = False,
-        skip_foreign_key_validation: bool = False,
+        check_existing_primary_key: bool = False,
+        check_existing_foreign_key: bool = False,
         lazy: bool = True,
     ) -> pd.DataFrame:
         """Validate the data for this contract.
@@ -188,17 +188,17 @@ class BaseContract(BaseMetaData):
         Args:
             df (pd.DataFrame): The data to validate.
             resolver (ContractResolver): Resolver for referenced contracts.
-            skip_primary_key_validation (bool): If True, skip primary key validation.
-                Defaults to False.
-            skip_foreign_key_validation (bool): If True, skip foreign key validation.
-                Defaults to False.
+            check_existing_primary_key (bool): If True, check existing primary
+                key values. Defaults to False.
+            check_existing_foreign_key (bool): If True, check existing foreign
+                key values. Defaults to False.
             lazy (bool): If True, perform lazy validation. Defaults to True.
 
         Returns:
             pd.DataFrame: The validated data.
         """
         existing_primary_keys: list[tuple] | None
-        if not skip_primary_key_validation and self.tableschema.primaryKey:
+        if not check_existing_primary_key and self.tableschema.primaryKey:
             existing_primary_keys = self._get_reference_values(
                 resolver, self.name, list(self.tableschema.primaryKey)
             )
@@ -206,7 +206,7 @@ class BaseContract(BaseMetaData):
             existing_primary_keys = None
 
         foreign_key_values: dict[tuple[str, ...], list[tuple]] | None
-        if not skip_foreign_key_validation and self.tableschema.foreignKeys:
+        if not check_existing_foreign_key and self.tableschema.foreignKeys:
             foreign_key_values = {}
             for fk in self.tableschema.foreignKeys.root:
                 reference_values = self._get_reference_values(
@@ -220,8 +220,8 @@ class BaseContract(BaseMetaData):
             df,
             primary_key_values=existing_primary_keys,
             foreign_key_values=foreign_key_values,
-            skip_primary_key_validation=skip_primary_key_validation,
-            skip_foreign_key_validation=skip_foreign_key_validation,
+            skip_primary_key_validation=not check_existing_primary_key,
+            skip_foreign_key_validation=not check_existing_foreign_key,
             lazy=lazy,
         )
         return df

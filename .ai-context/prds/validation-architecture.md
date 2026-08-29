@@ -12,6 +12,11 @@ This is step 1 of a four-step sequence:
 3. (a) Improve the validation approach on the server (`cross_back`)
    (b) Use submission contracts for batch submission to the server
 
+A fourth strand was split off while implementing this one — making internal consistency
+unconditional at the validator, and the `checks` shape that may replace the boolean
+flags. It is *not* step 4 of the sequence above; it is a follow-on to this document. See
+**Deferred to a follow-on PRD** below.
+
 Steps 2 and 3a both bind to the signature introduced here, which is why the
 signature — not the amount of code — is the expensive part.
 
@@ -148,8 +153,8 @@ def validate_data(
     self,
     df: pd.DataFrame,
     resolver: ContractResolver | None = None,
-    skip_primary_key_validation: bool = False,
-    skip_foreign_key_validation: bool = False,
+    check_existing_primary_key: bool = False,
+    check_existing_foreign_key: bool = False,
     lazy: bool = True,
 ) -> pd.DataFrame
 ```
@@ -160,18 +165,27 @@ keying by `tuple(fk.fields)`, and order-safe tuple-ification
 (`df[columns].itertuples(...)`) of the returned frames — then hands materialized values
 down to `tableschema.validate_dataframe`, which is unchanged.
 
-**The defaults are `False` / `False`**, matching `TableSchema.validate_dataframe` rather
-than the client. A method one layer up must not validate *less* than the thing it
-delegates to, and skipping the primary key by default would throw away the in-frame
-uniqueness check — which costs nothing and needs no resolver. That is the same silent
-deletion the section below exists to prevent.
-`ContractResource.validate_dataframe` keeps `True` / `True` and passes them down
-explicitly: avoiding network calls is the client's policy, not the library's.
+**The flags name the *external* half and read in the positive.**
+`check_existing_*=True` means "also consult stored values"; `False` means "check what is
+in the frame". This replaced an earlier `skip_primary_key_validation` /
+`skip_foreign_key_validation` pair, which was abandoned because the two defaults
+contradicted each other: `skip_foreign_key_validation=False` with `resolver=None` reads
+as "I am checking foreign keys" and then raises for every contract with an external
+reference — i.e. for **ValueVariable**, the main contract type in the model. The
+positive polarity fixes that at the name rather than at the exception: a caller reading
+their own call site can see what they did and did not ask for, so a silently weaker
+validation is no longer silent.
 
-The consequence to accept: `contract.validate_data(df)` on a contract with an external
-foreign key raises `ValueError` rather than quietly skipping. That is the correct
-failure, but it makes the existing message user-facing from a new entry point — see the
-follow-up at the end of this document.
+`cross_back` already names it this way (`check_primary_key` / `check_foreign_keys`) and
+inverts at the boundary; this deletes that inversion.
+
+**The resolver is optional.** `BaseContract` exists for use *outside* the CROSS platform,
+where there is nothing to pass — requiring one would make the method unusable for the
+audience the class exists to serve. A null-object resolver is not a workaround: after
+WP1, an empty frame means "the referenced table is empty" and fails every row, so `None`
+is the only safe way to say "I have no source". Requesting either check without a
+resolver raises from `validate_data`, which is the only place that knows the contract
+name *and* the parameter names, and can therefore name the remedy.
 
 **`backend` is deliberately absent.** It has one legal value and the schema layer
 already defaults it; add it if a second backend ever lands.
@@ -193,26 +207,41 @@ genuine contract-level policy — `False` on `BaseContract`, `True` on
 `CrossContract` — and cannot move to the schema, because `Submission` and
 `General` both resolve to the same plain `TableSchema` class.
 
-### `skip_*` stays orthogonal to the resolver
+### The flags are orthogonal to the resolver — structurally, not by rule
 
-`resolver=None` must **not** mean "skip both". The two axes are not symmetric:
+`resolver=None` must **not** mean "check nothing". Schema-only validation is a real mode
+that the client relies on today and offline callers need. Under `skip_*` this had to be
+defended as a rule; under `check_existing_*` it is structural — the flags only ever
+named the existing-values half, so what can be established from the frame alone is
+outside their reach by construction.
 
-| | no resolver supplied | skipped |
+What "the frame alone" *should* establish:
+
+| | `check_existing_*=False` | `check_existing_*=True` |
 |---|---|---|
-| **primary key** | still checks non-null + uniqueness **within the frame** | no check |
-| **foreign key** | external ref → *cannot* check | no check |
+| **primary key** | non-null + uniqueness **within the frame** | the above, plus no collision with stored keys |
+| **foreign key**, self-referencing | integrity against the frame's own rows | the above, plus stored rows |
+| **foreign key**, external | not checked | checked against the referenced contract |
 
-Schema-only validation (no external values) is a real mode that the client relies
-on today and offline callers need. Folding `None` into "skip both" would silently
-delete in-frame primary-key uniqueness checking.
+**The validator does not yet deliver the left column, and WP2 does not change that.**
+`check_existing_*=False` currently maps onto `skip_*=True`, which suppresses the check
+entirely — so in-frame primary-key uniqueness and self-referencing foreign keys go
+unchecked. That is exactly the client's behaviour today, so nothing regresses; the name
+is the specification and the validator is brought up to it separately. See
+*Deferred to a follow-on PRD* below.
 
 ### Client-side defaults are unchanged
 
-`ContractResource.validate_dataframe` skips both PK and FK validation by default
+`ContractResource.validate_dataframe` performs no data fetch by default
 ([contract_resource.py:220](../../src/crosscontract/crossclient/services/contract_resource.py#L220)),
 deliberately, to avoid network calls. The platform re-validates authoritatively on
-ingest. Relaxing this is a **later** decision, gated on the architecture landing
-first; WP3 must prove the behaviour is unchanged.
+ingest. Relaxing this is a **later** decision, gated on the architecture landing first.
+
+WP3 must prove *that* property — **no data fetch** — rather than "the same checks run".
+The two came apart when the flags were renamed: the follow-on PRD will deliberately
+change which checks run by default, while the no-network guarantee has to survive it.
+The client's own parameters are renamed to match the library's, so the two stop speaking
+opposite polarities.
 
 ---
 
@@ -301,8 +330,10 @@ decoration, the scope obligation docstring, and `validate_data` with its derivat
 - `FakeResolver` gains a `get_data` stub. It keeps working untouched at runtime —
   nothing calls `isinstance`, and mypy does not cover `src/tests/` — but it no longer
   satisfies the protocol structurally, and the stub is what keeps that honest.
-- `resolver=None` with `skip_primary_key_validation=False` still runs in-frame
-  PK uniqueness.
+- Requesting either check with `resolver=None` raises a `ValueError` naming the contract
+  and both remedies — unconditionally on the flag-plus-`None` combination, not only when
+  the schema happens to have keys to fetch.
+- With both flags `False` and no resolver, `get_data` is never called.
 
 ### WP3 — Migrate the client onto it
 
@@ -327,14 +358,20 @@ design is wrong — better to find that here than in `cross_back`.
 - Scope for WP3: no underscore on the class name, no top-level export, no convenience
   property on `CrossClient`. `ContractResource.validate_dataframe` constructs one
   internally. Exposing it is a one-line follow-up if wanted.
-- `ContractResource.validate_dataframe` routes through `contract.validate_data`,
-  passing its `True` / `True` skip defaults explicitly;
+- `ContractResource.validate_dataframe` routes through `contract.validate_data`, passing
+  `check_existing_primary_key=False` / `check_existing_foreign_key=False` explicitly —
+  the same no-network behaviour under the new polarity;
   `get_primary_key_values` / `get_foreign_key_values` collapse.
+- Its own parameters are renamed to match, so the client and the library stop speaking
+  opposite polarities. Breaking, and acceptable on 0.x.
 - Fix the `ContractResource.validate_dataframe` docstring, which documents
-  "Default is False" for two flags that both default to `True`.
+  "Default is False" for two flags that both default to `True`. Under the rename the
+  defaults genuinely are `False`, so the fix is to say what `False` means.
 
-**Verification:** the existing `test_contract_resource.py` suite passes with its
-mocks re-pointed. The skip-by-default behaviour must be provably unchanged.
+**Verification:** the existing `test_contract_resource.py` suite passes with its mocks
+re-pointed, and a test proves the default call performs **no data fetch**. That is the
+property that must hold — not "the same checks run", which the follow-on PRD will
+deliberately change.
 
 ### WP4 — Record the decision
 
@@ -342,9 +379,12 @@ mocks re-pointed. The skip-by-default behaviour must be provably unchanged.
 **PR:** own PR, `docs:`.
 
 - **ADR 0005** — why **one** resolver rather than two protocols; why the derivation
-  lives in the library; why scope is an unparameterized obligation; why `skip_*` stays
-  orthogonal to the resolver; why `validate_data` sits on the contract; and why
-  `None` ≠ `[]` for external foreign keys *only*.
+  lives in the library; why scope is an unparameterized obligation; why the flags name
+  the existing-values half rather than being `skip_*`; why the resolver is optional; why
+  `validate_data` sits on the contract; and why `None` ≠ `[]` for external foreign keys
+  *only*.
+- **The handoff section** for the follow-on PRD — see *Deferred to a follow-on PRD*. The
+  deliverable is the written handoff, not the planning session.
 - **`CONTEXT.md`** — **done**, ahead of WP2. A *Validation* section now defines
   **Well-formedness**, **Reference validation**, **Data validation**, **Contract
   resolver**, and **Existing values**, organized by what each check must fetch from
@@ -369,20 +409,51 @@ WP1 ──▶ WP2 ──▶ WP3
 | 2 | WP2 + WP3 | `feat:` |
 | 3 | WP4 | `docs:` |
 
+## Deferred to a follow-on PRD
+
+Two requirements were agreed while implementing WP2 and deliberately **not** folded into
+it. They need their own planning session; the handoff is written up in
+[`04-record-the-decision.md`](../issues/validation-architecture/04-record-the-decision.md),
+which is the artifact that carries them forward.
+
+- **Internal consistency should be unconditional.** In-frame primary-key uniqueness and
+  self-referencing foreign keys ought to be checked *always*, whatever the flags say —
+  the flags govern only whether **existing values** are additionally consulted. This
+  belongs at the validator and does not touch `validate_data`, which merely passes values
+  or does not.
+- **The open question, left open on purpose.** Either `skip_primary_key_validation` /
+  `skip_foreign_key_validation` change meaning to cover only the existing-values
+  comparison, or they disappear from the validator entirely with presence-or-absence of
+  values as the instruction. The second retires WP1's `None`-arm `ValueError` and drops
+  two public parameters from `TableSchema.validate_dataframe`; WP1's `[]` semantics
+  survive either way.
+- **The shape already visible.** Whether the boolean pair becomes `checks: list[Check]`.
+  What forces it is per-check granularity: a foreign key has three states — self-
+  referencing and checkable in-frame, external and needing values, or not checked
+  externally — and two booleans cannot carry that. A schema mixing self-referencing and
+  external foreign keys is where the boolean version has no correct answer.
+
+Why deferred rather than absorbed: WP2's value is the *signature* that `cross_back` and
+submission both bind to. Renaming the flags once, now, is cheap; changing what the
+validator does underneath them is a separate blast radius, and doing both at once would
+make WP2 impossible to review against its own acceptance criteria.
+
 ## Out of scope
 
 - Async anything in `crosscontract`.
 - Step 2's submission validation (consumes WP2's signature; separate PRD).
 - Step 3a's `cross_back` rework, including dropping its explicit protocol base.
-- Relaxing the client's skip-by-default — deliberate, and gated on this landing.
+- Relaxing the client's no-fetch default — deliberate, and gated on this landing.
 
 ## Known follow-ups noticed while designing this
 
-- The `ValueError` raised when an external foreign key has no supplied values —
+- The adapter's `ValueError` for an external foreign key with no supplied values —
   `Cannot validate foreign key ('region_id',) as no referenced values are provided.` —
-  names neither the contract, nor the target, nor the remedy. Under the `False` /
-  `False` defaults it becomes user-facing from `validate_data`. Improve separately;
-  it is adjacent to WP2, not part of it.
+  names neither the contract, nor the target, nor the remedy. The flag rename means
+  `validate_data` no longer routes callers into it (its own guard fires first, with a
+  better message), so this now only affects direct `TableSchema.validate_dataframe`
+  callers. Lower priority than when it was first noted, and possibly moot depending on
+  how the follow-on PRD resolves the `None` arm.
 - `BaseContract.validate_references` skips `target == self.name`
   ([base_contract.py:150](../../src/crosscontract/contracts/contracts/base_contract.py#L150)),
   but `_validate_self_reference` already raises at construction if any FK spells
