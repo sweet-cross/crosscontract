@@ -77,11 +77,48 @@ project the caller may read. A **Contract** itself belongs to no project; only t
 stored under it do.
 _Avoid_: workspace, tenant, organisation, group
 
+### Validation
+
+Three checks, distinguished by what must be fetched from outside the **Contract**:
+nothing, other **Contracts**' definitions, or the values already stored.
+
+**Well-formedness**:
+A **Schema** satisfying its own structural rules — field types, mandatory fields,
+dimension invariants, key definitions. Established when a **Contract** is loaded and
+needs nothing beyond the contract itself.
+_Avoid_: validation (unqualified), schema check
+
+**Reference validation**:
+A **Contract** checked against the **Contracts** it names — they exist, and the
+referenced fields line up. Definition against definition; no data is read. Needs a
+**Contract resolver**.
+_Avoid_: foreign key validation (that is the row-level check inside **Data
+validation**), dependency check
+
+**Data validation**:
+Tabular data checked against a **Contract** — types, constraints, and keys. Meaningful
+without a **Contract resolver**, which is required only to check against **Existing
+values**; without one, keys are still checked *within* the data at hand.
+_Avoid_: schema validation, dataframe validation
+
+**Contract resolver**:
+The single supplier of everything a **Contract** cannot know alone — the definitions of
+other **Contracts**, and the **Existing values** stored under them. Its reads ignore the
+caller's read permissions, because a key exists whether or not the caller may read it,
+and are therefore never narrowed by **Project**.
+_Avoid_: reference source, lookup, repository
+
+**Existing values**:
+The already-stored values a **Data validation** is checked against — the **Contract**'s
+own primary keys, and the referenced fields of the **Contracts** it points to. Distinct
+from the values in the data being validated.
+_Avoid_: reference values (overloads **Reference validation**), existing keys
+
 ### Roles and lifecycle
 
 **Data provider**:
-The party that delivers data conforming to a **Contract** and validates it against that
-contract before submission.
+The party that delivers data conforming to a **Contract** and runs **Data validation**
+against that contract before submission.
 
 **Data consumer**:
 The party that reads data described by a **Contract**, relying on it to know the
@@ -332,6 +369,15 @@ _Avoid_: extractor, processor, pipeline
   **Transformations** per variable; each kind of **Build spec** permits its own subset of
   **Transformations**. A **Transformation** touches tabular data only — never
   **Contracts**, **Schema**, or **Dimensions**.
+- A **Contract** is checked three ways: **Well-formedness** when it is loaded,
+  **Reference validation** against the **Contracts** it names, and **Data validation**
+  against actual rows. Only the first needs nothing from outside the contract.
+- **Reference validation** consumes a **Contract resolver**'s definitions; **Data
+  validation** consumes its **Existing values**. One resolver answers both, because both
+  questions are about the world outside the **Contract**.
+- The **Client** and the **CROSS platform** each provide a **Contract resolver**. A
+  **Data provider** validates through the client before submitting; the platform
+  re-validates authoritatively on ingest.
 - A **Submission contract** is a **Contract** whose **Schema** describes a delivered
   bundle, plus **Extraction instructions**. Its **Contract type** is **Submission**,
   which maps to the **General** **Table type** — the first contract type not backed by a
@@ -386,6 +432,17 @@ _Avoid_: extractor, processor, pipeline
   was the bespoke release descriptor and is **retired** (the **Release adapter** emits a
   **Frictionless descriptor** instead). When someone says "the release resource", they mean
   the Frictionless resource descriptor, never the fetch handle.
+- **The three validations have no distinct names in code.** **Well-formedness** is
+  `validate_structural_integrity` on the schema, **Reference validation** is
+  `validate_references` on the contract, and **Data validation** appears as
+  `validate_data` / `validate_dataframe` at three layers. The language distinguishes
+  them; the code does not yet. Renaming is a separate decision — use the terms in prose
+  regardless.
+- **"reference" is load-bearing twice.** A foreign key *is* a reference, so both
+  **Reference validation** (do the named contracts line up?) and the foreign-key check
+  inside **Data validation** (do these row values exist?) concern references. Resolved:
+  **Reference validation** is definition-only; anything concerning values is **Data
+  validation**, and its inputs are **Existing values** — never "reference values".
 - **"spec" was overloaded.** Resolved: a single **Transformation** is *not* "a spec"; the
   declarative manifest that lists variables and transformations is a **Build spec**
   (data-package spec, plot spec). Unqualified "spec" is banned because it also collides
