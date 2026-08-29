@@ -11,9 +11,9 @@ step 3a (`cross_back`) will both bind to — so the signature, not the amount of
 the expensive part.
 
 ## Acceptance Criteria
-- [ ] `ContractResolver` carries **both** `resolve` and `get_data`, as a single protocol, with `@abstractmethod` on both members.
-- [ ] `get_data`'s docstring states the scope obligation: it returns rows *irrespective of the caller's read permissions*, and is never narrowed by project.
-- [ ] `get_data`'s docstring states that `unique` is a cost hint — correctness does not depend on it, because both key checks build a `set()`.
+- [x] `ContractResolver` carries **both** `resolve` and `get_data`, as a single protocol, with `@abstractmethod` on both members.
+- [x] `get_data`'s docstring states the scope obligation: it returns rows *irrespective of the caller's read permissions*, and is never narrowed by project.
+- [x] `get_data`'s docstring states that `unique` is a cost hint — correctness does not depend on it, because both key checks build a `set()`.
 - [ ] `BaseContract.validate_data` exists with the agreed signature and owns the whole derivation.
 - [ ] A dict-backed fake resolver proves the derivation, **including a case where `fk.fields` and `fk.reference.fields` differ** — that is where a direction error hides.
 - [ ] A **composite** foreign key whose resolver returns the requested columns in a *different order* still validates. Without the `df[columns]` reindex this fails silently, so it needs its own test.

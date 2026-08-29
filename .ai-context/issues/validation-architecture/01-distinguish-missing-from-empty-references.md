@@ -10,11 +10,11 @@ The second is a validation result, not an inability, and must not surface as a
 `ValueError`. This lands first because WP2 builds on the corrected semantics.
 
 ## Acceptance Criteria
-- [ ] An external foreign key with `foreign_key_values=None` (and not skipped) still raises `ValueError` — the documented behaviour of `TableSchema.validate_dataframe` is unchanged.
-- [ ] An external foreign key with `foreign_key_values=[]` raises `SchemaValidationError`, and `e.to_list()` names the failing rows.
-- [ ] A row whose foreign-key value is **null** still passes against an empty referenced table (SQL semantics — an empty table fails only the non-null rows). This case has its own test.
-- [ ] Existing self-reference tests pass unchanged: for a self-referencing foreign key the in-frame values are the valid set, so `[]` and `None` both validate normally.
-- [ ] No change to `_get_primary_key_check`.
+- [x] An external foreign key with `foreign_key_values=None` (and not skipped) still raises `ValueError` — the documented behaviour of `TableSchema.validate_dataframe` is unchanged.
+- [x] An external foreign key with `foreign_key_values=[]` raises `SchemaValidationError`, and `e.to_list()` names the failing rows.
+- [x] A row whose foreign-key value is **null** still passes against an empty referenced table (SQL semantics — an empty table fails only the non-null rows). This case has its own test.
+- [x] Existing self-reference tests pass unchanged: for a self-referencing foreign key the in-frame values are the valid set, so `[]` and `None` both validate normally.
+- [x] No change to `_get_primary_key_check`.
 
 ## Implementation Details
 - **Modify:** `src/crosscontract/contracts/schema/adapters/pandera_adapter.py` — `_get_foreign_key_check` (~line 507). The guard becomes a `None` test rather than a truthiness test:

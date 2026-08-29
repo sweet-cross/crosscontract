@@ -1,6 +1,7 @@
 from pathlib import Path
-from typing import Self
+from typing import Any, Self
 
+import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..._helpers import read_yaml_or_json_file
@@ -173,3 +174,71 @@ class BaseContract(BaseMetaData):
                 f"Reference validation failed for '{self.name}':\n  - "
                 + "\n  - ".join(errors)
             )
+
+    def validate_data(
+        self,
+        df: pd.DataFrame,
+        resolver: ContractResolver,
+        skip_primary_key_validation: bool = False,
+        skip_foreign_key_validation: bool = False,
+        lazy: bool = True,
+    ) -> pd.DataFrame:
+        """Validate the data for this contract.
+
+        Args:
+            df (pd.DataFrame): The data to validate.
+            resolver (ContractResolver): Resolver for referenced contracts.
+            skip_primary_key_validation (bool): If True, skip primary key validation.
+                Defaults to False.
+            skip_foreign_key_validation (bool): If True, skip foreign key validation.
+                Defaults to False.
+            lazy (bool): If True, perform lazy validation. Defaults to True.
+
+        Returns:
+            pd.DataFrame: The validated data.
+        """
+        if not skip_primary_key_validation and self.tableschema.primaryKey is not None:
+            existing_primary_keys = self._get_reference_values(
+                resolver, self.name, list(self.tableschema.primaryKey)
+            )
+        else:
+            existing_primary_keys = None
+
+        if not skip_foreign_key_validation and self.tableschema.foreignKeys is not None:
+            foreign_key_values = {}
+            for fk in self.tableschema.foreignKeys.root:
+                reference_values = self._get_reference_values(
+                    resolver, fk.reference.resource or self.name, fk.reference.fields
+                )
+                foreign_key_values[tuple(fk.fields)] = reference_values
+        else:
+            foreign_key_values = None
+
+        df = self.tableschema.validate_dataframe(
+            df,
+            existing_primary_keys=existing_primary_keys,
+            foreign_key_values=foreign_key_values,
+            skip_primary_key_validation=skip_primary_key_validation,
+            skip_foreign_key_validation=skip_foreign_key_validation,
+            lazy=lazy,
+        )
+        return df
+
+    def _get_reference_values(
+        self, resolver: ContractResolver, contract_name: str, columns: list[Any]
+    ) -> list[tuple]:
+        """Get the existing primary keys values as tuples.
+
+        Args:
+            resolver (ContractResolver): Resolver for referenced contracts.
+            columns (list[Any]): List of column names representing the primary key.
+
+        Returns:
+            list[tuple]: List of tuples representing the existing primary key values.
+        """
+        df_ = resolver.get_data(
+            name=contract_name,
+            columns=columns,
+            unique=True,
+        )[columns]
+        return [tuple(row) for row in df_.itertuples(index=False, name=None)]
