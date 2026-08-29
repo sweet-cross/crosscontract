@@ -114,6 +114,29 @@ own primary keys, and the referenced fields of the **Contracts** it points to. D
 from the values in the data being validated.
 _Avoid_: reference values (overloads **Reference validation**), existing keys
 
+**Check**:
+A single named rule applied to data during a **Data validation** — that a set of columns
+holds unique values, that their values all appear in a given set, that a **Dimension**'s
+levels line up. A check names the *rule*, not the reason for it: the same uniqueness rule
+serves a primary key on one **Schema** and a single-column unique constraint on another,
+so what it means here is recorded alongside it as a label.
+_Avoid_: task, validator, constraint (a constraint is declared on a **Schema** field; the
+check is the rule derived from it)
+
+**Standard check**:
+A **Check** the **Schema** itself requires, run on every **Data validation** and not
+omittable — uniqueness of the primary key within the data, integrity of self-referencing
+foreign keys, and the **Dimension** invariants. Standard checks need nothing beyond the
+data being validated.
+_Avoid_: default check, built-in check, base check
+
+**Additional check**:
+A **Check** supplied by the caller, carrying the **Existing values** the data must also be
+measured against. Additional checks can only make a validation stricter: a caller may add
+one, never drop a **Standard check**. An additional check naming the same rule as a
+standard one replaces it, so a single violation is reported once rather than twice.
+_Avoid_: extra check, custom check, optional check
+
 ### Roles and lifecycle
 
 **Data provider**:
@@ -378,6 +401,11 @@ _Avoid_: extractor, processor, pipeline
 - The **Client** and the **CROSS platform** each provide a **Contract resolver**. A
   **Data provider** validates through the client before submitting; the platform
   re-validates authoritatively on ingest.
+- A **Data validation** runs every **Standard check** its **Schema** requires, plus any
+  **Additional check** the caller supplies. The caller adds strictness and can never
+  remove it, so what a **Contract** guarantees about its own data holds on every run.
+- An **Additional check** exists to carry **Existing values**, which is why supplying one
+  needs a **Contract resolver** and a **Standard check** does not.
 - A **Submission contract** is a **Contract** whose **Schema** describes a delivered
   bundle, plus **Extraction instructions**. Its **Contract type** is **Submission**,
   which maps to the **General** **Table type** — the first contract type not backed by a

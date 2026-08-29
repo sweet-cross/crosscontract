@@ -428,9 +428,9 @@ WP1 ──▶ WP2 ──▶ WP3
 ## Deferred to a follow-on PRD
 
 Two requirements were agreed while implementing WP2 and deliberately **not** folded into
-it. They need their own planning session; the handoff is written up in
-[`04-record-the-decision.md`](../issues/validation-architecture/04-record-the-decision.md),
-which is the artifact that carries them forward.
+it. That planning session has since been held, and the result is
+[check-based-validation.md](check-based-validation.md), which supersedes the notes below
+and answers the open question in favour of retiring the `None`-arm `ValueError`.
 
 - **Internal consistency should be unconditional.** In-frame primary-key uniqueness and
   self-referencing foreign keys ought to be checked *always*, whatever the flags say —
