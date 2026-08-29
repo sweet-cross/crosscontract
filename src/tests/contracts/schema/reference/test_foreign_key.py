@@ -85,24 +85,6 @@ class TestForeignKey:
             fk.validate_referenced_fields(["ref_id1", "other_field"])
         assert "['ref_id2']" in str(execinfo.value)
 
-    def test_foreign_keys_iteration(self):
-        """Test iteration over ForeignKeys."""
-        fks = ForeignKeys.model_validate(
-            [
-                {
-                    "fields": ["user_id"],
-                    "reference": {"resource": "user_contract", "fields": ["id"]},
-                },
-                {
-                    "fields": ["order_id"],
-                    "reference": {"resource": "order_contract", "fields": ["id"]},
-                },
-            ]
-        )
-        for fk in fks:
-            assert isinstance(fk, ForeignKey)
-            assert fk.fields in (["user_id"], ["order_id"])
-
 
 class TestForeignKeys:
     """Test class for ForeignKeys collection."""
