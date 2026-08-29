@@ -195,8 +195,6 @@ class BaseContract(BaseMetaData):
         `check_existing_primary_key=False` no uniqueness is checked within the
         data either, and with `check_existing_foreign_key=False` a
         self-referencing foreign key is not checked against the data's own rows.
-        Making those internal checks unconditional is a change to the validator
-        and is planned separately.
 
         Args:
             df (pd.DataFrame): The data to validate.
@@ -233,19 +231,19 @@ class BaseContract(BaseMetaData):
                 )
         else:
             if check_existing_primary_key and self.tableschema.primaryKey:
-                existing_primary_keys = self._get_reference_values(
+                existing_primary_keys = self._get_existing_values(
                     resolver, self.name, list(self.tableschema.primaryKey)
                 )
 
             if check_existing_foreign_key and self.tableschema.foreignKeys:
                 foreign_key_values = {}
                 for fk in self.tableschema.foreignKeys.root:
-                    reference_values = self._get_reference_values(
+                    existing_values = self._get_existing_values(
                         resolver,
                         fk.reference.resource or self.name,
                         fk.reference.fields,
                     )
-                    foreign_key_values[tuple(fk.fields)] = reference_values
+                    foreign_key_values[tuple(fk.fields)] = existing_values
 
         df = self.tableschema.validate_dataframe(
             df,
@@ -257,7 +255,7 @@ class BaseContract(BaseMetaData):
         )
         return df
 
-    def _get_reference_values(
+    def _get_existing_values(
         self, resolver: ContractResolver, contract_name: str, columns: list[str]
     ) -> list[tuple]:
         """Get the stored values of the given columns as tuples.

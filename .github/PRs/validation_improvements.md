@@ -27,8 +27,9 @@ table produced a confusing `ValueError` instead of a validation failure.
 - One protocol carries `resolve` and `get_data`, both `@abstractmethod`, so a real
   implementor that misses one fails at construction rather than as an `AttributeError`
   during data submission. Test doubles still satisfy it structurally.
-- `get_data`'s docstring states the obligation that cannot be a parameter: reads ignore
-  the caller's permissions, because a key occupies its name whoever owns it.
+- The protocol says nothing about access control. How an implementation resolves
+  permissions is its own business — the client issues an HTTP read and the platform
+  answers it or refuses — so neither the docstring nor the signature mentions it.
 - Exported from `crosscontract.contracts`; it was previously reachable only by full
   module path.
 
@@ -86,6 +87,14 @@ once now is cheaper than letting `cross_back` and the submission handler bind to
 and churning them later. It is stated in `validate_data`'s docstring so it is not read as
 a bug.
 
+**`CONTEXT.md` runs ahead of the code in one place.** The new *Validation* section states
+that a **Data validation** runs every **Standard check** its **Schema** requires and that a
+caller can only add strictness, never remove it. That is not true today — it is the far
+side of the deliberate gap above. It is written in the present tense because the validator
+rework in [check-based-validation.md](../../.ai-context/prds/check-based-validation.md)
+lands next and makes it true; until then ADR 0005's Consequences section records the gap.
+Read the two together rather than as a contradiction.
+
 **`ClientContractResolver` inherits the protocol deliberately** — inheriting makes a
 missed method fail at construction. That reverses an earlier note saying `cross_back`
 should drop its explicit base; the PRD now records inheriting as the convention for real
@@ -97,7 +106,7 @@ renamed from `skip_*` to `check_existing_*`, and its polarity flips.
 `ContractResolver` becoming public means further changes to it affect implementors
 outside this repository.
 
-**Worth extra scrutiny:** the `df[columns]` reindex in `_get_reference_values`. It looks
+**Worth extra scrutiny:** the `df[columns]` reindex in `_get_existing_values`. It looks
 redundant, and it is what stops a composite foreign key comparing `(a, b)` against
 `(b, a)` when a supplier returns columns in its own order.
 

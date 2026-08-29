@@ -103,9 +103,9 @@ _Avoid_: schema validation, dataframe validation
 
 **Contract resolver**:
 The single supplier of everything a **Contract** cannot know alone — the definitions of
-other **Contracts**, and the **Existing values** stored under them. Its reads ignore the
-caller's read permissions, because a key exists whether or not the caller may read it,
-and are therefore never narrowed by **Project**.
+other **Contracts**, and the **Existing values** stored under them. It says nothing about
+access control: each implementation reads through whatever its environment allows, and a
+**Data validation** is only as complete as what that read returns.
 _Avoid_: reference source, lookup, repository
 
 **Existing values**:

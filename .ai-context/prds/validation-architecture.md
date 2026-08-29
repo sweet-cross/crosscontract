@@ -102,12 +102,15 @@ reason:
   row of a dimension over HTTP to build a key set, on exactly the hot path this serves.
   Keyword-only because `get_data(name, cols, True)` is unreadable and collides
   positionally with `ContractService._get_data`'s `filters` parameter.
-- **Scope is a documented obligation, not a parameter.** `get_data` must return rows
-  *irrespective of the caller's read permissions*. `cross_back` already knows this — its
-  integrity reads pass `project_ids=None` deliberately, because a scoped read hides keys
-  the caller cannot see, so duplicates land and rows referencing another project's
-  dimension value are wrongly *rejected*. The library has no notion of projects and
-  never should, so this cannot be parameterized; it is stated in the protocol docstring.
+- **Scope is the implementation's business, not the protocol's.** `get_data` says nothing
+  about how permissions are resolved, and neither does its docstring. An earlier draft
+  made an unscoped read a documented obligation; that was dropped — the library has no
+  notion of projects, so it can neither express, enforce, nor test such a rule, and one
+  of its two implementations reads over HTTP and gets whatever the platform grants. What
+  a given resolver sees is its environment's answer: `cross_back`'s integrity reads pass
+  `project_ids=None` because that is right for a server reading its own database, not
+  because the protocol demands it. See ADR 0005, *Why the protocol says nothing about
+  access control*.
 - **Column order is the library's problem, not the supplier's.** `fk.fields` and
   `fk.reference.fields` correspond *positionally* — the model says so twice and enforces
   equal length — but `itertuples` follows the frame's own column order, not the

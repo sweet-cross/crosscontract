@@ -184,7 +184,7 @@ class TestCompositeForeignKeyColumnOrder:
     def test_resolver_may_return_columns_in_any_order(self, contract):
         """The frame comes back as (y, x); the tuples must still be (x, y).
 
-        Without the `df[columns]` reindex in `_get_reference_values` the valid
+        Without the `df[columns]` reindex in `_get_existing_values` the valid
         set would be {(2, 1), (4, 3)} and the referring row (1, 2) would be
         rejected — silently, and only for composite keys.
         """

@@ -221,29 +221,34 @@ class ContractResource:
         check_existing_primary_key: bool = False,
         check_existing_foreign_key: bool = False,
         lazy: bool = True,
-    ):
+    ) -> None:
         """Validate a DataFrame against the schema of the contract.
-        It allows to provide existing primary
-        key and foreign key values for validation. If provided, the primary key
-        uniqueness is checked against the union of the existing and the DataFrame
-        values. Similarly, foreign key integrity is checked against the union of
-        existing and DataFrame values in case of self-referencing foreign keys.
 
-        The validation is performed including primary key and foreign key checks
-        that may require fetching existing key values from the CROSS platform.
+        By default nothing is read from the CROSS platform and the data is
+        validated on its own. Setting a check flag fetches the values already
+        stored: the primary key is then checked against the union of the stored
+        keys and the DataFrame's own, and the foreign keys against the stored
+        values of the contracts they reference — plus the DataFrame's own rows
+        in the case of a self-referencing foreign key.
 
         Args:
             df (pd.DataFrame): The DataFrame to validate.
-            check_existing_primary_key (bool): If True, check existing primary
-                key values. Default is False.
-            check_existing_foreign_key (bool): If True, check existing foreign key
-                values. Default is False.
+            check_existing_primary_key (bool): If True, also check the primary
+                key against the values already stored for this contract.
+                Default is False.
+            check_existing_foreign_key (bool): If True, also check the foreign
+                keys against the values already stored for the contracts they
+                reference. Default is False.
             lazy (bool): If True, collect all validation errors and raise them together.
                 If False, raise the first validation error encountered.
                 Default is True.
 
         Raises:
             ValidationError: If the DataFrame does not conform to the schema.
+            CrossClientError: If fetching the stored values fails. Raised via
+                `raise_from_response` as a more specific client exception such
+                as `ResourceNotFoundError` when the contract has no stored data
+                yet.
         """
         resolver = ClientContractResolver(self._service)
         try:

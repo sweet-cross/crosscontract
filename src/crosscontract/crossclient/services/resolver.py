@@ -17,9 +17,6 @@ class ClientContractResolver(ContractResolver):
     Answers the two questions a contract cannot answer on its own: what another
     contract looks like, and which values are already stored under it. Used when
     validating data against a contract that references other contracts.
-
-    Attributes:
-        service (ContractService): The service used to reach the platform.
     """
 
     def __init__(self, service: ContractService):
@@ -50,12 +47,6 @@ class ClientContractResolver(ContractResolver):
     ) -> pd.DataFrame:
         """Get the stored values of the given columns for a contract.
 
-        The read is not narrowed to the caller's own project, and must not be:
-        the values are used to check that keys are unique and that references
-        point at something that exists. A key occupies its name whoever owns it,
-        so hiding the rows of other projects would let duplicates through and
-        reject rows that reference a value the caller cannot see.
-
         Args:
             name (str): The name of the contract to read from.
             columns (list[str]): The columns to retrieve.
@@ -65,5 +56,10 @@ class ClientContractResolver(ContractResolver):
 
         Returns:
             pd.DataFrame: The requested columns of the named contract.
+
+        Raises:
+            CrossClientError: If the read fails. Raised via
+                `raise_from_response` as a more specific client exception such
+                as `ResourceNotFoundError`.
         """
         return self._service._get_data(name, columns=columns, unique=unique)

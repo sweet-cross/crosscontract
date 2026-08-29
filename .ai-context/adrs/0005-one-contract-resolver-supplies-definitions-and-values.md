@@ -38,16 +38,24 @@ Two consequences follow:
   the contract's own table, and a self-referencing foreign key does too. A schema has no
   name, so only a contract can drive a resolver.
 
-## Why reads ignore the caller's permissions
+## Why the protocol says nothing about access control
 
-`get_data` must return rows irrespective of who is asking. A key occupies its name
-whoever owns it: a permission-scoped read hides values the caller cannot see, so
-duplicates are admitted and rows referencing a hidden value are wrongly rejected. This
-looks like a bug at every call site, which is why it is written down here and in the
-protocol docstring.
+`get_data` places no obligation on how an implementation resolves permissions, and the
+protocol docstring makes no claim about it either.
 
-It cannot be a parameter. This package has no notion of the access model an
-implementation reads behind, and should not acquire one.
+An earlier draft required implementations to return the stored rows *irrespective of the
+caller's read permissions*, on the grounds that a key occupies its name whoever owns it.
+The observation is true, but it is not an obligation this package can state. Access
+control is not the resolver's subject: each implementation reads through whatever its
+environment allows — `ClientContractResolver` issues an HTTP read and the CROSS platform
+answers it or returns a permission error, a server-side resolver reads its database
+directly — and this package has no notion of the access model behind either, nor should
+it acquire one. Requiring something it cannot express, enforce, or test would have put a
+promise in the docstring that one of its two implementations does not keep.
+
+The consequence is accepted: a **Data validation** run through the client sees what the
+caller can read, so it is advisory. The platform re-validates on ingest, which is where
+the guarantee lives.
 
 ## Why the flags name the stored-value half
 
