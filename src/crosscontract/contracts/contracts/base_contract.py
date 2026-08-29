@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Self
+from typing import Self
 
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -197,14 +197,16 @@ class BaseContract(BaseMetaData):
         Returns:
             pd.DataFrame: The validated data.
         """
-        if not skip_primary_key_validation and self.tableschema.primaryKey is not None:
+        existing_primary_keys: list[tuple] | None
+        if not skip_primary_key_validation and self.tableschema.primaryKey:
             existing_primary_keys = self._get_reference_values(
                 resolver, self.name, list(self.tableschema.primaryKey)
             )
         else:
             existing_primary_keys = None
 
-        if not skip_foreign_key_validation and self.tableschema.foreignKeys is not None:
+        foreign_key_values: dict[tuple[str, ...], list[tuple]] | None
+        if not skip_foreign_key_validation and self.tableschema.foreignKeys:
             foreign_key_values = {}
             for fk in self.tableschema.foreignKeys.root:
                 reference_values = self._get_reference_values(
@@ -216,7 +218,7 @@ class BaseContract(BaseMetaData):
 
         df = self.tableschema.validate_dataframe(
             df,
-            existing_primary_keys=existing_primary_keys,
+            primary_key_values=existing_primary_keys,
             foreign_key_values=foreign_key_values,
             skip_primary_key_validation=skip_primary_key_validation,
             skip_foreign_key_validation=skip_foreign_key_validation,
@@ -225,16 +227,24 @@ class BaseContract(BaseMetaData):
         return df
 
     def _get_reference_values(
-        self, resolver: ContractResolver, contract_name: str, columns: list[Any]
+        self, resolver: ContractResolver, contract_name: str, columns: list[str]
     ) -> list[tuple]:
-        """Get the existing primary keys values as tuples.
+        """Get the stored values of the given columns as tuples.
+
+        Serves both the primary key lookup against this contract and the
+        foreign key lookups against the contracts it references. The returned
+        frame is reindexed by `columns` before tuple-ification, because a
+        foreign key's referring and referenced fields correspond by position,
+        while a frame's own column order is whatever the resolver returned.
 
         Args:
-            resolver (ContractResolver): Resolver for referenced contracts.
-            columns (list[Any]): List of column names representing the primary key.
+            resolver (ContractResolver): Supplier of the stored values.
+            contract_name (str): The name of the contract to read from.
+            columns (list[str]): The columns to read, in the order the returned
+                tuples must follow.
 
         Returns:
-            list[tuple]: List of tuples representing the existing primary key values.
+            list[tuple]: One tuple per row, with the values ordered as `columns`.
         """
         df_ = resolver.get_data(
             name=contract_name,
