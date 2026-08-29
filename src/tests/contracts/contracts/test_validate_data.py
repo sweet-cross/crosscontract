@@ -128,20 +128,14 @@ class TestForeignKeyDerivation:
     def resolver(self):
         return RecordingResolver({"region": pd.DataFrame({"id": [10, 11, 12]})})
 
-    def test_reads_referenced_fields_from_referenced_contract(
-        self, contract, resolver
-    ):
+    def test_reads_referenced_fields_from_referenced_contract(self, contract, resolver):
         """The lookup is `region.id`, never `region.region_code` or `emissions.*`."""
-        df = pd.DataFrame(
-            {"id": [1, 2], "region_code": [10, 11], "value": [1.0, 2.0]}
-        )
+        df = pd.DataFrame({"id": [1, 2], "region_code": [10, 11], "value": [1.0, 2.0]})
         contract.validate_data(df, resolver=resolver, check_existing_foreign_key=True)
         assert resolver.calls == [("region", ("id",))]
 
     def test_unknown_reference_fails(self, contract, resolver):
-        df = pd.DataFrame(
-            {"id": [1, 2], "region_code": [10, 99], "value": [1.0, 2.0]}
-        )
+        df = pd.DataFrame({"id": [1, 2], "region_code": [10, 99], "value": [1.0, 2.0]})
         with pytest.raises(SchemaValidationError):
             contract.validate_data(
                 df, resolver=resolver, check_existing_foreign_key=True
@@ -157,9 +151,7 @@ class TestForeignKeyDerivation:
                 {"name": "value", "type": "number"},
             ],
             primary_key=["id"],
-            foreign_keys=[
-                {"fields": ["parent_id"], "reference": {"fields": ["id"]}}
-            ],
+            foreign_keys=[{"fields": ["parent_id"], "reference": {"fields": ["id"]}}],
         )
         resolver = RecordingResolver({"hierarchy": pd.DataFrame({"id": [10]})})
         df = pd.DataFrame({"id": [1], "parent_id": [10], "value": [1.0]})
