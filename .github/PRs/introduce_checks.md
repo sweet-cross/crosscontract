@@ -63,8 +63,8 @@ checks, dimension checks, reference checks, utils) and
 `src/tests/contracts/schema/adapters/pandera_pandas/` (field converters, adapter and
 derivation). `validation/test_pandas_validation.py` is re-pointed at
 `TableSchema.validate_dataframe` and its expectations updated for the behaviour changes
-below. The old `adapters/pandera/` suite is deleted; its field-conversion and dimension
-cases are ported.
+below. The old `adapters/pandera/` suite is deleted; its field-conversion, integration and
+dimension cases are ported.
 
 ## Notes for reviewer
 
@@ -89,11 +89,13 @@ indexer…`. The crash is what was retired, not the double report: a parentless 
 alongside rows that do name a parent still fails the catch-all rule as well as
 `NonRootElementHasParent`, which is the rule that owns the defect.
 
-**Known coverage gap.** The deleted `adapters/pandera/` suite held the only end-to-end
-tests where a converted schema met a DataFrame — coercion, numeric bounds, string length,
-strict mode — and the only test of an assembled `DimensionSchema`, including lazy
-collection of several hierarchy errors. The check classes are covered directly; the
-assembled schema is not.
+**End-to-end coverage restored.** The deleted `adapters/pandera/` suite held the only tests
+where a converted schema met a DataFrame. Those are ported into
+`adapters/pandera_pandas/test_integration.py` (coercion, numeric bounds, string length,
+datetime bounds, nullability, strict mode) and `test_integration_dimension.py` (an
+assembled `DimensionSchema`, one rule per frame, plus lazy collection of several). Two
+cases are new rather than ported: that a bare conversion permits a duplicate primary key
+while an empty list rejects it, since the opt-in semantics had no end-to-end test.
 
 **One coupling to be aware of.** `SchemaValidationError` recovers a check's columns by
 parsing its `failure_message()`, because pandera exposes exactly one identifying string per
