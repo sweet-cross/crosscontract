@@ -146,22 +146,32 @@ class ParentHasCorrectLevel(DimensionCheck):
 
 
 class EachLevelHasOther(DimensionCheck):
-    """Every level must carry a catch-all entry for what it does not name.
+    """Every sibling group must carry a catch-all entry for what it does not name.
 
-    The root level must hold an entry with the id `other`, and every parent below
-    it must hold a child with the id `<parent_id>_other`. Those entries are where
-    rows that belong to no named sibling are aggregated, which is what keeps a
-    sum over any level equal to a sum over the level above it.
+    A sibling group is the set of entries sharing one parent, and the root
+    entries form a group of their own. The root group must hold an entry with the
+    id `other`; every group below it must hold one with the id
+    `<parent_id>_other`. Those entries are where rows belonging to no named
+    sibling are aggregated, which is what keeps a sum over any level equal to a
+    sum over the level above it.
+
+    Note that the grouping is by **parent**, not by level: two parents at the
+    same level are judged separately, and one may pass while the other fails.
     """
 
     name: Literal["each_dimension_level_has_other"] = "each_dimension_level_has_other"
 
     def __call__(self, df: pd.DataFrame) -> pd.Series:
-        """Check that the root holds `other` and every parent holds its own
-        `<parent_id>_other`.
+        """Check that every sibling group holds its own catch-all entry.
 
-        A missing catch-all fails every sibling under the parent that lacks it,
-        not the parent itself, because the entry is missing from that group.
+        Asked of a single row, the rule is: which sibling group am I in, and does
+        that group contain the catch-all? A row below the root that names no
+        parent is in no group, so there is nothing to ask and it passes —
+        `NonRootElementHasParent` is the rule that owns a missing parent, and one
+        mistake should be reported once.
+
+        A group missing its catch-all fails every member of that group, not the
+        parent, because the entry is missing from the group.
 
         Args:
             df (pd.DataFrame): The dimension table to validate.
@@ -174,7 +184,7 @@ class EachLevelHasOther(DimensionCheck):
         # Root level: must have id == "other"
         root_ok = df.loc[is_root, self.id_col].eq("other").any()
 
-        # Non-root: each row's parent must have a sibling "<parent_id>_other"
+        # Non-root: each row's group must hold a sibling "<parent_id>_other"
         # only done if there are any non-root rows
         result = pd.Series(True, index=df.index)
         result.loc[is_root] = bool(root_ok)
@@ -186,7 +196,12 @@ class EachLevelHasOther(DimensionCheck):
             ].transform(
                 lambda ids: expected_other.loc[ids.index].isin(ids.values).any()
             )
-            result.loc[~is_root] = parent_has_other.to_numpy(dtype=bool, na_value=False)
+            # groupby forms no group for a row with no parent, so the answer
+            # covers only the grouped rows. Writing it back by its own index
+            # leaves the ungrouped ones at their initial pass.
+            result.loc[parent_has_other.index] = parent_has_other.to_numpy(
+                dtype=bool, na_value=False
+            )
 
         return result
 

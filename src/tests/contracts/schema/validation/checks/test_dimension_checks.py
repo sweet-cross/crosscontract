@@ -193,6 +193,19 @@ class TestEachLevelHasOther:
         )
         assert check(df).tolist() == [False, True, True]
 
+    def test_a_row_without_a_parent_is_not_this_rules_business(
+        self, check: EachLevelHasOther
+    ):
+        """A row naming no parent is in no sibling group, so there is nothing to
+        ask of it and it passes. NonRootElementHasParent owns that failure."""
+        df = _make_df(
+            [
+                {"id": "other", "level": 0},
+                {"id": "germany", "level": 1},
+            ]
+        )
+        assert check(df).tolist() == [True, True]
+
     # --- Missing child "<parent_id>_other" ---
 
     def test_missing_child_other_flags_siblings(self, check: EachLevelHasOther):
