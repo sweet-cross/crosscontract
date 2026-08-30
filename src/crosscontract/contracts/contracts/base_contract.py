@@ -249,8 +249,6 @@ class BaseContract(BaseMetaData):
             df,
             primary_key_values=existing_primary_keys,
             foreign_key_values=foreign_key_values,
-            skip_primary_key_validation=not check_existing_primary_key,
-            skip_foreign_key_validation=not check_existing_foreign_key,
             lazy=lazy,
         )
         return df

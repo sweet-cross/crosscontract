@@ -225,8 +225,6 @@ class TableSchema(BaseModel):
         df: Any,
         primary_key_values: list[tuple[Any, ...]] | None = None,
         foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
-        skip_primary_key_validation: bool = False,
-        skip_foreign_key_validation: bool = False,
         lazy: bool = True,
     ) -> pd.DataFrame:
         """Validate a DataFrame against the schema.
@@ -248,6 +246,8 @@ class TableSchema(BaseModel):
                 values to check for uniqueness.
                 Note: The uniqueness of the primary key is validated is checked against
                     the union of the provided values and the values in the DataFrame.
+                If None the check is not performed.
+                Default is None.
             foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] | None):
                 Existing foreign key values to check against. This is provided as a
                 dictionary where the keys are the tuples of fields that refer to the
@@ -257,13 +257,8 @@ class TableSchema(BaseModel):
                     DataFrame are considered automatically, i.e., the referring fields
                     are validated against the union of the provided values and the
                     values in the DataFrame.
-            skip_primary_key_validation (bool): Whether to skip comparing the primary
-                key against the values given in `primary_key_values`. The primary
-                key is checked within the DataFrame either way.
-            skip_foreign_key_validation (bool): Whether to skip comparing the foreign
-                keys against the values given in `foreign_key_values`. A
-                self-referencing foreign key is checked against the DataFrame's own
-                rows either way.
+                If None, the check is not performed
+                Default is None.
             lazy (bool): Whether to perform lazy validation, collecting all errors.
                 Defaults to True.
 
@@ -276,13 +271,6 @@ class TableSchema(BaseModel):
             pd.DataFrame: The validated DataFrame. If validation fails, an exception
                 is raised and this return value is not reached.
         """
-
-        # implement the flags for skipping primary and foreign key validation
-        if skip_primary_key_validation:
-            primary_key_values = None
-        if skip_foreign_key_validation:
-            foreign_key_values = None
-
         pandera_schema = self.to_pandera_schema(
             primary_key_values=primary_key_values,
             foreign_key_values=foreign_key_values,

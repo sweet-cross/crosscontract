@@ -1,6 +1,6 @@
 # Check-based validation — agreed design and work packages
 
-Status: WP1 complete, WP2 and WP3 open — see *Work packages*. Written 2026-08-29, revised
+Status: WP1 and WP2 complete, WP3 open — see *Work packages*. Written 2026-08-29, revised
 2026-08-30 to match what landed.
 
 Follow-on to [validation-architecture.md](validation-architecture.md), which deliberately
@@ -135,25 +135,27 @@ flag would leave two opposite rules sharing one discriminator.
 A caller can add strictness and never remove it. That is the correctness half of the
 problem, solved structurally rather than by a rule someone has to remember.
 
-**An additional check replaces a standard one expressing the same rule.** The reason is
-report clarity, not speed: a row duplicated within the data fails both the standard
-primary-key check and the additional one, and would otherwise be reported twice for what
-is one problem.
+**This turned out to describe two states of one check, not two checks.** The design here
+had a standard list and an additional list, merged by rule so that an additional check
+replaced a standard one and a single violation was reported once. WP2 removed the need:
+one derivation taking optional values emits **one** check per schema construct, so the two
+lists never come into existence and there is nothing to merge or to key an identity on.
 
-| | standard | additional | outcome |
-|---|---|---|---|
-| primary key | `IsValidPrimaryKey(["id"])` | same, plus `existing=` | replaced |
-| self-referencing FK | `IsSubsetOf(["parent_id"], within=["id"])` | same, plus `allowed=` | replaced |
-| external FK | *not emitted* | `IsSubsetOf(["region_code"], allowed=…)` | added |
+| construct | no values supplied | values supplied |
+|---|---|---|
+| primary key | `IsValidPrimaryKey(["id"])` | same, plus `existing=` |
+| self-referencing FK | `IsSubsetOf(["parent_id"], within=["id"])` | same, plus `allowed=` |
+| external FK | *no check* | `IsSubsetOf(["region_code"], allowed=…)` |
 
-**How the two sites agree is open.** The original answer was a `name` derived from the
-mechanic and the columns. That did not survive: `name` is now the check class's
-discriminator, equal across every instance, and an instance-level `key` of mechanic +
-columns is not unique within one schema — a self-referencing foreign key yields two
-membership checks on the same column. Anything made unique enough to fix that stops
-colliding where the merge needs it to. Replacement may instead be decided by construction
-rather than by comparison, which the single assembly point below makes possible.
-**WP2 settles it.**
+The guarantee survives in a stronger form: a caller supplies **values, never checks**, so
+it can inform a check but has no way to drop one. "Standard" and "additional" are best
+read as adjectives for how much a check knows, rather than as two kinds of object.
+
+The merge was also not merely tidier. Run as two lists, a self-reference whose parent was
+already stored failed the schema-derived check while passing the caller's — the
+schema-derived version is *unsound* once data arrives in batches, not merely weaker, so it
+had to be replaced rather than supplemented. Deriving once makes that impossible to get
+wrong. See WP2.
 
 ### The caller derives, the check checks
 
@@ -173,13 +175,14 @@ That is dropped. Three reasons, in increasing weight:
   pydantic today, and that is worth keeping: `checks/` knows *how* to check, the schema
   knows *which* checks and *which values*.
 - **There is only one site.** The duplication [ADR 0005](../adrs/0005-one-contract-resolver-supplies-definitions-and-values.md)
-  guards against needs two derivations. Standard and additional checks are both assembled
-  inside `validate_dataframe`, so there is one, and a constructor would be guarding
-  nothing.
+  guards against needs two derivations. There is one — `PanderaAdapter._derive_checks` —
+  so a constructor would be guarding nothing.
 
 The `foreign_key_values` dict stays a transport format for the caller's values. It is not
 a field on a check: a check holding the whole dict would be N unrelated rules rather than
-one, with nothing for the merge to key on and nothing for `failure_message()` to name.
+one, with nothing for `failure_message()` to name. The derivation iterates the schema's
+foreign keys and looks the dict up, so an entry naming something the schema does not
+declare cannot invent a check.
 
 **Deferred, not rejected.** The third reason expires the day caller-supplied checks are
 exposed through `validate_data` — that gives the derivation a second site, and the
@@ -189,8 +192,8 @@ constructor earns its place. Revisit it then, not before.
 
 | | job |
 |---|---|
-| `to_pandera_schema()` | fields → columns. **Nothing else.** |
-| `TableSchema.validate_dataframe()` | translate values and flags into checks, assemble standard + additional, delegate |
+| `to_pandera_schema()` | fields → columns. *Landed differently: it also carries the checks the schema requires — see WP2.* |
+| `TableSchema.validate_dataframe()` | translate flags into values, delegate. *Landed differently: the derivation sits in the adapter — see WP2.* |
 | the runner in `validation/` | execute a pandera schema, translate its exceptions into `SchemaValidationError` |
 
 The runner stops taking a `TableSchema`, so its `if TYPE_CHECKING: from ..schema import
@@ -313,57 +316,52 @@ deletes it.
 - ~~`name` is stable and equal for the same mechanic and columns~~ — dropped; the merge
   identity moves to WP2. See *Standard and additional*.
 
-### WP2 — Wire them in ⟵ carries the behaviour change — *the adapter is rebuilt, nothing is wired*
+### WP2 — Wire them in ⟵ carries the behaviour change — *landed*
 
-**Depends on:** WP1, which is complete.
+**Depends on:** WP1, complete.
 **PR:** with WP1.
 
-**Landed:** the adapter is a package, `adapters/pandera_pandas/`, split into `adapter.py`
-and `field_convertors.py` (one converter class per field type behind a factory).
-`PanderaAdapter` separates `create_base_schema()` — columns only — from
-`add_internal_checks()`, which derives the standard checks from the schema: the primary
-key, each self-referencing foreign key, and the dimension hierarchy for a `Dimension`
-table type. An external foreign key emits nothing. Tests port the old adapter's cases.
+`PanderaAdapter._derive_checks(primary_key_values, foreign_key_values)` is the single
+derivation: one check per schema construct, folding in whatever values it is given.
+`convert` and `convert_schema` forward the values, `TableSchema.to_pandera_schema` forwards
+to them, and `validate_dataframe` reduces to translating its flags into values and calling
+the runner. The runner takes a pandera schema and does nothing but execute and translate.
+`_pandera_dimension_checks.py`, the old `pandera_adapter.py`, `convert_schema_to_pandera`
+and `backend` are all gone.
 
-**Still open:** nothing calls it. `schema.py`, `validate_dataframe.py` and
-`adapters/__init__.py` still reach for the old `pandera_adapter.py`, so the behaviour
-change has not happened yet. The merge, the flags, the runner, `backend`, and the two
-deletions all remain.
+**Three departures from what this PRD specified.**
 
-- `PanderaAdapter.convert(checks=None)`: derive the standard set when given nothing, use
-  the list when given one. That parameter is the merge seam.
-- `to_pandera_schema()`: carries the standard checks (see below).
-- `TableSchema.validate_dataframe`: translate values and flags into additional checks,
-  merge with the schema's standard checks, hand the merged list to the adapter, call the
-  runner.
-- The runner: execute and translate exceptions.
-- Delete `_pandera_dimension_checks.py`, the old `pandera_adapter.py`, and the `backend`
-  parameter.
+*The conversion carries the checks.* `to_pandera_schema()` was to return columns only. It
+returns a schema that enforces the contract instead, because the entry point is public and
+a conversion permitting duplicate primary keys and broken self-references enforces less
+than the contract it represents — and because baking them in is what makes them impossible
+to omit.
 
-**Two reversals of what this PRD originally specified.** `to_pandera_schema()` was to
-return a schema with no checks; it carries the standard ones instead, because
-`convert_schema_to_pandera` is public and a conversion enforcing less than the contract is
-a bad artefact to hand out — and because baking them in is what makes them impossible to
-omit. The merge still has to happen *before* conversion, while the checks are check
-objects rather than `pa.Check`es, which is what `convert(checks=None)` is for. Second,
-`convert_schema_to_pandera` loses its `name` parameter and the `pa.DataFrameSchema` is
-unnamed, so reports read `DataFrameSchema 'None' failed …`. Accepted for now; the contract
-name is the right thing to put there, and only `BaseContract` knows it.
+*The derivation lives in the adapter, not on `TableSchema`.* The three-layer table below
+puts assembly on `validate_dataframe`. Keeping it in the adapter leaves one dependency edge
+(`schema → adapter → checks`) rather than two, keeps `TableSchema` a description of a
+table, and puts all pandera knowledge behind one door. Deriving *a primary key implies a
+uniqueness check* is conversion, not deciding.
 
-**Public signatures do not change**, apart from `backend` being removed and the adapter
-rename described above. `BaseContract.validate_data` is untouched.
+*There is no merge.* Standard and additional checks were two lists only because the
+derivation ran twice — once from the schema, once from the caller's values. One derivation
+taking optional values yields **one** check per construct: the primary key check is always
+derived with `existing=[]` when nothing is supplied; a self-referencing foreign key always
+keeps `within` and adds supplied values to it; an external foreign key appears only when
+values arrive. So the identity question WP2 was supposed to settle does not arise, and the
+guarantee survives in a stronger form — a caller supplies **values, never checks**.
 
-**Verification:**
-- `skip_primary_key_validation=True` **still** checks non-null and in-frame uniqueness.
-  This is the behaviour change and the reason the package exists.
-- `skip_foreign_key_validation=True` **still** checks self-referencing foreign keys.
-- An external foreign key with no values is not checked and does not raise — the previous
-  `ValueError` test is inverted, not deleted, so the change is visible in the diff.
-- A duplicate row is reported **once**, not twice, when existing primary keys are supplied
-  — which requires settling what the merge keys on, since `name` no longer carries it.
-- `to_pandera_schema()` returns a schema with no checks attached.
-- The existing `test_pandas_validation.py` and `test_integration_references.py` suites
-  pass, except where they assert the retired `ValueError` or the `backend` guard.
+The two-list version had also produced a false rejection: a self-reference whose parent was
+already stored failed the schema-derived check while passing the caller's. That is the
+concrete reason merging was not merely tidier.
+
+**Public signatures do not change**, apart from `backend` being removed and
+`convert_schema_to_pandera` being deleted. `BaseContract.validate_data` is untouched.
+
+**Left open:** `convert_schema_to_pandera` still appears in `contracts/schema/__init__.py`'s
+`__all__`; the deleted adapter suite took the only end-to-end coverage of a converted
+schema meeting a DataFrame; and the `skip_*` parameters on `validate_dataframe` now carry
+no information that the absence of values does not, so they can go in their own PR.
 
 ### WP3 — Record it
 

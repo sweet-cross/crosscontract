@@ -77,7 +77,7 @@ class TestPrimaryKeyValidation:
         # and still fails when the flag is set: it governs only the comparison
         # against existing values, never uniqueness within the frame
         with pytest.raises(SchemaValidationError):
-            schema.validate_dataframe(df, skip_primary_key_validation=True)
+            schema.validate_dataframe(df, primary_key_values=None)
 
     def test_external_duplicates(self, schema):
         df = pd.DataFrame({"id": [1, 2], "name": ["a", "b"]})
@@ -163,7 +163,7 @@ class TestForeignKeyValidation:
         assert len(error.to_pandas()) == 2
 
         # but passes if we skip foreign key validation
-        fk_schema.validate_dataframe(df, skip_foreign_key_validation=True)
+        fk_schema.validate_dataframe(df, foreign_key_values=None)
 
     def test_missing_external_values_is_not_checked(self, fk_schema):
         """An external reference with no supplied values is not checked, and

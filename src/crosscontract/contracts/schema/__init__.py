@@ -33,7 +33,6 @@ from .subschemas import DimensionSchema, FlexibleDimensionSchema, ValueVariableS
 __all__ = [
     "TableSchema",
     "convert_schema_to_pydantic",
-    "convert_schema_to_pandera",
     "convert_schema_to_sqlalchemy",
     "SchemaValidationError",
     "PrimaryKey",
