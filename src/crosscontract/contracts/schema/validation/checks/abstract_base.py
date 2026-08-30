@@ -50,7 +50,7 @@ class BaseCheck(BaseModel, ABC):
         """Convert this check to a pandera Check."""
         return [
             pa.Check(
-                self.__call__,
+                self,
                 error=self.failure_message(),
                 ignore_na=self.ignore_na,
             )

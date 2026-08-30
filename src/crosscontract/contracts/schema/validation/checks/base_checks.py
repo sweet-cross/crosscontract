@@ -9,9 +9,7 @@ from .abstract_base import BaseCheck
 
 
 class IsUnique(BaseCheck):
-    """Check one or more columns have jointly unique values. If existing
-    values are provided, it also checks against them for uniqueness.
-    """
+    """Check one or more columns have jointly unique values."""
 
     name: Literal["is_unique"] = "is_unique"
     columns: list[str] = Field(
@@ -35,7 +33,7 @@ class IsUnique(BaseCheck):
 
 
 class IsIn(BaseCheck):
-    """Check that the specified columns do not contain any of the existing values."""
+    """Check that the specified columns only contain existing values."""
 
     name: Literal["is_in"] = "is_in"
     columns: list[str] = Field(
@@ -100,8 +98,8 @@ class IsNotIn(BaseCheck):
             pd.Series: A boolean Series indicating which rows pass the is-not-in check.
         """
         if not self.existing:
-            # No existing values to check against, so all fail the check
-            return pd.Series(False, index=df.index)
+            # No existing values to check against, so all pass the check
+            return pd.Series(True, index=df.index)
         current_keys = pd.MultiIndex.from_frame(df[self.columns])
 
         return pd.Series(~current_keys.isin(self.existing), index=df.index)
