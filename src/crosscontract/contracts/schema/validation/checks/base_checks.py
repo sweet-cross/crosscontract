@@ -1,30 +1,30 @@
 """Basic checks for schema validation."""
 
-from dataclasses import dataclass, field
 from typing import Any, Literal
 
 import pandas as pd
+from pydantic import Field
 
 from .abstract_base import BaseCheck
 
 
-@dataclass(kw_only=True)
 class IsUnique(BaseCheck):
     """Check one or more columns have jointly unique values. If existing
     values are provided, it also checks against them for uniqueness.
-
-    Args:
-        columns (list[str]): The columns that should have jointly unique values.
-        label (str): The label or column name the check applies to.
-        expected (ClassVar[bool], optional): The expected outcome of the check.
-            Defaults to True.
-        ignore_na (bool, optional): Whether to ignore NA values in the pandera
-            check logic.
-            Defaults to True (pandera default).
     """
 
     name: Literal["is_unique"] = "is_unique"
-    columns: list[str]
+    columns: list[str] = Field(
+        description="The columns that should have jointly unique values.",
+    )
+
+    @property
+    def key(self) -> str:
+        """Returns:
+        str: The identity of this check instance, the mechanic together with
+            the columns it applies to.
+        """
+        return f"{self.name}:{','.join(self.columns)}"
 
     def validate(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns have unique values.
@@ -46,25 +46,28 @@ class IsUnique(BaseCheck):
         )
 
 
-@dataclass(kw_only=True)
 class IsIn(BaseCheck):
-    """Check that the specified columns do not contain any of the existing values.
-
-    Args:
-        columns (list[str]): The columns that should have jointly unique values.
-        existing (list[tuple[Any, ...]] | None): The existing values that should
-            not be present in the columns.
-        label (str): The label or column name the check applies to.
-        expected (bool, optional): The expected outcome of the check.
-            Defaults to True.
-        ignore_na (bool, optional): Whether to ignore NA values in the pandera
-            check logic.
-            Defaults to True (pandera default).
-    """
+    """Check that the specified columns do not contain any of the existing values."""
 
     name: Literal["is_in"] = "is_in"
-    columns: list[str]
-    existing: list[tuple[Any, ...]] = field(default_factory=list)
+    columns: list[str] = Field(
+        description="The columns whose values are checked against the existing values.",
+    )
+    existing: list[tuple[Any, ...]] = Field(
+        default_factory=list,
+        description=(
+            "The existing values the columns are checked against. Each tuple "
+            "represents one referenced key."
+        ),
+    )
+
+    @property
+    def key(self) -> str:
+        """Returns:
+        str: The identity of this check instance, the mechanic together with
+            the columns it applies to.
+        """
+        return f"{self.name}:{','.join(self.columns)}"
 
     def validate(self, df: pd.DataFrame) -> pd.Series:
         """Check that the values in the specified columns are in the list of
@@ -98,25 +101,29 @@ class IsIn(BaseCheck):
         )
 
 
-@dataclass(kw_only=True)
 class IsNotNull(BaseCheck):
-    """Check that the specified columns do not contain null values.
-
-    Args:
-        columns (list[str]): The columns that should have jointly unique values.
-        existing (list[tuple[Any, ...]] | None): The existing values that should
-            not be present in the columns.
-        label (str): The label or column name the check applies to.
-        expected (bool): Whether the columns are expected to have no null values.
-        ignore_na (bool, optional): Whether to ignore NA values in the pandera
-            check logic.
-            Defaults to False.
-    """
+    """Check that the specified columns do not contain null values."""
 
     name: Literal["is_not_null"] = "is_not_null"
-    columns: list[str]
+    columns: list[str] = Field(
+        description="The columns that should not contain null values.",
+    )
 
-    ignore_na: bool = False
+    ignore_na: bool = Field(
+        default=False,
+        description=(
+            "Whether to ignore NA values in the pandera check logic. Defaults to "
+            "`False` because this check inspects the NA values itself."
+        ),
+    )
+
+    @property
+    def key(self) -> str:
+        """Returns:
+        str: The identity of this check instance, the mechanic together with
+            the columns it applies to.
+        """
+        return f"{self.name}:{','.join(self.columns)}"
 
     def validate(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns do not contain null values.

@@ -1,29 +1,40 @@
-from dataclasses import dataclass, field
+"""Composite checks for schema references."""
+
 from typing import Any, Literal
 
 import pandas as pd
 import pandera.pandas as pa
+from pydantic import Field
 
 from .abstract_base import BaseCheck
 from .base_checks import IsIn, IsNotNull, IsUnique
 
 
-@dataclass(kw_only=True)
 class IsValidPrimaryKey(BaseCheck):
     """Check if the column is a valid primary key (unique and non-null).
     If existing values are provided, it also checks against them for uniqueness.
-
-    Args:
-        columns (list[str]): List of column names that constitute the primary key.
-        existing (list[tuple[Any, ...]]): Existing values to check against
-            for uniqueness. Defaults to an empty list.
-        label (str): Label of the checks in reporting
     """
 
     name: Literal["is_valid_primary_key"] = "is_valid_primary_key"
 
-    columns: list[str]
-    existing: list[tuple[Any, ...]] = field(default_factory=list)
+    columns: list[str] = Field(
+        description="List of column names that constitute the primary key.",
+    )
+    existing: list[tuple[Any, ...]] = Field(
+        default_factory=list,
+        description=(
+            "Existing values to check against for uniqueness. Each tuple "
+            "represents one existing primary key."
+        ),
+    )
+
+    @property
+    def key(self) -> str:
+        """Returns:
+        str: The identity of this check instance, the mechanic together with
+            the columns it applies to.
+        """
+        return f"{self.name}:{','.join(self.columns)}"
 
     def validate(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns form a valid primary key

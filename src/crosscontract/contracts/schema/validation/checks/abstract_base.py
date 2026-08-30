@@ -1,34 +1,53 @@
 """Abstract base class for validation checks."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import ClassVar
 
 import pandas as pd
 import pandera.pandas as pa
+from pydantic import BaseModel, ConfigDict, Field
 
 
-@dataclass(kw_only=True)
-class BaseCheck(ABC):
-    """Base class for validation checks. Each check implements a __call__ method
+class BaseCheck(BaseModel, ABC):
+    """Base class for validation checks. Each check implements a `validate` method
     that takes a dataframe as input.
 
-    Args:
-        name (ClassVar[str]): The name of the check. This has to be unique among
-            all classes and can serve as discriminator.
-        label (str): The label or column name the check applies to.
-        ignore_na (bool, optional): Whether to ignore NA values in the pandera
-            check logic.
-            Defaults to True (pandera default).
-        expected (bool, optional): The expected outcome of the check.
-            Defaults to True.
+    A check carries two identities. `name` is the mechanical identity of the check
+    class, shared by every instance of it, and serves as the discriminator when
+    checks are read from a specification. `key` is the identity of the instance:
+    the mechanic together with whatever the check applies to.
     """
 
-    name: ClassVar[str]
-    label: str
+    model_config = ConfigDict(extra="forbid")
 
-    ignore_na: bool = True
-    expected: bool = True
+    name: str = Field(
+        description=(
+            "The name of the check. This has to be unique among all check classes "
+            "and serves as discriminator."
+        ),
+    )
+    label: str = Field(
+        description="The label or column name the check applies to.",
+    )
+
+    ignore_na: bool = Field(
+        default=True,
+        description=(
+            "Whether to ignore NA values in the pandera check logic. Defaults to "
+            "`True`, the pandera default."
+        ),
+    )
+    expected: bool = Field(
+        default=True,
+        description="The expected outcome of the check.",
+    )
+
+    @property
+    def key(self) -> str:
+        """Returns:
+        str: The identity of this check instance. Two checks built at different
+            sites carry the same key when they express the same rule.
+        """
+        return self.name
 
     def __call__(self, df: pd.DataFrame) -> pd.Series:
         """The Template Method: manages the execution and applies 'expected'."""
@@ -50,7 +69,7 @@ class BaseCheck(ABC):
         return [
             pa.Check(
                 self,
-                name=self.name,
+                name=self.key,
                 error=self.failure_message(),
                 ignore_na=self.ignore_na,
             )
