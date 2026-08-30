@@ -210,7 +210,7 @@ class EachLevelHasOther(DimensionCheck):
         return (
             f"Each dimension level violation in '{self.label}': Each level must "
             "have at least one other element. For sub-levels, this means each "
-            "parent must have a child with the '<parent_id>_other' suffix"
+            "parent must have a child with the '<parent_id>_other' suffix "
             "and the root level must have an element with id 'other'."
         )
 

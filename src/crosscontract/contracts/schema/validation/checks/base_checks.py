@@ -30,7 +30,10 @@ class IsUnique(BaseCheck):
 
     def failure_message(self) -> str:
         """Return the failure message for the uniqueness check."""
-        return f"Column '{self.label}' must have unique values."
+        return (
+            f"Columns '{', '.join(self.columns)}' in check '{self.label}' must "
+            "have unique values."
+        )
 
 
 class IsIn(BaseCheck):
@@ -82,8 +85,8 @@ class IsIn(BaseCheck):
     def failure_message(self) -> str:
         """Return the failure message for the is-in check."""
         return (
-            f"Columns '{', '.join(self.columns)}' values are "
-            "not in the provided values."
+            f"Columns '{', '.join(self.columns)}' in check '{self.label}' contain "
+            "values that are not among the provided values."
         )
 
 
@@ -136,8 +139,8 @@ class IsNotIn(BaseCheck):
     def failure_message(self) -> str:
         """Return the failure message for the is-not-in check."""
         return (
-            f"Columns '{', '.join(self.columns)}' contain values that are "
-            "in the provided values."
+            f"Columns '{', '.join(self.columns)}' in check '{self.label}' contain "
+            "values that are among the provided values."
         )
 
 
@@ -244,8 +247,8 @@ class IsSubsetOf(BaseCheck):
     def failure_message(self) -> str:
         """Return the failure message for the foreign key check."""
         return (
-            f"Columns '{', '.join(self.columns)}' contain values that do not "
-            "exist in the referenced values."
+            f"Columns '{', '.join(self.columns)}' in check '{self.label}' contain "
+            "values that do not exist in the referenced values."
         )
 
 
@@ -279,4 +282,7 @@ class IsNotNull(BaseCheck):
 
     def failure_message(self) -> str:
         """Return the failure message for the is-not-null check."""
-        return f"Columns '{', '.join(self.columns)}' contain null values."
+        return (
+            f"Columns '{', '.join(self.columns)}' in check '{self.label}' contain "
+            "null values."
+        )
