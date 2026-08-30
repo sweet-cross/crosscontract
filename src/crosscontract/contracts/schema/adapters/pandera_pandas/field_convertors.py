@@ -76,14 +76,16 @@ class StringFieldConverter(BaseFieldConverter[StringField]):
     def get_pandera_type(self) -> type:
         return str
 
-    def get_kwargs(self) -> dict[str, Any]:
-        kwargs = super().get_kwargs()
-        if self.field.constraints.pattern is not None:
-            kwargs["regex"] = self.field.constraints.pattern
-        return kwargs
-
     def get_checks(self) -> list[pa.Check]:
         checks = super().get_checks()
+
+        if self.field.constraints.pattern is not None:
+            # str_matches anchors the start only; the group and `$` anchor the
+            # end, because Frictionless patterns follow XML Schema regex syntax
+            # and those match the whole value. The group survives alternation.
+            checks.append(
+                pa.Check.str_matches(f"(?:{self.field.constraints.pattern})$")
+            )
         min_l = self.field.constraints.minLength
         max_l = self.field.constraints.maxLength
 

@@ -1,3 +1,4 @@
+import pandas as pd
 import pytest
 from pandera import DateTime
 
@@ -110,14 +111,34 @@ class TestStringFieldConverter:
         col = StringFieldConverter(StringField(name="label")).convert()
         assert col.checks == []
 
-    def test_pattern_sets_regex(self):
+    def test_pattern_becomes_a_value_check(self):
+        """The pattern constrains the values, not the column name — `regex` on a
+        pandera Column means the name is a pattern, which is not what this is."""
         field = StringField(name="code", constraints={"pattern": r"^[A-Z]+$"})
         col = StringFieldConverter(field).convert()
-        assert col.regex == r"^[A-Z]+$"
-
-    def test_no_pattern_does_not_set_regex(self):
-        col = StringFieldConverter(StringField(name="label")).convert()
+        assert col.checks[0].name == "str_matches"
         assert not col.regex
+
+    @pytest.mark.parametrize(
+        ("pattern", "value", "passes"),
+        [
+            pytest.param(r"^[A-Z]+$", "AB", True, id="anchored_full"),
+            pytest.param(r"^[A-Z]+$", "ABxy", False, id="anchored_trailing"),
+            pytest.param(r"[A-Z]+", "AB", True, id="unanchored_full"),
+            pytest.param(r"[A-Z]+", "ABxy", False, id="unanchored_trailing"),
+            pytest.param(r"ab|cd", "cd", True, id="alternation_full"),
+            pytest.param(r"ab|cd", "cdx", False, id="alternation_trailing"),
+        ],
+    )
+    def test_pattern_must_match_the_whole_value(
+        self, pattern: str, value: str, passes: bool
+    ):
+        """Frictionless patterns follow XML Schema regex syntax, which matches
+        the whole value, so an unanchored pattern still rejects a trailing
+        remainder."""
+        field = StringField(name="code", constraints={"pattern": pattern})
+        check = StringFieldConverter(field).convert().checks[0]
+        assert bool(check(pd.Series([value])).check_passed) is passes
 
     def test_min_length_only(self):
         field = StringField(name="label", constraints={"minLength": 5})
