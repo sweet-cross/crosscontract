@@ -13,6 +13,7 @@ from .adapters.pandera_adapter import PanderaPandasAdapter
 from .field_descriptors import FieldDescriptors
 from .fields import DateTimeField, IntegerField, ListField, NumberField, StringField
 from .reference import ForeignKeys, PrimaryKey
+from .validation import validate_dataframe as validate_dataframe_schema
 from .validation.checks import IsSubsetOf, IsValidPrimaryKey
 
 FieldUnion = Annotated[
@@ -271,3 +272,10 @@ class TableSchema(BaseModel):
                     IsSubsetOf(subset_fields=fk_fields, existing=existing_values)
                 )
             pandera_schema.checks = checks
+
+        df = validate_dataframe_schema(
+            df=df,
+            pandera_schema=pandera_schema,
+            lazy=lazy,
+        )
+        return df
