@@ -5,15 +5,15 @@ from typing import Any, Generic, TypeVar
 import pandera.pandas as pa
 from pandera.engines import pandas_engine
 
-from crosscontract.contracts.schema import (
-    BaseField,
+from crosscontract.contracts.schema.adapters.utils import parse_datetime
+from crosscontract.contracts.schema.fields import (
     DateTimeField,
     IntegerField,
     ListField,
     NumberField,
     StringField,
 )
-from crosscontract.contracts.schema.adapters.utils import parse_datetime
+from crosscontract.contracts.schema.fields.base import BaseField
 
 T = TypeVar("T", bound=BaseField)
 
@@ -95,7 +95,8 @@ class StringFieldConverter(BaseFieldConverter[StringField]):
 class DateTimeFieldConverter(BaseFieldConverter[DateTimeField]):
     def get_pandera_type(self) -> Any:
         return pandas_engine.DateTime(
-            tz=UTC, to_datetime_kwargs={"format": self.field.format}
+            tz=UTC,  # type: ignore[call-arg]
+            to_datetime_kwargs={"format": self.field.format},
         )
 
     def get_checks(self) -> list[pa.Check]:
@@ -107,7 +108,7 @@ class DateTimeFieldConverter(BaseFieldConverter[DateTimeField]):
             checks.append(
                 pa.Check(
                     lambda s: s.apply(
-                        lambda dt: parse_datetime(dt, fmt)
+                        lambda dt: parse_datetime(dt, fmt)  # type: ignore[operator]
                         >= parse_datetime(minimum, fmt)
                     )
                 )
@@ -118,7 +119,7 @@ class DateTimeFieldConverter(BaseFieldConverter[DateTimeField]):
             checks.append(
                 pa.Check(
                     lambda s: s.apply(
-                        lambda dt: parse_datetime(dt, fmt)
+                        lambda dt: parse_datetime(dt, fmt)  # type: ignore[operator]
                         <= parse_datetime(maximum, fmt)
                     )
                 )

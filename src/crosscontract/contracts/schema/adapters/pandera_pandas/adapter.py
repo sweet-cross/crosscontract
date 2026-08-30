@@ -1,8 +1,6 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
-import pandas as pd
-
 if TYPE_CHECKING:  # pragma: no cover
     from crosscontract.contracts.schema import TableSchema
 
@@ -32,6 +30,10 @@ def convert_schema_to_pandera(schema: "TableSchema") -> pa.DataFrameSchema:
 
 
 class PanderaAdapter(AbstractAdapter):
+    """Adapter that converts a schema into a corresponding pandera schema that
+    allows to validate a Pandas DataFrame against the schema.
+    """
+
     def create_base_schema(self) -> pa.DataFrameSchema:
         """Create the base Pandera schema with all columns and
         their column level checks.
@@ -70,7 +72,7 @@ class PanderaAdapter(AbstractAdapter):
                 IsValidPrimaryKey(
                     columns=self.schema.primaryKey.fields,
                     label="Internal PrimaryKey Check",
-                )
+                ).to_pandera()
             )
         if self.schema.foreignKeys:
             for fk in self.schema.foreignKeys:
@@ -80,16 +82,35 @@ class PanderaAdapter(AbstractAdapter):
                             columns=fk.fields,
                             within=fk.reference.fields,
                             label="Internal ForeignKey Check",
-                        )
+                        ).to_pandera()
                     )
         if self.schema.table_type == "Dimension":
-            checks.extend(IsValidCrossDimension(label="CrossDimension Check"))
+            checks.extend(
+                IsValidCrossDimension(label="CrossDimension Check").to_pandera()
+            )
 
-        new_schema.checks = new_schema.checks = (new_schema.checks or []) + checks
+        new_schema.checks = (new_schema.checks or []) + checks
         return new_schema
 
-    def convert(self, schema: "TableSchema") -> pa.DataFrameSchema:
-        """Convert the given TableSchema to a Pandera DataFrameSchema."""
+    def convert(self) -> pa.DataFrameSchema:
+        """Convert the TableSchema into a Pandera DataFrameSchema.
+
+        Returns:
+            pa.DataFrameSchema: The converted Pandera DataFrameSchema, carrying the
+                columns of the schema and the checks it requires of its own data.
+        """
         pandera_schema = self.create_base_schema()
         pandera_schema = self.add_internal_checks(pandera_schema)
         return pandera_schema
+
+    @classmethod
+    def convert_schema(cls, schema: "TableSchema") -> pa.DataFrameSchema:
+        """Convert a TableSchema without needing to instantiate the adapter.
+
+        Args:
+            schema (TableSchema): The TableSchema to convert.
+
+        Returns:
+            pa.DataFrameSchema: The converted Pandera DataFrameSchema.
+        """
+        return super().convert_schema(schema)
