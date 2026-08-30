@@ -10,6 +10,12 @@ validated in the context of a contract.
 To make schemas operational, there are methods to convert schema definitions into
 Pydantic or Pandera models for data validation and manipulation, as well as into
 SQLAlchemy columns, enabling seamless integration with databases.
+
+The adapters themselves are not part of this surface: only the
+`convert_schema_to_*` conveniences are re-exported here. The pandera path has no
+such function — `TableSchema.to_pandera_schema()` and
+`TableSchema.validate_dataframe()` are its public entry points, and
+`PanderaAdapter` is reached through them.
 """
 
 from .adapters import (
