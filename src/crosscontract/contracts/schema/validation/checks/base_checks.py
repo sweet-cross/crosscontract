@@ -3,7 +3,7 @@
 from typing import Any, Literal
 
 import pandas as pd
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from .abstract_base import BaseCheck
 
@@ -47,6 +47,25 @@ class IsIn(BaseCheck):
         ),
     )
 
+    @model_validator(mode="after")
+    def validate_existing_arity(self) -> "IsIn":
+        """Ensure every existing value holds one entry per checked column.
+
+        Returns:
+            IsIn: The validated check.
+
+        Raises:
+            ValueError: If an existing value does not have as many entries as
+                there are columns.
+        """
+        mismatched = [t for t in self.existing if len(t) != len(self.columns)]
+        if mismatched:
+            raise ValueError(
+                f"Existing values must have {len(self.columns)} entries to match "
+                f"columns {self.columns}, but got {mismatched}."
+            )
+        return self
+
     def __call__(self, df: pd.DataFrame) -> pd.Series:
         """Check that the values in the specified columns are in the list of
         the allowed values provided.
@@ -86,6 +105,25 @@ class IsNotIn(BaseCheck):
             "represents one referenced key."
         ),
     )
+
+    @model_validator(mode="after")
+    def validate_existing_arity(self) -> "IsNotIn":
+        """Ensure every existing value holds one entry per checked column.
+
+        Returns:
+            IsNotIn: The validated check.
+
+        Raises:
+            ValueError: If an existing value does not have as many entries as
+                there are columns.
+        """
+        mismatched = [t for t in self.existing if len(t) != len(self.columns)]
+        if mismatched:
+            raise ValueError(
+                f"Existing values must have {len(self.columns)} entries to match "
+                f"columns {self.columns}, but got {mismatched}."
+            )
+        return self
 
     def __call__(self, df: pd.DataFrame) -> pd.Series:
         """Check that the values in the specified columns are not in the list of

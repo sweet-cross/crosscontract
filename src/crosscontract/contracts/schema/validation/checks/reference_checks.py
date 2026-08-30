@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 import pandas as pd
 import pandera.pandas as pa
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from .abstract_base import BaseCheck
 from .base_checks import IsNotIn, IsNotNull, IsUnique
@@ -27,6 +27,25 @@ class IsValidPrimaryKey(BaseCheck):
             "represents one existing primary key."
         ),
     )
+
+    @model_validator(mode="after")
+    def validate_existing_arity(self) -> "IsValidPrimaryKey":
+        """Ensure every existing key holds one entry per primary key column.
+
+        Returns:
+            IsValidPrimaryKey: The validated check.
+
+        Raises:
+            ValueError: If an existing key does not have as many entries as
+                there are columns.
+        """
+        mismatched = [t for t in self.existing if len(t) != len(self.columns)]
+        if mismatched:
+            raise ValueError(
+                f"Existing values must have {len(self.columns)} entries to match "
+                f"columns {self.columns}, but got {mismatched}."
+            )
+        return self
 
     def __call__(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns form a valid primary key

@@ -9,40 +9,88 @@ task introduces the missing concept as a class hierarchy. Pure addition — noth
 wired in yet, so no behaviour changes.
 
 ## Acceptance Criteria
-- [x] `BaseCheck` exists with `name`, an optional `label`, `__call__(df) -> pd.Series`, `describe()`, and `to_pandera()`.
-- [ ] `IsUnique(columns, existing=None, label=None)` reproduces the current primary-key behaviour: non-null, unique within the data, and — when `existing` is given — not colliding with it.
-- [ ] `IsSubsetOf(columns, allowed=None, within=None, label=None)` reproduces the current foreign-key behaviour: empty strings read as null, null rows pass, and `within` unions the data's own rows into the valid set.
-- [ ] `IsSubsetOf.from_foreign_key(fk, allowed=None)` is the **only** place deciding `within = fk.reference.fields if fk.reference.resource is None else None`.
-- [ ] Four dimension rules exist as classes and reproduce the behaviour of `_pandera_dimension_checks.py` exactly.
-- [ ] `name` is **stable and equal** for the same mechanic and columns, regardless of `label`, `existing`, or `allowed`. The merge in WP2 depends on this.
-- [ ] `IsSubsetOf` with `allowed=[]` fails every non-null row and passes null ones.
-- [ ] A composite `IsSubsetOf` compares positionally — `(a, b)` against `(a, b)`, never `(b, a)`.
-- [ ] `_check_reference_inputs`' format validation happens in the constructor that consumes the values, not at the call site.
+
+### Landed
+- [x] `BaseCheck` exists with `name`, `label`, `__call__(df) -> pd.Series`,
+      `failure_message()` and `to_pandera()`. It is a pydantic model, like the rest of
+      `contracts/`.
+- [x] `IsUnique(columns, label)` — jointly unique values, every occurrence of a duplicate
+      failing.
+- [x] `IsIn(columns, existing, label)` and `IsNotIn(columns, existing, label)` —
+      membership in either direction, as two classes rather than one negatable class.
+- [x] `IsNotNull(columns, label)`, carrying `ignore_na=False` because it inspects the
+      nulls itself.
+- [x] `IsValidPrimaryKey(columns, existing, label)` reproduces the current primary-key
+      behaviour: non-null, unique within the data, and — when `existing` is given — not
+      colliding with it.
+- [x] `IsIn` with `existing=[]` fails every row; `IsNotIn` with `existing=[]` passes
+      every row.
+- [x] A composite check compares positionally — `(a, b)` against `(a, b)`, never
+      `(b, a)`.
+- [x] `_check_reference_inputs`' format validation happens in the constructor that
+      consumes the values: pydantic validates `list[tuple[Any, ...]]`, and a
+      `model_validator` raises when an entry does not hold one value per column.
+- [x] Tests in `src/tests/contracts/schema/validation/checks/`, one file per module.
+
+### Still open
+- [ ] The foreign-key composite: empty strings read as null, null rows pass, and for a
+      self-reference the data's own rows join the valid set.
+- [ ] Its single constructor `from_foreign_key(fk, allowed=None)` is the **only** place
+      deciding `within = fk.reference.fields if fk.reference.resource is None else None`.
+- [ ] Four dimension rules exist as classes and reproduce the behaviour of
+      `_pandera_dimension_checks.py` exactly. The cases in `test_dimension_check.py`
+      should pass against them with only their construction re-pointed.
+
+### Dropped, with the reason
+- ~~`name` is stable and equal for the same mechanic and columns, regardless of `label`,
+  `existing` or `allowed`.~~ `name` is the identity of the check *class* — a pydantic
+  `Literal`, so it can act as the discriminator when checks are read from a YAML or JSON
+  spec — not the identity of the instance. An instance-level `key` of mechanic + columns
+  was tried and removed: it is not unique within one schema (a self-referencing foreign
+  key yields two membership checks on the same column), and anything made unique enough
+  to fix that stops colliding where the merge needs it to. **WP2 has to decide what it
+  merges on**; see the PRD.
 
 ## Implementation Details
-- **Create:** `src/crosscontract/contracts/schema/validation/checks.py`
+- **Create:** `src/crosscontract/contracts/schema/validation/checks/` — a package, not a
+  single module:
+  - `abstract_base.py` — `BaseCheck`.
+  - `base_checks.py` — the checks that perform one operation: `IsUnique`, `IsIn`,
+    `IsNotIn`, `IsNotNull`.
+  - `reference_checks.py` — the composites, currently `IsValidPrimaryKey`.
 
   ```python
-  class BaseCheck(ABC):
-      name: str                  # mechanical identity, e.g. "is-unique:id"
-      label: str | None          # what it means here, e.g. "primary key"
+  class BaseCheck(BaseModel, ABC):
+      name: str                  # class identity / discriminator, e.g. "is_unique"
+      label: str                 # what it means here, e.g. "primary key"
+      ignore_na: bool = True
 
+      @abstractmethod
       def __call__(self, df: pd.DataFrame) -> pd.Series: ...
-      def describe(self) -> str: ...
-      def to_pandera(self) -> pa.Check: ...
+      def failure_message(self) -> str: ...
+      def to_pandera(self) -> list[pa.Check]: ...
   ```
 
   The instance holds what the current closures capture, `__call__` is the predicate, and
   `pa.Check(self, ...)` works because the instance is callable.
 
-- **Names are mechanics, not meanings.** `IsUnique`, `IsSubsetOf` — not
-  `PrimaryKeyUniqueness` or `ForeignKeyIntegrity`. `fields/base.py` carries a
-  `unique: bool` field constraint, so a single-column unique constraint and a
-  multi-column primary key are the same rule at different arities. The business meaning
-  is the `label`, supplied at derivation, never a subclass.
+- **`to_pandera` is a factory**, returning `list[pa.Check]` rather than one check. A
+  composite unpacks into one pandera check per sub-rule, so a report says *which* rule
+  broke instead of showing one opaque failure.
+- **A check is identified in a report by its failure message.** Pandera displays a check
+  by its `error=` string, so `failure_message()` carries the identification and no
+  explicit pandera check name is set. `describe()` in the original sketch is this method,
+  renamed for what it is.
+- **Two tiers.** Base checks perform one operation; composites combine them and are
+  allowed to name a meaning (`IsValidPrimaryKey`). This is a deliberate exception to
+  "mechanics, not meanings" — see the PRD.
+- **Names are mechanics, not meanings,** for the base checks: `IsUnique`, `IsIn` — not
+  `PrimaryKeyUniqueness`. `fields/base.py` carries a `unique: bool` field constraint, so
+  a single-column unique constraint and a multi-column primary key are the same rule at
+  different arities.
 - **No `Check` prefix** on class names — the module they are imported from says it.
-- `ignore_na` is not universal: foreign keys handle nulls explicitly, the primary-key
-  check does not. Make it a class attribute rather than a constant in `to_pandera`.
+- `ignore_na` is not universal: it is a pydantic field with a per-class default, `False`
+  on `IsNotNull` and `True` elsewhere.
 - **Port, do not rewrite**, the predicates in
   [pandera_adapter.py](../../../src/crosscontract/contracts/schema/adapters/pandera_adapter.py)
   (`_check_pk_integrity`, `_check_fk_integrity`) and
@@ -50,8 +98,10 @@ wired in yet, so no behaviour changes.
   Their logic is correct; only its housing changes.
 - **Do not delete anything yet.** `_pandera_dimension_checks.py` and the adapter's check
   builders stay until WP2 wires the new classes in.
-- **Tests:** `src/tests/contracts/schema/validation/`. The existing
-  `test_dimension_check.py` cases should pass against the new classes with only their
-  construction re-pointed.
+- **Arity is validated, not just shape.** `[(10, 11)]` supplied for a single-column key
+  would pass a `list[tuple[Any, ...]]` annotation and then silently fail every row,
+  because the frame's keys are one wide. A `model_validator` compares each entry against
+  `len(columns)` and raises — which the free `_check_reference_inputs` could never do,
+  having only the values and not the columns.
 - **PR:** ships with WP2 as one `refactor:` — classes with no caller are dead code.
 - **Depends on:** nothing.

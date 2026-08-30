@@ -1,6 +1,7 @@
 # Check-based validation — agreed design and work packages
 
-Status: agreed, not yet implemented. Written 2026-08-29.
+Status: WP1 partially implemented — see *Work packages*. Written 2026-08-29, revised
+2026-08-30 to match what landed.
 
 Follow-on to [validation-architecture.md](validation-architecture.md), which deliberately
 deferred this. Terminology lives in the *Validation* section of
@@ -53,22 +54,33 @@ about its own data; a caller should not be able to switch them off.
 ### A check is an object
 
 ```python
-class BaseCheck(ABC):
-    name: str                  # mechanical identity: "is-unique:id"
-    label: str | None          # what it means here: "primary key"
+class BaseCheck(BaseModel, ABC):
+    name: str                  # class identity / discriminator: "is_unique"
+    label: str                 # what it means here: "primary key"
+    ignore_na: bool = True
 
+    @abstractmethod
     def __call__(self, df: pd.DataFrame) -> pd.Series: ...
-    def describe(self) -> str: ...
-    def to_pandera(self) -> pa.Check: ...
+    def failure_message(self) -> str: ...
+    def to_pandera(self) -> list[pa.Check]: ...
 ```
 
 The instance holds what the closures currently capture, `__call__` is the predicate, and
 `pa.Check(self, ...)` works because the instance is callable. Two indirections disappear.
 
-### Checks name mechanics, not meanings
+A check is a **pydantic model**, like everything else in `contracts/`. That makes `name` a
+`Literal` field: it is the discriminator when checks are read from a YAML or JSON spec,
+and it cannot be overridden on an instance.
 
-`IsUnique(columns)` and `IsSubsetOf(columns, allowed=None, within=None)` — not
-`PrimaryKeyUniqueness` and `ForeignKeyIntegrity`.
+`to_pandera` is a **factory**, not a converter — it returns a list, so a composite can
+unpack into one pandera check per sub-rule and a report says which rule broke. Pandera
+identifies a check by its `error=` string, so `failure_message()` carries that
+identification; no explicit pandera check name is set.
+
+### Base checks name mechanics, not meanings
+
+`IsUnique(columns)` and `IsIn(columns, existing)` — not `PrimaryKeyUniqueness` and
+`ForeignKeyIntegrity`.
 
 The evidence is in the schema: `fields/base.py` carries a `unique: bool` constraint, so a
 single-column unique constraint and a multi-column primary key are **the same mechanic at
@@ -84,6 +96,27 @@ Not every check decomposes. The four dimension rules — *"each sub-level must h
 `other_<parent_id>` sibling"* — are irreducibly domain-specific. The hierarchy therefore
 has two tiers, generic and domain, and that is honest rather than awkward.
 
+### Composites may name a meaning
+
+A **base check** performs one operation. A **composite** combines several and *is* allowed
+to name a meaning: `IsValidPrimaryKey` is `IsNotNull` and `IsUnique` and `IsNotIn` taken
+together.
+
+This is a deliberate exception to the rule above, and it reverses the rejection of "a
+subclass per business meaning" below. Two things pay for it. A composite unpacks into one
+pandera check per sub-rule, so a duplicate reports as a uniqueness failure rather than as
+one opaque `PrimaryKeyError` — that is the whole reason `to_pandera` returns a list.
+And leaving the assembly to the caller is the copy-pasted derivation ADR 0005 exists to
+prevent: every caller would re-derive what a primary key means.
+
+The coupling it reintroduces is real — two construction sites must build the same
+composite — and it is paid for the same way the foreign key is, with one shared
+constructor per schema construct.
+
+Negation is a second class, not a flag. `IsIn` and `IsNotIn` rather than
+`IsIn(expected=False)`: the two are not exact complements once nulls are in play, and a
+flag would leave two opposite rules sharing one discriminator.
+
 ### Standard and additional
 
 - **Standard checks** come from the **Schema** and always run. Nothing supplies them, so
@@ -93,19 +126,25 @@ has two tiers, generic and domain, and that is honest rather than awkward.
 A caller can add strictness and never remove it. That is the correctness half of the
 problem, solved structurally rather than by a rule someone has to remember.
 
-**An additional check replaces a standard one with the same name.** The reason is report
-clarity, not speed: a row duplicated within the data fails both the standard
-`is-unique:id` and the additional one, and would otherwise be reported twice for what is
-one problem.
+**An additional check replaces a standard one expressing the same rule.** The reason is
+report clarity, not speed: a row duplicated within the data fails both the standard
+primary-key check and the additional one, and would otherwise be reported twice for what
+is one problem.
 
 | | standard | additional | outcome |
 |---|---|---|---|
-| primary key | `IsUnique(["id"])` | same, plus `existing=` | replaced |
-| self-referencing FK | `IsSubsetOf(["parent_id"], within=["id"])` | same, plus `allowed=` | replaced |
-| external FK | *not emitted* | `IsSubsetOf(["region_code"], allowed=…)` | added |
+| primary key | `IsValidPrimaryKey(["id"])` | same, plus `existing=` | replaced |
+| self-referencing FK | the FK composite on `["parent_id"]`, valid set from the data | same, plus the referenced values | replaced |
+| external FK | *not emitted* | the FK composite on `["region_code"]`, valid set supplied | added |
 
-Because `name` is derived from the mechanic and the columns, the two construction sites
-agree without coordinating.
+**How the two sites agree is open.** The original answer was a `name` derived from the
+mechanic and the columns. That did not survive: `name` is now the check class's
+discriminator, equal across every instance, and an instance-level `key` of mechanic +
+columns is not unique within one schema — a self-referencing foreign key yields two
+membership checks on the same column. Anything made unique enough to fix that stops
+colliding where the merge needs it to. Since a composite is built through one shared
+constructor anyway, the identity probably belongs on the composites alone, or replacement
+is decided by construction rather than by comparison. **WP2 settles it.**
 
 ### One constructor per schema construct
 
@@ -120,8 +159,11 @@ Getting that wrong on the additional side replaces a standard self-reference che
 weaker one, and self-references silently stop being validated against the data's own rows.
 That is the copy-pasted derivation [ADR 0005](../adrs/0005-one-contract-resolver-supplies-definitions-and-values.md)
 exists to prevent, in a new costume. So a check derivable from a schema construct gets
-**one** shared constructor — `IsSubsetOf.from_foreign_key(fk, allowed=None)` — which both
-sites call.
+**one** shared constructor — `from_foreign_key(fk, allowed=None)` on the foreign-key
+composite — which both sites call.
+
+The same applies to every composite, `IsValidPrimaryKey` included: naming a meaning is
+only safe while exactly one place decides what that meaning is.
 
 ### Three layers, each with one job
 
@@ -140,7 +182,9 @@ and both forward to the adapter independently. After this, one calls the other.
 
 ### Placement
 
-- `contracts/schema/validation/checks.py` — the check classes.
+- `contracts/schema/validation/checks/` — the check classes, as a package:
+  `abstract_base.py` (`BaseCheck`), `base_checks.py` (the one-operation checks) and
+  `reference_checks.py` (the composites).
 - `contracts/schema/validation/` — the runner, as now.
 - `contracts/schema/adapters/` — regains one plain meaning: convert a schema into another
   format. `_pandera_dimension_checks.py` was the thing violating that, and it moves.
@@ -183,7 +227,13 @@ Whether silence is good enough is the one question this design leaves open; see
   is dead weight the moment checks are caller-instantiated.
 - **A subclass per business meaning** (`PrimaryKey(IsUnique)`). A class hierarchy whose
   only content is a string, and it breaks merge-by-name: `validate_data` must remember to
-  instantiate the same subclass or duplicate errors return.
+  instantiate the same subclass or duplicate errors return. **Partly reversed** — see
+  *Composites may name a meaning*. The rejection stands for a subclass that only adds a
+  string; a composite that combines several rules and unpacks into per-rule pandera
+  checks earns its name, and pays the coupling with a shared constructor.
+- **A negation flag on one class** (`IsIn(expected=False)`). One class covering two rules,
+  a two-branch failure message on every check for the one call site that used it, and a
+  discriminator that no longer names the rule.
 - **A backend-agnostic check description that each adapter renders.** A second parallel
   hierarchy for one backend. [ADR 0003](../adrs/0003-release-is-a-contract-to-frictionless-adapter.md)
   records this codebase's answer to exactly that question.
@@ -195,26 +245,35 @@ Whether silence is good enough is the one question this design leaves open; see
 
 ## Work packages
 
-### WP1 — The check classes
+### WP1 — The check classes — *partially landed*
 
 **Depends on:** nothing.
 **PR:** with WP2, `refactor:` — classes with no caller are dead code.
 
-`validation/checks.py`: `BaseCheck`, `IsUnique`, `IsSubsetOf`, and the four dimension
-rules. `IsSubsetOf.from_foreign_key(fk, allowed=None)` as the single constructor.
-`_check_reference_inputs` moves into the constructors that consume the values.
+`validation/checks/`: `BaseCheck`, the one-operation checks, the composites, and the four
+dimension rules. `from_foreign_key(fk, allowed=None)` as the single constructor for the
+foreign-key composite. `_check_reference_inputs` moves into the constructors that consume
+the values.
+
+**Landed:** `BaseCheck` as a pydantic model; `IsUnique`, `IsIn`, `IsNotIn`, `IsNotNull`;
+the `IsValidPrimaryKey` composite; `existing` validated by the model; tests per module.
+
+**Still open:** the foreign-key composite and its `from_foreign_key` constructor; the four
+dimension rules.
 
 **Verification:**
-- `IsUnique` with no existing values checks non-null and in-frame uniqueness; with
-  existing values, also against those.
-- `IsSubsetOf` with `within=` unions the data's own rows — a self-reference validates with
-  `allowed=None`.
-- `IsSubsetOf` with `allowed=[]` fails every non-null row but passes null ones.
+- `IsValidPrimaryKey` with no existing values checks non-null and in-frame uniqueness;
+  with existing values, also against those.
+- The foreign-key composite with a self-reference unions the data's own rows — it
+  validates with no supplied values.
+- Membership with an empty valid set: `IsIn` fails every row, `IsNotIn` passes every row.
+  For the foreign-key composite this means an empty referenced table fails every non-null
+  referring row and passes null ones.
 - Column order: a composite check compares positionally.
-- `name` is stable and equal for the same mechanic and columns regardless of `label`,
-  `existing`, or `allowed` — this is what the merge depends on.
 - The four dimension rules reproduce the existing behaviour; the tests in
   `test_dimension_check.py` should pass with only their construction re-pointed.
+- ~~`name` is stable and equal for the same mechanic and columns~~ — dropped; the merge
+  identity moves to WP2. See *Standard and additional*.
 
 ### WP2 — Wire them in ⟵ carries the behaviour change
 
@@ -238,7 +297,8 @@ rules. `IsSubsetOf.from_foreign_key(fk, allowed=None)` as the single constructor
 - `skip_foreign_key_validation=True` **still** checks self-referencing foreign keys.
 - An external foreign key with no values is not checked and does not raise — the previous
   `ValueError` test is inverted, not deleted, so the change is visible in the diff.
-- A duplicate row is reported **once**, not twice, when existing primary keys are supplied.
+- A duplicate row is reported **once**, not twice, when existing primary keys are supplied
+  — which requires settling what the merge keys on, since `name` no longer carries it.
 - `to_pandera_schema()` returns a schema with no checks attached.
 - The existing `test_pandas_validation.py` and `test_integration_references.py` suites
   pass, except where they assert the retired `ValueError` or the `backend` guard.
@@ -252,9 +312,12 @@ rules. `IsSubsetOf.from_foreign_key(fk, allowed=None)` as the single constructor
   `None`-arm `ValueError` was retired and why, pointing at ADR 0006. Do not rewrite the
   reasoning: it was correct when written, and a reader benefits from seeing why it
   changed rather than finding it quietly edited away. Everything else in 0005 stands.
-- **ADR 0006** — why checks name mechanics rather than meanings; why standard checks are
-  not omittable; why an additional check replaces rather than adds; why the assembly sits
-  on `TableSchema.validate_dataframe` rather than in the runner or the adapter.
+- **ADR 0006** — why base checks name mechanics rather than meanings and why composites
+  are the exception; why negation is a second class rather than a flag; why checks are
+  pydantic models and `name` is a `Literal` discriminator; why a check is identified in a
+  report by its failure message; why standard checks are not omittable; why an additional
+  check replaces rather than adds; why the assembly sits on
+  `TableSchema.validate_dataframe` rather than in the runner or the adapter.
 - **`CONTEXT.md`** — **done**, ahead of WP1. **Check**, **Standard check** and
   **Additional check** are defined, with two relationship lines.
 
