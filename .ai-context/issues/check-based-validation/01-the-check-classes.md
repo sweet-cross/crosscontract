@@ -9,7 +9,7 @@ task introduces the missing concept as a class hierarchy. Pure addition — noth
 wired in yet, so no behaviour changes.
 
 ## Acceptance Criteria
-- [ ] `BaseCheck` exists with `name`, an optional `label`, `__call__(df) -> pd.Series`, `describe()`, and `to_pandera()`.
+- [x] `BaseCheck` exists with `name`, an optional `label`, `__call__(df) -> pd.Series`, `describe()`, and `to_pandera()`.
 - [ ] `IsUnique(columns, existing=None, label=None)` reproduces the current primary-key behaviour: non-null, unique within the data, and — when `existing` is given — not colliding with it.
 - [ ] `IsSubsetOf(columns, allowed=None, within=None, label=None)` reproduces the current foreign-key behaviour: empty strings read as null, null rows pass, and `within` unions the data's own rows into the valid set.
 - [ ] `IsSubsetOf.from_foreign_key(fk, allowed=None)` is the **only** place deciding `within = fk.reference.fields if fk.reference.resource is None else None`.

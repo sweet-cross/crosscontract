@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 import pandas as pd
-import pandera as pa
+import pandera.pandas as pa
 
 
 @dataclass(kw_only=True)
