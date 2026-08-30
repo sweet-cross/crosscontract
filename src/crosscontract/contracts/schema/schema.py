@@ -184,20 +184,26 @@ class TableSchema(BaseModel):
         primary_key_values: list[tuple[Any, ...]] | None = None,
         foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
     ) -> pa.DataFrameSchema:
-        """Convert the TableSchema to a Pandera DataFrameSchema. The schema includes
-        all column level checks but does not include any checking of external
-        or cross-table checks.
+        """Convert the TableSchema to a Pandera DataFrameSchema.
+
+        The schema carries the column level checks and, for a `Dimension`, the
+        hierarchy rules. The key checks are opt-in: passing `None` for either
+        group of values leaves the corresponding checks out entirely, while
+        passing a collection — including an empty one — turns them on. Called
+        bare, the returned schema therefore permits duplicate primary keys.
 
         Args:
             primary_key_values (list[tuple[Any, ...]] | None, optional): The
-                primary keys already stored for this contract. With `None` the
-                key is checked within the DataFrame alone.
+                primary keys already stored for this contract. `None` leaves the
+                primary key unchecked; an empty list checks it within the
+                DataFrame alone.
                 Defaults to `None`.
             foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] |
                 None, optional): The referenced values already stored, keyed by
-                the tuple of referring fields. With `None` a self-referencing
-                key is checked against the DataFrame's own rows and an external
-                reference is not checked at all.
+                the tuple of referring fields. `None` leaves the foreign keys
+                unchecked. An empty dict checks self-referencing keys against the
+                DataFrame's own rows; an external reference is checked only when
+                its values are given.
                 Defaults to `None`.
 
         Returns:

@@ -192,8 +192,11 @@ class TestEachLevelHasOther:
     def test_a_row_without_a_parent_is_not_this_rules_business(
         self, check: EachLevelHasOther
     ):
-        """A row naming no parent is in no sibling group, so there is nothing to
-        ask of it and it passes. NonRootElementHasParent owns that failure."""
+        """With no non-root row naming a parent there is no grouping at all, so
+        the answer is empty and every row keeps its initial pass. This is the only
+        shape in which a parentless row passes: alongside rows that do name a
+        parent it fails here too. NonRootElementHasParent owns that failure and
+        reports it either way."""
         df = _make_df(
             [
                 {"id": "other", "level": 0},

@@ -83,9 +83,11 @@ opposite of what the PRD set out to do, so it deserves a second opinion.
 
 **Two behaviour changes worth checking against your expectations.** An external foreign key
 with no supplied values is now left unchecked rather than raising `ValueError` — the test
-asserting the old behaviour is inverted, not deleted. And a dimension row naming no parent
-now passes the catch-all rule instead of raising `ValueError: cannot set using a list-like
-indexer…`; `NonRootElementHasParent` reports the missing parent alone.
+asserting the old behaviour is inverted, not deleted. And a dimension frame whose non-root
+rows all lack a parent no longer raises `ValueError: cannot set using a list-like
+indexer…`. The crash is what was retired, not the double report: a parentless row sitting
+alongside rows that do name a parent still fails the catch-all rule as well as
+`NonRootElementHasParent`, which is the rule that owns the defect.
 
 **Known coverage gap.** The deleted `adapters/pandera/` suite held the only end-to-end
 tests where a converted schema met a DataFrame — coercion, numeric bounds, string length,

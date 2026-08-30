@@ -165,13 +165,19 @@ class EachLevelHasOther(DimensionCheck):
         """Check that every sibling group holds its own catch-all entry.
 
         Asked of a single row, the rule is: which sibling group am I in, and does
-        that group contain the catch-all? A row below the root that names no
-        parent is in no group, so there is nothing to ask and it passes —
-        `NonRootElementHasParent` is the rule that owns a missing parent, and one
-        mistake should be reported once.
+        that group contain the catch-all? A parent with no children is asked
+        nothing — there is no group, so there is no entry to require.
 
         A group missing its catch-all fails every member of that group, not the
         parent, because the entry is missing from the group.
+
+        A row below the root that names no parent is in no sibling group, so this
+        rule is not the one that judges it — `NonRootElementHasParent` owns a
+        missing parent and reports it. It is nonetheless marked as failing here
+        whenever another non-root row does name a parent, because the grouping
+        drops the null key and returns no answer for that row. Only when no
+        non-root row names a parent at all is there no grouping, and the row
+        keeps its initial pass.
 
         Args:
             df (pd.DataFrame): The dimension table to validate.
@@ -196,9 +202,9 @@ class EachLevelHasOther(DimensionCheck):
             ].transform(
                 lambda ids: expected_other.loc[ids.index].isin(ids.values).any()
             )
-            # groupby forms no group for a row with no parent, so the answer
-            # covers only the grouped rows. Writing it back by its own index
-            # leaves the ungrouped ones at their initial pass.
+            # groupby drops the null parent key, so a row with no parent comes
+            # back without an answer and is written as a failure. Its missing
+            # parent is NonRootElementHasParent's to report.
             result.loc[parent_has_other.index] = parent_has_other.to_numpy(
                 dtype=bool, na_value=False
             )

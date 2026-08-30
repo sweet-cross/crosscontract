@@ -92,12 +92,17 @@ acknowledged rather than liked — see
   naming another contract yields no check, and the frame validates exactly like one where
   the reference held. This retires the `ValueError` that
   [ADR 0005](0005-one-contract-resolver-supplies-definitions-and-values.md) kept.
-- **One mistake, one message.** Where two rules could both fire on one defect, the rule
-  that does not own it stays silent: a dimension row naming no parent is in no sibling
-  group, so the catch-all rule has nothing to ask of it and `NonRootElementHasParent`
-  reports the missing parent alone.
+- **One mistake, one message, where the rules allow it.** Where two rules could both fire
+  on one defect, the rule that does not own it should stay silent. `IsValidPrimaryKey`
+  achieves this by unpacking into one check per sub-rule. The dimension hierarchy does
+  not: a row below the root naming no parent is reported by `NonRootElementHasParent`,
+  which owns the defect, *and* by the catch-all rule, which groups by parent and so has
+  no answer for a row with none. That second report is accepted, not designed.
 - **The ported dimension rule changed behaviour once.** `_check_other_entries` wrote its
-  grouped answer back over every non-root row and raised `ValueError` on a parentless
-  child. It now passes those rows, per the point above.
+  grouped answer back over the whole non-root slice, so a frame whose non-root rows all
+  lacked a parent produced an empty answer and raised
+  `ValueError: cannot set using a list-like indexer…`. Writing the answer back by its own
+  index retires the crash and lets that frame pass. It does not change the mixed case: a
+  parentless row sitting alongside grouped rows still fails, per the point above.
 - **`checks/` is reusable beyond pandera.** The predicate is `__call__(df) -> pd.Series`;
   `to_pandera()` is one rendering of it.
