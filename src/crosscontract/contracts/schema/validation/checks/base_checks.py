@@ -18,7 +18,7 @@ class IsUnique(BaseCheck):
         description="The columns that should have jointly unique values.",
     )
 
-    def validate_data(self, df: pd.DataFrame) -> pd.Series:
+    def evaluate(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns have unique values.
 
         Args:
@@ -53,7 +53,7 @@ class IsIn(BaseCheck):
         ),
     )
 
-    def validate_data(self, df: pd.DataFrame) -> pd.Series:
+    def evaluate(self, df: pd.DataFrame) -> pd.Series:
         """Check that the values in the specified columns are in the list of
         the allowed values provided.
 
@@ -101,7 +101,7 @@ class IsNotNull(BaseCheck):
         ),
     )
 
-    def validate_data(self, df: pd.DataFrame) -> pd.Series:
+    def evaluate(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns do not contain null values.
 
         Args:

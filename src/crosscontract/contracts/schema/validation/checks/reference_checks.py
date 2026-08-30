@@ -28,7 +28,7 @@ class IsValidPrimaryKey(BaseCheck):
         ),
     )
 
-    def validate_data(self, df: pd.DataFrame) -> pd.Series:
+    def evaluate(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns form a valid primary key
         (unique and non-null)."""
         is_unique = IsUnique(label=self.label, columns=self.columns)(df)

@@ -42,11 +42,11 @@ class BaseCheck(BaseModel, ABC):
 
     def __call__(self, df: pd.DataFrame) -> pd.Series:
         """The Template Method: manages the execution and applies 'expected'."""
-        raw_result = self.validate_data(df)
+        raw_result = self.evaluate(df)
         return raw_result == self.expected
 
     @abstractmethod
-    def validate_data(self, df: pd.DataFrame) -> pd.Series:
+    def evaluate(self, df: pd.DataFrame) -> pd.Series:
         """Implement the core validation logic here. Return a boolean Series
         indicating which rows pass the check."""
         ...
