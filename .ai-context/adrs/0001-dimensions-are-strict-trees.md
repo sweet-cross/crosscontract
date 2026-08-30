@@ -2,7 +2,7 @@
 
 Every hierarchical **Dimension** is modelled as a strict tree: each member references
 exactly one parent at the level above (level 0 has none), and each level carries a
-catch-all `other` / `other_<parent_id>` member to absorb uncategorised data. We chose
+catch-all `other` / `<parent_id>_other` member to absorb uncategorised data. We chose
 this so the **Sum invariant** holds — summing leaf values always equals the totals at any
 level, with no double-counting and no leakage — which lets consumers aggregate freely
 across any combination of dimensions without reasoning about overlap.

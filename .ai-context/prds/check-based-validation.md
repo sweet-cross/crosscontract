@@ -93,7 +93,7 @@ below, because two construction sites would have to remember to instantiate the 
 subclass.
 
 Not every check decomposes. The four dimension rules — *"each sub-level must have an
-`other_<parent_id>` sibling"* — are irreducibly domain-specific. The hierarchy therefore
+`<parent_id>_other` sibling"* — are irreducibly domain-specific. The hierarchy therefore
 has two tiers, generic and domain, and that is honest rather than awkward.
 
 ### Composites may name a meaning

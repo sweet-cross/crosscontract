@@ -236,7 +236,7 @@ _Avoid_: entry, element, category value (pick "member")
 
 **"other" entry**:
 The catch-all sentinel **member** every hierarchical **Dimension** carries — `other` at
-the root, `other_<parent_id>` at each sub-level — so uncategorised data has a home and the
+the root, `<parent_id>_other` at each sub-level — so uncategorised data has a home and the
 **Sum invariant** still holds.
 
 ### Release and distribution
