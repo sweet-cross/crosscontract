@@ -56,9 +56,17 @@ wired in yet, so no behaviour changes.
 - **Create:** `src/crosscontract/contracts/schema/validation/checks/` — a package, not a
   single module:
   - `abstract_base.py` — `BaseCheck`.
-  - `base_checks.py` — the checks that perform one operation: `IsUnique`, `IsIn`,
-    `IsNotIn`, `IsNotNull`.
-  - `reference_checks.py` — the composites, currently `IsValidPrimaryKey`.
+  - `base_checks.py` — every check that performs one operation, whatever it is about:
+    `IsUnique`, `IsIn`, `IsNotIn`, `IsSubsetOf`, `IsNotNull`. Membership in one place
+    means any later check can reuse it.
+  - `reference_checks.py` — the checks about keys, currently `IsValidPrimaryKey`.
+  - `utils.py` — helpers shared across checks.
+
+  Modules above the base group by **domain**, not by tier: later composites go into
+  further domain-named modules (`dimension_checks.py` and so on), not into one file named
+  after the fact that they are composites. `IsSubsetOf` therefore sits with the base
+  checks even though it is about foreign keys — it is one operation, and that is the axis
+  `base_checks.py` is sorted on.
 
   ```python
   class BaseCheck(BaseModel, ABC):

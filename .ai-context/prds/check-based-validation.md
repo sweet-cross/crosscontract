@@ -203,8 +203,11 @@ and both forward to the adapter independently. After this, one calls the other.
 ### Placement
 
 - `contracts/schema/validation/checks/` — the check classes, as a package:
-  `abstract_base.py` (`BaseCheck`), `base_checks.py` (the one-operation checks) and
-  `reference_checks.py` (the composites).
+  `abstract_base.py` (`BaseCheck`), `base_checks.py` (every check performing one
+  operation, so any later check can reuse it), `reference_checks.py` (the checks about
+  keys) and `utils.py` (shared helpers). Modules above the base group by **domain**, not
+  by tier — later composites get their own domain-named modules rather than one file
+  named for being composites.
 - `contracts/schema/validation/` — the runner, as now.
 - `contracts/schema/adapters/` — regains one plain meaning: convert a schema into another
   format. `_pandera_dimension_checks.py` was the thing violating that, and it moves.
