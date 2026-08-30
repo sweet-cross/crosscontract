@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover
     from crosscontract.contracts.schema import TableSchema
@@ -8,6 +8,7 @@ import pandera.pandas as pa
 
 from crosscontract.contracts.schema.adapters.abstract_adapter import AbstractAdapter
 from crosscontract.contracts.schema.validation.checks import (
+    BaseCheck,
     IsSubsetOf,
     IsValidCrossDimension,
     IsValidPrimaryKey,
@@ -53,64 +54,126 @@ class PanderaAdapter(AbstractAdapter):
         )
         return pandera_schema
 
-    def add_internal_checks(
-        self, pandera_schema: pa.DataFrameSchema
-    ) -> pa.DataFrameSchema:
-        """Add internal checks to the given Pandera schema.
+    def _derive_checks(
+        self,
+        primary_key_values: list[tuple[Any, ...]] | None = None,
+        foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
+    ) -> list[BaseCheck]:
+        """Derive the checks this schema requires of a DataFrame.
+
+        One check per schema construct: the primary key, each foreign key, and
+        the hierarchy of a `Dimension`. Existing values are optional and widen
+        what a check compares against, never which checks exist — so a caller can
+        inform a check but cannot drop one.
+
+        A foreign key referring to another contract is the one construct that may
+        yield no check: without the referenced values there is nothing to compare
+        against, and it is left unchecked. A self-referencing key always yields
+        one, because the DataFrame's own rows are the referenced values.
 
         Args:
-            pandera_schema (pa.DataFrameSchema): The base Pandera schema.
+            primary_key_values (list[tuple[Any, ...]] | None, optional): The
+                primary keys already stored for this contract.
+                None skips the test
+                Defaults to `None`.
+            foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]]
+                | None, optional): The referenced values already stored, keyed by
+                the tuple of referring fields.
+                None skips the test
+                Defaults to `None`.
 
         Returns:
-            pa.DataFrameSchema: The Pandera schema with internal checks added.
+            list[BaseCheck]: The checks to run against the data.
         """
-        new_schema = deepcopy(pandera_schema)
-        # add the additional internal reference checks
-        checks: list[pa.Check] = []
+        checks: list[BaseCheck] = []
+
         if self.schema.primaryKey:
-            checks.extend(
+            checks.append(
                 IsValidPrimaryKey(
                     columns=self.schema.primaryKey.fields,
-                    label="Internal PrimaryKey Check",
-                ).to_pandera()
+                    existing=primary_key_values or [],
+                    label="primary key",
+                )
             )
-        if self.schema.foreignKeys:
-            for fk in self.schema.foreignKeys:
-                if fk.reference.resource is None:  # is a self-reference
-                    checks.extend(
-                        IsSubsetOf(
-                            columns=fk.fields,
-                            within=fk.reference.fields,
-                            label="Internal ForeignKey Check",
-                        ).to_pandera()
-                    )
+
+        for fk in self.schema.foreignKeys:
+            # a self-reference takes its valid set from the frame itself
+            within = fk.reference.fields if fk.reference.resource is None else None
+            allowed = (foreign_key_values or {}).get(tuple(fk.fields))
+            if within is None and allowed is None:
+                continue
+            checks.append(
+                IsSubsetOf(
+                    columns=fk.fields,
+                    allowed=allowed or [],
+                    within=within,
+                    label="foreign key",
+                )
+            )
+
         if self.schema.table_type == "Dimension":
-            checks.extend(
-                IsValidCrossDimension(label="CrossDimension Check").to_pandera()
-            )
+            checks.append(IsValidCrossDimension(label="dimension hierarchy"))
 
-        new_schema.checks = (new_schema.checks or []) + checks
-        return new_schema
+        return checks
 
-    def convert(self) -> pa.DataFrameSchema:
+    def convert(
+        self,
+        primary_key_values: list[tuple[Any, ...]] | None = None,
+        foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
+    ) -> pa.DataFrameSchema:
         """Convert the TableSchema into a Pandera DataFrameSchema.
+
+        Args:
+            primary_key_values (list[tuple[Any, ...]] | None, optional): The
+                primary keys already stored for this contract.
+                None skips the test
+                Defaults to `None`.
+            foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] |
+                None, optional): The referenced values already stored, keyed by
+                the tuple of referring fields.
+                None skips the test
+                Defaults to `None`.
 
         Returns:
             pa.DataFrameSchema: The converted Pandera DataFrameSchema, carrying the
                 columns of the schema and the checks it requires of its own data.
         """
+        if primary_key_values is None:
+            primary_key_values = []
         pandera_schema = self.create_base_schema()
-        pandera_schema = self.add_internal_checks(pandera_schema)
+        checks = self.schema.derive_checks(
+            primary_key_values=primary_key_values,
+            foreign_key_values=foreign_key_values,
+        )
+        pandera_schema.checks = (pandera_schema.checks or []) + checks
+
         return pandera_schema
 
     @classmethod
-    def convert_schema(cls, schema: "TableSchema") -> pa.DataFrameSchema:
+    def convert_schema(
+        cls,
+        schema: "TableSchema",
+        primary_key_values: list[tuple[Any, ...]] | None = None,
+        foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
+    ) -> pa.DataFrameSchema:
         """Convert a TableSchema without needing to instantiate the adapter.
 
         Args:
             schema (TableSchema): The TableSchema to convert.
+            primary_key_values (list[tuple[Any, ...]] | None, optional): The
+                primary keys already stored for this contract.
+                None skips the test
+                Defaults to `None`.
+            foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]]
+                | None, optional): The referenced values already stored, keyed by
+                the tuple of referring fields.
+                None skips the test
+                Defaults to `None`.
 
         Returns:
             pa.DataFrameSchema: The converted Pandera DataFrameSchema.
         """
-        return super().convert_schema(schema)
+        return cls(schema).convert(
+            primary_key_values=primary_key_values,
+            foreign_key_values=foreign_key_values,
+        )

@@ -180,12 +180,34 @@ class TableSchema(BaseModel):
             self, metadata=metadata, table_name=table_name
         )
 
-    def to_pandera_schema(self) -> pa.DataFrameSchema:
+    def to_pandera_schema(
+        self,
+        primary_key_values: list[tuple[Any, ...]] | None = None,
+        foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
+    ) -> pa.DataFrameSchema:
         """Convert the TableSchema to a Pandera DataFrameSchema. The schema includes
         all column level checks but does not include any checking of external
         or cross-table checks.
+
+        Args:
+            primary_key_values (list[tuple[Any, ...]] | None, optional): The
+                primary keys already stored for this contract.
+                None skips the test
+                Defaults to `None`.
+            foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] |
+                None, optional): The referenced values already stored, keyed by
+                the tuple of referring fields.
+                None skips the test
+                Defaults to `None`.
+
+        Returns:
+            pa.DataFrameSchema: The converted Pandera DataFrameSchema.
         """
-        return PanderaAdapter.convert_schema(self)
+        return PanderaAdapter.convert_schema(
+            self,
+            primary_key_values=primary_key_values,
+            foreign_key_values=foreign_key_values,
+        )
 
     def to_pydantic_model(
         self, model_name: str | None = None, base_class: type[BaseModel] = BaseModel
@@ -254,48 +276,17 @@ class TableSchema(BaseModel):
             pd.DataFrame: The validated DataFrame. If validation fails, an exception
                 is raised and this return value is not reached.
         """
-        pandera_schema = self.to_pandera_schema()
 
-        # add primary key check with external values
-        if self.primaryKey and not skip_primary_key_validation and primary_key_values:
-            checks = pandera_schema.checks or []
-            checks.extend(
-                IsValidPrimaryKey(
-                    columns=self.primaryKey.fields,
-                    existing=primary_key_values,
-                    label="Existing PrimaryKey Check",
-                ).to_pandera()
-            )
-            pandera_schema.checks = checks
+        # implement the flags for skipping primary and foreign key validation
+        if skip_primary_key_validation:
+            primary_key_values = None
+        if skip_foreign_key_validation:
+            foreign_key_values = None
 
-        # add foreign key check with external values
-        if foreign_key_values is not None and not skip_foreign_key_validation:
-            checks = pandera_schema.checks or []
-            for fk_fields, existing_values in foreign_key_values.items():
-                # a self-referencing key must also resolve against the frame's own
-                # rows, so the referenced columns travel with the supplied values
-                fk = next(
-                    (
-                        f
-                        for f in self.foreignKeys
-                        if tuple(f.fields) == tuple(fk_fields)
-                    ),
-                    None,
-                )
-                within = (
-                    fk.reference.fields
-                    if fk is not None and fk.reference.resource is None
-                    else None
-                )
-                checks.extend(
-                    IsSubsetOf(
-                        columns=list(fk_fields),
-                        allowed=existing_values,
-                        within=within,
-                        label="Existing ForeignKey Check",
-                    ).to_pandera()
-                )
-            pandera_schema.checks = checks
+        pandera_schema = self.to_pandera_schema(
+            primary_key_values=primary_key_values,
+            foreign_key_values=foreign_key_values,
+        )
 
         df = validate_dataframe_schema(
             df=df,
