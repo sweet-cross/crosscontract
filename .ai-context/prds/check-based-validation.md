@@ -109,9 +109,18 @@ one opaque `PrimaryKeyError` — that is the whole reason `to_pandera` returns a
 And leaving the assembly to the caller is the copy-pasted derivation ADR 0005 exists to
 prevent: every caller would re-derive what a primary key means.
 
-The coupling it reintroduces is real — two construction sites must build the same
-composite — and it is paid for the same way the foreign key is, with one shared
-constructor per schema construct.
+**A foreign key is not one of them.** The test is whether the sub-rules produce distinct,
+actionable messages. For a primary key they do: "not unique" and "already exists" are
+different problems, fixed differently. For a foreign key there is no such split — "value
+not in the referenced set" is one message, and a null row passing is not a failure to
+report. So it is a single base check, `IsSubsetOf(columns, allowed, within)`, which
+carries the SQL `MATCH SIMPLE` semantics itself: empty strings read as null, a null
+anywhere in the key passes the row, and `within` joins the frame's own rows to the valid
+set for a self-reference.
+
+`IsSubsetOf` is a sibling of `IsIn` rather than an extension of it. A general-purpose
+membership check where nulls silently pass is a trap for the next person who reaches for
+one; two discriminators, two honest rules.
 
 Negation is a second class, not a flag. `IsIn` and `IsNotIn` rather than
 `IsIn(expected=False)`: the two are not exact complements once nulls are in play, and a
@@ -134,36 +143,47 @@ is one problem.
 | | standard | additional | outcome |
 |---|---|---|---|
 | primary key | `IsValidPrimaryKey(["id"])` | same, plus `existing=` | replaced |
-| self-referencing FK | the FK composite on `["parent_id"]`, valid set from the data | same, plus the referenced values | replaced |
-| external FK | *not emitted* | the FK composite on `["region_code"]`, valid set supplied | added |
+| self-referencing FK | `IsSubsetOf(["parent_id"], within=["id"])` | same, plus `allowed=` | replaced |
+| external FK | *not emitted* | `IsSubsetOf(["region_code"], allowed=…)` | added |
 
 **How the two sites agree is open.** The original answer was a `name` derived from the
 mechanic and the columns. That did not survive: `name` is now the check class's
 discriminator, equal across every instance, and an instance-level `key` of mechanic +
 columns is not unique within one schema — a self-referencing foreign key yields two
 membership checks on the same column. Anything made unique enough to fix that stops
-colliding where the merge needs it to. Since a composite is built through one shared
-constructor anyway, the identity probably belongs on the composites alone, or replacement
-is decided by construction rather than by comparison. **WP2 settles it.**
+colliding where the merge needs it to. Replacement may instead be decided by construction
+rather than by comparison, which the single assembly point below makes possible.
+**WP2 settles it.**
 
-### One constructor per schema construct
+### The caller derives, the check checks
 
-Both sites build a check from the same `ForeignKey`, and both must reach the same
-conclusion about `within`:
+An earlier draft gave every check derivable from a schema construct its own constructor —
+`from_foreign_key(fk, allowed=None)` — so that this line had exactly one home:
 
 ```python
 within = fk.reference.fields if fk.reference.resource is None else None
 ```
 
-Getting that wrong on the additional side replaces a standard self-reference check with a
-weaker one, and self-references silently stop being validated against the data's own rows.
-That is the copy-pasted derivation [ADR 0005](../adrs/0005-one-contract-resolver-supplies-definitions-and-values.md)
-exists to prevent, in a new costume. So a check derivable from a schema construct gets
-**one** shared constructor — `from_foreign_key(fk, allowed=None)` on the foreign-key
-composite — which both sites call.
+That is dropped. Three reasons, in increasing weight:
 
-The same applies to every composite, `IsValidPrimaryKey` included: naming a meaning is
-only safe while exactly one place decides what that meaning is.
+- **Asymmetry.** `IsValidPrimaryKey` has no `from_primary_key` and does not want one. If a
+  foreign key needed a constructor to be safe, so would a primary key.
+- **The boundary.** Taking a `ForeignKey` would make `checks/` import from
+  `contracts/schema/reference/`. The package depends on nothing but pandas, pandera and
+  pydantic today, and that is worth keeping: `checks/` knows *how* to check, the schema
+  knows *which* checks and *which values*.
+- **There is only one site.** The duplication [ADR 0005](../adrs/0005-one-contract-resolver-supplies-definitions-and-values.md)
+  guards against needs two derivations. Standard and additional checks are both assembled
+  inside `validate_dataframe`, so there is one, and a constructor would be guarding
+  nothing.
+
+The `foreign_key_values` dict stays a transport format for the caller's values. It is not
+a field on a check: a check holding the whole dict would be N unrelated rules rather than
+one, with nothing for the merge to key on and nothing for `failure_message()` to name.
+
+**Deferred, not rejected.** The third reason expires the day caller-supplied checks are
+exposed through `validate_data` — that gives the derivation a second site, and the
+constructor earns its place. Revisit it then, not before.
 
 ### Three layers, each with one job
 
@@ -251,25 +271,26 @@ Whether silence is good enough is the one question this design leaves open; see
 **PR:** with WP2, `refactor:` — classes with no caller are dead code.
 
 `validation/checks/`: `BaseCheck`, the one-operation checks, the composites, and the four
-dimension rules. `from_foreign_key(fk, allowed=None)` as the single constructor for the
-foreign-key composite. `_check_reference_inputs` moves into the constructors that consume
-the values.
+dimension rules. `_check_reference_inputs` moves into the constructors that consume the
+values.
 
-**Landed:** `BaseCheck` as a pydantic model; `IsUnique`, `IsIn`, `IsNotIn`, `IsNotNull`;
-the `IsValidPrimaryKey` composite; `existing` validated by the model; tests per module.
+**Landed:** `BaseCheck` as a pydantic model; `IsUnique`, `IsIn`, `IsNotIn`, `IsNotNull`,
+`IsSubsetOf`; the `IsValidPrimaryKey` composite; value widths validated by the model; a
+shared `validate_existing_length_match` in `checks/utils.py`; tests per module.
 
-**Still open:** the foreign-key composite and its `from_foreign_key` constructor; the four
-dimension rules.
+**Still open:** the four dimension rules.
 
 **Verification:**
 - `IsValidPrimaryKey` with no existing values checks non-null and in-frame uniqueness;
   with existing values, also against those.
-- The foreign-key composite with a self-reference unions the data's own rows — it
-  validates with no supplied values.
-- Membership with an empty valid set: `IsIn` fails every row, `IsNotIn` passes every row.
-  For the foreign-key composite this means an empty referenced table fails every non-null
-  referring row and passes null ones.
-- Column order: a composite check compares positionally.
+- `IsSubsetOf` with `within=` unions the data's own rows — a self-reference validates with
+  no supplied values.
+- `IsSubsetOf` with `allowed=[]` and no `within` fails every non-null row but passes null
+  ones. Plain membership with an empty set: `IsIn` fails every row, `IsNotIn` passes every
+  row.
+- `IsSubsetOf` follows `MATCH SIMPLE`: one null anywhere in a composite key passes the
+  row, even when the other columns match nothing.
+- Column order: a multi-column check compares positionally.
 - The four dimension rules reproduce the existing behaviour; the tests in
   `test_dimension_check.py` should pass with only their construction re-pointed.
 - ~~`name` is stable and equal for the same mechanic and columns~~ — dropped; the merge
@@ -312,8 +333,9 @@ dimension rules.
   `None`-arm `ValueError` was retired and why, pointing at ADR 0006. Do not rewrite the
   reasoning: it was correct when written, and a reader benefits from seeing why it
   changed rather than finding it quietly edited away. Everything else in 0005 stands.
-- **ADR 0006** — why base checks name mechanics rather than meanings and why composites
-  are the exception; why negation is a second class rather than a flag; why checks are
+- **ADR 0006** — why base checks name mechanics rather than meanings, why composites are
+  the exception and why a foreign key is not one; why there is no `from_foreign_key` and
+  which layer derives what; why negation is a second class rather than a flag; why checks are
   pydantic models and `name` is a `Literal` discriminator; why a check is identified in a
   report by its failure message; why standard checks are not omittable; why an additional
   check replaces rather than adds; why the assembly sits on

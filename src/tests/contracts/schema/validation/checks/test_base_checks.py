@@ -6,6 +6,7 @@ from crosscontract.contracts.schema.validation.checks import (
     IsIn,
     IsNotIn,
     IsNotNull,
+    IsSubsetOf,
     IsUnique,
 )
 
@@ -145,6 +146,107 @@ class TestIsNotIn:
         and silently pass every row, so it is rejected at construction."""
         with pytest.raises(ValidationError):
             IsNotIn(label="id", columns=["id"], existing=[("a", 1)])
+
+
+# ---------------------------------------------------------------------------
+# IsSubsetOf  (a foreign key: non-null values appear among the referenced ones)
+# ---------------------------------------------------------------------------
+class TestIsSubsetOf:
+    def test_referenced_values_pass(self):
+        """A row passes when its key appears among the referenced values."""
+        check = IsSubsetOf(label="region", columns=["region"], allowed=[("de",)])
+        df = pd.DataFrame({"region": ["de", "de"]})
+        assert check(df).tolist() == [True, True]
+
+    def test_unreferenced_values_fail(self):
+        """A row fails when its key is absent from the referenced values."""
+        check = IsSubsetOf(label="region", columns=["region"], allowed=[("de",)])
+        df = pd.DataFrame({"region": ["de", "xx"]})
+        assert check(df).tolist() == [True, False]
+
+    def test_null_rows_pass(self):
+        """SQL treats a null reference as "no relationship" rather than a broken
+        one, so it is never a violation."""
+        check = IsSubsetOf(label="region", columns=["region"], allowed=[("de",)])
+        df = pd.DataFrame({"region": ["de", None]})
+        assert check(df).tolist() == [True, True]
+
+    def test_empty_strings_are_read_as_null(self):
+        """A tabular source carries no null of its own, so a blank cell means
+        the same thing."""
+        check = IsSubsetOf(label="region", columns=["region"], allowed=[("de",)])
+        df = pd.DataFrame({"region": ["de", ""]})
+        assert check(df).tolist() == [True, True]
+
+    def test_one_null_passes_a_composite_row(self):
+        """Under MATCH SIMPLE a single null anywhere in the key passes the row,
+        even when the remaining columns match nothing."""
+        check = IsSubsetOf(label="key", columns=["x", "y"], allowed=[("a", 1)])
+        df = pd.DataFrame({"x": ["a", "zzz"], "y": [1, None]})
+        assert check(df).tolist() == [True, True]
+
+    def test_composite_columns_compare_positionally(self):
+        """A composite key matches column by column in the declared order."""
+        check = IsSubsetOf(label="key", columns=["x", "y"], allowed=[("a", 1)])
+        df = pd.DataFrame({"x": ["a", 1], "y": [1, "a"]})
+        assert check(df).tolist() == [True, False]
+
+    def test_within_validates_against_the_frames_own_rows(self):
+        """A self-referencing key needs no supplied values: the frame's own
+        rows are the referenced set."""
+        check = IsSubsetOf(label="parent", columns=["parent_id"], within=["id"])
+        df = pd.DataFrame(
+            {"id": ["root", "a", "b"], "parent_id": [None, "root", "nope"]}
+        )
+        assert check(df).tolist() == [True, True, False]
+
+    def test_within_and_allowed_are_unioned(self):
+        """Supplying values for a self-referencing key adds to the frame's own
+        rows rather than replacing them."""
+        check = IsSubsetOf(
+            label="parent",
+            columns=["parent_id"],
+            allowed=[("stored",)],
+            within=["id"],
+        )
+        df = pd.DataFrame({"id": ["a", "b"], "parent_id": ["a", "stored"]})
+        assert check(df).tolist() == [True, True]
+
+    def test_empty_allowed_fails_every_non_null_row(self):
+        """No referenced values and no self-reference means the referenced table
+        exists and is empty, which every populated row fails and every null row
+        survives."""
+        check = IsSubsetOf(label="region", columns=["region"])
+        df = pd.DataFrame({"region": ["de", None]})
+        assert check(df).tolist() == [False, True]
+
+    def test_result_keeps_the_frame_index(self):
+        """The result is aligned to the frame it was called with."""
+        check = IsSubsetOf(label="region", columns=["region"], allowed=[("de",)])
+        df = pd.DataFrame({"region": ["de", "xx"]}, index=[10, 11])
+        assert check(df).index.tolist() == [10, 11]
+
+    def test_ignore_na_defaults_to_false(self):
+        """The check decides itself that null rows pass, so pandera must not
+        drop them first."""
+        assert IsSubsetOf(label="region", columns=["region"]).ignore_na is False
+
+    def test_allowed_values_must_be_as_wide_as_the_columns(self):
+        """A value of the wrong width would match nothing and silently fail
+        every row, so it is rejected at construction."""
+        with pytest.raises(ValidationError):
+            IsSubsetOf(label="region", columns=["region"], allowed=[("de", 2020)])
+
+    def test_within_must_be_as_wide_as_the_columns(self):
+        """The referenced columns build keys of their own width, so a mismatch
+        would match nothing either."""
+        with pytest.raises(ValidationError):
+            IsSubsetOf(label="parent", columns=["parent_id"], within=["id", "level"])
+
+    def test_failure_message_names_the_columns(self):
+        """The message identifies the columns that were checked."""
+        check = IsSubsetOf(label="region", columns=["region"], allowed=[("de",)])
+        assert "region" in check.failure_message()
 
 
 # ---------------------------------------------------------------------------

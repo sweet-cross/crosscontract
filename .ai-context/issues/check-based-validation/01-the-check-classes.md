@@ -32,11 +32,12 @@ wired in yet, so no behaviour changes.
       `model_validator` raises when an entry does not hold one value per column.
 - [x] Tests in `src/tests/contracts/schema/validation/checks/`, one file per module.
 
+- [x] `IsSubsetOf(columns, allowed, within)` carries the foreign key as **one** check:
+      empty strings read as null, null rows pass (SQL `MATCH SIMPLE`), and `within` joins
+      the frame's own rows to the valid set for a self-reference. `allowed=[]` with no
+      `within` fails every non-null row.
+
 ### Still open
-- [ ] The foreign-key composite: empty strings read as null, null rows pass, and for a
-      self-reference the data's own rows join the valid set.
-- [ ] Its single constructor `from_foreign_key(fk, allowed=None)` is the **only** place
-      deciding `within = fk.reference.fields if fk.reference.resource is None else None`.
 - [ ] Four dimension rules exist as classes and reproduce the behaviour of
       `_pandera_dimension_checks.py` exactly. The cases in `test_dimension_check.py`
       should pass against them with only their construction re-pointed.
@@ -84,6 +85,18 @@ wired in yet, so no behaviour changes.
 - **Two tiers.** Base checks perform one operation; composites combine them and are
   allowed to name a meaning (`IsValidPrimaryKey`). This is a deliberate exception to
   "mechanics, not meanings" — see the PRD.
+- **A foreign key is not a composite.** What paid for `IsValidPrimaryKey` was per-sub-rule
+  messages: "not unique" and "already exists" are different problems, fixed differently.
+  A foreign key has no such split — "value not in the referenced set" is one message, and
+  a null row passing is not a failure to report. So it is one base check, `IsSubsetOf`.
+- **No `from_foreign_key`.** `IsValidPrimaryKey` has no `from_primary_key` either, and the
+  asymmetry was the tell. A constructor taking a `ForeignKey` would make `checks/` import
+  from `contracts/schema/reference/`; today the package depends on nothing but pandas,
+  pandera and pydantic, and that is worth keeping. The caller decides
+  `within = fk.reference.fields if fk.reference.resource is None else None` and supplies
+  the values — see WP2. Deferred rather than rejected: it earns its place if
+  caller-supplied checks are ever exposed, because that gives the derivation a second
+  construction site.
 - **Names are mechanics, not meanings,** for the base checks: `IsUnique`, `IsIn` — not
   `PrimaryKeyUniqueness`. `fields/base.py` carries a `unique: bool` field constraint, so
   a single-column unique constraint and a multi-column primary key are the same rule at

@@ -37,10 +37,16 @@ supplies them and therefore nothing can omit them.
     ```
 - **Modify:** `src/crosscontract/contracts/schema/validation/validate_dataframe.py` — reduced to executing a pandera schema and translating `pa.errors.SchemaError(s)` into `SchemaValidationError`. No schema, no values, no flags, no `match backend`.
 - **Delete:** `src/crosscontract/contracts/schema/adapters/_pandera_dimension_checks.py`.
-- **The trap to avoid.** The additional check for a *self-referencing* foreign key must also carry the data's own rows in its valid set. Build it through the foreign-key composite's `from_foreign_key(fk, allowed=...)`; constructing it by hand replaces the standard check with a weaker one and self-references silently stop being validated against the data's own rows. The same argument now applies to every composite, `IsValidPrimaryKey` included: one shared constructor per schema construct, called by both sites.
+- **Foreign keys are assembled here, not in `checks/`.** Iterate `schema.foreignKeys` and build one `IsSubsetOf` per key:
+  ```python
+  within = fk.reference.fields if fk.reference.resource is None else None
+  allowed = (foreign_key_values or {}).get(tuple(fk.fields)) or []
+  ```
+  The `foreign_key_values` dict is a transport format for the caller's values, not a field on a check — a check that held the whole dict would be N rules rather than one, with nothing for the merge to key on and nothing for `failure_message()` to name.
+- **The trap to avoid.** A *self-referencing* foreign key must carry `within`. Dropping it replaces the standard check with a weaker one and self-references silently stop being validated against the data's own rows. There is no `from_foreign_key` guarding this (see WP1 for why), so the derivation above must be written **once** — if the standard and additional lists are built in two places, that is the moment to reconsider the constructor.
 - **`convert_schema_to_pandera(schema, name)`** keeps its signature but changes behaviour — it returns columns without checks. Exported from `crosscontract.contracts.schema`; no caller in this repository or `cross_back`.
 - **Tests:** `src/tests/contracts/schema/validation/test_pandas_validation.py` and `src/tests/contracts/schema/adapters/pandera/test_integration_references.py` pass, except where they assert the retired `ValueError` or the `backend` guard.
 - **PR:** ships with WP1 as one `refactor:`.
-- **Depends on:** `01-the-check-classes.md` — specifically its two open items, the
-  foreign-key composite and the dimension rules. Neither exists yet, and this package
-  cannot delete `_pandera_dimension_checks.py` before they do.
+- **Depends on:** `01-the-check-classes.md` — specifically its one open item, the four
+  dimension rules. This package cannot delete `_pandera_dimension_checks.py` before they
+  exist.

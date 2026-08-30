@@ -141,6 +141,114 @@ class IsNotIn(BaseCheck):
         )
 
 
+class IsSubsetOf(BaseCheck):
+    """Check that the specified columns hold a foreign key: every value that is
+    not null appears among the referenced values.
+
+    This follows the SQL `FOREIGN KEY` constraint under `MATCH SIMPLE`, the SQL
+    default:
+
+    - A row whose referring columns are null passes. In SQL a null reference
+      means "no relationship", not "a broken one", so it is never a violation.
+    - For a composite key, one null anywhere in the referring columns is enough
+      to pass the row, even when the others hold values. `MATCH FULL`, which
+      instead demands that a composite key be either wholly null or wholly
+      populated, is not implemented.
+    - Every other row must match a referenced value exactly, column by column in
+      the declared order.
+
+    Two deliberate departures from SQL:
+
+    - An empty string is read as null. Tabular sources carry no null of their
+      own, so a blank cell arrives as `""` and means the same thing.
+    - The referenced values are supplied rather than looked up, because a
+      contract is validated without access to the referenced table. `allowed`
+      carries them for a reference to another contract; `within` names the
+      columns of this same frame whose values join the valid set, which is how a
+      self-referencing key — a dimension hierarchy — validates against its own
+      rows. An empty `allowed` with no `within` therefore means the referenced
+      table exists and holds no rows, and every non-null row fails.
+    """
+
+    name: Literal["is_subset_of"] = "is_subset_of"
+    columns: list[str] = Field(
+        description="The columns that hold the foreign key.",
+    )
+    allowed: list[tuple[Any, ...]] = Field(
+        default_factory=list,
+        description=(
+            "The referenced values. Each tuple holds one value per column, in "
+            "the order the columns are declared."
+        ),
+    )
+    within: list[str] | None = Field(
+        default=None,
+        description=(
+            "For a self-referencing key, the columns of this same frame whose "
+            "values join the valid set. `None` for a reference to another "
+            "contract."
+        ),
+    )
+
+    ignore_na: bool = Field(
+        default=False,
+        description=(
+            "Whether to ignore NA values in the pandera check logic. Defaults to "
+            "`False` because this check decides itself that null rows pass."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _validate_column_length_match(self) -> "IsSubsetOf":
+        """Ensure the referenced values and the referenced columns are as wide
+        as the foreign key itself.
+
+        Returns:
+            IsSubsetOf: The validated check.
+
+        Raises:
+            ValueError: If an allowed value, or the `within` columns, do not
+                have as many entries as there are columns.
+        """
+        validate_existing_length_match(self.columns, self.allowed)
+        if self.within is not None and len(self.within) != len(self.columns):
+            raise ValueError(
+                f"Referenced columns {self.within} must have "
+                f"{len(self.columns)} entries to match columns {self.columns}."
+            )
+        return self
+
+    def __call__(self, df: pd.DataFrame) -> pd.Series:
+        """Check that the values in the specified columns are null or appear
+        among the referenced values.
+
+        Args:
+            df (pd.DataFrame): The DataFrame to validate.
+
+        Returns:
+            pd.Series: A boolean Series indicating which rows pass the foreign
+                key check.
+        """
+        valid = set(self.allowed)
+        if self.within is not None:
+            valid |= set(df[self.within].apply(tuple, axis=1))
+
+        # tabular sources carry no null of their own, so a blank cell is one
+        subset = df[self.columns].replace("", pd.NA)
+        is_null_row = subset.isna().any(axis=1)
+        is_present = pd.Series(
+            pd.MultiIndex.from_frame(subset).isin(valid), index=df.index
+        )
+        return is_present | is_null_row
+
+    def failure_message(self) -> str:
+        """Return the failure message for the foreign key check."""
+        return (
+            f"Columns '{', '.join(self.columns)}' contain values that do not "
+            "exist in the referenced values."
+        )
+
+
 class IsNotNull(BaseCheck):
     """Check that the specified columns do not contain null values."""
 
