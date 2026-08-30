@@ -234,7 +234,7 @@ class IsSubsetOf(BaseCheck):
         """
         valid = set(self.allowed)
         if self.within is not None:
-            valid |= set(df[self.within].apply(tuple, axis=1))
+            valid |= set(pd.MultiIndex.from_frame(df[self.within]))
 
         # tabular sources carry no null of their own, so a blank cell is one
         subset = df[self.columns].replace("", pd.NA)

@@ -157,6 +157,11 @@ class EachLevelHasOther(DimensionCheck):
 
     Note that the grouping is by **parent**, not by level: two parents at the
     same level are judged separately, and one may pass while the other fails.
+
+    Unlike the rules that read a parent, this one groups on the raw value, so an
+    empty string is a parent id like any other and its group is asked for
+    `_other`. `RootElementHasNoParent` and `NonRootElementHasParent` instead read
+    it as no parent at all.
     """
 
     name: Literal["each_dimension_level_has_other"] = "each_dimension_level_has_other"

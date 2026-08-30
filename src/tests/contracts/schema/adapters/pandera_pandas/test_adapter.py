@@ -187,7 +187,9 @@ class TestDeriveChecks:
         assert adapter._derive_checks(foreign_key_values={("nope",): [("x",)]}) == []
 
     def test_dimension_derives_its_hierarchy_rules(self):
-        """A dimension carries its key, its self-reference and the hierarchy."""
+        """A dimension declares a key and a self-reference as well, but with no
+        values supplied only the hierarchy is derived — it is the one rule that
+        needs nothing from outside the data."""
         adapter = PanderaAdapter(DimensionSchema.model_validate({}))
         checks = adapter._derive_checks()
         assert [type(c) for c in checks] == [IsValidCrossDimension]

@@ -12,13 +12,13 @@ from crosscontract.contracts.schema.reference.foreign_key import (
 from crosscontract.contracts.schema.reference.primary_key import PrimaryKey
 from crosscontract.contracts.schema.schema import TableSchema
 
-# these test TableSchema.validate_dataframe, which assembles the checks — the
-# standard ones the schema requires of its own data, plus the additional ones
-# carrying existing values — and hands the resulting pandera schema to the
-# runner. The tests in adapters/pandera/test_integration_references.py cover the
-# same ground through the adapter directly. The difference is the exception: here
-# a failure surfaces as SchemaValidationError, there as pandera's SchemaError, so
-# together they show the errors propagate through the layers.
+# these test TableSchema.validate_dataframe, which forwards the existing values
+# to the derivation and hands the resulting pandera schema to the runner. The
+# derivation itself is covered in adapters/pandera_pandas/test_adapter.py, on the
+# check objects rather than through a DataFrame. What these add is the round
+# trip: the checks actually run, and a failure surfaces as SchemaValidationError
+# rather than pandera's SchemaError, so the errors are shown to propagate through
+# the layers.
 
 
 class TestSimpleValidation:

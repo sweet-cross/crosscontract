@@ -190,11 +190,12 @@ class BaseContract(BaseMetaData):
         the referenced fields of the contracts it points to. Fetching those needs
         a `resolver`; without one the data is validated on its own.
 
-        Note that a `False` flag currently suppresses the corresponding check
-        *entirely*, rather than only its stored-value half: with
+        Note that a `False` flag suppresses the corresponding check *entirely*,
+        rather than only its stored-value half: with
         `check_existing_primary_key=False` no uniqueness is checked within the
         data either, and with `check_existing_foreign_key=False` a
         self-referencing foreign key is not checked against the data's own rows.
+        The key checks are opt-in by design, not pending a fix.
 
         Args:
             df (pd.DataFrame): The data to validate.
