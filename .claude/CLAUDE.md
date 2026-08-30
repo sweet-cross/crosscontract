@@ -102,10 +102,14 @@ The public surface — `contracts/`, `crossclient/`, and `registry/` — is re-e
 - Vendored copies of the upstream Frictionless JSON Schemas (`table-schema.json`, `data-resource.json`, `data-package.json`, `tabular-data-resource.json`) live in `.ai-context/additional_info/` — the authoritative reference for what fields, types, and constraints the schema layer must stay compatible with. Reference only; no code loads them at runtime. The `_standards/frictionless/` package (below) is a faithful pydantic mirror of these.
 
 **`contracts/schema/adapters/`** — Converts `TableSchema` to external formats:
-- `PanderaPandasAdapter`: builds a `pandera.DataFrameSchema` with primary-key uniqueness and foreign-key checks.
+- `pandera_pandas/`: `PanderaAdapter` builds a `pandera.DataFrameSchema` in two halves — `create_base_schema()` for the columns, `_derive_checks()` for the checks the schema requires of its own data. `field_convertors.py` holds one converter class per field type behind the `get_field_converter` factory. Reached publicly through `TableSchema.to_pandera_schema()`; the adapter class itself is not re-exported from `contracts/schema/`.
 - `PydanticAdapter`: generates a dynamic Pydantic model class.
 - `SQLAlchemyPostgresAdapter`: generates SQLAlchemy `Table` columns.
-- `_pandera_dimension_checks.py`: custom Pandera checks enforcing dimension hierarchy invariants (level 0 = no parent, level N > 0 = parent at N-1, required "other" sentinel entries).
+
+**`contracts/schema/validation/`** — Runs a schema against a DataFrame:
+- `checks/`: a check is a pydantic model holding what it needs, callable as `__call__(df) -> pd.Series`, rendering itself via `to_pandera() -> list[pa.Check]`. `base_checks.py` (`IsUnique`, `IsIn`, `IsNotIn`, `IsNotNull`, `IsSubsetOf`) names mechanics rather than meanings — what a rule means on a given schema is a `label` supplied at derivation. `reference_checks.py` (`IsValidPrimaryKey`) and `dimension_checks.py` (`IsValidCrossDimension`) are composites that unpack into one pandera check per sub-rule, so a report names the rule that broke.
+- `validate_dataframe.py`: executes a `pa.DataFrameSchema` and translates pandera exceptions into `SchemaValidationError`.
+- `PanderaAdapter._derive_checks` is the only place a schema becomes checks, and it takes existing values as optional arguments. **The key checks are opt-in**: `None` for `primary_key_values` / `foreign_key_values` leaves those checks out entirely, while an empty collection runs them with nothing to compare against. A `Dimension`'s hierarchy and the field constraints run either way. See ADR 0006.
 
 **`contracts/schema/fields/`** — Field types (`IntegerField`, `NumberField`, `StringField`, `DateTimeField`, `ListField`), all discriminated by `type`. Each carries a typed `constraints` submodel (e.g. `min`/`max` for numbers, `pattern`/`maxLength` for strings).
 
