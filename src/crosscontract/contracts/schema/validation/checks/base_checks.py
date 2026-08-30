@@ -48,7 +48,7 @@ class IsIn(BaseCheck):
     )
 
     @model_validator(mode="after")
-    def validate_existing_arity(self) -> "IsIn":
+    def _validate_existing_length_match(self) -> "IsIn":
         """Ensure every existing value holds one entry per checked column.
 
         Returns:
@@ -107,7 +107,7 @@ class IsNotIn(BaseCheck):
     )
 
     @model_validator(mode="after")
-    def validate_existing_arity(self) -> "IsNotIn":
+    def _validate_existing_length_match(self) -> "IsNotIn":
         """Ensure every existing value holds one entry per checked column.
 
         Returns:

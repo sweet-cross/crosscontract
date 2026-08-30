@@ -1,6 +1,7 @@
 import pandas as pd
 import pandera.pandas as pa
 import pytest
+from pydantic import ValidationError
 
 from crosscontract.contracts.schema.validation.checks import (
     BaseCheck,
@@ -67,6 +68,15 @@ class TestIsValidPrimaryKey:
             False,
             False,
         ]
+
+    def test_existing_keys_must_be_as_wide_as_the_columns(self):
+        """A two-wide existing key against a one-column primary key would
+        collide with nothing and silently pass every row, so it is rejected at
+        construction."""
+        with pytest.raises(ValidationError):
+            IsValidPrimaryKey(
+                label="primary key", columns=["id"], existing=[("a", 1)]
+            )
 
 
 # ---------------------------------------------------------------------------

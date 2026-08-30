@@ -29,7 +29,7 @@ class IsValidPrimaryKey(BaseCheck):
     )
 
     @model_validator(mode="after")
-    def validate_existing_arity(self) -> "IsValidPrimaryKey":
+    def _validate_existing_length_match(self) -> "IsValidPrimaryKey":
         """Ensure every existing key holds one entry per primary key column.
 
         Returns:

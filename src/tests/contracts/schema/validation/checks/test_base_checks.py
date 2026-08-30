@@ -1,4 +1,6 @@
 import pandas as pd
+import pytest
+from pydantic import ValidationError
 
 from crosscontract.contracts.schema.validation.checks import (
     IsIn,
@@ -90,6 +92,12 @@ class TestIsIn:
         check = IsIn(label="region", columns=["region"], existing=[("de",)])
         assert "region" in check.failure_message()
 
+    def test_existing_values_must_be_as_wide_as_the_columns(self):
+        """A two-wide value against a one-column key would match nothing and
+        silently fail every row, so it is rejected at construction."""
+        with pytest.raises(ValidationError):
+            IsIn(label="region", columns=["region"], existing=[("de", 2020)])
+
 
 # ---------------------------------------------------------------------------
 # IsNotIn  (the given columns hold none of the existing values)
@@ -131,6 +139,12 @@ class TestIsNotIn:
         """The message identifies the columns that were checked."""
         check = IsNotIn(label="id", columns=["id"], existing=[("a",)])
         assert "id" in check.failure_message()
+
+    def test_existing_values_must_be_as_wide_as_the_columns(self):
+        """A two-wide value against a one-column key would collide with nothing
+        and silently pass every row, so it is rejected at construction."""
+        with pytest.raises(ValidationError):
+            IsNotIn(label="id", columns=["id"], existing=[("a", 1)])
 
 
 # ---------------------------------------------------------------------------
