@@ -7,7 +7,7 @@ import pandera.pandas as pa
 from pydantic import Field
 
 from .abstract_base import BaseCheck
-from .base_checks import IsIn, IsNotNull, IsUnique
+from .base_checks import IsNotIn, IsNotNull, IsUnique
 
 
 class IsValidPrimaryKey(BaseCheck):
@@ -28,7 +28,7 @@ class IsValidPrimaryKey(BaseCheck):
         ),
     )
 
-    def evaluate(self, df: pd.DataFrame) -> pd.Series:
+    def __call__(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns form a valid primary key
         (unique and non-null)."""
         is_unique = IsUnique(label=self.label, columns=self.columns)(df)
@@ -37,11 +37,10 @@ class IsValidPrimaryKey(BaseCheck):
         )(df)
         # we could skip this check if self.existing is empty, but its cheap
         # anyways to we keep the behavior as in the pandera checks.
-        is_externally_unique = IsIn(
+        is_externally_unique = IsNotIn(
             label=self.label,
             columns=self.columns,
             existing=self.existing,
-            expected=False,
         )(df)
         return is_unique & is_not_null & is_externally_unique
 
@@ -53,10 +52,9 @@ class IsValidPrimaryKey(BaseCheck):
                 label=self.label, columns=self.columns, ignore_na=False
             ).to_pandera(),
             *IsUnique(label=self.label, columns=self.columns).to_pandera(),
-            *IsIn(
+            *IsNotIn(
                 label=self.label,
                 columns=self.columns,
                 existing=self.existing,
-                expected=False,
             ).to_pandera(),
         ]

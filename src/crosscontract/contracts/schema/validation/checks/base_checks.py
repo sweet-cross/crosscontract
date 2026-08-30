@@ -18,7 +18,7 @@ class IsUnique(BaseCheck):
         description="The columns that should have jointly unique values.",
     )
 
-    def evaluate(self, df: pd.DataFrame) -> pd.Series:
+    def __call__(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns have unique values.
 
         Args:
@@ -31,11 +31,7 @@ class IsUnique(BaseCheck):
 
     def failure_message(self) -> str:
         """Return the failure message for the uniqueness check."""
-        return (
-            f"Column '{self.label}' must have unique values."
-            if self.expected
-            else f"Column '{self.label}' must not have unique values."
-        )
+        return f"Column '{self.label}' must have unique values."
 
 
 class IsIn(BaseCheck):
@@ -53,7 +49,7 @@ class IsIn(BaseCheck):
         ),
     )
 
-    def evaluate(self, df: pd.DataFrame) -> pd.Series:
+    def __call__(self, df: pd.DataFrame) -> pd.Series:
         """Check that the values in the specified columns are in the list of
         the allowed values provided.
 
@@ -73,15 +69,48 @@ class IsIn(BaseCheck):
     def failure_message(self) -> str:
         """Return the failure message for the is-in check."""
         return (
-            (
-                f"Columns '{', '.join(self.columns)}' values are "
-                "not in the provided values."
-            )
-            if self.expected
-            else (
-                f"Columns '{', '.join(self.columns)}' contain values that are "
-                "in the provided values."
-            )
+            f"Columns '{', '.join(self.columns)}' values are "
+            "not in the provided values."
+        )
+
+
+class IsNotIn(BaseCheck):
+    """Check that the specified columns do not contain any of the existing values."""
+
+    name: Literal["is_not_in"] = "is_not_in"
+    columns: list[str] = Field(
+        description="The columns whose values are checked against the existing values.",
+    )
+    existing: list[tuple[Any, ...]] = Field(
+        default_factory=list,
+        description=(
+            "The existing values the columns are checked against. Each tuple "
+            "represents one referenced key."
+        ),
+    )
+
+    def __call__(self, df: pd.DataFrame) -> pd.Series:
+        """Check that the values in the specified columns are not in the list of
+        the disallowed values provided.
+
+        Args:
+            df (pd.DataFrame): The DataFrame to validate.
+
+        Returns:
+            pd.Series: A boolean Series indicating which rows pass the is-not-in check.
+        """
+        if not self.existing:
+            # No existing values to check against, so all fail the check
+            return pd.Series(False, index=df.index)
+        current_keys = pd.MultiIndex.from_frame(df[self.columns])
+
+        return pd.Series(~current_keys.isin(self.existing), index=df.index)
+
+    def failure_message(self) -> str:
+        """Return the failure message for the is-not-in check."""
+        return (
+            f"Columns '{', '.join(self.columns)}' contain values that are "
+            "in the provided values."
         )
 
 
@@ -101,7 +130,7 @@ class IsNotNull(BaseCheck):
         ),
     )
 
-    def evaluate(self, df: pd.DataFrame) -> pd.Series:
+    def __call__(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns do not contain null values.
 
         Args:
@@ -115,11 +144,4 @@ class IsNotNull(BaseCheck):
 
     def failure_message(self) -> str:
         """Return the failure message for the is-not-null check."""
-        return (
-            f"Columns '{', '.join(self.columns)}' contain null values."
-            if self.expected
-            else (
-                f"Columns '{', '.join(self.columns)}' contain no null values, "
-                "but nulls were expected."
-            )
-        )
+        return f"Columns '{', '.join(self.columns)}' contain null values."

@@ -35,18 +35,9 @@ class BaseCheck(BaseModel, ABC):
             "`True`, the pandera default."
         ),
     )
-    expected: bool = Field(
-        default=True,
-        description="The expected outcome of the check.",
-    )
-
-    def __call__(self, df: pd.DataFrame) -> pd.Series:
-        """The Template Method: manages the execution and applies 'expected'."""
-        raw_result = self.evaluate(df)
-        return raw_result == self.expected
 
     @abstractmethod
-    def evaluate(self, df: pd.DataFrame) -> pd.Series:
+    def __call__(self, df: pd.DataFrame) -> pd.Series:
         """Implement the core validation logic here. Return a boolean Series
         indicating which rows pass the check."""
         ...
@@ -59,7 +50,7 @@ class BaseCheck(BaseModel, ABC):
         """Convert this check to a pandera Check."""
         return [
             pa.Check(
-                self,
+                self.__call__,
                 error=self.failure_message(),
                 ignore_na=self.ignore_na,
             )
