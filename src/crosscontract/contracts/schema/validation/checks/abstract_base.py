@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class BaseCheck(BaseModel, ABC):
-    """Base class for validation checks. Each check implements a `validate` method
+    """Base class for validation checks. Each check implements a `__call__` method
     that takes a dataframe as input.
 
     `name` is the mechanical identity of the check class, shared by every instance
