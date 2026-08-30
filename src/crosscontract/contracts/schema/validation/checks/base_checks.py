@@ -6,6 +6,7 @@ import pandas as pd
 from pydantic import Field, model_validator
 
 from .abstract_base import BaseCheck
+from .utils import validate_existing_length_match
 
 
 class IsUnique(BaseCheck):
@@ -58,12 +59,7 @@ class IsIn(BaseCheck):
             ValueError: If an existing value does not have as many entries as
                 there are columns.
         """
-        mismatched = [t for t in self.existing if len(t) != len(self.columns)]
-        if mismatched:
-            raise ValueError(
-                f"Existing values must have {len(self.columns)} entries to match "
-                f"columns {self.columns}, but got {mismatched}."
-            )
+        validate_existing_length_match(self.columns, self.existing)
         return self
 
     def __call__(self, df: pd.DataFrame) -> pd.Series:
@@ -117,12 +113,7 @@ class IsNotIn(BaseCheck):
             ValueError: If an existing value does not have as many entries as
                 there are columns.
         """
-        mismatched = [t for t in self.existing if len(t) != len(self.columns)]
-        if mismatched:
-            raise ValueError(
-                f"Existing values must have {len(self.columns)} entries to match "
-                f"columns {self.columns}, but got {mismatched}."
-            )
+        validate_existing_length_match(self.columns, self.existing)
         return self
 
     def __call__(self, df: pd.DataFrame) -> pd.Series:
