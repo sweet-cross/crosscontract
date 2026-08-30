@@ -165,10 +165,12 @@ class TestForeignKeyValidation:
         # but passes if we skip foreign key validation
         fk_schema.validate_dataframe(df, skip_foreign_key_validation=True)
 
-    def test_missing_external_values_raises_value_error(self, fk_schema):
+    def test_missing_external_values_is_not_checked(self, fk_schema):
+        """An external reference with no supplied values is not checked, and
+        that silence is not an error: the caller chose not to supply them.
+        Inverted from the ValueError this used to raise."""
         df = pd.DataFrame({"id": [1], "other_id": [10]})
-        with pytest.raises(ValueError, match="Cannot validate foreign key"):
-            fk_schema.validate_dataframe(df)
+        fk_schema.validate_dataframe(df)
 
     def test_empty_external_values_fails_validation(self, fk_schema):
         """An empty referenced table is a validation result, not an inability."""
