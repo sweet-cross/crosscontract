@@ -125,8 +125,14 @@ class ParentHasCorrectLevel(DimensionCheck):
         """
         is_root = df[self.level_col] == 0
 
-        # add the level of the parent_id
-        id_to_level = df.set_index(self.id_col)[self.level_col]
+        # add the level of the parent_id. A duplicated id would make the lookup
+        # unbuildable, so only the first is kept: the duplicate is a defect this
+        # rule does not own — the id's own uniqueness constraint reports it — and
+        # answering from an arbitrary one of them beats failing to answer at all.
+        id_to_level = (
+            df.drop_duplicates(subset=[self.id_col])
+            .set_index(self.id_col)[self.level_col]
+        )
         parent_levels = df[self.parent_id_col].map(id_to_level)
 
         result = pd.Series(True, index=df.index)
