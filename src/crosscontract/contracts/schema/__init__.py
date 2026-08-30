@@ -13,7 +13,6 @@ SQLAlchemy columns, enabling seamless integration with databases.
 """
 
 from .adapters import (
-    convert_schema_to_pandera,
     convert_schema_to_pydantic,
     convert_schema_to_sqlalchemy,
 )

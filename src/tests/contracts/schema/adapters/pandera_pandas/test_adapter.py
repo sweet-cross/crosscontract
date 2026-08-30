@@ -1,10 +1,7 @@
 import pytest
 
 from crosscontract.contracts.schema import DimensionSchema, TableSchema
-from crosscontract.contracts.schema.adapters.pandera_pandas import (
-    PanderaAdapter,
-    convert_schema_to_pandera,
-)
+from crosscontract.contracts.schema.adapters.pandera_pandas import PanderaAdapter
 from crosscontract.contracts.schema.validation.checks import (
     IsSubsetOf,
     IsValidCrossDimension,
@@ -184,9 +181,7 @@ class TestDeriveChecks:
                 ]
             )
         )
-        (check,) = adapter._derive_checks(
-            foreign_key_values={("region",): [("de",)]}
-        )
+        (check,) = adapter._derive_checks(foreign_key_values={("region",): [("de",)]})
         assert isinstance(check, IsSubsetOf)
         assert check.within is None
         assert check.allowed == [("de",)]
@@ -228,10 +223,3 @@ class TestConvert:
         """The classmethod converts without instantiating the adapter."""
         result = PanderaAdapter.convert_schema(sample_schema)
         assert len(result.columns) == 5
-
-    def test_convert_schema_to_pandera_function(self, sample_schema: TableSchema):
-        """The module-level function is the same conversion."""
-        result = convert_schema_to_pandera(sample_schema)
-        assert len(result.columns) == 5
-        assert result.strict is True
-        assert result.coerce is True

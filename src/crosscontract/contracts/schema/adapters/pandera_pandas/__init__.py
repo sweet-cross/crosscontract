@@ -1,3 +1,3 @@
-from .adapter import PanderaAdapter, convert_schema_to_pandera
+from .adapter import PanderaAdapter
 
-__all__ = ["PanderaAdapter", "convert_schema_to_pandera"]
+__all__ = ["PanderaAdapter"]

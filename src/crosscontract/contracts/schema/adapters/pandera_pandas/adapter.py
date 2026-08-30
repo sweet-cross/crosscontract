@@ -17,19 +17,6 @@ from crosscontract.contracts.schema.validation.checks import (
 from .field_convertors import get_field_converter
 
 
-def convert_schema_to_pandera(schema: "TableSchema") -> pa.DataFrameSchema:
-    """Convert the DataContract to a Pandera DataFrameSchema.
-
-    Args:
-        schema (TableSchema): The Schema instance to convert.
-
-    Returns:
-        pa.DataFrameSchema: A Pandera DataFrameSchema representing the schema of the
-            data described by the Schema.
-    """
-    return PanderaAdapter.convert_schema(schema)
-
-
 class PanderaAdapter(AbstractAdapter):
     """Adapter that converts a schema into a corresponding pandera schema that
     allows to validate a Pandas DataFrame against the schema.
