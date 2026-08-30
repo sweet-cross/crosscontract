@@ -163,6 +163,24 @@ class TestDeriveChecks:
         assert check.within is None
         assert check.allowed == [("de",)]
 
+    def test_an_external_key_without_values_is_skipped(self):
+        """Asking for foreign key checks does not conjure one for a reference
+        whose values were not supplied. The self-reference alongside it is
+        unaffected — it takes its valid set from the frame."""
+        adapter = PanderaAdapter(
+            self._schema(
+                foreignKeys=[
+                    {"fields": ["parent_id"], "reference": {"fields": ["id"]}},
+                    {
+                        "fields": ["region"],
+                        "reference": {"resource": "regions", "fields": ["id"]},
+                    },
+                ]
+            )
+        )
+        checks = adapter._derive_checks(foreign_key_values={})
+        assert [check.columns for check in checks] == [["parent_id"]]
+
     def test_values_for_an_unknown_key_are_ignored(self):
         """The schema's foreign keys drive the derivation, not the caller's
         dictionary, so a stray entry cannot invent a check."""
