@@ -18,7 +18,7 @@ class IsUnique(BaseCheck):
         description="The columns that should have jointly unique values.",
     )
 
-    def validate(self, df: pd.DataFrame) -> pd.Series:
+    def validate_data(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns have unique values.
 
         Args:
@@ -53,7 +53,7 @@ class IsIn(BaseCheck):
         ),
     )
 
-    def validate(self, df: pd.DataFrame) -> pd.Series:
+    def validate_data(self, df: pd.DataFrame) -> pd.Series:
         """Check that the values in the specified columns are in the list of
         the allowed values provided.
 
@@ -68,7 +68,7 @@ class IsIn(BaseCheck):
             return pd.Series(False, index=df.index)
         current_keys = pd.MultiIndex.from_frame(df[self.columns])
 
-        return current_keys.isin(self.existing)
+        return pd.Series(current_keys.isin(self.existing), index=df.index)
 
     def failure_message(self) -> str:
         """Return the failure message for the is-in check."""
@@ -101,7 +101,7 @@ class IsNotNull(BaseCheck):
         ),
     )
 
-    def validate(self, df: pd.DataFrame) -> pd.Series:
+    def validate_data(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns do not contain null values.
 
         Args:
