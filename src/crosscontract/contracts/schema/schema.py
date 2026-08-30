@@ -14,7 +14,6 @@ from .field_descriptors import FieldDescriptors
 from .fields import DateTimeField, IntegerField, ListField, NumberField, StringField
 from .reference import ForeignKeys, PrimaryKey
 from .validation import validate_dataframe as validate_dataframe_schema
-from .validation.checks import IsSubsetOf, IsValidPrimaryKey
 
 FieldUnion = Annotated[
     IntegerField | NumberField | StringField | DateTimeField | ListField,
@@ -191,13 +190,14 @@ class TableSchema(BaseModel):
 
         Args:
             primary_key_values (list[tuple[Any, ...]] | None, optional): The
-                primary keys already stored for this contract.
-                None skips the test
+                primary keys already stored for this contract. With `None` the
+                key is checked within the DataFrame alone.
                 Defaults to `None`.
             foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] |
                 None, optional): The referenced values already stored, keyed by
-                the tuple of referring fields.
-                None skips the test
+                the tuple of referring fields. With `None` a self-referencing
+                key is checked against the DataFrame's own rows and an external
+                reference is not checked at all.
                 Defaults to `None`.
 
         Returns:

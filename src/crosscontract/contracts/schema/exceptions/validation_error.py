@@ -131,10 +131,15 @@ class SchemaValidationError(Exception):
         reference_errors = ["ForeignKeyError", "PrimaryKeyError"]
 
         # 1. Identify reference errors, in either the legacy adapter's naming or
-        # the message shape the check classes produce
+        # the message shape the check classes produce. The latter is matched with
+        # `re` rather than `str.contains`, which warns about the named group it
+        # carries for `_extract_cols`.
+        check_columns = re.compile(CHECK_COLUMNS_PATTERN)
         is_ref_error = df_failures["check"].str.contains(
             "|".join(reference_errors), regex=True
-        ) | df_failures["check"].str.contains(CHECK_COLUMNS_PATTERN, regex=True)
+        ) | df_failures["check"].map(
+            lambda value: check_columns.search(str(value)) is not None
+        )
         df_refs = df_failures[is_ref_error].copy()
         # relax the type constraints on the dataframe as we collect all failure
         # cases

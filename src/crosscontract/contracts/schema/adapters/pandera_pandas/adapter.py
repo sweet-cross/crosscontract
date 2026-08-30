@@ -73,13 +73,14 @@ class PanderaAdapter(AbstractAdapter):
 
         Args:
             primary_key_values (list[tuple[Any, ...]] | None, optional): The
-                primary keys already stored for this contract.
-                None skips the test
+                primary keys already stored for this contract. With `None` the
+                key is checked within the DataFrame alone.
                 Defaults to `None`.
             foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]]
                 | None, optional): The referenced values already stored, keyed by
-                the tuple of referring fields.
-                None skips the test
+                the tuple of referring fields. With `None` a self-referencing
+                key is checked against the DataFrame's own rows and an external
+                reference is not checked at all.
                 Defaults to `None`.
 
         Returns:
@@ -125,27 +126,28 @@ class PanderaAdapter(AbstractAdapter):
 
         Args:
             primary_key_values (list[tuple[Any, ...]] | None, optional): The
-                primary keys already stored for this contract.
-                None skips the test
+                primary keys already stored for this contract. With `None` the
+                key is checked within the DataFrame alone.
                 Defaults to `None`.
             foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] |
                 None, optional): The referenced values already stored, keyed by
-                the tuple of referring fields.
-                None skips the test
+                the tuple of referring fields. With `None` a self-referencing
+                key is checked against the DataFrame's own rows and an external
+                reference is not checked at all.
                 Defaults to `None`.
 
         Returns:
             pa.DataFrameSchema: The converted Pandera DataFrameSchema, carrying the
                 columns of the schema and the checks it requires of its own data.
         """
-        if primary_key_values is None:
-            primary_key_values = []
         pandera_schema = self.create_base_schema()
-        checks = self.schema.derive_checks(
+        checks = self._derive_checks(
             primary_key_values=primary_key_values,
             foreign_key_values=foreign_key_values,
         )
-        pandera_schema.checks = (pandera_schema.checks or []) + checks
+        pandera_schema.checks = (pandera_schema.checks or []) + [
+            pandera_check for check in checks for pandera_check in check.to_pandera()
+        ]
 
         return pandera_schema
 
@@ -161,13 +163,14 @@ class PanderaAdapter(AbstractAdapter):
         Args:
             schema (TableSchema): The TableSchema to convert.
             primary_key_values (list[tuple[Any, ...]] | None, optional): The
-                primary keys already stored for this contract.
-                None skips the test
+                primary keys already stored for this contract. With `None` the
+                key is checked within the DataFrame alone.
                 Defaults to `None`.
             foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]]
                 | None, optional): The referenced values already stored, keyed by
-                the tuple of referring fields.
-                None skips the test
+                the tuple of referring fields. With `None` a self-referencing
+                key is checked against the DataFrame's own rows and an external
+                reference is not checked at all.
                 Defaults to `None`.
 
         Returns:
