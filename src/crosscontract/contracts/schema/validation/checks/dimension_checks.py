@@ -1,19 +1,51 @@
-from typing import Literal
+from abc import ABC
+from typing import Any, Literal
 
 import pandas as pd
 import pandera.pandas as pa
+from pydantic import Field
 
 from .abstract_base import BaseCheck
 
 
-class RootElementHasNoParent(BaseCheck):
+class DimensionCheck(BaseCheck, ABC):
+    """Base for the checks over a dimension hierarchy.
+
+    A dimension is described by three columns — the identifier of an entry, the
+    identifier of its parent, and its level in the hierarchy. Their names are
+    configurable so a check can run against a frame that spells them differently.
+    """
+
+    id_col: str = Field(
+        default="id",
+        description="The column holding the identifier of an entry.",
+    )
+    parent_id_col: str = Field(
+        default="parent_id",
+        description="The column holding the identifier of the parent entry.",
+    )
+    level_col: str = Field(
+        default="level",
+        description="The column holding the level of an entry in the hierarchy.",
+    )
+
+    @property
+    def _column_kwargs(self) -> dict[str, Any]:
+        """Returns:
+        dict[str, Any]: The configured column names, for building another
+            dimension check over the same frame.
+        """
+        return {
+            "id_col": self.id_col,
+            "parent_id_col": self.parent_id_col,
+            "level_col": self.level_col,
+        }
+
+
+class RootElementHasNoParent(DimensionCheck):
     """The root level of the dimension hierarchy should not have a parent_id."""
 
     name: Literal["root_element_has_no_parent"] = "root_element_has_no_parent"
-
-    id_col: str = "id"
-    parent_id_col: str = "parent_id"
-    level_col: str = "level"
 
     def __call__(self, df: pd.DataFrame) -> pd.Series:
         is_root = df[self.level_col] == 0
@@ -27,14 +59,10 @@ class RootElementHasNoParent(BaseCheck):
         )
 
 
-class NonRootElementHasParent(BaseCheck):
+class NonRootElementHasParent(DimensionCheck):
     """Each sub-level must have a parent_id."""
 
     name: Literal["non_root_element_has_parent"] = "non_root_element_has_parent"
-
-    id_col: str = "id"
-    parent_id_col: str = "parent_id"
-    level_col: str = "level"
 
     def __call__(self, df: pd.DataFrame) -> pd.Series:
         needs_parent = df[self.level_col] > 0
@@ -48,15 +76,11 @@ class NonRootElementHasParent(BaseCheck):
         )
 
 
-class ParentHasCorrectLevel(BaseCheck):
+class ParentHasCorrectLevel(DimensionCheck):
     """Each sub-level must have a parent that has a level equal to the current
     level minus one."""
 
     name: Literal["parent_has_correct_level"] = "parent_has_correct_level"
-
-    id_col: str = "id"
-    parent_id_col: str = "parent_id"
-    level_col: str = "level"
 
     def __call__(self, df: pd.DataFrame) -> pd.Series:
         """Check that parent of the non-root rows exist in the level above.
@@ -70,12 +94,15 @@ class ParentHasCorrectLevel(BaseCheck):
         is_root = df[self.level_col] == 0
 
         # add the level of the parent_id
-        id_to_level = df.set_index("id")["level"]
-        parent_levels = df["parent_id"].map(id_to_level)
+        id_to_level = df.set_index(self.id_col)[self.level_col]
+        parent_levels = df[self.parent_id_col].map(id_to_level)
 
         result = pd.Series(True, index=df.index)
-        # parent level must be the own level minus one for non-root rows
-        result.loc[~is_root] = parent_levels[~is_root] == df.loc[~is_root, "level"] - 1
+        # parent level must be the own level minus one for non-root rows. A
+        # parent_id that matches no entry maps to NA, which counts as a failure.
+        result.loc[~is_root] = (
+            parent_levels[~is_root] == df.loc[~is_root, self.level_col] - 1
+        ).to_numpy(dtype=bool, na_value=False)
         return result
 
     def failure_message(self) -> str:
@@ -85,7 +112,7 @@ class ParentHasCorrectLevel(BaseCheck):
         )
 
 
-class EachLevelHasOther(BaseCheck):
+class EachLevelHasOther(DimensionCheck):
     """Each dimension level must have at least one other element at the same level.
 
     The logic is that the root has an element `other` and the remaining levels
@@ -93,10 +120,6 @@ class EachLevelHasOther(BaseCheck):
     """
 
     name: Literal["each_dimension_level_has_other"] = "each_dimension_level_has_other"
-
-    id_col: str = "id"
-    parent_id_col: str = "parent_id"
-    level_col: str = "level"
 
     def __call__(self, df: pd.DataFrame) -> pd.Series:
         is_root = df[self.level_col] == 0
@@ -129,7 +152,7 @@ class EachLevelHasOther(BaseCheck):
         )
 
 
-class IsValidCrossDimension(BaseCheck):
+class IsValidCrossDimension(DimensionCheck):
     """Check to be a valid CrossDimensions that includes.
 
     The checks include:
@@ -143,9 +166,18 @@ class IsValidCrossDimension(BaseCheck):
 
     name: Literal["is_valid_cross_dimension"] = "is_valid_cross_dimension"
 
-    id_col: str = "id"
-    parent_id_col: str = "parent_id"
-    level_col: str = "level"
+    @property
+    def _sub_checks(self) -> list[DimensionCheck]:
+        """Returns:
+        list[DimensionCheck]: The rules this check is made of, built in one place
+            so the predicate and the pandera conversion cannot drift apart.
+        """
+        return [
+            RootElementHasNoParent(label=self.label, **self._column_kwargs),
+            NonRootElementHasParent(label=self.label, **self._column_kwargs),
+            EachLevelHasOther(label=self.label, **self._column_kwargs),
+            ParentHasCorrectLevel(label=self.label, **self._column_kwargs),
+        ]
 
     def __call__(self, df: pd.DataFrame) -> pd.Series:
         """Check if the DataFrame represents a valid cross-dimension hierarchy.
@@ -165,79 +197,23 @@ class IsValidCrossDimension(BaseCheck):
             pd.Series: A boolean Series indicating whether each row satisfies
                 the cross-dimension hierarchy rules.
         """
-        root_has_no_parent = RootElementHasNoParent(
-            label=self.label,
-            id_col=self.id_col,
-            parent_id_col=self.parent_id_col,
-            level_col=self.level_col,
-        )(df)
-        sub_level_has_parent = NonRootElementHasParent(
-            label=self.label,
-            id_col=self.id_col,
-            parent_id_col=self.parent_id_col,
-            level_col=self.level_col,
-        )(df)
-
-        has_other_element = EachLevelHasOther(
-            label=self.label,
-            id_col=self.id_col,
-            parent_id_col=self.parent_id_col,
-            level_col=self.level_col,
-        )(df)
-
-        parent_has_correct_level = ParentHasCorrectLevel(
-            label=self.label,
-            id_col=self.id_col,
-            parent_id_col=self.parent_id_col,
-            level_col=self.level_col,
-        )(df)
-
-        return (
-            root_has_no_parent
-            & sub_level_has_parent
-            & has_other_element
-            & parent_has_correct_level
-        )
+        result = pd.Series(True, index=df.index)
+        for check in self._sub_checks:
+            result &= check(df)
+        return result
 
     def failure_message(self) -> str:
+        """Return the failure message for the cross-dimension check."""
         return (
-            f"Hierarchy violation in '{self.label}': Parent level must be exactly N-1."
+            f"Hierarchy violation in '{self.label}': The entries do not form a "
+            "valid dimension hierarchy."
         )
 
     def to_pandera(self) -> list[pa.Check]:
-        """Provide the pandera checks corresponding to this cross-dimension
-        validation."""
+        """Unpack the individual rules into pandera checks, so a report names the
+        rule that broke."""
         return [
-            pa.Check(
-                lambda df: RootElementHasNoParent(
-                    label=self.label,
-                    id_col=self.id_col,
-                    parent_id_col=self.parent_id_col,
-                    level_col=self.level_col,
-                )(df)
-            ),
-            pa.Check(
-                lambda df: NonRootElementHasParent(
-                    label=self.label,
-                    id_col=self.id_col,
-                    parent_id_col=self.parent_id_col,
-                    level_col=self.level_col,
-                )(df)
-            ),
-            pa.Check(
-                lambda df: EachLevelHasOther(
-                    label=self.label,
-                    id_col=self.id_col,
-                    parent_id_col=self.parent_id_col,
-                    level_col=self.level_col,
-                )(df)
-            ),
-            pa.Check(
-                lambda df: ParentHasCorrectLevel(
-                    label=self.label,
-                    id_col=self.id_col,
-                    parent_id_col=self.parent_id_col,
-                    level_col=self.level_col,
-                )(df)
-            ),
+            pandera_check
+            for check in self._sub_checks
+            for pandera_check in check.to_pandera()
         ]
