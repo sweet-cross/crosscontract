@@ -81,11 +81,10 @@ class TestPrimaryKeyValidation:
             pytest.param([1, None, 2], id="null"),
         ],
     )
-    def test_no_existing_values_still_checks_the_key(self, schema, ids):
-        """Supplying no existing values removes only the comparison against
-        stored keys. Non-nullness and uniqueness within the frame are properties
-        of the data alone, so they are checked either way — and there is no
-        argument that can switch them off."""
+    def test_empty_existing_values_still_check_the_key(self, schema, ids):
+        """An empty collection turns the key check on with nothing to compare
+        against, so non-nullness and uniqueness within the frame are still
+        checked. Only `None` leaves the key unchecked."""
         df = pd.DataFrame({"id": ids, "name": ["a", "b", "c"]})
         with pytest.raises(SchemaValidationError) as exc_info:
             schema.validate_dataframe(df, primary_key_values=[])
@@ -232,16 +231,8 @@ class TestForeignKeyValidation:
         self_ref_schema.validate_dataframe(df, foreign_key_values=fk_values)
 
 
-class TestNoneShutsDownTheChecks:
-    """Demonstration: these encode the pre-WP2 expectation and are meant to FAIL.
-
-    They assert that supplying no existing values switches the corresponding
-    check off entirely. It does not — the primary key is still checked within the
-    frame, and a self-referencing foreign key still resolves against the frame's
-    own rows. Both calls below raise, so both tests fail.
-
-    Delete once they have made their point.
-    """
+class TestNoneLeavesTheChecksOut:
+    """`None` means "do not check this", distinct from an empty collection."""
 
     @pytest.fixture
     def pk_schema(self):
@@ -268,14 +259,24 @@ class TestNoneShutsDownTheChecks:
             ],
         )
 
-    def test_none_shuts_down_the_primary_key_check(self, pk_schema: TableSchema):
-        """Asserts a duplicate key passes when no existing values are given."""
+    def test_none_leaves_the_primary_key_unchecked(self, pk_schema: TableSchema):
+        """A duplicate key passes when no primary key values are given."""
         df = pd.DataFrame({"id": [1, 1, 2], "name": ["a", "b", "c"]})
         pk_schema.validate_dataframe(df, primary_key_values=None)
 
-    def test_none_shuts_down_the_foreign_key_check(self, self_ref_schema: TableSchema):
-        """Asserts a parent that exists nowhere passes when no existing values
-        are given."""
+    def test_none_leaves_the_foreign_keys_unchecked(self, self_ref_schema: TableSchema):
+        """A parent that exists nowhere passes when no foreign key values are
+        given, even though the key is self-referencing."""
         df = pd.DataFrame({"id": [1, 2], "parent_id": [None, 99]})
         df["parent_id"] = df["parent_id"].astype("Int64")
         self_ref_schema.validate_dataframe(df, foreign_key_values=None)
+
+    def test_an_empty_dict_still_checks_a_self_reference(
+        self, self_ref_schema: TableSchema
+    ):
+        """An empty dict is not `None`: it turns the foreign key checks on, and a
+        self-reference then resolves against the DataFrame's own rows."""
+        df = pd.DataFrame({"id": [1, 2], "parent_id": [None, 99]})
+        df["parent_id"] = df["parent_id"].astype("Int64")
+        with pytest.raises(SchemaValidationError):
+            self_ref_schema.validate_dataframe(df, foreign_key_values={})

@@ -97,6 +97,18 @@ An empty referenced table is a *validation result*, not an inability. For a prim
 the distinction does not arise: no stored keys and an empty set of them both leave
 uniqueness to be checked within the data.
 
+> **Amended 2026-08-30.** The first row no longer holds: an external reference with no
+> supplied values is left unchecked and nothing is raised. The reasoning above was correct
+> when written — there was then no other way for a caller to say "I am not checking this
+> one" — and a caller now has one, so silence is a choice rather than an omission.
+>
+> The closing sentence has also stopped holding. `None` and `[]` now differ for the
+> primary key too: `None` leaves it unchecked, `[]` checks it within the data alone. The
+> `[]` semantics in the third row survive untouched.
+>
+> See [ADR 0006](0006-validation-is-a-set-of-check-objects.md). Everything else in this
+> ADR stands.
+
 ## Why a Protocol with `@abstractmethod`, not an ABC
 
 Real implementors inherit the protocol, so a missed method fails when the class is

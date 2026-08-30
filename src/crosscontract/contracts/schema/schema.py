@@ -229,16 +229,15 @@ class TableSchema(BaseModel):
     ) -> pd.DataFrame:
         """Validate a DataFrame against the schema.
 
-        The checks the schema requires of its own data always run and cannot be
-        switched off: the primary key must be non-null and unique within the
-        DataFrame, a self-referencing foreign key must resolve against the
-        DataFrame's own rows, and a `Dimension` must form a valid hierarchy.
+        A `Dimension` always has its hierarchy checked. The key checks are opt-in:
+        passing `None` for either group of values leaves the corresponding checks
+        out entirely, while passing a collection — including an empty one — turns
+        them on.
 
-        Beyond those, existing primary key and foreign key values may be provided.
-        If provided, the primary key uniqueness is checked against the union of the
-        existing and the DataFrame values. Similarly, foreign key integrity is checked
-        against the union of existing and DataFrame values in case of self-referencing
-        foreign keys.
+        With values supplied, the primary key uniqueness is checked against the union
+        of the existing and the DataFrame values. Similarly, foreign key integrity is
+        checked against the union of existing and DataFrame values in case of
+        self-referencing foreign keys.
 
         Args:
             df (Any): The DataFrame to validate.
@@ -246,7 +245,8 @@ class TableSchema(BaseModel):
                 values to check for uniqueness.
                 Note: The uniqueness of the primary key is validated is checked against
                     the union of the provided values and the values in the DataFrame.
-                With None the key is still checked within the DataFrame alone.
+                `None` leaves the primary key unchecked; an empty list checks it
+                within the DataFrame alone.
                 Default is None.
             foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] | None):
                 Existing foreign key values to check against. This is provided as a
@@ -257,8 +257,9 @@ class TableSchema(BaseModel):
                     DataFrame are considered automatically, i.e., the referring fields
                     are validated against the union of the provided values and the
                     values in the DataFrame.
-                With None a self-referencing key is still checked against the
-                DataFrame's own rows; an external reference is not checked.
+                `None` leaves the foreign keys unchecked. An empty dict checks
+                self-referencing keys against the DataFrame's own rows; an
+                external reference is checked only when its values are given.
                 Default is None.
             lazy (bool): Whether to perform lazy validation, collecting all errors.
                 Defaults to True.

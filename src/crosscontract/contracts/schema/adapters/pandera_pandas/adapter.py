@@ -60,14 +60,16 @@ class PanderaAdapter(AbstractAdapter):
 
         Args:
             primary_key_values (list[tuple[Any, ...]] | None, optional): The
-                primary keys already stored for this contract. With `None` the
-                key is checked within the DataFrame alone.
+                primary keys already stored for this contract. `None` leaves the
+                primary key unchecked; an empty list checks it within the
+                DataFrame alone.
                 Defaults to `None`.
             foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]]
                 | None, optional): The referenced values already stored, keyed by
-                the tuple of referring fields. With `None` a self-referencing
-                key is checked against the DataFrame's own rows and an external
-                reference is not checked at all.
+                the tuple of referring fields. `None` leaves the foreign keys
+                unchecked. An empty dict checks self-referencing keys against the
+                DataFrame's own rows; an external reference is checked only when
+                its values are given.
                 Defaults to `None`.
 
         Returns:
@@ -79,7 +81,7 @@ class PanderaAdapter(AbstractAdapter):
             checks.append(
                 IsValidPrimaryKey(
                     columns=self.schema.primaryKey.fields,
-                    existing=primary_key_values or [],
+                    existing=primary_key_values,
                     label="primary key",
                 )
             )
@@ -114,14 +116,16 @@ class PanderaAdapter(AbstractAdapter):
 
         Args:
             primary_key_values (list[tuple[Any, ...]] | None, optional): The
-                primary keys already stored for this contract. With `None` the
-                key is checked within the DataFrame alone.
+                primary keys already stored for this contract. `None` leaves the
+                primary key unchecked; an empty list checks it within the
+                DataFrame alone.
                 Defaults to `None`.
             foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] |
                 None, optional): The referenced values already stored, keyed by
-                the tuple of referring fields. With `None` a self-referencing
-                key is checked against the DataFrame's own rows and an external
-                reference is not checked at all.
+                the tuple of referring fields. `None` leaves the foreign keys
+                unchecked. An empty dict checks self-referencing keys against the
+                DataFrame's own rows; an external reference is checked only when
+                its values are given.
                 Defaults to `None`.
 
         Returns:
@@ -151,14 +155,16 @@ class PanderaAdapter(AbstractAdapter):
         Args:
             schema (TableSchema): The TableSchema to convert.
             primary_key_values (list[tuple[Any, ...]] | None, optional): The
-                primary keys already stored for this contract. With `None` the
-                key is checked within the DataFrame alone.
+                primary keys already stored for this contract. `None` leaves the
+                primary key unchecked; an empty list checks it within the
+                DataFrame alone.
                 Defaults to `None`.
             foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]]
                 | None, optional): The referenced values already stored, keyed by
-                the tuple of referring fields. With `None` a self-referencing
-                key is checked against the DataFrame's own rows and an external
-                reference is not checked at all.
+                the tuple of referring fields. `None` leaves the foreign keys
+                unchecked. An empty dict checks self-referencing keys against the
+                DataFrame's own rows; an external reference is checked only when
+                its values are given.
                 Defaults to `None`.
 
         Returns:

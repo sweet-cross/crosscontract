@@ -1,11 +1,11 @@
 # Check-based validation — agreed design and work packages
 
-Status: WP1 and WP2 complete, WP3 open — see *Work packages*. Written 2026-08-29, revised
+Status: complete — WP1, WP2 and WP3 all landed. See *Work packages*. Written 2026-08-29, revised
 2026-08-30 to match what landed.
 
 Follow-on to [validation-architecture.md](validation-architecture.md), which deliberately
 deferred this. Terminology lives in the *Validation* section of
-[`CONTEXT.md`](../CONTEXT.md) — **Check**, **Standard check**, **Additional check**.
+[`CONTEXT.md`](../CONTEXT.md) — **Check**, **Base check**, **Composite check**, **Derivation**.
 
 ---
 
@@ -379,8 +379,10 @@ no information that the absence of values does not, so they can go in their own 
   report by its failure message; why standard checks are not omittable; why an additional
   check replaces rather than adds; why the assembly sits on
   `TableSchema.validate_dataframe` rather than in the runner or the adapter.
-- **`CONTEXT.md`** — **done**, ahead of WP1. **Check**, **Standard check** and
-  **Additional check** are defined, with two relationship lines.
+- **`CONTEXT.md`** — updated in WP3 rather than ahead of WP1, because the design
+  moved. **Standard check** and **Additional check** are retired in favour of **Base
+  check**, **Composite check** and **Derivation**, and the two relationship lines now
+  record that the key checks are opt-in.
 
 ---
 

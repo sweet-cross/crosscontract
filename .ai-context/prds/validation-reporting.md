@@ -4,7 +4,7 @@ Status: **draft**. Problem stated, approaches sketched, nothing chosen. Written 
 
 The follow-on that [check-based-validation.md](check-based-validation.md) parks under
 *Deliberately open*. Terminology lives in the *Validation* section of
-[`CONTEXT.md`](../CONTEXT.md) — **Check**, **Standard check**, **Additional check**,
+[`CONTEXT.md`](../CONTEXT.md) — **Check**, **Base check**, **Composite check**, **Derivation**,
 **Data validation**, **Existing values**.
 
 ---

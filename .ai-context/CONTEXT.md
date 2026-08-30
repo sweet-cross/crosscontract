@@ -123,19 +123,26 @@ so what it means here is recorded alongside it as a label.
 _Avoid_: task, validator, constraint (a constraint is declared on a **Schema** field; the
 check is the rule derived from it)
 
-**Standard check**:
-A **Check** the **Schema** itself requires, run on every **Data validation** and not
-omittable — uniqueness of the primary key within the data, integrity of self-referencing
-foreign keys, and the **Dimension** invariants. Standard checks need nothing beyond the
-data being validated.
-_Avoid_: default check, built-in check, base check
+**Base check**:
+A **Check** performing one operation, whatever it is about — jointly unique columns,
+membership in a set, absence of nulls, a foreign key. Base checks carry no domain meaning
+of their own; what a rule means on a particular **Schema** is its label.
+_Avoid_: primitive check, simple check
 
-**Additional check**:
-A **Check** supplied by the caller, carrying the **Existing values** the data must also be
-measured against. Additional checks can only make a validation stricter: a caller may add
-one, never drop a **Standard check**. An additional check naming the same rule as a
-standard one replaces it, so a single violation is reported once rather than twice.
-_Avoid_: extra check, custom check, optional check
+**Composite check**:
+A **Check** combining several base checks and naming what they mean together, such as a
+valid primary key. A composite is warranted only when its parts produce distinct,
+actionable messages, so a report can say which of them broke. A foreign key is not one:
+"value not in the referenced set" is a single message.
+_Avoid_: compound check, aggregate check
+
+**Derivation**:
+Turning a **Schema** into the checks a **Data validation** runs, in one place, taking the
+**Existing values** as optional inputs. A caller supplies values, never checks, so it can
+inform a check but cannot weaken one it has asked for. Supplying nothing for a group of
+keys leaves those checks out entirely; supplying an empty collection runs them with
+nothing to compare against.
+_Avoid_: assembly, check building
 
 ### Roles and lifecycle
 
@@ -401,11 +408,12 @@ _Avoid_: extractor, processor, pipeline
 - The **Client** and the **CROSS platform** each provide a **Contract resolver**. A
   **Data provider** validates through the client before submitting; the platform
   re-validates authoritatively on ingest.
-- A **Data validation** runs every **Standard check** its **Schema** requires, plus any
-  **Additional check** the caller supplies. The caller adds strictness and can never
-  remove it, so what a **Contract** guarantees about its own data holds on every run.
-- An **Additional check** exists to carry **Existing values**, which is why supplying one
-  needs a **Contract resolver** and a **Standard check** does not.
+- A **Data validation** runs the checks a single **Derivation** produces from the
+  **Schema**. The caller passes **Existing values**, never checks, so it can inform a
+  check but cannot weaken one it has asked for.
+- The key checks are opt-in: a caller that supplies no values for the primary key or the
+  foreign keys leaves those checks out. A **Dimension**'s invariants and the field
+  constraints run either way, needing nothing from outside the data.
 - A **Submission contract** is a **Contract** whose **Schema** describes a delivered
   bundle, plus **Extraction instructions**. Its **Contract type** is **Submission**,
   which maps to the **General** **Table type** — the first contract type not backed by a
