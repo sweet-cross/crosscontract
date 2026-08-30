@@ -313,21 +313,45 @@ deletes it.
 - ~~`name` is stable and equal for the same mechanic and columns~~ — dropped; the merge
   identity moves to WP2. See *Standard and additional*.
 
-### WP2 — Wire them in ⟵ carries the behaviour change
+### WP2 — Wire them in ⟵ carries the behaviour change — *the adapter is rebuilt, nothing is wired*
 
-**Depends on:** WP1.
+**Depends on:** WP1, which is complete.
 **PR:** with WP1.
 
-- `PanderaPandasAdapter.convert(name, checks=None)`: columns from fields, attach the
-  checks it is given, derive nothing.
-- `to_pandera_schema()`: columns only.
-- `TableSchema.validate_dataframe`: translate values and flags into additional checks,
-  merge with the schema's standard checks, call the runner.
-- The runner: execute and translate exceptions.
-- Delete `_pandera_dimension_checks.py` and the `backend` parameter.
+**Landed:** the adapter is a package, `adapters/pandera_pandas/`, split into `adapter.py`
+and `field_convertors.py` (one converter class per field type behind a factory).
+`PanderaAdapter` separates `create_base_schema()` — columns only — from
+`add_internal_checks()`, which derives the standard checks from the schema: the primary
+key, each self-referencing foreign key, and the dimension hierarchy for a `Dimension`
+table type. An external foreign key emits nothing. Tests port the old adapter's cases.
 
-**Public signatures do not change**, apart from `backend` being removed.
-`BaseContract.validate_data` is untouched.
+**Still open:** nothing calls it. `schema.py`, `validate_dataframe.py` and
+`adapters/__init__.py` still reach for the old `pandera_adapter.py`, so the behaviour
+change has not happened yet. The merge, the flags, the runner, `backend`, and the two
+deletions all remain.
+
+- `PanderaAdapter.convert(checks=None)`: derive the standard set when given nothing, use
+  the list when given one. That parameter is the merge seam.
+- `to_pandera_schema()`: carries the standard checks (see below).
+- `TableSchema.validate_dataframe`: translate values and flags into additional checks,
+  merge with the schema's standard checks, hand the merged list to the adapter, call the
+  runner.
+- The runner: execute and translate exceptions.
+- Delete `_pandera_dimension_checks.py`, the old `pandera_adapter.py`, and the `backend`
+  parameter.
+
+**Two reversals of what this PRD originally specified.** `to_pandera_schema()` was to
+return a schema with no checks; it carries the standard ones instead, because
+`convert_schema_to_pandera` is public and a conversion enforcing less than the contract is
+a bad artefact to hand out — and because baking them in is what makes them impossible to
+omit. The merge still has to happen *before* conversion, while the checks are check
+objects rather than `pa.Check`es, which is what `convert(checks=None)` is for. Second,
+`convert_schema_to_pandera` loses its `name` parameter and the `pa.DataFrameSchema` is
+unnamed, so reports read `DataFrameSchema 'None' failed …`. Accepted for now; the contract
+name is the right thing to put there, and only `BaseContract` knows it.
+
+**Public signatures do not change**, apart from `backend` being removed and the adapter
+rename described above. `BaseContract.validate_data` is untouched.
 
 **Verification:**
 - `skip_primary_key_validation=True` **still** checks non-null and in-frame uniqueness.

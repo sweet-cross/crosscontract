@@ -173,6 +173,15 @@ class TestListFieldConverter:
         col = ListFieldConverter(field).convert()
         assert len(col.checks) == 2
 
+    def test_unsupported_item_type_raises(self):
+        """`itemType` is a `Literal`, so pydantic rejects a bad value at
+        construction. `BaseField` does not set `validate_assignment`, so
+        assigning one afterwards reaches the guard."""
+        field = ListField(name="tags", itemType="string")
+        field.itemType = "bogus"  # type: ignore[assignment]
+        with pytest.raises(ValueError):
+            ListFieldConverter(field).get_pandera_type()
+
 
 # ---------------------------------------------------------------------------
 # DateTimeFieldConverter

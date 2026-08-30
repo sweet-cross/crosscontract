@@ -266,7 +266,7 @@ class IsValidCrossDimension(DimensionCheck):
 
     def failure_message(self) -> str:
         """Return the failure message for the cross-dimension check."""
-        return (
+        return (  # pragma: no cover
             f"Hierarchy violation in '{self.label}': The entries do not form a "
             "valid dimension hierarchy."
         )

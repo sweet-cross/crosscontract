@@ -9,21 +9,56 @@ today a flag can switch them off. After this task they always run, because nothi
 supplies them and therefore nothing can omit them.
 
 ## Acceptance Criteria
+
+### Landed — the new adapter exists, unwired
+- [x] The pandera adapter is a package, `adapters/pandera_pandas/`, holding `adapter.py`
+      (`PanderaAdapter`, `convert_schema_to_pandera`) and `field_convertors.py` (one
+      converter class per field type behind a `get_field_converter` factory).
+- [x] `PanderaAdapter.create_base_schema()` builds columns from fields and attaches no
+      checks; `add_internal_checks()` adds what the schema requires of its own data;
+      `convert()` is the two together.
+- [x] The conversion derives the standard checks: `IsValidPrimaryKey` for the primary key,
+      one `IsSubsetOf` per **self-referencing** foreign key, and `IsValidCrossDimension`
+      for a `Dimension` table type.
+- [x] An external foreign key emits **no** check — it cannot be validated without the
+      referenced values.
+- [x] Tests for both modules in `src/tests/contracts/schema/adapters/pandera_pandas/`,
+      porting the cases from the old adapter's suite.
+
+### Reversed, deliberately
+- ~~`to_pandera_schema()` returns a schema with **no** checks attached.~~ The conversion
+  carries the schema's standard checks instead. `convert_schema_to_pandera` is public, and
+  a conversion that permits duplicate primary keys and broken self-references enforces
+  less than the contract it claims to represent. This also makes the standard checks
+  structurally impossible to omit — the correctness half of the PRD — rather than
+  something the assembly step has to remember.
+- ~~`PanderaPandasAdapter.convert(name, checks=None)` derives nothing.~~ It derives the
+  standard set. The `checks=None` parameter is still needed, but as the seam for the
+  **merged** list (see below), not as the only source of checks.
+- ~~`convert_schema_to_pandera(schema, name)` keeps its signature.~~ `name` is dropped and
+  the `pa.DataFrameSchema` is left unnamed. Reports therefore read
+  `DataFrameSchema 'None' failed …`; accepted for now.
+
+### Still open
+- [ ] Nothing calls the new adapter. `contracts/schema/schema.py`,
+      `validation/validate_dataframe.py` and `adapters/__init__.py` all still import the
+      old `pandera_adapter.py`.
+- [ ] `convert(checks=None)`: when given a list, use it; when `None`, derive the standard
+      set. This is the merge seam — the merge must happen while the checks are still check
+      objects, because a `pa.Check` cannot be matched against another by rule.
 - [ ] `skip_primary_key_validation=True` **still** checks non-null and uniqueness within the data. This is the point of the work package.
 - [ ] `skip_foreign_key_validation=True` **still** checks self-referencing foreign keys against the data's own rows.
 - [ ] An external foreign key with no supplied values is **not checked and does not raise**. The existing test asserting `ValueError` is **inverted, not deleted**, so the reversal is visible in the diff.
 - [ ] A row duplicated within the data is reported **once**, not twice, when existing primary keys are also supplied — the additional check replaces the standard one expressing the same rule.
 - [ ] **What "the same rule" means is decided here.** WP1 dropped the instance-level identity it was going to be derived from (see *Standard and additional* in the PRD), so the merge needs a mechanism: an identity on the composites only, an explicit slot the assembly keys on, or replacement decided by construction rather than by comparison. Whatever it is, both construction sites must reach it without coordinating.
-- [ ] `to_pandera_schema()` returns a schema with **no** checks attached.
-- [ ] `PanderaPandasAdapter.convert(name, checks=None)` derives nothing: it builds columns from fields and attaches the checks it is given.
 - [ ] The runner in `validation/` takes a pandera schema, not a `TableSchema`; its `if TYPE_CHECKING: from ..schema import TableSchema` is gone.
-- [ ] `_pandera_dimension_checks.py` is deleted.
+- [ ] `_pandera_dimension_checks.py` and the old `pandera_adapter.py` are deleted.
 - [ ] `backend` is removed from `TableSchema.validate_dataframe` and `to_pandera_schema`; the two tests that exist only to assert the dead branch raises go with it.
 - [ ] `BaseContract.validate_data`'s signature is untouched.
 - [ ] `[]` still means "the referenced table exists and is empty" and fails every non-null referring row.
 
 ## Implementation Details
-- **Modify:** `src/crosscontract/contracts/schema/adapters/pandera_adapter.py` — `convert` keeps the field→column `match` (that part was never the problem) and loses all three check-assembly blocks, `_get_primary_key_check`, `_get_foreign_key_check`, `_check_pk_integrity`, `_check_fk_integrity`, and `_check_reference_inputs`.
+- **Done:** the replacement lives in `src/crosscontract/contracts/schema/adapters/pandera_pandas/`. `_get_primary_key_check`, `_get_foreign_key_check`, `_check_pk_integrity`, `_check_fk_integrity` and `_check_reference_inputs` have no equivalent there. The old `pandera_adapter.py` stays until the callers move, and the package is named `pandera_pandas` because a package cannot share a directory with a module of the same name.
 - **Modify:** `src/crosscontract/contracts/schema/schema.py`
   - `to_pandera_schema(name=...)` — columns only. Its five value/flag parameters go.
   - `validate_dataframe(...)` — **keeps its signature** minus `backend`, and becomes the assembly point: translate values and flags into additional checks, merge with the schema's standard checks, hand the result to the adapter, call the runner.
@@ -44,7 +79,7 @@ supplies them and therefore nothing can omit them.
   ```
   The `foreign_key_values` dict is a transport format for the caller's values, not a field on a check — a check that held the whole dict would be N rules rather than one, with nothing for the merge to key on and nothing for `failure_message()` to name.
 - **The trap to avoid.** A *self-referencing* foreign key must carry `within`. Dropping it replaces the standard check with a weaker one and self-references silently stop being validated against the data's own rows. There is no `from_foreign_key` guarding this (see *The caller derives, the check checks* in the PRD for why), so the derivation above must be written **once** — if the standard and additional lists are built in two places, that is the moment to reconsider the constructor.
-- **`convert_schema_to_pandera(schema, name)`** keeps its signature but changes behaviour — it returns columns without checks. Exported from `crosscontract.contracts.schema`; no caller in this repository or `cross_back`.
+- **Done — the standard checks are derived in `add_internal_checks`.** The three gates are the primary key, the self-referencing foreign keys and the `Dimension` table type. Their labels are `"Internal PrimaryKey Check"`, `"Internal ForeignKey Check"` and `"CrossDimension Check"`, and every check's `failure_message()` names its columns alongside the label.
 - **Tests:** `src/tests/contracts/schema/validation/test_pandas_validation.py` and `src/tests/contracts/schema/adapters/pandera/test_integration_references.py` pass, except where they assert the retired `ValueError` or the `backend` guard.
 - **PR:** ships with WP1 as one `refactor:`.
 - **Depends on:** WP1, the check classes, which is complete. Attach
