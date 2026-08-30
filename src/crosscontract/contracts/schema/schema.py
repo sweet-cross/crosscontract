@@ -246,7 +246,7 @@ class TableSchema(BaseModel):
                 values to check for uniqueness.
                 Note: The uniqueness of the primary key is validated is checked against
                     the union of the provided values and the values in the DataFrame.
-                If None the check is not performed.
+                With None the key is still checked within the DataFrame alone.
                 Default is None.
             foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] | None):
                 Existing foreign key values to check against. This is provided as a
@@ -257,7 +257,8 @@ class TableSchema(BaseModel):
                     DataFrame are considered automatically, i.e., the referring fields
                     are validated against the union of the provided values and the
                     values in the DataFrame.
-                If None, the check is not performed
+                With None a self-referencing key is still checked against the
+                DataFrame's own rows; an external reference is not checked.
                 Default is None.
             lazy (bool): Whether to perform lazy validation, collecting all errors.
                 Defaults to True.

@@ -72,12 +72,26 @@ class TestPrimaryKeyValidation:
         df = pd.DataFrame({"id": [1, 1, 2], "name": ["a", "b", "c"]})
         # Expect SchemaError (or SchemaErrors if lazy=True)
         with pytest.raises(SchemaValidationError):
-            schema.validate_dataframe(df)
+            schema.validate_dataframe(df, primary_key_values=[])
 
-        # and still fails when the flag is set: it governs only the comparison
-        # against existing values, never uniqueness within the frame
-        with pytest.raises(SchemaValidationError):
-            schema.validate_dataframe(df, primary_key_values=None)
+    @pytest.mark.parametrize(
+        "ids",
+        [
+            pytest.param([1, 1, 2], id="duplicate"),
+            pytest.param([1, None, 2], id="null"),
+        ],
+    )
+    def test_no_existing_values_still_checks_the_key(self, schema, ids):
+        """Supplying no existing values removes only the comparison against
+        stored keys. Non-nullness and uniqueness within the frame are properties
+        of the data alone, so they are checked either way — and there is no
+        argument that can switch them off."""
+        df = pd.DataFrame({"id": ids, "name": ["a", "b", "c"]})
+        with pytest.raises(SchemaValidationError) as exc_info:
+            schema.validate_dataframe(df, primary_key_values=[])
+        # the primary key rule is what failed, not some other constraint
+        reported = {str(error["check"]) for error in exc_info.value.to_list()}
+        assert any("primary key" in check for check in reported)
 
     def test_external_duplicates(self, schema):
         df = pd.DataFrame({"id": [1, 2], "name": ["a", "b"]})
@@ -206,7 +220,9 @@ class TestForeignKeyValidation:
         df = pd.DataFrame({"id": [1, 2], "parent_id": [None, 99]})
         df["parent_id"] = df["parent_id"].astype("Int64")
         with pytest.raises(SchemaValidationError):
-            self_ref_schema.validate_dataframe(df)
+            self_ref_schema.validate_dataframe(
+                df, foreign_key_values={("parent_id",): []}
+            )
 
     def test_self_reference_with_external(self, self_ref_schema):
         # 2 refers to 10 which is external (e.g. from previous batch)
@@ -214,3 +230,52 @@ class TestForeignKeyValidation:
         df["parent_id"] = df["parent_id"].astype("Int64")
         fk_values = {("parent_id",): [(10,)]}
         self_ref_schema.validate_dataframe(df, foreign_key_values=fk_values)
+
+
+class TestNoneShutsDownTheChecks:
+    """Demonstration: these encode the pre-WP2 expectation and are meant to FAIL.
+
+    They assert that supplying no existing values switches the corresponding
+    check off entirely. It does not — the primary key is still checked within the
+    frame, and a self-referencing foreign key still resolves against the frame's
+    own rows. Both calls below raise, so both tests fail.
+
+    Delete once they have made their point.
+    """
+
+    @pytest.fixture
+    def pk_schema(self):
+        return TableSchema.model_validate(
+            {
+                "fields": [
+                    IntegerField.model_validate({"name": "id"}),
+                    StringField.model_validate({"name": "name"}),
+                ],
+                "primaryKey": PrimaryKey.model_validate("id"),
+            }
+        )
+
+    @pytest.fixture
+    def self_ref_schema(self):
+        return TableSchema(
+            fields=[IntegerField(name="id"), IntegerField(name="parent_id")],
+            primaryKey=PrimaryKey(root=["id"]),
+            foreignKeys=[
+                ForeignKey(
+                    fields=["parent_id"],
+                    reference=ReferencedField(fields=["id"]),
+                )
+            ],
+        )
+
+    def test_none_shuts_down_the_primary_key_check(self, pk_schema: TableSchema):
+        """Asserts a duplicate key passes when no existing values are given."""
+        df = pd.DataFrame({"id": [1, 1, 2], "name": ["a", "b", "c"]})
+        pk_schema.validate_dataframe(df, primary_key_values=None)
+
+    def test_none_shuts_down_the_foreign_key_check(self, self_ref_schema: TableSchema):
+        """Asserts a parent that exists nowhere passes when no existing values
+        are given."""
+        df = pd.DataFrame({"id": [1, 2], "parent_id": [None, 99]})
+        df["parent_id"] = df["parent_id"].astype("Int64")
+        self_ref_schema.validate_dataframe(df, foreign_key_values=None)

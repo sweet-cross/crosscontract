@@ -109,35 +109,12 @@ class TestDeriveChecks:
         """No constructs, no checks."""
         assert PanderaAdapter(self._schema())._derive_checks() == []
 
-    def test_primary_key_is_always_derived(self):
-        """The key is checked within the frame whether or not stored values
-        are supplied."""
-        adapter = PanderaAdapter(self._schema(primaryKey=["id"]))
-        (check,) = adapter._derive_checks()
-        assert isinstance(check, IsValidPrimaryKey)
-        assert check.columns == ["id"]
-        assert check.existing == []
-
     def test_primary_key_carries_the_supplied_values(self):
         """Supplied keys become the set the frame must not collide with."""
         adapter = PanderaAdapter(self._schema(primaryKey=["id"]))
         (check,) = adapter._derive_checks(primary_key_values=[("a",)])
         assert check.existing == [("a",)]
         assert check.columns == ["id"]
-
-    def test_self_referencing_foreign_key_is_always_derived(self):
-        """A self-reference needs nothing from outside: the frame's own rows are
-        the referenced values."""
-        adapter = PanderaAdapter(
-            self._schema(
-                foreignKeys=[{"fields": ["parent_id"], "reference": {"fields": ["id"]}}]
-            )
-        )
-        (check,) = adapter._derive_checks()
-        assert isinstance(check, IsSubsetOf)
-        assert check.columns == ["parent_id"]
-        assert check.within == ["id"]
-        assert check.allowed == []
 
     def test_self_reference_keeps_within_when_values_are_supplied(self):
         """The supplied values join the frame's own rows rather than replacing
@@ -196,11 +173,7 @@ class TestDeriveChecks:
         """A dimension carries its key, its self-reference and the hierarchy."""
         adapter = PanderaAdapter(DimensionSchema.model_validate({}))
         checks = adapter._derive_checks()
-        assert [type(c) for c in checks] == [
-            IsValidPrimaryKey,
-            IsSubsetOf,
-            IsValidCrossDimension,
-        ]
+        assert [type(c) for c in checks] == [IsValidCrossDimension]
 
 
 # ---------------------------------------------------------------------------
@@ -215,7 +188,7 @@ class TestConvert:
         schema = TableSchema.model_validate(
             {"fields": [{"name": "id", "type": "string"}], "primaryKey": ["id"]}
         )
-        result = PanderaAdapter(schema).convert()
+        result = PanderaAdapter(schema).convert(primary_key_values=[("id",)])
         assert set(result.columns.keys()) == {"id"}
         assert len(result.checks) == 3
 

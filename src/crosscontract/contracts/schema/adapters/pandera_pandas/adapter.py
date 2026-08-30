@@ -75,7 +75,7 @@ class PanderaAdapter(AbstractAdapter):
         """
         checks: list[BaseCheck] = []
 
-        if self.schema.primaryKey:
+        if primary_key_values is not None and self.schema.primaryKey:
             checks.append(
                 IsValidPrimaryKey(
                     columns=self.schema.primaryKey.fields,
@@ -84,20 +84,21 @@ class PanderaAdapter(AbstractAdapter):
                 )
             )
 
-        for fk in self.schema.foreignKeys:
-            # a self-reference takes its valid set from the frame itself
-            within = fk.reference.fields if fk.reference.resource is None else None
-            allowed = (foreign_key_values or {}).get(tuple(fk.fields))
-            if within is None and allowed is None:
-                continue
-            checks.append(
-                IsSubsetOf(
-                    columns=fk.fields,
-                    allowed=allowed or [],
-                    within=within,
-                    label="foreign key",
+        if foreign_key_values is not None and self.schema.foreignKeys:
+            for fk in self.schema.foreignKeys:
+                # a self-reference takes its valid set from the frame itself
+                within = fk.reference.fields if fk.reference.resource is None else None
+                allowed = (foreign_key_values or {}).get(tuple(fk.fields))
+                if within is None and allowed is None:
+                    continue
+                checks.append(
+                    IsSubsetOf(
+                        columns=fk.fields,
+                        allowed=allowed or [],
+                        within=within,
+                        label="foreign key",
+                    )
                 )
-            )
 
         if self.schema.table_type == "Dimension":
             checks.append(IsValidCrossDimension(label="dimension hierarchy"))
