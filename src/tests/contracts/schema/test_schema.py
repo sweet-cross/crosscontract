@@ -236,28 +236,11 @@ class TestToPanderaSchema:
     def test_valid_no_reference(self):
         contract = TableSchema.model_validate({"fields": field_data})
 
-        pandera_schema = contract.to_pandera_schema(name="TestPanderaSchema")
-
-        assert pandera_schema.name == "TestPanderaSchema"
-        assert "id" in pandera_schema.columns
-        assert "name" in pandera_schema.columns
-        assert "ref_id" in pandera_schema.columns
-
-    def test_valid_no_reference_default_name(self):
-        contract = TableSchema.model_validate({"fields": field_data})
-
         pandera_schema = contract.to_pandera_schema()
 
-        assert pandera_schema.name == "ConvertedSchema"
         assert "id" in pandera_schema.columns
         assert "name" in pandera_schema.columns
         assert "ref_id" in pandera_schema.columns
-
-    def test_raises_on_unsupported_backend(self):
-        contract = TableSchema.model_validate({"fields": field_data})
-
-        with pytest.raises(ValueError):
-            contract.to_pandera_schema(backend="unsupported_backend")
 
 
 class TestToPydanticModel:
@@ -326,14 +309,3 @@ class TestValidateDataFrame:
             }
         )
         sample_schema.validate_dataframe(df)
-
-    def test_wrong_backend(self, sample_schema: TableSchema):
-        df = pd.DataFrame(
-            {
-                "field_one": ["a", "b", "c"],
-                "field_two": [1, 2, 3],
-                "field_three": [1.1, 2.2, 3.3],
-            }
-        )
-        with pytest.raises(ValueError):
-            sample_schema.validate_dataframe(df, backend="polars")  # type: ignore

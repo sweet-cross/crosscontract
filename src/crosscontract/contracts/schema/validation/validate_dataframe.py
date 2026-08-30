@@ -7,6 +7,7 @@ from ..exceptions import SchemaValidationError
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..schema import TableSchema
+from ..adapters.pandera_adapter import PanderaPandasAdapter
 
 
 def validate_dataframe(
@@ -17,7 +18,6 @@ def validate_dataframe(
     skip_primary_key_validation: bool = False,
     skip_foreign_key_validation: bool = False,
     lazy: bool = True,
-    backend: Literal["pandas"] = "pandas",
 ) -> pd.DataFrame:
     """Validate a DataFrame against a schema. It allows to provide existing primary key
     and foreign key values for validation. If provided, the primary key uniqueness is
@@ -58,16 +58,6 @@ def validate_dataframe(
         pd.DataFrame: The validated DataFrame. If validation fails, an exception
             is raised and this return value is not reached.
     """
-    # determine the backend to use for validation
-    match backend:
-        # currently, only pandas is supported
-        case "pandas":
-            from ..adapters.pandera_adapter import PanderaPandasAdapter
-        case _:
-            raise ValueError(
-                f"Unsupported backend '{backend}' for DataFrame validation."
-                "Currently, only 'pandas' is supported."
-            )
     # get the pandera schema
     pandera_schema = PanderaPandasAdapter.convert_schema(
         schema,

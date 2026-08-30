@@ -9,10 +9,11 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import MetaData, Table
 
 from ..._helpers import read_yaml_or_json_file
+from .adapters.pandera_adapter import PanderaPandasAdapter
 from .field_descriptors import FieldDescriptors
 from .fields import DateTimeField, IntegerField, ListField, NumberField, StringField
 from .reference import ForeignKeys, PrimaryKey
-from .validation import validate_dataframe
+from .validation.checks import IsSubsetOf, IsValidPrimaryKey
 
 FieldUnion = Annotated[
     IntegerField | NumberField | StringField | DateTimeField | ListField,
@@ -178,61 +179,12 @@ class TableSchema(BaseModel):
             self, metadata=metadata, table_name=table_name
         )
 
-    def to_pandera_schema(
-        self,
-        name: str = "ConvertedSchema",
-        primary_key_values: list[tuple[Any, ...]] | None = None,
-        foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
-        skip_primary_key_validation: bool = False,
-        skip_foreign_key_validation: bool = False,
-        backend: Literal["pandas"] = "pandas",
-    ) -> pa.DataFrameSchema:
-        """Convert the TableSchema to a Pandera DataFrameSchema. This is used for
-        validating DataFrames against the TableSchema. It allows to provide existing
-        primary key and foreign key values for validation. If provided, the primary key
-        uniqueness is checked against the union of the existing and the DataFrame
-        values. Similarly, foreign key integrity is checked against the union of
-        the existing and the DataFrame values.
-
-        Args:
-            name (str): The name of the schema. Defaults to "ConvertedSchema".
-            primary_key_values (list[tuple[Any, ...]] | None): Existing primary key
-                values to check for uniqueness.
-                Note: The uniqueness of the primary key is validated is checked against
-                    the union of the provided values and the values in the DataFrame.
-            foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] | None):
-                Existing foreign key values to check against. This is provided as a
-                dictionary where the keys are the tuples of fields that refer to the
-                referenced values, and the values are lists of tuples representing the
-                existing referenced values.
-                Note: In the case of self-referencing foreign keys, the values in the
-                    DataFrame are considered automatically, i.e., the referring fields
-                    are validated against the union of the provided values and the
-                    values in the DataFrame.
-            skip_primary_key_validation (bool): Whether to skip primary key validation.
-            skip_foreign_key_validation (bool): Whether to skip foreign key validation.
-            backend (Literal["pandas"]): The backend to use for validation.
-                Currently, only "pandas" is supported.
+    def to_pandera_schema(self) -> pa.DataFrameSchema:
+        """Convert the TableSchema to a Pandera DataFrameSchema. The schema includes
+        all column level checks but does not include any checking of external
+        or cross-table checks.
         """
-        match backend:
-            case "pandas":
-                from .adapters import PanderaPandasAdapter
-            case _:
-                raise ValueError(
-                    f"Unsupported backend '{backend}' for schema conversion."
-                    "Currently, only 'pandas' is supported."
-                )
-
-        pandera_schema: pa.DataFrameSchema = PanderaPandasAdapter.convert_schema(
-            self,
-            name=name,
-            skip_primary_key_validation=skip_primary_key_validation,
-            skip_foreign_key_validation=skip_foreign_key_validation,
-            primary_key_values=primary_key_values,
-            foreign_key_values=foreign_key_values,
-        )
-
-        return pandera_schema
+        return PanderaPandasAdapter.convert_schema(self)
 
     def to_pydantic_model(
         self, model_name: str | None = None, base_class: type[BaseModel] = BaseModel
@@ -253,10 +205,15 @@ class TableSchema(BaseModel):
         skip_primary_key_validation: bool = False,
         skip_foreign_key_validation: bool = False,
         lazy: bool = True,
-        backend: Literal["pandas"] = "pandas",
     ) -> pd.DataFrame:
         """Validate a DataFrame against the schema.
-        It allows to provide existing primary key and foreign key values for validation.
+
+        The checks the schema requires of its own data always run and cannot be
+        switched off: the primary key must be non-null and unique within the
+        DataFrame, a self-referencing foreign key must resolve against the
+        DataFrame's own rows, and a `Dimension` must form a valid hierarchy.
+
+        Beyond those, existing primary key and foreign key values may be provided.
         If provided, the primary key uniqueness is checked against the union of the
         existing and the DataFrame values. Similarly, foreign key integrity is checked
         against the union of existing and DataFrame values in case of self-referencing
@@ -277,28 +234,40 @@ class TableSchema(BaseModel):
                     DataFrame are considered automatically, i.e., the referring fields
                     are validated against the union of the provided values and the
                     values in the DataFrame.
-            skip_primary_key_validation (bool): Whether to skip primary key validation.
-            skip_foreign_key_validation (bool): Whether to skip foreign key validation.
+            skip_primary_key_validation (bool): Whether to skip comparing the primary
+                key against the values given in `primary_key_values`. The primary
+                key is checked within the DataFrame either way.
+            skip_foreign_key_validation (bool): Whether to skip comparing the foreign
+                keys against the values given in `foreign_key_values`. A
+                self-referencing foreign key is checked against the DataFrame's own
+                rows either way.
             lazy (bool): Whether to perform lazy validation, collecting all errors.
                 Defaults to True.
-            backend (Literal["pandas"]): The backend to use for validation.
-                Currently, only "pandas" is supported.
+
         Raises:
             SchemaValidationError: If the DataFrame does not conform to the
-                schema. This exception wraps underlying ``pandera`` validation
+                schema. This exception wraps underlying `pandera` validation
                 errors raised during DataFrame validation.
 
         Returns:
             pd.DataFrame: The validated DataFrame. If validation fails, an exception
                 is raised and this return value is not reached.
         """
-        return validate_dataframe(
-            schema=self,
-            df=df,
-            primary_key_values=primary_key_values,
-            foreign_key_values=foreign_key_values,
-            skip_primary_key_validation=skip_primary_key_validation,
-            skip_foreign_key_validation=skip_foreign_key_validation,
-            lazy=lazy,
-            backend=backend,
-        )
+        pandera_schema = self.to_pandera_schema()
+
+        # add primary key check with external values
+        if self.primaryKey and not skip_primary_key_validation and primary_key_values:
+            pandera_schema.checks = (pandera_schema.checks or []).extend(
+                IsValidPrimaryKey(
+                    primary_key_values=primary_key_values, existing=primary_key_values
+                )
+            )
+
+        # add foreign key check with external values
+        if foreign_key_values is not None and not skip_foreign_key_validation:
+            checks = pandera_schema.checks or []
+            for fk_fields, existing_values in foreign_key_values.items():
+                checks.extend(
+                    IsSubsetOf(subset_fields=fk_fields, existing=existing_values)
+                )
+            pandera_schema.checks = checks
