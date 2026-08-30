@@ -11,10 +11,9 @@ class BaseCheck(BaseModel, ABC):
     """Base class for validation checks. Each check implements a `validate` method
     that takes a dataframe as input.
 
-    A check carries two identities. `name` is the mechanical identity of the check
-    class, shared by every instance of it, and serves as the discriminator when
-    checks are read from a specification. `key` is the identity of the instance:
-    the mechanic together with whatever the check applies to.
+    `name` is the mechanical identity of the check class, shared by every instance
+    of it, and serves as the discriminator when checks are read from a
+    specification.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -41,14 +40,6 @@ class BaseCheck(BaseModel, ABC):
         description="The expected outcome of the check.",
     )
 
-    @property
-    def key(self) -> str:
-        """Returns:
-        str: The identity of this check instance. Two checks built at different
-            sites carry the same key when they express the same rule.
-        """
-        return self.name
-
     def __call__(self, df: pd.DataFrame) -> pd.Series:
         """The Template Method: manages the execution and applies 'expected'."""
         raw_result = self.validate(df)
@@ -69,7 +60,6 @@ class BaseCheck(BaseModel, ABC):
         return [
             pa.Check(
                 self,
-                name=self.key,
                 error=self.failure_message(),
                 ignore_na=self.ignore_na,
             )

@@ -28,14 +28,6 @@ class IsValidPrimaryKey(BaseCheck):
         ),
     )
 
-    @property
-    def key(self) -> str:
-        """Returns:
-        str: The identity of this check instance, the mechanic together with
-            the columns it applies to.
-        """
-        return f"{self.name}:{','.join(self.columns)}"
-
     def validate(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns form a valid primary key
         (unique and non-null)."""

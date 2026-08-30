@@ -18,14 +18,6 @@ class IsUnique(BaseCheck):
         description="The columns that should have jointly unique values.",
     )
 
-    @property
-    def key(self) -> str:
-        """Returns:
-        str: The identity of this check instance, the mechanic together with
-            the columns it applies to.
-        """
-        return f"{self.name}:{','.join(self.columns)}"
-
     def validate(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns have unique values.
 
@@ -60,14 +52,6 @@ class IsIn(BaseCheck):
             "represents one referenced key."
         ),
     )
-
-    @property
-    def key(self) -> str:
-        """Returns:
-        str: The identity of this check instance, the mechanic together with
-            the columns it applies to.
-        """
-        return f"{self.name}:{','.join(self.columns)}"
 
     def validate(self, df: pd.DataFrame) -> pd.Series:
         """Check that the values in the specified columns are in the list of
@@ -116,14 +100,6 @@ class IsNotNull(BaseCheck):
             "`False` because this check inspects the NA values itself."
         ),
     )
-
-    @property
-    def key(self) -> str:
-        """Returns:
-        str: The identity of this check instance, the mechanic together with
-            the columns it applies to.
-        """
-        return f"{self.name}:{','.join(self.columns)}"
 
     def validate(self, df: pd.DataFrame) -> pd.Series:
         """Check that the specified columns do not contain null values.
