@@ -50,8 +50,8 @@ class IsValidPrimaryKey(BaseCheck):
         is_not_null = IsNotNull(
             label=self.label, columns=self.columns, ignore_na=False
         )(df)
-        # we could skip this check if self.existing is empty, but its cheap
-        # anyways to we keep the behavior as in the pandera checks.
+        # we could skip this check if self.existing is empty, but it's cheap
+        # anyway so we keep the behavior as in the pandera checks.
         is_externally_unique = IsNotIn(
             label=self.label,
             columns=self.columns,
