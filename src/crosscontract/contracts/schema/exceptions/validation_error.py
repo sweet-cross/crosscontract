@@ -6,6 +6,12 @@ from typing import Any
 import pandas as pd
 import pandera.pandas as pa
 
+# Checks built from the check classes report themselves as
+#   Columns '<col>, <col>' in check '<label>' <what went wrong>.
+# The leading column list both marks the failure as a key or reference violation
+# and names the columns whose values belong in the report.
+CHECK_COLUMNS_PATTERN = r"^Columns '(?P<columns>[^']*)' in check '"
+
 
 class SchemaValidationError(Exception):
     def __init__(
@@ -107,10 +113,12 @@ class SchemaValidationError(Exception):
         the error messages for multiple rows into a single message per reference
         violation.
 
-        Note: The function relies on the column names provided in the name of the
-        check. They have to be given as:
-        "ForeignKeyError: ['col1', 'col2']"
-        PrimaryKeyError: ['col1', 'col2']}
+        Note: The function relies on the columns being named in the check's
+        message, in one of two shapes:
+        "ForeignKeyError: ['col1', 'col2']" / "PrimaryKeyError: ['col1', 'col2']"
+            as produced by the legacy adapter, or
+        "Columns 'col1, col2' in check '<label>' ..."
+            as produced by the check classes.
 
         Args:
             df_failure (pd.DataFrame): The DataFrame containing the pandera failure
@@ -122,10 +130,11 @@ class SchemaValidationError(Exception):
         """
         reference_errors = ["ForeignKeyError", "PrimaryKeyError"]
 
-        # 1. Identify reference errors
+        # 1. Identify reference errors, in either the legacy adapter's naming or
+        # the message shape the check classes produce
         is_ref_error = df_failures["check"].str.contains(
             "|".join(reference_errors), regex=True
-        )
+        ) | df_failures["check"].str.contains(CHECK_COLUMNS_PATTERN, regex=True)
         df_refs = df_failures[is_ref_error].copy()
         # relax the type constraints on the dataframe as we collect all failure
         # cases
@@ -219,4 +228,7 @@ class SchemaValidationError(Exception):
                 return ast.literal_eval(match.group(1))
             except (ValueError, SyntaxError):  # pragma: no cover
                 pass
-        return []  # pragma: no cover
+        match = re.search(CHECK_COLUMNS_PATTERN, str(check_name))
+        if match:
+            return [col.strip() for col in match.group("columns").split(",")]
+        return []
