@@ -13,7 +13,7 @@ supplies them and therefore nothing can omit them.
 - [ ] `skip_foreign_key_validation=True` **still** checks self-referencing foreign keys against the data's own rows.
 - [ ] An external foreign key with no supplied values is **not checked and does not raise**. The existing test asserting `ValueError` is **inverted, not deleted**, so the reversal is visible in the diff.
 - [ ] A row duplicated within the data is reported **once**, not twice, when existing primary keys are also supplied — the additional check replaces the standard one expressing the same rule.
-- [ ] **What "the same rule" means is decided here.** WP1 dropped the instance-level identity it was going to be derived from (see WP1 and the PRD), so the merge needs a mechanism: an identity on the composites only, an explicit slot the assembly keys on, or replacement decided by construction rather than by comparison. Whatever it is, both construction sites must reach it without coordinating.
+- [ ] **What "the same rule" means is decided here.** WP1 dropped the instance-level identity it was going to be derived from (see *Standard and additional* in the PRD), so the merge needs a mechanism: an identity on the composites only, an explicit slot the assembly keys on, or replacement decided by construction rather than by comparison. Whatever it is, both construction sites must reach it without coordinating.
 - [ ] `to_pandera_schema()` returns a schema with **no** checks attached.
 - [ ] `PanderaPandasAdapter.convert(name, checks=None)` derives nothing: it builds columns from fields and attaches the checks it is given.
 - [ ] The runner in `validation/` takes a pandera schema, not a `TableSchema`; its `if TYPE_CHECKING: from ..schema import TableSchema` is gone.
@@ -43,10 +43,11 @@ supplies them and therefore nothing can omit them.
   allowed = (foreign_key_values or {}).get(tuple(fk.fields)) or []
   ```
   The `foreign_key_values` dict is a transport format for the caller's values, not a field on a check — a check that held the whole dict would be N rules rather than one, with nothing for the merge to key on and nothing for `failure_message()` to name.
-- **The trap to avoid.** A *self-referencing* foreign key must carry `within`. Dropping it replaces the standard check with a weaker one and self-references silently stop being validated against the data's own rows. There is no `from_foreign_key` guarding this (see WP1 for why), so the derivation above must be written **once** — if the standard and additional lists are built in two places, that is the moment to reconsider the constructor.
+- **The trap to avoid.** A *self-referencing* foreign key must carry `within`. Dropping it replaces the standard check with a weaker one and self-references silently stop being validated against the data's own rows. There is no `from_foreign_key` guarding this (see *The caller derives, the check checks* in the PRD for why), so the derivation above must be written **once** — if the standard and additional lists are built in two places, that is the moment to reconsider the constructor.
 - **`convert_schema_to_pandera(schema, name)`** keeps its signature but changes behaviour — it returns columns without checks. Exported from `crosscontract.contracts.schema`; no caller in this repository or `cross_back`.
 - **Tests:** `src/tests/contracts/schema/validation/test_pandas_validation.py` and `src/tests/contracts/schema/adapters/pandera/test_integration_references.py` pass, except where they assert the retired `ValueError` or the `backend` guard.
 - **PR:** ships with WP1 as one `refactor:`.
-- **Depends on:** `01-the-check-classes.md` — specifically its one open item, the four
-  dimension rules. This package cannot delete `_pandera_dimension_checks.py` before they
-  exist.
+- **Depends on:** WP1, the check classes, which is complete. Attach
+  `IsValidCrossDimension` where `get_dimension_checks` is called today; deleting
+  `_pandera_dimension_checks.py` also retires the `ValueError` it raises on a dimension
+  with a parentless child, which the ported rule no longer has.

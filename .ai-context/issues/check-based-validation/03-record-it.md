@@ -21,6 +21,7 @@ also wonder why uniqueness runs when they asked to skip it, and why a check is c
 - [ ] It records **why checks are pydantic models** — the house style of `contracts/`, and it makes `name` a `Literal` discriminator that can be read from a spec and cannot be overridden on an instance.
 - [ ] It records **why standard checks are not omittable** — they need nothing from outside the data, so nothing supplies them and nothing can drop them; a caller adds strictness and never removes it.
 - [ ] It records **why an additional check replaces rather than adds** — report clarity, so one violation is reported once.
+- [ ] It records **one mistake, one message** as the general principle behind that, with its second instance: a rule stays silent about a row another rule already owns. A dimension row naming no parent is in no sibling group, so the catch-all rule has nothing to ask of it and passes; `NonRootElementHasParent` reports the missing parent, alone. The same reasoning decides both, and it is what a reader of a validation report needs.
 - [ ] It records **why the assembly sits on `TableSchema.validate_dataframe`** rather than in the runner (which would need the schema back) or the adapter (whose one job is format conversion).
 - [ ] It records **why an unchecked external reference is silent**, and names validation reporting as the open follow-on.
 - [ ] The ADR links to [`CONTEXT.md`](../../CONTEXT.md) for terminology rather than redefining terms.

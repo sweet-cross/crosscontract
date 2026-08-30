@@ -1,6 +1,6 @@
 # Check-based validation — agreed design and work packages
 
-Status: WP1 partially implemented — see *Work packages*. Written 2026-08-29, revised
+Status: WP1 complete, WP2 and WP3 open — see *Work packages*. Written 2026-08-29, revised
 2026-08-30 to match what landed.
 
 Follow-on to [validation-architecture.md](validation-architecture.md), which deliberately
@@ -268,7 +268,7 @@ Whether silence is good enough is the one question this design leaves open; see
 
 ## Work packages
 
-### WP1 — The check classes — *partially landed*
+### WP1 — The check classes — *landed*
 
 **Depends on:** nothing.
 **PR:** with WP2, `refactor:` — classes with no caller are dead code.
@@ -277,11 +277,22 @@ Whether silence is good enough is the one question this design leaves open; see
 dimension rules. `_check_reference_inputs` moves into the constructors that consume the
 values.
 
-**Landed:** `BaseCheck` as a pydantic model; `IsUnique`, `IsIn`, `IsNotIn`, `IsNotNull`,
-`IsSubsetOf`; the `IsValidPrimaryKey` composite; value widths validated by the model; a
-shared `validate_existing_length_match` in `checks/utils.py`; tests per module.
+**Landed — the package is complete.** `BaseCheck` as a pydantic model; `IsUnique`, `IsIn`,
+`IsNotIn`, `IsNotNull`, `IsSubsetOf`; the `IsValidPrimaryKey` composite; the four
+dimension rules over a `DimensionCheck` base with the `IsValidCrossDimension` composite;
+value widths validated by the model; a shared `validate_existing_length_match` in
+`checks/utils.py`; tests per module.
 
-**Still open:** the four dimension rules.
+**One deviation from the port.** `_check_other_entries` wrote its grouped answer back over
+*every* non-root row, but `groupby` forms no group for a row whose `parent_id` is null —
+so on a dimension carrying a parentless child it raised `ValueError: cannot set using a
+list-like indexer with a different length than the value` instead of reporting the row. No
+existing test reached it. The rule is now stated as a conditional — *which sibling group am
+I in, and does that group hold the catch-all?* — so a row in no group has nothing to be
+asked and passes, and the answer is written back only for the rows that were grouped.
+`NonRootElementHasParent` owns the missing parent, so the mistake is still caught, and
+reported once rather than twice. `_pandera_dimension_checks.py` keeps the defect until WP2
+deletes it.
 
 **Verification:**
 - `IsValidPrimaryKey` with no existing values checks non-null and in-frame uniqueness;
@@ -294,8 +305,11 @@ shared `validate_existing_length_match` in `checks/utils.py`; tests per module.
 - `IsSubsetOf` follows `MATCH SIMPLE`: one null anywhere in a composite key passes the
   row, even when the other columns match nothing.
 - Column order: a multi-column check compares positionally.
-- The four dimension rules reproduce the existing behaviour; the tests in
-  `test_dimension_check.py` should pass with only their construction re-pointed.
+- The four dimension rules reproduce the existing behaviour and the cases in
+  `test_dimension_check.py` pass with only their construction re-pointed — except that a
+  row naming no parent now passes the catch-all rule instead of raising. It is in no
+  sibling group, so there is nothing to ask, and `NonRootElementHasParent` owns that
+  failure.
 - ~~`name` is stable and equal for the same mechanic and columns~~ — dropped; the merge
   identity moves to WP2. See *Standard and additional*.
 
