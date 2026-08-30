@@ -22,11 +22,6 @@ def validate_dataframe(
     Raises:
         SchemaValidationError: If the DataFrame does not conform to the schema.
 
-    Raises:
-        SchemaValidationError: If the DataFrame does not conform to the schema.
-        ValueError: If a foreign key cannot be validated due to missing referenced
-            values.
-
     Returns:
         pd.DataFrame: The validated DataFrame. If validation fails, an exception
             is raised and this return value is not reached.

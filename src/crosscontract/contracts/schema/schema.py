@@ -258,18 +258,38 @@ class TableSchema(BaseModel):
 
         # add primary key check with external values
         if self.primaryKey and not skip_primary_key_validation and primary_key_values:
-            pandera_schema.checks = (pandera_schema.checks or []).extend(
+            checks = pandera_schema.checks or []
+            checks.extend(
                 IsValidPrimaryKey(
-                    primary_key_values=primary_key_values, existing=primary_key_values
-                )
+                    columns=self.primaryKey.fields,
+                    existing=primary_key_values,
+                    label="Existing PrimaryKey Check",
+                ).to_pandera()
             )
+            pandera_schema.checks = checks
 
         # add foreign key check with external values
         if foreign_key_values is not None and not skip_foreign_key_validation:
             checks = pandera_schema.checks or []
             for fk_fields, existing_values in foreign_key_values.items():
+                # a self-referencing key must also resolve against the frame's own
+                # rows, so the referenced columns travel with the supplied values
+                fk = next(
+                    (f for f in self.foreignKeys if tuple(f.fields) == tuple(fk_fields)),
+                    None,
+                )
+                within = (
+                    fk.reference.fields
+                    if fk is not None and fk.reference.resource is None
+                    else None
+                )
                 checks.extend(
-                    IsSubsetOf(subset_fields=fk_fields, existing=existing_values)
+                    IsSubsetOf(
+                        columns=list(fk_fields),
+                        allowed=existing_values,
+                        within=within,
+                        label="Existing ForeignKey Check",
+                    ).to_pandera()
                 )
             pandera_schema.checks = checks
 
