@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import MetaData, Table
 
 from ..._helpers import read_yaml_or_json_file
-from .adapters.pandera_adapter import PanderaPandasAdapter
+from .adapters.pandera_pandas import PanderaAdapter
 from .field_descriptors import FieldDescriptors
 from .fields import DateTimeField, IntegerField, ListField, NumberField, StringField
 from .reference import ForeignKeys, PrimaryKey
@@ -185,7 +185,7 @@ class TableSchema(BaseModel):
         all column level checks but does not include any checking of external
         or cross-table checks.
         """
-        return PanderaPandasAdapter.convert_schema(self)
+        return PanderaAdapter.convert_schema(self)
 
     def to_pydantic_model(
         self, model_name: str | None = None, base_class: type[BaseModel] = BaseModel
@@ -275,7 +275,11 @@ class TableSchema(BaseModel):
                 # a self-referencing key must also resolve against the frame's own
                 # rows, so the referenced columns travel with the supplied values
                 fk = next(
-                    (f for f in self.foreignKeys if tuple(f.fields) == tuple(fk_fields)),
+                    (
+                        f
+                        for f in self.foreignKeys
+                        if tuple(f.fields) == tuple(fk_fields)
+                    ),
                     None,
                 )
                 within = (
