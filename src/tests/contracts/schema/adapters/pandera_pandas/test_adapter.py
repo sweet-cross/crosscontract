@@ -5,7 +5,6 @@ from crosscontract.contracts.schema.adapters.pandera_pandas import PanderaAdapte
 from crosscontract.contracts.schema.validation.checks import (
     IsSubsetOf,
     IsValidCrossDimension,
-    IsValidPrimaryKey,
 )
 
 # These port the `TestConvert` cases from

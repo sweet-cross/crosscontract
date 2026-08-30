@@ -1,4 +1,3 @@
-from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover

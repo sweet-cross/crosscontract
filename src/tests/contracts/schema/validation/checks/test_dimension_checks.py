@@ -55,9 +55,7 @@ class TestNonRootElementHasParent:
         df = _make_df([{"id": "a", "level": 1}])
         assert not check(df).iloc[0]
 
-    def test_child_with_empty_string_parent_fails(
-        self, check: NonRootElementHasParent
-    ):
+    def test_child_with_empty_string_parent_fails(self, check: NonRootElementHasParent):
         """An empty string is no parent, the same as a null."""
         df = _make_df([{"id": "a", "level": 2, "parent_id": ""}])
         assert not check(df).iloc[0]
@@ -92,9 +90,7 @@ class TestRootElementHasNoParent:
         df = _make_df([{"id": "a", "level": 0, "parent_id": "someone"}])
         assert not check(df).iloc[0]
 
-    def test_root_with_empty_string_parent_passes(
-        self, check: RootElementHasNoParent
-    ):
+    def test_root_with_empty_string_parent_passes(self, check: RootElementHasNoParent):
         """An empty string is no parent, the same as a null."""
         df = _make_df([{"id": "a", "level": 0, "parent_id": ""}])
         assert check(df).all()

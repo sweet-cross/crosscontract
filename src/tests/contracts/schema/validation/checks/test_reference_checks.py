@@ -23,9 +23,7 @@ from crosscontract.contracts.schema.validation.checks import (
 class TestIsValidPrimaryKey:
     @pytest.fixture
     def check(self) -> IsValidPrimaryKey:
-        return IsValidPrimaryKey(
-            label="primary key", columns=["id"], existing=[("c",)]
-        )
+        return IsValidPrimaryKey(label="primary key", columns=["id"], existing=[("c",)])
 
     def test_valid_keys_pass(self, check: IsValidPrimaryKey):
         """Rows pass when they are non-null, unique, and absent from the
@@ -74,9 +72,7 @@ class TestIsValidPrimaryKey:
         collide with nothing and silently pass every row, so it is rejected at
         construction."""
         with pytest.raises(ValidationError):
-            IsValidPrimaryKey(
-                label="primary key", columns=["id"], existing=[("a", 1)]
-            )
+            IsValidPrimaryKey(label="primary key", columns=["id"], existing=[("a", 1)])
 
 
 # ---------------------------------------------------------------------------
@@ -85,9 +81,7 @@ class TestIsValidPrimaryKey:
 class TestToPandera:
     @pytest.fixture
     def check(self) -> IsValidPrimaryKey:
-        return IsValidPrimaryKey(
-            label="primary key", columns=["id"], existing=[("c",)]
-        )
+        return IsValidPrimaryKey(label="primary key", columns=["id"], existing=[("c",)])
 
     @pytest.fixture
     def schema(self, check: IsValidPrimaryKey) -> pa.DataFrameSchema:
