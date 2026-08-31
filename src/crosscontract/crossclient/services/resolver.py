@@ -11,7 +11,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from crosscontract.crossclient import ContractService
 
 
-class ClientContractResolver(ContractResolver):
+class CrossContractResolver(ContractResolver):
     """Reads contracts and their data from the CROSS platform.
 
     Answers the two questions a contract cannot answer on its own: what another

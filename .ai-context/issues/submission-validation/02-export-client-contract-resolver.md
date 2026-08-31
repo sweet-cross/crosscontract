@@ -8,10 +8,10 @@ has no public way to build one: `ClientContractResolver` is reachable only by it
 module path. Without this export the feature has an argument nobody can supply.
 
 ## Acceptance Criteria
-- [ ] `from crosscontract.crossclient import ClientContractResolver` works.
-- [ ] The class is listed in `__all__` of both modified `__init__.py` files.
-- [ ] A test asserts the import path, so a future `__init__` edit that drops it fails loudly.
-- [ ] No behaviour change to the class itself.
+- [x] `from crosscontract.crossclient import ClientContractResolver` works.
+- [x] The class is listed in `__all__` of both modified `__init__.py` files.
+- [x] A test asserts the import path, so a future `__init__` edit that drops it fails loudly.
+- [x] No behaviour change to the class itself.
 
 ## Implementation Details
 - **Modify:** [src/crosscontract/crossclient/services/\_\_init\_\_.py](../../../src/crosscontract/crossclient/services/__init__.py) —

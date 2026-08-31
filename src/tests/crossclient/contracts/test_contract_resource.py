@@ -7,10 +7,10 @@ from pydantic import ValidationError as PydanticValidationError
 
 from crosscontract import CrossContract
 from crosscontract.contracts.schema import SchemaValidationError, TableSchema
+from crosscontract.crossclient import CrossContractResolver
 from crosscontract.crossclient.exceptions.exceptions import ValidationError
 from crosscontract.crossclient.services.contract_resource import ContractResource
 from crosscontract.crossclient.services.contract_service import ContractService
-from crosscontract.crossclient.services.resolver import ClientContractResolver
 
 CONTRACTS_URL = "https://api.example.com/api/v1/contract/"
 
@@ -321,7 +321,7 @@ class TestValidation:
         assert kwargs["check_existing_primary_key"] is True
         assert kwargs["check_existing_foreign_key"] is True
         assert kwargs["lazy"] is True
-        assert isinstance(kwargs["resolver"], ClientContractResolver)
+        assert isinstance(kwargs["resolver"], CrossContractResolver)
 
     def test_checking_existing_keys_reads_own_contract(self, service: ContractService):
         """The resolver reads the contract's own stored primary keys."""

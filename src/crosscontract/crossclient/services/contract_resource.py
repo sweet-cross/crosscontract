@@ -8,7 +8,7 @@ from crosscontract.contracts.schema import SchemaValidationError
 from crosscontract.contracts.schema.subschemas import BaseDimensionSchema
 
 from ..exceptions import ValidationError
-from .resolver import ClientContractResolver
+from .resolver import CrossContractResolver
 
 if TYPE_CHECKING:  # pragma: no cover
     from .contract_service import ContractService, FilterValue
@@ -250,7 +250,7 @@ class ContractResource:
                 as `ResourceNotFoundError` when the contract has no stored data
                 yet.
         """
-        resolver = ClientContractResolver(self._service)
+        resolver = CrossContractResolver(self._service)
         try:
             self.contract.validate_data(
                 df,
