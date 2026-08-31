@@ -3,7 +3,7 @@
 from .contracts import BaseContract, CrossContract, SchemaValidationError, TableSchema
 from .crossclient import CrossClient
 from .registry import CrossRegistry
-from .submission import SubmissionContract, SubmissionHandler
+from .submission import SubmissionContract, SubmissionHandler, TargetValidationError
 
 __version__ = "0.17.0"
 
@@ -16,4 +16,5 @@ __all__ = [
     "CrossRegistry",
     "SubmissionContract",
     "SubmissionHandler",
+    "TargetValidationError",
 ]

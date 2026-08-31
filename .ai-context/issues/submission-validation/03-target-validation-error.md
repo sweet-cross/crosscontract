@@ -8,15 +8,15 @@ needs an aggregate to raise. This is that type. It lands before the loop that ra
 the loop task is purely about looping.
 
 ## Acceptance Criteria
-- [ ] `TargetValidationError(errors: dict[str, SchemaValidationError])` exists, subclassing
+- [x] `TargetValidationError(errors: dict[str, SchemaValidationError])` exists, subclassing
       plain `Exception`.
-- [ ] `.errors` exposes the mapping unchanged.
-- [ ] `.to_list()` returns the flattened rows of every sub-error, each row carrying a
+- [x] `.errors` exposes the mapping unchanged.
+- [x] `.to_list()` returns the flattened rows of every sub-error, each row carrying a
       `target` key naming the target it came from.
-- [ ] `.to_pandas()` returns `pd.DataFrame(self.to_list())`.
-- [ ] The exception message names the failing targets.
-- [ ] Importable from both `crosscontract` and `crosscontract.submission`.
-- [ ] Docstrings follow the house Google-style convention (`Args:` / `Returns:` / `Raises:`
+- [x] `.to_pandas()` returns `pd.DataFrame(self.to_list())`.
+- [x] The exception message names the failing targets.
+- [x] Importable from both `crosscontract` and `crosscontract.submission`.
+- [x] Docstrings follow the house Google-style convention (`Args:` / `Returns:` / `Raises:`
       where applicable, markdown only, no rST).
 
 ## Implementation Details
