@@ -51,7 +51,7 @@ Done means all of the following.
   `lazy`**, with the same names and the same defaults (`False`, `False`, `True`) as
   `BaseContract.validate_data` and `ContractResource.validate_dataframe`. Uniform across
   targets; a caller needing per-target variation loops `validate_target` itself.
-- **`ClientContractResolver` becomes public API**, exported from `crosscontract.crossclient`.
+- **`CrossContractResolver` becomes public API**, exported from `crosscontract.crossclient`.
   Without it the `resolver` argument has no supplier a user can reach without importing a
   private module path.
 - **The handler still resolves nothing on its own.** It never constructs a resolver, never
@@ -87,7 +87,7 @@ at different times.
 | 5 | `check_existing_*=True` with a `contract` but no `resolver` | Already handled one layer down — `validate_data` raises naming the contract and both remedies. **Add no guard here**; duplicating it would produce two messages for one mistake |
 | 6 | A filter names a column absent from the bundle | `KeyError` from `_mask_target` (existing behaviour, propagates) |
 | 7 | A transformation raises (e.g. `cast_column` on unparseable text) | **Propagates immediately, uncollected.** The collection is typed `dict[str, SchemaValidationError]`; widening it to arbitrary exceptions would make the report untyped and would report a spec bug as if it were a data defect. *This is the one case not settled in the design session — flag it in review* |
-| 8 | The resolver raises (network, permission, contract has no data yet) | Propagates immediately. `ClientContractResolver.get_data` surfaces `ResourceNotFoundError` for a contract with no stored rows, which is a wiring/state problem, not a row defect |
+| 8 | The resolver raises (network, permission, contract has no data yet) | Propagates immediately. `CrossContractResolver.get_data` surfaces `ResourceNotFoundError` for a contract with no stored rows, which is a wiring/state problem, not a row defect |
 | 9 | A target claims **no rows** | Validated like any other and returned as an empty frame. No warning, no skip — deliberately the inverse of `release/`'s warn-and-skip, because an empty resource corrupts a published package while an empty target is a submission that legitimately carried nothing this round |
 | 10 | The transformed frame carries columns the target contract does not declare (a forgotten `drop_columns`) | `SchemaValidationError` — the base pandera schema is built with `strict=True` — **collected** as a data failure. This is the check that catches spec/schema drift, which ADR 0004 accepts as the cost of not deriving transformations from the target schema |
 | 11 | Some targets pass, some fail | `TargetValidationError` raised; the passing frames are **discarded**. All-or-nothing is the right default for a bundle, and a caller wanting partial results loops `validate_target` |
@@ -170,7 +170,9 @@ away.
 - **`src/crosscontract/__init__.py`** — export `TargetValidationError` alongside
   `SchemaValidationError`. A caller cannot write `except` against a name they cannot import.
 - **`src/crosscontract/crossclient/services/__init__.py`** and
-  **`src/crosscontract/crossclient/__init__.py`** — export `ClientContractResolver`.
+  **`src/crosscontract/crossclient/__init__.py`** — export `CrossContractResolver`
+  (renamed from `ClientContractResolver` on the way out, for consistency with the
+  `Cross*` family).
   Promoting it to public API carries the same breaking-change obligation ADR 0005 recorded
   for `ContractResolver` itself.
 - **`.claude/CLAUDE.md`** — the `submission/` architecture section lists only
@@ -302,7 +304,7 @@ contracts built the way `_contract()` builds them there.
 
 ### Integration-ish
 
-- `ClientContractResolver` is importable from `crosscontract.crossclient`, and
+- `CrossContractResolver` is importable from `crosscontract.crossclient`, and
   `TargetValidationError` from both `crosscontract` and `crosscontract.submission` — cheap
   import tests that fail loudly if an `__init__` export is forgotten.
 

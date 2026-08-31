@@ -17,6 +17,9 @@ class CrossContractResolver(ContractResolver):
     Answers the two questions a contract cannot answer on its own: what another
     contract looks like, and which values are already stored under it. Used when
     validating data against a contract that references other contracts.
+
+    Reaches the platform over HTTP through a `ContractService`, so it sees
+    whatever the authenticated caller is allowed to read.
     """
 
     def __init__(self, service: ContractService):
@@ -36,6 +39,12 @@ class CrossContractResolver(ContractResolver):
         Returns:
             CrossContract | None: The contract, or `None` if the platform has no
             contract with that name.
+
+        Raises:
+            CrossClientError: If the read fails for any reason other than the
+                contract being absent. Only a missing contract becomes `None`; a
+                permission error or a server failure propagates as the more
+                specific client exception.
         """
         try:
             return self._service.get(name).contract
