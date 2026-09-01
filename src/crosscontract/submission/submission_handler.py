@@ -179,17 +179,22 @@ class SubmissionHandler:
         check_existing_foreign_key: bool = False,
         lazy: bool = True,
     ) -> pd.DataFrame:
-        """Validate a target within the submission bundle.
+        """Extract a target's rows, transform them, and validate the result.
+
+        Composes `get_target_data` with the target contract's `validate_data`.
+        The contract is either handed in or resolved by name through `resolver`;
+        an explicit `contract` wins, and the resolver is then never asked to
+        resolve.
 
         Args:
             target_name (str): The name of the target to validate.
-            contract (BaseContract | None): The contract to use for validation.
-                If None, a resolver is needed to provide the contract for validation.
-                If the contract is provided, the resolve will not fetch a contract
+            contract (BaseContract | None, optional): The contract to validate
+                against. Its `name` must match the target's `contract`. If
+                `None`, a `resolver` must be given to supply it.
                 Defaults to `None`.
-            resolver (ContractResolver | None, optional): Supplier of the stored
-                values. Required only when one of the check flags is set or if the
-                contract is not provided.
+            resolver (ContractResolver | None, optional): Supplier of the target
+                contract and of the stored values. Required when `contract` is
+                not given, or when one of the check flags is set.
                 Defaults to `None`.
             check_existing_primary_key (bool): If True, also check the primary
                 key against the values already stored for this contract.
@@ -198,12 +203,14 @@ class SubmissionHandler:
                 keys against the values already stored for the contracts they
                 reference. Defaults to False.
             lazy (bool): If True, collect all validation errors and raise them
-                together. If False, raise the first error encountered. Defaults
-                to True.
+                together. If False, raise the first error encountered. Note that
+                a non-lazy failure yields a degraded report: pandera does not
+                attach the validated frame to the error, so the offending key
+                values cannot be recovered from it. Defaults to True.
 
         Returns:
-            pd.DataFrame: A DataFrame containing the rows of the target that
-                fail validation.
+            pd.DataFrame: The validated data, with the schema's coercions
+                applied. Empty when the target claims no rows.
 
         Raises:
             ValueError: If neither a contract nor a resolver is provided, if the
@@ -237,10 +244,10 @@ class SubmissionHandler:
         target_data = self.get_target_data(target_name)
 
         # validate the target's data against the contract
-        df = contract.validate_data(
+        return contract.validate_data(
             target_data,
+            resolver=resolver,
             check_existing_primary_key=check_existing_primary_key,
             check_existing_foreign_key=check_existing_foreign_key,
             lazy=lazy,
         )
-        return df
