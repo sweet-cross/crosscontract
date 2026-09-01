@@ -7,6 +7,7 @@ describes how a bundle splits into per-variable datasets, and a
 
 import pandas as pd
 
+from crosscontract.contracts import BaseContract, ContractResolver
 from crosscontract.submission.extraction import Target
 from crosscontract.transformations import BaseTransformation
 
@@ -168,3 +169,78 @@ class SubmissionHandler:
         for target in self.contract.extraction.targets:
             claimed |= self._mask_target(target)
         return self.bundle[~claimed]
+
+    def validate_target(
+        self,
+        target_name: str,
+        contract: BaseContract | None = None,
+        resolver: ContractResolver | None = None,
+        check_existing_primary_key: bool = False,
+        check_existing_foreign_key: bool = False,
+        lazy: bool = True,
+    ) -> pd.DataFrame:
+        """Validate a target within the submission bundle.
+
+        Args:
+            target_name (str): The name of the target to validate.
+            contract (BaseContract | None): The contract to use for validation.
+                If None, a resolver is needed to provide the contract for validation.
+                If the contract is provided, the resolve will not fetch a contract
+                Defaults to `None`.
+            resolver (ContractResolver | None, optional): Supplier of the stored
+                values. Required only when one of the check flags is set or if the
+                contract is not provided.
+                Defaults to `None`.
+            check_existing_primary_key (bool): If True, also check the primary
+                key against the values already stored for this contract.
+                Defaults to False.
+            check_existing_foreign_key (bool): If True, also check the foreign
+                keys against the values already stored for the contracts they
+                reference. Defaults to False.
+            lazy (bool): If True, collect all validation errors and raise them
+                together. If False, raise the first error encountered. Defaults
+                to True.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the rows of the target that
+                fail validation.
+
+        Raises:
+            ValueError: If neither a contract nor a resolver is provided, if the
+                contract cannot be resolved, if the provided contract's name
+                does not match the target's contract, or if the check flags are
+                set but no resolver is provided.
+            KeyError: If the target name does not exist within the submission bundle.
+            SchemaValidationError: If the target's data fails schema validation
+                against the contract.
+        """
+        target = self.contract.extraction.get_target(target_name)
+        contract_name = target.contract
+
+        # if no contract is provided, use the resolver to fetch it
+        if contract is None:
+            if resolver is None:
+                raise ValueError("Either a contract or a resolver must be provided.")
+            contract = resolver.resolve(contract_name)
+            # raise if no contract is found by the resolver
+            if contract is None:
+                raise ValueError(f"Contract '{contract_name}' could not be resolved.")
+        else:
+            # if a contract is provided, ensure its name matches the target's contract
+            if contract.name != contract_name:
+                raise ValueError(
+                    f"The provided contract '{contract.name}' does not match the "
+                    f"target's contract '{contract_name}'."
+                )
+
+        # extract the target's data from the submission bundle
+        target_data = self.get_target_data(target_name)
+
+        # validate the target's data against the contract
+        df = contract.validate_data(
+            target_data,
+            check_existing_primary_key=check_existing_primary_key,
+            check_existing_foreign_key=check_existing_foreign_key,
+            lazy=lazy,
+        )
+        return df
