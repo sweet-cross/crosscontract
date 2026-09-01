@@ -224,26 +224,24 @@ class SubmissionHandler:
         target = self.contract.extraction.get_target(target_name)
         contract_name = target.contract
 
-        # if no contract is provided, use the resolver to fetch it
         if contract is None:
             if resolver is None:
                 raise ValueError("Either a contract or a resolver must be provided.")
             contract = resolver.resolve(contract_name)
-            # raise if no contract is found by the resolver
             if contract is None:
-                raise ValueError(f"Contract '{contract_name}' could not be resolved.")
+                raise ValueError(
+                    f"Target '{target_name}' names contract '{contract_name}', "
+                    "which could not be resolved."
+                )
         else:
-            # if a contract is provided, ensure its name matches the target's contract
             if contract.name != contract_name:
                 raise ValueError(
                     f"The provided contract '{contract.name}' does not match the "
                     f"target's contract '{contract_name}'."
                 )
 
-        # extract the target's data from the submission bundle
         target_data = self.get_target_data(target_name)
 
-        # validate the target's data against the contract
         return contract.validate_data(
             target_data,
             resolver=resolver,
