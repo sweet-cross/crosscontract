@@ -19,16 +19,17 @@ from .submission_contract import SubmissionContract
 class SubmissionHandler:
     """Apply a submission contract's extraction instructions to a bundle.
 
-    The handler answers one target at a time: `extract_target_data` selects the
-    rows a target claims, `transform_target_data` applies that target's
-    transformation profile and then its own transformations, and
-    `get_target_data` composes the two. There is deliberately no method that runs
-    every target, so whether a run aborts on the first failing target or collects
-    every failure is the caller's decision rather than this class's.
+    The handler's scope is targets and nothing else. For one target,
+    `extract_target_data` selects the rows it claims, `transform_target_data`
+    applies its transformation profile and then its own transformations,
+    `get_target_data` composes the two, and `validate_target` checks the result
+    against the contract that target names. `validate_targets` answers for every
+    target, or for a named selection of them, and across targets it collects
+    every failure rather than stopping at the first.
 
-    Like the extraction instructions it reads, the handler *names* target
-    contracts and never resolves them, so it loads and runs with no platform
-    connection.
+    A target's contract arrives from the caller, either handed over directly or
+    through a `ContractResolver`; the handler never constructs one. With a
+    contract in hand it loads and runs with no platform connection.
 
     Attributes:
         contract (SubmissionContract): The contract describing the bundle and how

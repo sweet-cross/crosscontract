@@ -145,10 +145,12 @@ A stateless adapter that turns CROSS contracts into a Frictionless Data Package 
 
 ### `submission/` — Submission contracts and extraction instructions
 
-The ingress mirror of `release/`, and top-level for the same reason: it owns its spec models *and* (later) the code that executes them, so the concept lives in one package. `release/` turns contracts into a published data package; `submission/` describes a delivered bundle — one wide file carrying many variables — and how it is split back into per-variable contracts.
+The ingress mirror of `release/`, and top-level for the same reason: it owns its spec models *and* the code that executes them, so the concept lives in one package. `release/` turns contracts into a published data package; `submission/` describes a delivered bundle — one wide file carrying many variables — and how it is split back into per-variable contracts.
 
 - `submission_contract.py` — `SubmissionContract`: a contract whose `tableschema` describes the bundle itself, plus `project_name` and an `extraction` block.
 - `extraction/` — the declarative split instructions: `Target` (which rows go to which target contract, and the transformations applied on the way) and `ExtractionInstructions` (the routing column, the reusable transformation profiles, and the targets).
+- `submission_handler.py` — `SubmissionHandler`: the executor that applies those instructions to a delivered bundle. Extraction is `extract_target_data` / `transform_target_data` / `get_target_data` per target, plus `unclaimed_rows` for the bundle rows no target claims. Validation is `validate_target` (one target's extracted rows against the contract it names) and `validate_targets` (every target, or a named selection, collecting each failure into a `TargetValidationError` instead of stopping at the first). Target contracts arrive from the caller or through a `ContractResolver`; the handler never constructs one.
+- `exceptions.py` — `TargetValidationError`: the aggregate raised by `validate_targets`, holding one `SchemaValidationError` per failing target keyed by target name.
 
 `SubmissionContract` lives here rather than in `contracts/` deliberately: that it *is* a contract is expressed by inheritance, not by file location, and `contracts/` describes what a dataset looks like while extraction is a process. Keeping it out of `contracts/` also keeps the import graph one-way — `transformations/fetch/fetch_spec.py` already imports `CONTRACT_NAME_PATTERN` out of `contracts`, so extraction living under `contracts/` and importing `transformations` would close a cycle.
 
