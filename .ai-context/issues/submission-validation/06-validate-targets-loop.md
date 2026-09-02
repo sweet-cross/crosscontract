@@ -1,6 +1,7 @@
 # Implement `SubmissionHandler.validate_targets` — loop and collection
 
 ## Context
+
 **Part of PRD:** [submission-validation.md](../../prds/submission-validation.md) — WP3, §4, edge cases 7–12.
 
 The loop over every target, collecting failures instead of stopping at the first. This is
@@ -8,23 +9,25 @@ the method the [ADR 0004 amendment](../../adrs/0004-submission-contracts-carry-e
 exists to permit; the selective `targets` argument is task 07.
 
 ## Acceptance Criteria
-- [ ] `validate_targets(resolver, targets=None, check_existing_primary_key=False, check_existing_foreign_key=False, lazy=True) -> dict[str, pd.DataFrame]`
-      exists, `resolver` **required**.
-- [ ] Delegates to `validate_target` per target and does no resolution of its own.
-- [ ] Returns validated, coerced frames keyed by **target name** (not contract name).
-- [ ] Every failing target is validated before anything is raised — no fail-fast, and no
-      `fail_fast` parameter.
-- [ ] Failures are raised together as `TargetValidationError`, one entry per failing target.
-- [ ] When some targets pass and others fail, the passing frames are discarded (all-or-nothing);
-      a test pins this so it is a decision rather than an accident.
-- [ ] The message names the failing targets; `to_list()` rows carry their `target`.
-- [ ] Wiring failures (task 05's three `ValueError`s) escape **immediately** and are not
-      collected — one test asserting a `ValueError`, not a `TargetValidationError`.
+
+- [X] `validate_targets(resolver, targets=None, check_existing_primary_key=False, check_existing_foreign_key=False, lazy=True) -> dict[str, pd.DataFrame]`
+  exists, `resolver` **required**.
+- [X] Delegates to `validate_target` per target and does no resolution of its own.
+- [X] Returns validated, coerced frames keyed by **target name** (not contract name).
+- [X] Every failing target is validated before anything is raised — no fail-fast, and no
+  `fail_fast` parameter.
+- [X] Failures are raised together as `TargetValidationError`, one entry per failing target.
+- [X] When some targets pass and others fail, the passing frames are discarded (all-or-nothing);
+  a test pins this so it is a decision rather than an accident.
+- [X] The message names the failing targets; `to_list()` rows carry their `target`.
+- [X] Wiring failures (task 05's three `ValueError`s) escape **immediately** and are not
+  collected — one test asserting a `ValueError`, not a `TargetValidationError`.
 - [ ] A forgotten `drop_columns` (extra column, caught by `strict=True`) is a *collected*
-      failure, not an escaping exception.
-- [ ] `lazy=False` still yields one `SchemaValidationError` per failing target.
+  failure, not an escaping exception.
+- [X] `lazy=False` still yields one `SchemaValidationError` per failing target.
 
 ## Implementation Details
+
 - **Modify:** [src/crosscontract/submission/submission_handler.py](../../../src/crosscontract/submission/submission_handler.py),
   **modify:** `src/tests/submission/test_validate_targets.py`.
 - **Confirm the open decision first** — PRD edge case 7: an exception raised *by a

@@ -8,9 +8,11 @@ describes how a bundle splits into per-variable datasets, and a
 import pandas as pd
 
 from crosscontract.contracts import BaseContract, ContractResolver
+from crosscontract.contracts.schema import SchemaValidationError
 from crosscontract.submission.extraction import Target
 from crosscontract.transformations import BaseTransformation
 
+from .exceptions import TargetValidationError
 from .submission_contract import SubmissionContract
 
 
@@ -249,3 +251,53 @@ class SubmissionHandler:
             check_existing_foreign_key=check_existing_foreign_key,
             lazy=lazy,
         )
+
+    def validate_targets(
+        self,
+        resolver: ContractResolver | None = None,
+        targets: list[str] | None = None,
+        check_existing_primary_key: bool = False,
+        check_existing_foreign_key: bool = False,
+        lazy: bool = True,
+    ) -> dict[str, pd.DataFrame]:
+        """Validate multiple targets within the submission bundle.
+
+        Args:
+            resolver (ContractResolver | None): Resolver to fetch contracts if
+                not provided explicitly.
+            targets (list[str] | None): List of target names to validate.
+                If None, validate all targets.
+            check_existing_primary_key (bool): If True, check the primary keys
+                against existing data.
+            check_existing_foreign_key (bool): If True, check the foreign keys
+                against existing data.
+            lazy (bool): If True, collect all validation errors and raise them together.
+
+        Returns:
+            dict[str, pd.DataFrame]: A dictionary mapping target names to their
+                validated data frames.
+        """
+        targets = (
+            targets
+            if targets is not None
+            else [t.name for t in self.contract.extraction.targets]
+        )
+
+        validated_data = {}
+        errors = {}
+        for target_name in targets:
+            try:
+                validated_data[target_name] = self.validate_target(
+                    target_name,
+                    resolver=resolver,
+                    check_existing_primary_key=check_existing_primary_key,
+                    check_existing_foreign_key=check_existing_foreign_key,
+                    lazy=lazy,
+                )
+            except SchemaValidationError as e:
+                errors[target_name] = e
+                pass
+
+        if errors:
+            raise TargetValidationError(errors)
+        return validated_data
