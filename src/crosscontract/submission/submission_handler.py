@@ -254,28 +254,54 @@ class SubmissionHandler:
 
     def validate_targets(
         self,
-        resolver: ContractResolver | None = None,
+        resolver: ContractResolver,
         targets: list[str] | None = None,
         check_existing_primary_key: bool = False,
         check_existing_foreign_key: bool = False,
         lazy: bool = True,
     ) -> dict[str, pd.DataFrame]:
-        """Validate multiple targets within the submission bundle.
+        """Validate every target of the submission bundle, or a selection of them.
+
+        Delegates to `validate_target` per target, resolving each target's
+        contract by name through `resolver`. Every target is attempted before
+        anything is raised, so one broken target does not hide the others.
+
+        The result is all-or-nothing: if any target's data fails validation, the
+        frames of the targets that passed are discarded along with the failures.
+        Data failures are collected; a *wiring* failure — an unknown target name,
+        or a contract the resolver cannot supply — escapes immediately, because
+        it says the run itself was set up wrongly rather than that the data is
+        bad.
 
         Args:
-            resolver (ContractResolver | None): Resolver to fetch contracts if
-                not provided explicitly.
-            targets (list[str] | None): List of target names to validate.
-                If None, validate all targets.
-            check_existing_primary_key (bool): If True, check the primary keys
-                against existing data.
-            check_existing_foreign_key (bool): If True, check the foreign keys
-                against existing data.
-            lazy (bool): If True, collect all validation errors and raise them together.
+            resolver (ContractResolver): Supplier of the target contracts and of
+                the stored values.
+            targets (list[str] | None, optional): The names of the targets to
+                validate. If `None`, every target of the extraction instructions
+                is validated. Defaults to `None`.
+            check_existing_primary_key (bool): If True, also check each target's
+                primary key against the values already stored for its contract.
+                Defaults to False.
+            check_existing_foreign_key (bool): If True, also check each target's
+                foreign keys against the values already stored for the contracts
+                they reference. Defaults to False.
+            lazy (bool): If True, collect all of a target's validation errors and
+                raise them together. If False, raise on the first error that
+                target hits — one `SchemaValidationError` per failing target
+                either way, but a non-lazy one carries a degraded report.
+                Defaults to True.
 
         Returns:
-            dict[str, pd.DataFrame]: A dictionary mapping target names to their
-                validated data frames.
+            dict[str, pd.DataFrame]: The validated data, coerced, keyed by target
+                name.
+
+        Raises:
+            TargetValidationError: If any target's data fails validation, holding
+                one entry per failing target.
+            ValueError: If a target's contract cannot be resolved. Raised for the
+                first target that hits it, rather than collected.
+            KeyError: If a named target does not exist, or if a column named by a
+                target's `filters` is absent from the bundle.
         """
         targets = (
             targets
@@ -296,7 +322,6 @@ class SubmissionHandler:
                 )
             except SchemaValidationError as e:
                 errors[target_name] = e
-                pass
 
         if errors:
             raise TargetValidationError(errors)

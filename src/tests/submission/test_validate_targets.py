@@ -3,9 +3,13 @@ from unittest.mock import Mock
 import pandas as pd
 import pytest
 
-from crosscontract.contracts import BaseContract
+from crosscontract.contracts import BaseContract, SchemaValidationError
 from crosscontract.contracts.contracts.resolvers import ContractResolver
-from crosscontract.submission import SubmissionContract, SubmissionHandler
+from crosscontract.submission import (
+    SubmissionContract,
+    SubmissionHandler,
+    TargetValidationError,
+)
 
 
 @pytest.fixture(scope="class")
@@ -139,6 +143,47 @@ def resolver_returning(contract: BaseContract | None) -> Mock:
     resolver = Mock(spec=ContractResolver)
     resolver.resolve.return_value = contract
     return resolver
+
+
+def resolver_for(**contracts: BaseContract | None) -> Mock:
+    """Build a resolver double resolving each contract name to its contract.
+
+    Args:
+        **contracts (BaseContract | None): One entry per contract name, holding
+            what `resolve` returns for it.
+
+    Returns:
+        Mock: A `ContractResolver` mock recording its calls.
+    """
+    resolver = Mock(spec=ContractResolver)
+    resolver.resolve.side_effect = lambda name: contracts[name]
+    return resolver
+
+
+@pytest.fixture
+def bad_contract_a() -> BaseContract:
+    """Return a `contract_a` whose `region` the target's rows cannot satisfy."""
+    return target_contract(
+        "contract_a",
+        [
+            {"name": "region", "type": "integer"},
+            {"name": "year", "type": "integer"},
+            {"name": "value", "type": "number"},
+        ],
+    )
+
+
+@pytest.fixture
+def bad_contract_c() -> BaseContract:
+    """Return a `contract_c` whose `country` the target's rows cannot satisfy."""
+    return target_contract(
+        "contract_c",
+        [
+            {"name": "country", "type": "integer"},
+            {"name": "period", "type": "integer"},
+            {"name": "value", "type": "number"},
+        ],
+    )
 
 
 class TestValidateTarget:
@@ -312,3 +357,157 @@ class TestValidateTargetGuards:
                 "t_a", contract=contract_a, check_existing_primary_key=True
             )
         assert "contract_a" in str(exc_info.value)
+
+
+class TestValidateTargets:
+    """The loop over every target, collecting failures rather than stopping."""
+
+    @pytest.fixture
+    def handler(self, contract: SubmissionContract) -> SubmissionHandler:
+        """Return a handler over a bundle holding one row per target."""
+        return SubmissionHandler(
+            contract=contract,
+            bundle=bundle(("a", "CH", 2020, 1.0), ("c", "DE", 2030, 4.0)),
+        )
+
+    def test_requires_a_resolver(self, handler: SubmissionHandler):
+        """Test that omitting the resolver fails at the call, not per target."""
+        with pytest.raises(TypeError):
+            handler.validate_targets()  # type: ignore[call-arg]
+
+    def test_returns_validated_frames_keyed_by_target_name(
+        self,
+        handler: SubmissionHandler,
+        contract_a: BaseContract,
+        contract_c: BaseContract,
+    ):
+        """Test that every target is validated and keyed by its own name rather
+        than by the contract it names, and that the frames are coerced."""
+        resolver = resolver_for(contract_a=contract_a, contract_c=contract_c)
+        data = handler.validate_targets(resolver)
+        assert set(data) == {"t_a", "t_year"}
+        assert list(data["t_a"]["region"]) == ["CH"]
+        assert data["t_year"]["period"].dtype == "Int64"
+
+    def test_delegates_to_validate_target_per_target(self, handler: SubmissionHandler):
+        """Test that the loop hands each target to `validate_target` with its
+        arguments unchanged, doing no resolution of its own."""
+        resolver = Mock(spec=ContractResolver)
+        handler.validate_target = Mock(return_value=pd.DataFrame())  # type: ignore[method-assign]
+
+        handler.validate_targets(
+            resolver,
+            check_existing_primary_key=True,
+            check_existing_foreign_key=True,
+            lazy=False,
+        )
+
+        expected = {
+            "resolver": resolver,
+            "check_existing_primary_key": True,
+            "check_existing_foreign_key": True,
+            "lazy": False,
+        }
+        assert [call.args for call in handler.validate_target.call_args_list] == [
+            ("t_a",),
+            ("t_year",),
+        ]
+        assert [call.kwargs for call in handler.validate_target.call_args_list] == [
+            expected,
+            expected,
+        ]
+        resolver.resolve.assert_not_called()
+
+    def test_every_target_is_attempted_before_raising(
+        self,
+        handler: SubmissionHandler,
+        bad_contract_a: BaseContract,
+        bad_contract_c: BaseContract,
+    ):
+        """Test that a failing first target does not hide a failing second one."""
+        resolver = resolver_for(contract_a=bad_contract_a, contract_c=bad_contract_c)
+        with pytest.raises(TargetValidationError) as exc_info:
+            handler.validate_targets(resolver)
+        assert set(exc_info.value.errors) == {"t_a", "t_year"}
+        assert all(
+            isinstance(error, SchemaValidationError)
+            for error in exc_info.value.errors.values()
+        )
+
+    def test_passing_frames_are_discarded_when_a_target_fails(
+        self,
+        handler: SubmissionHandler,
+        contract_a: BaseContract,
+        bad_contract_c: BaseContract,
+    ):
+        """Test that a partly successful run returns nothing at all.
+
+        `t_a` validates cleanly, but its frame is not handed back alongside the
+        failure — validation is all-or-nothing by decision, not by accident.
+        """
+        resolver = resolver_for(contract_a=contract_a, contract_c=bad_contract_c)
+        with pytest.raises(TargetValidationError) as exc_info:
+            handler.validate_targets(resolver)
+        assert set(exc_info.value.errors) == {"t_year"}
+
+    def test_the_error_names_the_failing_targets(
+        self,
+        handler: SubmissionHandler,
+        bad_contract_a: BaseContract,
+        bad_contract_c: BaseContract,
+    ):
+        """Test that both the message and the flattened rows carry the targets."""
+        resolver = resolver_for(contract_a=bad_contract_a, contract_c=bad_contract_c)
+        with pytest.raises(TargetValidationError) as exc_info:
+            handler.validate_targets(resolver)
+        message = str(exc_info.value)
+        assert "t_a" in message
+        assert "t_year" in message
+        assert {row["target"] for row in exc_info.value.to_list()} == {"t_a", "t_year"}
+
+    def test_a_wiring_failure_escapes_uncollected(
+        self, handler: SubmissionHandler, bad_contract_a: BaseContract
+    ):
+        """Test that an unresolvable contract raises rather than joining the
+        collection, even though an earlier target already failed on its data."""
+        resolver = resolver_for(contract_a=bad_contract_a, contract_c=None)
+        with pytest.raises(ValueError) as exc_info:
+            handler.validate_targets(resolver)
+        assert not isinstance(exc_info.value, TargetValidationError)
+        assert "t_year" in str(exc_info.value)
+
+    def test_an_extra_column_is_a_collected_failure(
+        self, handler: SubmissionHandler, contract_c: BaseContract
+    ):
+        """Test that a forgotten `drop_columns` is collected, not escaping.
+
+        The contract omits `year`, so the transformed frame carries a column the
+        schema does not know — caught by `strict=True` as a schema failure like
+        any other.
+        """
+        resolver = resolver_for(
+            contract_a=target_contract(
+                "contract_a",
+                [
+                    {"name": "region", "type": "string"},
+                    {"name": "value", "type": "number"},
+                ],
+            ),
+            contract_c=contract_c,
+        )
+        with pytest.raises(TargetValidationError) as exc_info:
+            handler.validate_targets(resolver)
+        assert set(exc_info.value.errors) == {"t_a"}
+
+    def test_non_lazy_still_yields_one_error_per_failing_target(
+        self,
+        handler: SubmissionHandler,
+        bad_contract_a: BaseContract,
+        bad_contract_c: BaseContract,
+    ):
+        """Test that `lazy=False` shortens each target's report without turning
+        the loop itself fail-fast."""
+        resolver = resolver_for(contract_a=bad_contract_a, contract_c=bad_contract_c)
+        with pytest.raises(TargetValidationError) as exc_info:
+            handler.validate_targets(resolver, lazy=False)
+        assert set(exc_info.value.errors) == {"t_a", "t_year"}
