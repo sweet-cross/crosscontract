@@ -195,12 +195,6 @@ and task files that carried the analysis are deleted, so the detail is reproduce
   failures. Worth deciding at the same time whether it also belongs at contract *creation*
   on the platform, where `cross_back` already runs reference validation.
 
-- **Execution.** Applying a submission contract to actual data — filter rows per target,
-  apply the transformation profile and then the target's own transformations, hand the
-  result to the named contract for validation — is not written. When it lands it joins
-  [submission/](../src/crosscontract/submission/) alongside the spec models, as a
-  pipeline rather than a schema conversion.
-
 ## Related context (not TODO items)
 
 - The release layer is a contract → Frictionless adapter; `CrossDataResource` /

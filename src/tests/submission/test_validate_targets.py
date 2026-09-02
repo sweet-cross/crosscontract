@@ -3,8 +3,11 @@ from unittest.mock import Mock
 import pandas as pd
 import pytest
 
-from crosscontract.contracts import BaseContract, SchemaValidationError
-from crosscontract.contracts.contracts.resolvers import ContractResolver
+from crosscontract.contracts import (
+    BaseContract,
+    ContractResolver,
+    SchemaValidationError,
+)
 from crosscontract.submission import (
     SubmissionContract,
     SubmissionHandler,

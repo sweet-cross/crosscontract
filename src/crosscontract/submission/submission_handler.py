@@ -220,7 +220,8 @@ class SubmissionHandler:
                 contract cannot be resolved, if the provided contract's name
                 does not match the target's contract, or if the check flags are
                 set but no resolver is provided.
-            KeyError: If the target name does not exist within the submission bundle.
+            KeyError: If no target with the given name exists, or if a column
+                named by the target's `filters` is absent from the bundle.
             SchemaValidationError: If the target's data fails schema validation
                 against the contract.
         """
@@ -311,8 +312,8 @@ class SubmissionHandler:
             else [t.name for t in self.contract.extraction.targets]
         )
 
-        validated_data = {}
-        errors = {}
+        validated_data: dict[str, pd.DataFrame] = {}
+        errors: dict[str, SchemaValidationError] = {}
         for target_name in targets:
             try:
                 validated_data[target_name] = self.validate_target(

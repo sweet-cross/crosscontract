@@ -56,6 +56,10 @@ made rather than dodged: failures are collected, with no `fail_fast` escape.
 - Deliberately not a `SchemaValidationError` subclass: that class wraps and parses a
   single pandera exception, while this one holds a mapping of already-parsed failures
   and parses nothing.
+- `to_list()` and `to_pandas()` mean the same thing on both classes; `errors` does not —
+  a dict of exceptions here, a list of parsed failure rows there. The `Attributes:` block
+  says so rather than renaming, keeping the flattening pair as the polymorphic surface a
+  caller handling both exceptions can rely on.
 - Exported from both `crosscontract` and `crosscontract.submission`.
 
 **Resolver, renamed and exported**
@@ -75,6 +79,16 @@ made rather than dodged: failures are collected, with no `fail_fast` escape.
 - CONTEXT.md's **Submission handler** entry is rewritten and a **Submission validation**
   entry added; ADR 0004 carries a dated amendment recording the withdrawn consequence and
   the decisions that replace it.
+- ADR 0005 carries a dated amendment for the resolver rename, so its two mentions of the
+  old name still resolve for a reader. The PRD that names it is left alone as the
+  historical record it is.
+- `.ai-context/TODO.md` loses its **Execution.** item — "hand the result to the named
+  contract for validation" is exactly what this branch writes — and gains the deferred
+  target-contract-existence check in its place.
+- `docs/reference/client.md` gains `CrossContractResolver`: that page enumerates its
+  namespace's members, and the rename promoted the class into it.
+- Housekeeping: the previous branch's `.github/PRs/introduce_checks.md` is deleted, and
+  `uv.lock` picks up the 0.16.2 → 0.17.0 bump already released on dev.
 
 ## Testing
 
@@ -132,5 +146,6 @@ platform.
   no default), unlike `validate_target` where `None` is a working mode because a contract
   can arrive directly. There is no such mode on the loop, so omitting it is a `TypeError`
   at the call site rather than a `ValueError` from inside the loop.
-- There is no mkdocs page for `submission/` to update — a pre-existing gap, untouched
-  here.
+- **There is still no mkdocs page for `submission/`** — a pre-existing gap, untouched
+  here. `docs/reference/client.md` *is* updated, because that page does enumerate its
+  namespace's members and `CrossContractResolver` newly belongs to it.

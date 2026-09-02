@@ -19,7 +19,10 @@ class TargetValidationError(Exception):
 
     Attributes:
         errors (dict[str, SchemaValidationError]): The failing targets, keyed
-            by target name, each holding its own validation failure.
+            by target name, each holding its own validation failure. Note the
+            divergence from `SchemaValidationError.errors`, which is a list of
+            parsed failure rows: `to_list()` and `to_pandas()` mean the same
+            thing on both classes, `errors` does not.
     """
 
     def __init__(self, errors: dict[str, SchemaValidationError]):
