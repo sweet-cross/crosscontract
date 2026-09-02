@@ -9,18 +9,24 @@ a crash — the [ADR 0005](../../adrs/0005-one-contract-resolver-supplies-defini
 criterion for knowledge the library must own — so it is guarded here, together with the two
 other ways the contract can fail to arrive.
 
+## Status
+
+The guards themselves landed with task 04 — all three `ValueError` branches are in
+`validate_target` and no `check_existing_*` guard was added. **Only the tests are
+outstanding.**
+
 ## Acceptance Criteria
-- [ ] `contract.name != target.contract` raises `ValueError` naming both.
-- [ ] `resolver.resolve(target.contract)` returning `None` raises `ValueError` naming the
+- [X] `contract.name != target.contract` raises `ValueError` naming both.
+- [X] `resolver.resolve(target.contract)` returning `None` raises `ValueError` naming the
       target **and** the contract it names.
-- [ ] Neither `contract` nor `resolver` given raises `ValueError` naming both remedies.
+- [X] Neither `contract` nor `resolver` given raises `ValueError` naming both remedies.
 - [ ] An unknown `target_name` still surfaces as `KeyError` from
       `ExtractionInstructions.get_target` — unchanged, and asserted so the two stay
-      distinguishable.
-- [ ] **No guard is added** for `check_existing_*=True` with a contract but no resolver:
+      distinguishable. *(Behaviour holds; the assertion is missing.)*
+- [X] **No guard is added** for `check_existing_*=True` with a contract but no resolver:
       `validate_data` already raises there, naming the contract and both remedies, and a
-      second guard would produce two messages for one mistake. Assert the existing message
-      surfaces.
+      second guard would produce two messages for one mistake. ~~Assert the existing message
+      surfaces.~~ *(Guard correctly absent; the assertion is missing.)*
 - [ ] One test per case.
 
 ## Implementation Details

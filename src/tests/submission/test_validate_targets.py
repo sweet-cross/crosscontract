@@ -252,3 +252,63 @@ class TestValidateTarget:
         data = handler.validate_target("t_a", contract=contract_a)
         assert data.empty
         assert list(data.columns) == ["region", "year", "value"]
+
+
+class TestValidateTargetGuards:
+    """The ways the contract can fail to arrive, kept distinguishable."""
+
+    @pytest.fixture
+    def handler(self, contract: SubmissionContract) -> SubmissionHandler:
+        return SubmissionHandler(
+            contract=contract, bundle=bundle(("a", "CH", 2020, 1.0))
+        )
+
+    def test_contract_not_matching_the_target_raises(
+        self, handler: SubmissionHandler, contract_c: BaseContract
+    ):
+        """Test that another target's contract is refused, naming both.
+
+        `t_a` names `contract_a`; `contract_c` would validate its rows to
+        something plausible-looking rather than raising.
+        """
+        with pytest.raises(ValueError) as exc_info:
+            handler.validate_target("t_a", contract=contract_c)
+        message = str(exc_info.value)
+        assert "contract_c" in message
+        assert "contract_a" in message
+
+    def test_unresolvable_contract_raises(self, handler: SubmissionHandler):
+        """Test that a resolver finding nothing names the target and the contract."""
+        resolver = resolver_returning(None)
+        with pytest.raises(ValueError) as exc_info:
+            handler.validate_target("t_a", resolver=resolver)
+        message = str(exc_info.value)
+        assert "t_a" in message
+        assert "contract_a" in message
+
+    def test_neither_contract_nor_resolver_raises(self, handler: SubmissionHandler):
+        """Test that the message names both remedies."""
+        with pytest.raises(ValueError) as exc_info:
+            handler.validate_target("t_a")
+        message = str(exc_info.value)
+        assert "contract" in message
+        assert "resolver" in message
+
+    def test_unknown_target_still_raises_key_error(
+        self, handler: SubmissionHandler, contract_a: BaseContract
+    ):
+        """Test that an unknown target stays a `KeyError`, not one of the guards'
+        `ValueError`s, so a caller looping targets can tell the two apart."""
+        with pytest.raises(KeyError, match="No target with name 'nope' found."):
+            handler.validate_target("nope", contract=contract_a)
+
+    def test_check_without_resolver_surfaces_the_contracts_own_message(
+        self, handler: SubmissionHandler, contract_a: BaseContract
+    ):
+        """Test that the handler adds no second guard for a check flag set with a
+        contract but no resolver — `validate_data`'s own message comes through."""
+        with pytest.raises(ValueError, match="requires a resolver") as exc_info:
+            handler.validate_target(
+                "t_a", contract=contract_a, check_existing_primary_key=True
+            )
+        assert "contract_a" in str(exc_info.value)
