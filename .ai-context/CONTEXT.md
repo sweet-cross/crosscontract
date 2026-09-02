@@ -354,7 +354,9 @@ unions), variable column
 
 **Unclaimed rows**:
 The rows of a submitted bundle that no **Target**'s filters match, and which extraction
-would therefore silently drop. Reported by the **Submission handler** and never acted on
+would therefore silently drop. A property of the **bundle**, not of any one **Target** —
+so it is asked for on its own and is no part of the target step of a **Submission
+validation**. Reported by the **Submission handler** and never acted on
 by it — whether an unclaimed row is an error or a warning is the caller's policy. Filters
 are matched against the column's string form, which can only under-match, so a filter
 that fails to match surfaces here rather than passing unnoticed. Rows claimed by *more*
@@ -363,14 +365,22 @@ _Avoid_: leftover, unpacked, orphan rows, unrouted, uncovered
 
 **Submission handler**:
 The executor that applies a **Submission contract**'s **Extraction instructions** to a
-delivered bundle: select the rows a **Target** claims, apply its **Transformation
-profile** and then the target's own **Transformations**. It works **one target at a
-time** and never loops over all of them — so whether a run aborts on the first failing
-target or collects every failure is the caller's decision, not the library's. Like the
-**Extraction instructions** it reads, it *names* target **Contracts** and never resolves
-them: a validation step, should one arrive, takes its contract from the caller rather
-than looking it up.
+delivered bundle. Its scope is **Targets and nothing else**: for one target, select the
+rows it claims, apply its **Transformation profile** and then its own
+**Transformations**, and check the result against the **Contract** it names. It answers
+for one target or for every target, and across targets it collects every failure rather
+than stopping at the first — the same posture the row-level checks take within one
+dataset. It obtains a target's **Contract** from the caller, either handed over directly
+or through a **Contract resolver**, and never reaches for one itself.
 _Avoid_: extractor, processor, pipeline
+
+**Submission validation**:
+The two-step check of a delivered bundle: first the bundle as a whole against the
+**Submission contract**'s own **Schema**, then each extracted **Target** against the
+**Contract** it names. The first step is an ordinary **Data validation** and belongs to
+the caller; only the second is the **Submission handler**'s. The steps are sequential but
+not welded: a caller decides whether a failed bundle stops the run.
+_Avoid_: bundle validation (that is only the first step), submission check
 
 ## Relationships
 
@@ -431,6 +441,9 @@ _Avoid_: extractor, processor, pipeline
   bundle, and answers per **Target**. **Unclaimed rows** are a property of the pairing —
   the bundle against the instructions — not of either alone, which is why the handler
   rather than the contract reports them.
+- A **Submission validation** is two **Data validations** at different grains: the bundle
+  against the **Submission contract**, then each **Target**'s extracted rows against the
+  **Contract** that target names. The handler owns the second grain only.
 
 ## Example dialogue
 

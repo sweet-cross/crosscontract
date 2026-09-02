@@ -231,6 +231,38 @@ class TestForeignKeyValidation:
         self_ref_schema.validate_dataframe(df, foreign_key_values=fk_values)
 
 
+class TestEmptyDataFrame:
+    """A frame with zero rows but the right columns validates cleanly.
+
+    This is the assumption submission target validation rests on: a target
+    that claims no rows is still run through validation rather than
+    short-circuited, so a strict, coercing schema must not choke on an empty
+    frame by itself.
+    """
+
+    @pytest.fixture
+    def schema(self):
+        return TableSchema.model_validate(
+            {
+                "fields": [
+                    IntegerField.model_validate({"name": "id"}),
+                    StringField.model_validate({"name": "name"}),
+                ],
+                "primaryKey": PrimaryKey.model_validate("id"),
+            }
+        )
+
+    def test_empty_dataframe_validates(self, schema: TableSchema):
+        df = pd.DataFrame({"id": pd.Series([], dtype="int64"), "name": []})
+        schema.validate_dataframe(df)
+
+    def test_empty_dataframe_still_checks_the_key(self, schema: TableSchema):
+        """`primary_key_values=[]` turns the uniqueness check on; with zero
+        rows there is nothing to violate it, so this still passes."""
+        df = pd.DataFrame({"id": pd.Series([], dtype="int64"), "name": []})
+        schema.validate_dataframe(df, primary_key_values=[])
+
+
 class TestNoneLeavesTheChecksOut:
     """`None` means "do not check this", distinct from an empty collection."""
 

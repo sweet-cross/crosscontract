@@ -5,13 +5,13 @@ import pytest
 
 from crosscontract import CrossContract
 from crosscontract.contracts import ContractResolver
+from crosscontract.crossclient import CrossContractResolver
 from crosscontract.crossclient.exceptions.exceptions import (
     PermissionDeniedError,
     ResourceNotFoundError,
     ServerError,
 )
 from crosscontract.crossclient.services.contract_service import ContractService
-from crosscontract.crossclient.services.resolver import ClientContractResolver
 
 
 def _contract(name: str = "region") -> CrossContract:
@@ -31,12 +31,12 @@ def _contract(name: str = "region") -> CrossContract:
 
 
 @pytest.fixture
-def resolver(service: ContractService) -> ClientContractResolver:
-    return ClientContractResolver(service)
+def resolver(service: ContractService) -> CrossContractResolver:
+    return CrossContractResolver(service)
 
 
 class TestResolve:
-    def test_returns_the_contract(self, resolver: ClientContractResolver):
+    def test_returns_the_contract(self, resolver: CrossContractResolver):
         """A known name gives back the contract behind the resource."""
         contract = _contract()
         resolver._service.get = Mock(return_value=Mock(contract=contract))
@@ -44,7 +44,7 @@ class TestResolve:
         assert resolver.resolve("region") is contract
         resolver._service.get.assert_called_once_with("region")
 
-    def test_unknown_name_gives_none(self, resolver: ClientContractResolver):
+    def test_unknown_name_gives_none(self, resolver: CrossContractResolver):
         """A missing contract is an answer, not a failure."""
         resolver._service.get = Mock(side_effect=ResourceNotFoundError())
 
@@ -52,7 +52,7 @@ class TestResolve:
 
     @pytest.mark.parametrize("error", [PermissionDeniedError, ServerError])
     def test_other_failures_propagate(
-        self, resolver: ClientContractResolver, error: type[Exception]
+        self, resolver: CrossContractResolver, error: type[Exception]
     ):
         """Only 'not found' becomes None.
 
@@ -67,7 +67,7 @@ class TestResolve:
 
 
 class TestGetData:
-    def test_forwards_to_the_service(self, resolver: ClientContractResolver):
+    def test_forwards_to_the_service(self, resolver: CrossContractResolver):
         expected = pd.DataFrame({"id": [1, 2]})
         resolver._service._get_data = Mock(return_value=expected)
 
@@ -78,9 +78,7 @@ class TestGetData:
             "region", columns=["id"], unique=True
         )
 
-    def test_unique_is_forwarded_when_overridden(
-        self, resolver: ClientContractResolver
-    ):
+    def test_unique_is_forwarded_when_overridden(self, resolver: CrossContractResolver):
         """The default assertion above also passes if the flag is dropped."""
         resolver._service._get_data = Mock(return_value=pd.DataFrame({"id": [1]}))
 
@@ -90,7 +88,7 @@ class TestGetData:
             "region", columns=["id"], unique=False
         )
 
-    def test_platform_errors_propagate(self, resolver: ClientContractResolver):
+    def test_platform_errors_propagate(self, resolver: CrossContractResolver):
         """Unlike `resolve`, a missing contract here is not an answer.
 
         An empty frame would mean the referenced table exists and holds no rows,
@@ -103,5 +101,5 @@ class TestGetData:
             resolver.get_data("nope", ["id"])
 
 
-def test_satisfies_the_protocol(resolver: ClientContractResolver):
+def test_satisfies_the_protocol(resolver: CrossContractResolver):
     assert isinstance(resolver, ContractResolver)

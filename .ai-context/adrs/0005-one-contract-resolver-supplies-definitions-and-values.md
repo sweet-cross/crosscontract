@@ -125,6 +125,14 @@ inherit an empty body and return `None`. Only the combination gives both.
 - **Real implementors inherit.** `ClientContractResolver` and `cross_back`'s
   `DbContractResolver` both subclass the protocol; this is the convention, not an
   accident of history.
+
+  > **Amended 2026-09-02.** `ClientContractResolver` is now `CrossContractResolver`,
+  > exported from `crosscontract.crossclient`. It was internal to `ContractResource`
+  > when this ADR was written; supplying target contracts to
+  > `SubmissionHandler.validate_targets` made it something callers hold themselves, and
+  > the name now follows the platform it reads rather than the transport it uses. Read
+  > the earlier name — here and in the access-control section above — as this class.
+  > Only the name changed; the decision stands.
 - **The client fetches nothing by default.** `ContractResource.validate_dataframe` passes
   both flags as `False`, so the ordinary path makes no network call. The platform
   re-validates on ingest. Its parameters carry the same names as the library's, so the

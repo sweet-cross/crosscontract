@@ -115,6 +115,38 @@ its usual meaning would be a silent correctness bug, not a feature.
   lives here too rather than on the contract: the spec models' contact with pandas is
   otherwise adapter-mediated and backend-parameterized, and unclaimed rows are a property
   of a bundle *paired with* instructions, not of either alone.
+
+  > **Amended 2026-08-31.** The "no method runs every target" consequence is withdrawn.
+  > The handler gains `validate_target` (one target) and `validate_targets` (every target,
+  > or a named subset). The reasoning above held while nothing consumed a loop; batch
+  > submission through the server is that consumer, and leaving the loop to callers would
+  > put the same three lines in `cross_back`, in `admin_tools`, and in every notebook.
+  >
+  > The decision the absent method was protecting is therefore made rather than deferred:
+  > **across targets every failure is collected**, with no `fail_fast` escape — the posture
+  > `lazy=True` already takes within one dataset — and raised together as a
+  > `TargetValidationError` holding one `SchemaValidationError` per target. On success the
+  > return is the validated, coerced frames keyed by **target name**, not by contract:
+  > contract-uniqueness is a relaxable guard (above), while a target's name is its
+  > identity, so a contract-keyed result would silently collapse two entries if that guard
+  > were ever relaxed.
+  >
+  > **The second decision stands untouched.** The handler still resolves nothing. The
+  > primitive takes the target's contract directly; the loop takes a `ContractResolver` the
+  > caller supplies — the escape hatch this ADR already named — and neither ever constructs
+  > one. A contract handed in wins over one the resolver would return, so a provider can
+  > validate against a contract not yet on the platform. Both a mismatched contract and an
+  > unresolvable one raise immediately instead of joining the collected failures: they mean
+  > the run is wired wrong, not that the rows are bad.
+  >
+  > Three things deliberately stayed out. Validating the **bundle** remains the caller's
+  > ordinary `validate_data` call, so "does a failed bundle stop the run" needs no flag —
+  > the caller simply does not go on, and the handler stays agnostic about whether the frame
+  > it holds was coerced. **Unclaimed rows** are a bundle-level property, not a target's,
+  > and remain a report nobody acts on. A target claiming **no rows** validates like any
+  > other and returns an empty frame — the ingress inverse of `release/`'s warn-and-skip,
+  > because an empty resource corrupts a published package while an empty target is a
+  > submission that legitimately carried nothing this round.
 - **The handler is pandas, and that is settled rather than provisional.** Not because
   bundles are small — they are, around 15 MB — but because `BaseTransformation.apply` is
   typed `pd.DataFrame -> pd.DataFrame`, every transformation is a pandas function, and
