@@ -511,3 +511,65 @@ class TestValidateTargets:
         with pytest.raises(TargetValidationError) as exc_info:
             handler.validate_targets(resolver, lazy=False)
         assert set(exc_info.value.errors) == {"t_a", "t_year"}
+
+
+class TestSelectiveTargets:
+    """Which targets a run covers, and what it costs on the wire."""
+
+    @pytest.fixture
+    def handler(self, contract: SubmissionContract) -> SubmissionHandler:
+        """Return a handler over a bundle holding one row per target."""
+        return SubmissionHandler(
+            contract=contract,
+            bundle=bundle(("a", "CH", 2020, 1.0), ("c", "DE", 2030, 4.0)),
+        )
+
+    @pytest.fixture
+    def resolver(self, contract_a: BaseContract, contract_c: BaseContract) -> Mock:
+        """Return a resolver holding both target contracts."""
+        return resolver_for(contract_a=contract_a, contract_c=contract_c)
+
+    def test_none_validates_every_target_in_declaration_order(
+        self, handler: SubmissionHandler, resolver: Mock
+    ):
+        """Test that the default covers the whole bundle, keyed in the order the
+        extraction instructions declare."""
+        data = handler.validate_targets(resolver)
+        assert list(data) == ["t_a", "t_year"]
+
+    def test_a_subset_leaves_the_other_contracts_unresolved(
+        self, handler: SubmissionHandler, resolver: Mock
+    ):
+        """Test that a named subset validates only those targets and asks the
+        resolver for nothing else — a subset run stays cheap on the wire."""
+        data = handler.validate_targets(resolver, targets=["t_year"])
+        assert list(data) == ["t_year"]
+        assert [call.args[0] for call in resolver.resolve.call_args_list] == [
+            "contract_c"
+        ]
+
+    def test_an_empty_list_validates_nothing(
+        self, handler: SubmissionHandler, resolver: Mock
+    ):
+        """Test that `[]` means empty where `None` means all."""
+        assert handler.validate_targets(resolver, targets=[]) == {}
+        resolver.resolve.assert_not_called()
+
+    def test_an_unknown_name_raises_key_error(
+        self, handler: SubmissionHandler, resolver: Mock
+    ):
+        """Test that an unknown name surfaces the lookup's KeyError rather than
+        being skipped silently."""
+        with pytest.raises(KeyError, match="No target with name 'nope' found."):
+            handler.validate_targets(resolver, targets=["t_a", "nope"])
+
+    def test_a_repeated_name_collapses(
+        self, handler: SubmissionHandler, resolver: Mock
+    ):
+        """Test that naming a target twice is harmless.
+
+        Whether it was validated once or twice is deliberately not pinned — only
+        that the result carries one entry for it.
+        """
+        data = handler.validate_targets(resolver, targets=["t_a", "t_a"])
+        assert list(data) == ["t_a"]

@@ -277,8 +277,9 @@ class SubmissionHandler:
             resolver (ContractResolver): Supplier of the target contracts and of
                 the stored values.
             targets (list[str] | None, optional): The names of the targets to
-                validate. If `None`, every target of the extraction instructions
-                is validated. Defaults to `None`.
+                validate. `None` means all of them — every target of the
+                extraction instructions; an empty list means none of them, and
+                returns an empty result. Defaults to `None`.
             check_existing_primary_key (bool): If True, also check each target's
                 primary key against the values already stored for its contract.
                 Defaults to False.
