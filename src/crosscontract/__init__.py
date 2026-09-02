@@ -5,7 +5,7 @@ from .crossclient import CrossClient
 from .registry import CrossRegistry
 from .submission import SubmissionContract, SubmissionHandler, TargetValidationError
 
-__version__ = "0.18.0"
+__version__ = "0.19.0"
 
 __all__ = [
     "CrossClient",
