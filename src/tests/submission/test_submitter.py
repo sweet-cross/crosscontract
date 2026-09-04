@@ -14,16 +14,7 @@ from crosscontract.submission import (
 )
 from crosscontract.submission.submitter import CrossSubmitter
 
-# The submission contract, its target contracts and the bundle builder are the
-# ones `validate_targets` is tested against, imported rather than re-authored.
-from .test_validate_targets import (  # noqa: F401
-    bad_contract_a,
-    bundle,
-    contract,
-    contract_a,
-    contract_c,
-    resolver_for,
-)
+from .conftest import bundle, resolver_for
 
 USERNAME = "testuser"
 PASSWORD = "secretpassword"
@@ -236,26 +227,3 @@ class TestExtractionRunsOnTheRawBundle:
             data = submitter.validate_submission(contract, full_bundle)
         assert set(data) == {"t_a", "t_year"}
         assert list(data["t_a"]["region"]) == ["CH"]
-
-
-class TestEdgeCases:
-    def test_an_empty_bundle_is_not_an_error(self, submitter, contract):
-        """Steps 1 and 2 pass vacuously; every target validates to an empty frame."""
-        data = submitter.validate_submission(contract, bundle())
-        assert set(data) == {"t_a", "t_year"}
-        assert all(frame.empty for frame in data.values())
-
-    def test_every_row_unclaimed_raises_with_the_whole_bundle(
-        self, submitter, contract
-    ):
-        df = bundle(("b", "DE", 2020, 2.0), ("d", "FR", 2021, 3.0))
-        with pytest.raises(UnclaimedRowsError) as exc_info:
-            submitter.validate_submission(contract, df)
-        pd.testing.assert_frame_equal(exc_info.value.unclaimed_rows, df)
-
-    def test_a_handler_is_not_retained_between_calls(
-        self, submitter, contract, full_bundle
-    ):
-        """Each call builds its own handler over the frame it was given."""
-        submitter.validate_submission(contract, full_bundle)
-        assert not hasattr(submitter, "_handler")

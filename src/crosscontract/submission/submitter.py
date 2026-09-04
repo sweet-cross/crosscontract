@@ -125,8 +125,6 @@ class CrossSubmitter:
                 Raised for the first target that hits it rather than collected,
                 because it says the run was set up wrongly rather than that the
                 data is bad.
-            KeyError: A column named by a target's `filters` is absent from the
-                bundle. Surfaces in step 2, which masks every target.
         """
         # validate the full bundle
         _ = contract.validate_data(
