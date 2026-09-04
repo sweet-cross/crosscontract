@@ -1,6 +1,7 @@
 # WP1 — `UnclaimedRowsError`
 
 ## Context
+
 **Part of PRD:** [2026-09-02-cross-submitter.md](../../prds/2026-09-02-cross-submitter.md)
 
 Step 2 of a **Submission validation** raises when a delivered bundle contains rows no
@@ -12,15 +13,16 @@ exception on its own so the rest of the feature can be written against a settled
 Standalone: it depends on nothing and blocks WP3.
 
 ## Acceptance Criteria
-- [ ] `UnclaimedRowsError` exists in `src/crosscontract/submission/exceptions.py`, beside
-      `TargetValidationError`.
-- [ ] It carries the unclaimed rows as a `pd.DataFrame` attribute — the frame, not a
-      count, not a formatted string.
-- [ ] Its message states the number of unclaimed rows and points the reader at the
-      attribute holding them.
+
+- [X] `UnclaimedRowsError` exists in `src/crosscontract/submission/exceptions.py`, beside
+  `TargetValidationError`.
+- [X] It carries the unclaimed rows as a `pd.DataFrame` attribute — the frame, not a
+  count, not a formatted string.
+- [X] Its message states the number of unclaimed rows and points the reader at the
+  attribute holding them.
 - [ ] Tests in `src/tests/submission/test_exceptions.py` (beside the existing
-      `TargetValidationError` tests) cover: the frame is reachable and equal to what was
-      passed, and the message reports the correct row count.
+  `TargetValidationError` tests) cover: the frame is reachable and equal to what was
+  passed, and the message reports the correct row count.
 - [ ] Docstrings follow the Google-style / markdown-only convention in CLAUDE.md.
 
 ## Implementation Details

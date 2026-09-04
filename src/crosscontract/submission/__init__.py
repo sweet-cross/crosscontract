@@ -6,8 +6,13 @@ into per-variable contracts. Both own their spec models and the code that
 executes them, so the concept lives in one place.
 """
 
-from .exceptions import TargetValidationError
+from .exceptions import TargetValidationError, UnclaimedRowsError
 from .submission_contract import SubmissionContract
 from .submission_handler import SubmissionHandler
 
-__all__ = ["SubmissionContract", "SubmissionHandler", "TargetValidationError"]
+__all__ = [
+    "SubmissionContract",
+    "SubmissionHandler",
+    "TargetValidationError",
+    "UnclaimedRowsError",
+]

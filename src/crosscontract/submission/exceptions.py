@@ -60,3 +60,35 @@ class TargetValidationError(Exception):
             target. Equivalent to `pd.DataFrame(self.to_list())`.
         """
         return pd.DataFrame(self.to_list())
+
+
+class UnclaimedRowsError(Exception):
+    """Raised when there are rows in the submission that do not belong to any target."""
+
+    def __init__(self, unclaimed_rows: pd.DataFrame):
+        """Initialize with the unclaimed rows.
+
+        Args:
+            unclaimed_rows (pd.DataFrame): The rows that do not belong to any target.
+        """
+        self.unclaimed_rows = unclaimed_rows
+        super().__init__(
+            f"{len(unclaimed_rows)} unclaimed rows found. Use the "
+            "`to_list()` or `to_pandas()` methods to inspect them."
+        )
+
+    def to_list(self) -> list[dict[str, Any]]:
+        """Return the unclaimed rows as a list of dictionaries.
+
+        Returns:
+            list[dict[str, Any]]: The unclaimed rows.
+        """
+        return self.unclaimed_rows.to_dict(orient="records")
+
+    def to_pandas(self) -> pd.DataFrame:
+        """Return the unclaimed rows as a DataFrame.
+
+        Returns:
+            pd.DataFrame: The unclaimed rows.
+        """
+        return pd.DataFrame(self.unclaimed_rows)
