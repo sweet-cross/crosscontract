@@ -1,4 +1,4 @@
-"""Aggregate failures from validating a submission's targets."""
+"""The failures a submission raises: aggregate target validation and unclaimed rows."""
 
 from collections.abc import Hashable
 from typing import Any
@@ -63,7 +63,18 @@ class TargetValidationError(Exception):
 
 
 class UnclaimedRowsError(Exception):
-    """Raised when there are rows in the submission that do not belong to any target."""
+    """Raised when a delivered bundle holds rows that no target claims.
+
+    An unclaimed row is a row extraction would silently drop, so the error
+    carries the rows themselves rather than a count. Note that `to_list()` and
+    `to_pandas()` mean something different here than on `TargetValidationError`
+    and `SchemaValidationError`: on those they render a failure report, here
+    they render the offending bundle rows.
+
+    Attributes:
+        unclaimed_rows (pd.DataFrame): The bundle rows no target claims, as
+            handed to the constructor and keeping their index labels.
+    """
 
     def __init__(self, unclaimed_rows: pd.DataFrame):
         """Initialize with the unclaimed rows.
@@ -77,11 +88,11 @@ class UnclaimedRowsError(Exception):
             "`to_list()` or `to_pandas()` methods to inspect them."
         )
 
-    def to_list(self) -> list[dict[str, Any]]:
+    def to_list(self) -> list[dict[Hashable, Any]]:
         """Return the unclaimed rows as a list of dictionaries.
 
         Returns:
-            list[dict[str, Any]]: The unclaimed rows.
+            list[dict[Hashable, Any]]: The unclaimed rows.
         """
         return self.unclaimed_rows.to_dict(orient="records")
 
