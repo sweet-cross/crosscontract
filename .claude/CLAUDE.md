@@ -194,7 +194,9 @@ def f(x: int, y: str | None = None) -> bool:
 
 Rules of thumb:
 
-- Docstrings are user-facing. Do **not** reference internal notes (ADRs, issue numbers, task numbers, migration cycles) — those belong in commit messages, PRs, or `.ai-context/`.
+- Docstrings are user-facing. Write what the thing does, and where a caller needs it, how to use it. Do **not** write *why it was built that way* — design rationale, rejected alternatives, comparisons to how a sibling class is built, or a justification for something the class deliberately does not have. A reader calling the code has no use for it and it obscures what they came for. Rationale belongs in commit messages, PRs, ADRs, or `.ai-context/`.
+- For the same reason, do **not** reference internal notes (ADRs, issue numbers, task numbers, migration cycles) from a docstring.
+- A consequence a caller must act on is *not* rationale and belongs in the docstring — e.g. "validation here is advisory; the platform re-validates on ingest" tells them their data can still be rejected. State the consequence, not the decision behind it.
 - For Pydantic field descriptions, use the `Field(description=...)` argument with the same markdown conventions; no Args block on the field itself.
 - For `@model_validator` / `@model_serializer` methods, document the invariant they enforce in the summary, plus `Returns:` (typically `Self`) and `Raises:` where applicable.
 - Properties: document via `Returns:` rather than restating the property name.
