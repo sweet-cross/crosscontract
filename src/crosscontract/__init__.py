@@ -4,6 +4,7 @@ from .contracts import BaseContract, CrossContract, SchemaValidationError, Table
 from .crossclient import CrossClient
 from .registry import CrossRegistry
 from .submission import (
+    CrossSubmitter,
     SubmissionContract,
     SubmissionHandler,
     TargetValidationError,
@@ -19,6 +20,7 @@ __all__ = [
     "BaseContract",
     "SchemaValidationError",
     "CrossRegistry",
+    "CrossSubmitter",
     "SubmissionContract",
     "SubmissionHandler",
     "TargetValidationError",

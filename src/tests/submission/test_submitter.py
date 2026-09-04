@@ -3,16 +3,14 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from crosscontract import CrossClient
+from crosscontract import CrossClient, CrossSubmitter, UnclaimedRowsError
 from crosscontract.contracts import SchemaValidationError
 from crosscontract.crossclient.services import CrossContractResolver
 from crosscontract.submission import (
     SubmissionContract,
     SubmissionHandler,
     TargetValidationError,
-    UnclaimedRowsError,
 )
-from crosscontract.submission.submitter import CrossSubmitter
 
 from .conftest import bundle, resolver_for
 
@@ -59,6 +57,20 @@ class TestConstruction:
     def test_resolver_is_not_a_constructor_parameter(self, client):
         with pytest.raises(TypeError):
             CrossSubmitter(client=client, resolver=object())
+
+
+class TestPublicSurface:
+    def test_exported_from_both_paths(self):
+        """The module-level import already covers the top-level path."""
+        from crosscontract.submission import CrossSubmitter as FromSubmission
+
+        assert FromSubmission is CrossSubmitter
+
+    def test_listed_in_all(self):
+        import crosscontract
+
+        assert "CrossSubmitter" in crosscontract.__all__
+        assert "CrossSubmitter" in crosscontract.submission.__all__
 
 
 class TestSubmit:
