@@ -18,7 +18,27 @@ AnyTableSchema = Annotated[
     Field(discriminator="table_type"),
 ]
 
-ContractType = Literal["General", "Dimension", "ValueVariable", "FlexibleDimension"]
+ContractType = Literal[
+    "General", "Dimension", "ValueVariable", "FlexibleDimension", "Submission"
+]
+
+TableType = Literal["General", "Dimension", "ValueVariable", "FlexibleDimension"]
+
+# The contract vocabulary and the schema vocabulary are deliberately separate:
+# a contract type says what the contract is for, a table type selects the schema
+# that backs it. The mapping is not the identity — `Submission` resolves to the
+# `General` table type, because a submission bundle needs its own contract type
+# but not its own schema. This table is the single place the relation is stated,
+# and adding an empty schema class purely to give a contract type a discriminator
+# target is the thing it exists to avoid. Note the relation is many-to-one: a
+# table type does not determine a contract type.
+CONTRACT_TYPE_TO_TABLE_TYPE: dict[ContractType, TableType] = {
+    "General": "General",
+    "Submission": "General",
+    "Dimension": "Dimension",
+    "ValueVariable": "ValueVariable",
+    "FlexibleDimension": "FlexibleDimension",
+}
 
 
 class CrossMetaData(BaseMetaData):
@@ -190,11 +210,27 @@ class CrossContract(BaseContract, CrossMetaData):
     def _inject_table_type_to_schema(data: dict[str, Any]) -> dict[str, Any]:
         """Helper method to inject the table_type into the tableschema.
 
+        The table type is looked up in `CONTRACT_TYPE_TO_TABLE_TYPE` rather than
+        reused from the contract type, so the two vocabularies stay independent.
+        An unmapped contract type is handed on untouched rather than rejected
+        here, so pydantic raises its own `literal_error` at
+        `loc=("contract_type",)` instead of a bespoke error from this helper.
+        The untouched `tableschema` then also fails the discriminator, so such
+        input surfaces a second error at `loc=("tableschema",)` — callers should
+        assert on the `contract_type` error being present, not on the error
+        count.
+
         Args:
             data (dict[str, Any]): The input data dictionary to be processed.
 
         Returns:
             dict[str, Any]: The processed data dictionary with the table_type injected.
+
+        Raises:
+            TypeError: If `tableschema` is neither a `TableSchema` nor a dictionary.
+            ValueError: If a pre-built `tableschema` does not carry the table type
+                the contract type maps to, or if the incoming `tableschema` dict
+                already defines `table_type`.
         """
         contr_type = data.get("contract_type", "General")
         schema_data = data.get("tableschema")
@@ -203,11 +239,19 @@ class CrossContract(BaseContract, CrossMetaData):
         if schema_data is None:
             schema_data = {}
 
+        # expected table_type based on the contract_type; an unknown contract
+        # type is handed on unchanged so pydantic's own literal_error anchors on
+        # `contract_type` instead of us raising a bespoke error here
+        expected_table_type = CONTRACT_TYPE_TO_TABLE_TYPE.get(contr_type)
+        if expected_table_type is None:
+            return data
+
         # check existence and type of tableschema before proceeding
         if isinstance(schema_data, TableSchema):
-            if schema_data.table_type != contr_type:
+            if schema_data.table_type != expected_table_type:
                 raise ValueError(
-                    f"Mismatch between contract_type '{contr_type}' and "
+                    f"Mismatch between contract_type '{contr_type}', which maps "
+                    f"to table_type '{expected_table_type}', and the provided "
                     f"tableschema.table_type '{schema_data.table_type}'."
                 )
             # If it's already a TableSchema instance, we can skip injection
@@ -228,7 +272,7 @@ class CrossContract(BaseContract, CrossMetaData):
 
         # insert the table_type into the tableschema for the discriminator
         schema_copy = dict(schema_data)
-        schema_copy["table_type"] = contr_type
+        schema_copy["table_type"] = expected_table_type
 
         # add the new schema back into the data
         data_copy = dict(data)

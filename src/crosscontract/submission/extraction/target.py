@@ -1,0 +1,70 @@
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
+from crosscontract.contracts.contracts.base_contract import CONTRACT_NAME_PATTERN
+from crosscontract.transformations.transformation import TransformationUnion
+
+
+class Target(BaseModel):
+    """A target is tabular data that is extracted from the batch of submission data,
+    transformed, and validated against a data contract.
+
+    The target is identified by its `name`, which is unique across the targets of a
+    submission contract. It is further defined by a set of filters that are applied to
+    the source data, a set of transformations that are applied to the filtered data
+    before validation, and the contract against which the transformed data is
+    validated.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = (
+        Field(
+            ...,
+            description=(
+                "The name of the target. This is used to identify the target in the "
+                "extraction instructions. The name is unique in a submission "
+                "contract. When authored inside `ExtractionInstructions` and the "
+                "`filters` key is omitted entirely, the name is used as the filter "
+                "on the routing column."
+            ),
+        )
+    )
+    filters: dict[str, str] = Field(
+        ...,
+        description=(
+            "Filters to apply to the source data before applying transformations. "
+            "A dictionary of key-value pairs to filter the source data. All "
+            "entries must match for a row to be taken. Values are matched against "
+            "the column's string form, so a filter on a typed column is compared "
+            "against `str(value)` — a datetime column matches "
+            "`2030-01-01 00:00:00` rather than `2030-01-01`, and a float column "
+            "matches `2030.0` rather than `2030`. When "
+            "authored inside `ExtractionInstructions` and omitted entirely, it is "
+            "derived as a single filter on the routing column using the target name."
+        ),
+        min_length=1,
+    )
+    contract: str = Field(
+        ...,
+        description="The contract against which the data is being validated. ",
+        pattern=CONTRACT_NAME_PATTERN,
+        max_length=100,
+    )
+    transformation_profile: str | None = Field(
+        None,
+        description=(
+            "The name of the transformation profile to use for this target. "
+            "If not provided, no transformation profile will be applied. The "
+            "transformation profile is a set of transformations that are always "
+            "applied before other transformations."
+        ),
+    )
+    transformations: list[TransformationUnion] = Field(
+        default_factory=list,
+        description=(
+            "The list of transformations to apply to the filtered data before "
+            "validation."
+        ),
+    )

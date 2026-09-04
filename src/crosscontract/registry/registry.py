@@ -1,3 +1,4 @@
+import warnings
 from typing import Any
 
 import pandas as pd
@@ -119,7 +120,11 @@ class CrossRegistry:
                 attribute name under which the variable will be accessible in the
                 registry.
             filters (dict[str, Any] | None): Additional filters to apply when
-                fetching data (optional).
+                fetching data (optional). **Deprecated:** see
+                `CrossDataVariable.__init__`. Will be removed in a future
+                release; filter at read time instead via `get_data(filters=...)`.
+                Ignored (with a warning) when `name` refers to a dimension
+                contract.
             overwrite (bool): Whether to overwrite an existing variable with the
                 same name.
                 Defaults to False.
@@ -141,6 +146,15 @@ class CrossRegistry:
         cr = self._client.contracts.get(name)
 
         if cr.is_dimension:
+            if filters is not None:
+                warnings.warn(
+                    "The 'filters' argument is deprecated and will be removed "
+                    "in a future release; it is ignored for dimension contract "
+                    f"'{name}'. Filter at read time instead: "
+                    f"registry['{name}'].get_data(filters={{'col': [values]}}).",
+                    FutureWarning,
+                    stacklevel=2,
+                )
             # Star schema: dimensions only self-reference, so there are no
             # external FKs to resolve here.
             wrapper_cls: type[CrossBaseDimension] = (

@@ -1,7 +1,15 @@
+from typing import get_args
+
 import pytest
 from pydantic import ValidationError
 
 from crosscontract.contracts import CrossContract
+from crosscontract.contracts.contracts.cross_contract import (
+    CONTRACT_TYPE_TO_TABLE_TYPE,
+    AnyTableSchema,
+    ContractType,
+    TableType,
+)
 from crosscontract.contracts.schema import (
     DimensionSchema,
     TableSchema,
@@ -20,6 +28,42 @@ data_base_contract = {
 }
 
 
+class TestContractTypeToTableTypeMapping:
+    """Test suite guarding the contract type to table type table against drift."""
+
+    @staticmethod
+    def _schema_discriminator_tags() -> set[str]:
+        """Collect the `table_type` tags the schema union actually declares.
+
+        Reads the tags off the schema classes themselves rather than off
+        `TableType`, so these tests fail on a mapping that names a table type no
+        schema can resolve.
+
+        Returns:
+            set[str]: Every discriminator tag `AnyTableSchema` resolves.
+        """
+        union_members = get_args(get_args(AnyTableSchema)[0])
+        return {
+            get_args(member.model_fields["table_type"].annotation)[0]
+            for member in union_members
+        }
+
+    def test_every_contract_type_is_mapped(self):
+        """Ensure a newly added contract type cannot ship without a table type."""
+        assert set(get_args(ContractType)) == set(CONTRACT_TYPE_TO_TABLE_TYPE)
+
+    def test_every_mapped_table_type_is_resolvable(self):
+        """Ensure the mapping only points at table types a schema really declares."""
+        assert (
+            set(CONTRACT_TYPE_TO_TABLE_TYPE.values())
+            <= self._schema_discriminator_tags()
+        )
+
+    def test_table_type_literal_matches_the_schema_union(self):
+        """Ensure the `TableType` alias does not drift from the schema classes."""
+        assert set(get_args(TableType)) == self._schema_discriminator_tags()
+
+
 class TestContractTypeDifferentiation:
     """Test suite to ensure CrossContract correctly routes and instantiates
     specialized schemas."""
@@ -33,8 +77,13 @@ class TestContractTypeDifferentiation:
                 TableSchema,
             ),  # Tests the default fallback when key is omitted
             ("ValueVariable", "ValueVariable", ValueVariableSchema),
+            (
+                "Submission",
+                "Submission",
+                TableSchema,
+            ),  # Submission maps to General schema
         ],
-        ids=["default_general", "value_variable"],
+        ids=["default_general", "value_variable", "submission"],
     )
     def test_contract_type_resolves_to_correct_schema(
         self, input_type, expected_type, expected_schema_cls
@@ -65,7 +114,12 @@ class TestContractTypeDifferentiation:
         assert type(contract.tableschema) is DimensionSchema
 
     def test_invalid_contract_type_raises_validation_error(self):
-        """Ensure Pydantic's Literal typing catches unknown contract types."""
+        """Ensure Pydantic's Literal typing catches unknown contract types.
+
+        An unmapped contract type also leaves `tableschema` without its
+        discriminator, so pydantic reports a second error against `tableschema`.
+        Assert that the `contract_type` error is present, not on the error count.
+        """
         data = {**data_base_contract, "contract_type": "InvalidType"}
 
         with pytest.raises(ValidationError) as exc_info:
@@ -179,20 +233,50 @@ class TestInjectTableTypeToSchema:
         with pytest.raises(
             ValueError,
             match=(
-                "Mismatch between contract_type 'Dimension' and tableschema.table_type"
-                " 'General'."
+                "Mismatch between contract_type 'Dimension', which maps to table_type"
+                " 'Dimension', and the provided tableschema.table_type 'General'."
             ),
         ):
             CrossContract._inject_table_type_to_schema(input_data)
 
-    def test_instantiated_schema_matching_passes_through(self):
-        """Ensure a pre-instantiated schema that matches the contract_type passes
-        through unmodified."""
+    def test_instantiated_subclass_schema_mismatch_raises_value_error(self):
+        """Ensure a specialized schema is rejected under a contract_type that maps to
+        its base schema, not just the other way around."""
+        schema_instance = ValueVariableSchema(fields=[{"name": "id", "type": "string"}])
+
+        input_data = {
+            "contract_type": "General",
+            "tableschema": schema_instance,
+        }
+
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Mismatch between contract_type 'General', which maps to table_type"
+                " 'General', and the provided tableschema.table_type 'ValueVariable'."
+            ),
+        ):
+            CrossContract._inject_table_type_to_schema(input_data)
+
+    @pytest.mark.parametrize(
+        "contract_type",
+        ["General", "Submission"],
+        ids=["identity_mapping", "non_identity_mapping"],
+    )
+    def test_instantiated_schema_matching_passes_through(self, contract_type):
+        """Ensure a pre-instantiated schema matching the mapped table type passes
+        through unmodified.
+
+        Covers both shapes of the mapping: `General` maps onto itself, while
+        `Submission` maps onto the `General` table type. The second case is the
+        one that breaks if the lookup ever regresses to comparing `contract_type`
+        against `table_type` directly.
+        """
         # TableSchema defaults to table_type "General"
         schema_instance = TableSchema(fields=[{"name": "id", "type": "string"}])
 
         input_data = {
-            "contract_type": "General",
+            "contract_type": contract_type,
             "tableschema": schema_instance,
         }
 
@@ -200,4 +284,4 @@ class TestInjectTableTypeToSchema:
 
         # Ensure the schema object was passed through by exact identity
         assert result["tableschema"] is schema_instance
-        assert result["contract_type"] == "General"
+        assert result["contract_type"] == contract_type

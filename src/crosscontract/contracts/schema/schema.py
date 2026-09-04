@@ -9,10 +9,11 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import MetaData, Table
 
 from ..._helpers import read_yaml_or_json_file
+from .adapters import PanderaAdapter
 from .field_descriptors import FieldDescriptors
 from .fields import DateTimeField, IntegerField, ListField, NumberField, StringField
 from .reference import ForeignKeys, PrimaryKey
-from .validation import validate_dataframe
+from .validation import validate_dataframe as validate_dataframe_schema
 
 FieldUnion = Annotated[
     IntegerField | NumberField | StringField | DateTimeField | ListField,
@@ -180,59 +181,39 @@ class TableSchema(BaseModel):
 
     def to_pandera_schema(
         self,
-        name: str = "ConvertedSchema",
         primary_key_values: list[tuple[Any, ...]] | None = None,
         foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
-        skip_primary_key_validation: bool = False,
-        skip_foreign_key_validation: bool = False,
-        backend: Literal["pandas"] = "pandas",
     ) -> pa.DataFrameSchema:
-        """Convert the TableSchema to a Pandera DataFrameSchema. This is used for
-        validating DataFrames against the TableSchema. It allows to provide existing
-        primary key and foreign key values for validation. If provided, the primary key
-        uniqueness is checked against the union of the existing and the DataFrame
-        values. Similarly, foreign key integrity is checked against the union of
-        the existing and the DataFrame values.
+        """Convert the TableSchema to a Pandera DataFrameSchema.
+
+        The schema carries the column level checks and, for a `Dimension`, the
+        hierarchy rules. The key checks are opt-in: passing `None` for either
+        group of values leaves the corresponding checks out entirely, while
+        passing a collection — including an empty one — turns them on. Called
+        bare, the returned schema therefore permits duplicate primary keys.
 
         Args:
-            name (str): The name of the schema. Defaults to "ConvertedSchema".
-            primary_key_values (list[tuple[Any, ...]] | None): Existing primary key
-                values to check for uniqueness.
-                Note: The uniqueness of the primary key is validated is checked against
-                    the union of the provided values and the values in the DataFrame.
-            foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] | None):
-                Existing foreign key values to check against. This is provided as a
-                dictionary where the keys are the tuples of fields that refer to the
-                referenced values, and the values are lists of tuples representing the
-                existing referenced values.
-                Note: In the case of self-referencing foreign keys, the values in the
-                    DataFrame are considered automatically, i.e., the referring fields
-                    are validated against the union of the provided values and the
-                    values in the DataFrame.
-            skip_primary_key_validation (bool): Whether to skip primary key validation.
-            skip_foreign_key_validation (bool): Whether to skip foreign key validation.
-            backend (Literal["pandas"]): The backend to use for validation.
-                Currently, only "pandas" is supported.
-        """
-        match backend:
-            case "pandas":
-                from .adapters import PanderaPandasAdapter
-            case _:
-                raise ValueError(
-                    f"Unsupported backend '{backend}' for schema conversion."
-                    "Currently, only 'pandas' is supported."
-                )
+            primary_key_values (list[tuple[Any, ...]] | None, optional): The
+                primary keys already stored for this contract. `None` leaves the
+                primary key unchecked; an empty list checks it within the
+                DataFrame alone.
+                Defaults to `None`.
+            foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] |
+                None, optional): The referenced values already stored, keyed by
+                the tuple of referring fields. `None` leaves the foreign keys
+                unchecked. An empty dict checks self-referencing keys against the
+                DataFrame's own rows; an external reference is checked only when
+                its values are given.
+                Defaults to `None`.
 
-        pandera_schema: pa.DataFrameSchema = PanderaPandasAdapter.convert_schema(
+        Returns:
+            pa.DataFrameSchema: The converted Pandera DataFrameSchema.
+        """
+        return PanderaAdapter.convert_schema(
             self,
-            name=name,
-            skip_primary_key_validation=skip_primary_key_validation,
-            skip_foreign_key_validation=skip_foreign_key_validation,
             primary_key_values=primary_key_values,
             foreign_key_values=foreign_key_values,
         )
-
-        return pandera_schema
 
     def to_pydantic_model(
         self, model_name: str | None = None, base_class: type[BaseModel] = BaseModel
@@ -250,17 +231,19 @@ class TableSchema(BaseModel):
         df: Any,
         primary_key_values: list[tuple[Any, ...]] | None = None,
         foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
-        skip_primary_key_validation: bool = False,
-        skip_foreign_key_validation: bool = False,
         lazy: bool = True,
-        backend: Literal["pandas"] = "pandas",
     ) -> pd.DataFrame:
         """Validate a DataFrame against the schema.
-        It allows to provide existing primary key and foreign key values for validation.
-        If provided, the primary key uniqueness is checked against the union of the
-        existing and the DataFrame values. Similarly, foreign key integrity is checked
-        against the union of existing and DataFrame values in case of self-referencing
-        foreign keys.
+
+        A `Dimension` always has its hierarchy checked. The key checks are opt-in:
+        passing `None` for either group of values leaves the corresponding checks
+        out entirely, while passing a collection — including an empty one — turns
+        them on.
+
+        With values supplied, the primary key uniqueness is checked against the union
+        of the existing and the DataFrame values. Similarly, foreign key integrity is
+        checked against the union of existing and DataFrame values in case of
+        self-referencing foreign keys.
 
         Args:
             df (Any): The DataFrame to validate.
@@ -268,6 +251,9 @@ class TableSchema(BaseModel):
                 values to check for uniqueness.
                 Note: The uniqueness of the primary key is validated is checked against
                     the union of the provided values and the values in the DataFrame.
+                `None` leaves the primary key unchecked; an empty list checks it
+                within the DataFrame alone.
+                Default is None.
             foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] | None):
                 Existing foreign key values to check against. This is provided as a
                 dictionary where the keys are the tuples of fields that refer to the
@@ -277,28 +263,30 @@ class TableSchema(BaseModel):
                     DataFrame are considered automatically, i.e., the referring fields
                     are validated against the union of the provided values and the
                     values in the DataFrame.
-            skip_primary_key_validation (bool): Whether to skip primary key validation.
-            skip_foreign_key_validation (bool): Whether to skip foreign key validation.
+                `None` leaves the foreign keys unchecked. An empty dict checks
+                self-referencing keys against the DataFrame's own rows; an
+                external reference is checked only when its values are given.
+                Default is None.
             lazy (bool): Whether to perform lazy validation, collecting all errors.
                 Defaults to True.
-            backend (Literal["pandas"]): The backend to use for validation.
-                Currently, only "pandas" is supported.
+
         Raises:
             SchemaValidationError: If the DataFrame does not conform to the
-                schema. This exception wraps underlying ``pandera`` validation
+                schema. This exception wraps underlying `pandera` validation
                 errors raised during DataFrame validation.
 
         Returns:
             pd.DataFrame: The validated DataFrame. If validation fails, an exception
                 is raised and this return value is not reached.
         """
-        return validate_dataframe(
-            schema=self,
-            df=df,
+        pandera_schema = self.to_pandera_schema(
             primary_key_values=primary_key_values,
             foreign_key_values=foreign_key_values,
-            skip_primary_key_validation=skip_primary_key_validation,
-            skip_foreign_key_validation=skip_foreign_key_validation,
-            lazy=lazy,
-            backend=backend,
         )
+
+        df = validate_dataframe_schema(
+            df=df,
+            pandera_schema=pandera_schema,
+            lazy=lazy,
+        )
+        return df

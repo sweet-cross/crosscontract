@@ -1,5 +1,662 @@
 # CHANGELOG
 
+## v0.20.0 (2026-09-04)
+
+### Features
+
+
+- **Submission client** ([`cab143b`](https://github.com/sweet-cross/crosscontract/commit/cab143b844f5ad91bf9acde2e4ace03e9f790e41))
+
+  Add CrossSubmitter, the provider-side entry point for submission validation Summary Changes Testing Notes for reviewer
+
+  ​ Add ​CrossSubmitter​, the provider-side entry point for submission validation Summary Every step of a submission validation already worked and was publicly reachable, but nothing composed them — and the two steps most easily forgotten (the bundle's own schema, and rows no target claims) are exactly the two whose omission fails silently. This branch adds ​CrossSubmitter​, the write-side mirror of ​CrossRegistry​: hand it a ​​SubmissionContract​ and a delivered bundle and it runs the whole sequence against contracts fetched live from the platform. It also adds ​UnclaimedRowsError​, the exception step 2 needs, since an unclaimed row is silent data loss once the platform re-runs extraction server-side.
+
+  ​​submit​ itself is an honest stub — the CROSS platform exposes no submission endpoint yet.
+
+  Changes New ​CrossSubmitter​ (​submission/submitter.py​)
+
+  Constructed exactly like ​CrossRegistry​ — from credentials or an existing ​​CrossClient​, no ​base_url​ — and builds its own ​CrossContractResolver​ over that client. No ​close()​ and no context manager: a client handed in is not the submitter's to close. ​​validate_submission(contract, df, ...)​ runs three steps in order, stopping at the first failure: the bundle against the submission contract's own schema, the bundle for unclaimed rows, then each target's extracted data against the contract it names. It returns step 3's result unchanged, keyed by target name. The ​check_existing_*​ flags default to ​True​ here, against the ​False​ used everywhere else in the package. Those defaults exist because a resolver is optional elsewhere; on the submitter one always exists. It matters — a ​False​ ​​check_existing_primary_key​ suppresses uniqueness entirely, not merely its stored-value half. Extraction runs on the bundle as delivered: step 1's coerced frame is discarded, because target filters match a column's string form and a coerced value can change which target claims a row. A ​SubmissionHandler​ is built per call and not retained. Imports ​CrossClient​ from ​crosscontract.crossclient​ rather than from the top-level package the way ​registry.py​ does, so the module does not depend on the order in which ​​crosscontract/__init__.py​ loads its subpackages. New ​UnclaimedRowsError​ (​submission/exceptions.py​)
+
+  Carries the unclaimed rows as a ​pd.DataFrame​, not a count or a formatted string, plus ​to_list()​ / ​to_pandas()​. Mirrors ​TargetValidationError​, its sibling in the same module. Public surface
+
+  ​​CrossSubmitter​ and ​UnclaimedRowsError​ are exported from ​crosscontract.submission​ and from the top-level package, both in ​__all__​. Docs and conventions
+
+  ADR 0007 records why the submitter is named as it is, why it lives in ​submission/​ rather than in ​crossclient/​ or its own package, and the cost that decision accepts: ​​submission/​ is now the one domain package that imports the client layer. CONTEXT.md gains the Submitter term and sharpens Submission validation — the policy joining the steps is the caller's, and the submitter is the caller that makes it. CLAUDE.md's docstring convention now separates what a thing does from why it was built that way: rationale, rejected alternatives and sibling-class comparisons stay out of docstrings, while a consequence a caller must act on stays in. Written after a review turned up docstrings explaining decisions to people who only wanted to call the code. Testing New ​src/tests/submission/test_submitter.py​ (241 lines):
+
+  Construction — credentials build a client, an injected client is used as-is and wins over credentials, incomplete credentials raise ​ValueError​, the resolver is wired to that client's ​contracts​ and is not a constructor parameter. Sequencing, which is the feature: each failure asserts the later steps were never reached, via spies, not merely that the right exception surfaced. Covers the happy path, a failing bundle (no handler is even built), unclaimed rows (targets never attempted), collected per-target failures, and an unresolvable target contract escaping uncollected as a wiring error. Flag forwarding — defaults and explicit values reach both step 1 and step 3. A regression test for feeding step 1's output into the handler: ​validate_data​ is patched to return a frame whose routing column is mangled and whose ​year​ has widened to ​float64​. If that frame reached the handler, no target would claim anything. ​​test_exceptions.py​ gains a ​TestUnclaimedRowsError​ class. Shared fixtures moved from ​​test_validate_targets.py​ into a new ​src/tests/submission/conftest.py​, now that two modules use them; the call sites in that module are unchanged.
+
+  Notes for reviewer The step-2 ​KeyError​ is reachable, and is documented rather than closed. An earlier draft of this branch claimed ​SubmissionContract._check_filters​ made it unreachable and dropped the clause from the docstring. That was wrong: the validator checks that a filter column exists in the tableschema, not that it arrives in the bundle, and step 1 does not close the gap — ​BaseConstraint.required​ defaults to ​​False​, the field converter maps it onto ​pa.Column(required=...)​, and pandera treats a non-required column as allowed to be missing. So a bundle delivered without an optional filter column passes step 1 and raises a bare ​KeyError​ out of ​_mask_target​ in step 2 (and again in step 3). The clause is back in the ​Raises:​ block. Worth a decision: whether ​_check_filters​ should additionally require that every filter column carries ​required: true​, which would make the invariant real instead of documented. Left out here as adjacent work. One edge case from the plan is genuinely unreachable and deliberately untested. ​​ExtractionInstructions.targets​ carries ​min_length=1​, so a contract with no targets cannot be constructed. ​​validate_submission​ can raise ​CrossClientError​. The ​check_existing_*​ defaults make a platform read unavoidable on every call, and ​CrossContractResolver.get_data​ propagates client errors rather than swallowing them the way ​resolve​ swallows a missing contract. Now named in the ​Raises:​ block, so the four data-shaped exceptions no longer read as exhaustive. ​​submit()​ still has no ​-> None​ annotation, in line with the ~10 other unannotated methods in the package (​close​, ​clear_data_cache​, …). Its ​​NotImplementedError​ message now names the platform gap instead of restating the method name. No docs page. ​docs/​ covers ​CrossRegistry​ but nothing on the provider side. Deferred to ​.ai-context/TODO.md​ rather than expanding this branch. Repeated ​get_data​ calls across steps (once in step 1, once per target) are a known, accepted cost — no caching in this change. ​
+
+
+
+## v0.19.0 (2026-09-02)
+
+### Features
+
+
+- **validate submission targets against the contracts they name** ([`ab01768`](https://github.com/sweet-cross/crosscontract/commit/ab01768197d225d5237b8a0723b4f14eacd0ccd3))
+
+  # feat: validate submission targets against the contracts they name
+
+  ## Summary
+
+  `SubmissionHandler` could extract and transform a target's rows but not check them against the contract that target names, so the last step of ingesting a bundle sat with every caller. This branch adds that step at both grains: `validate_target` for one target, `validate_targets` for every target or a named selection. Across targets every failure is collected rather than stopping at the first, so a provider fixing a bundle sees all of it at once instead of one error per round trip.
+
+  This withdraws the handler's former "no method runs every target" stance. That stance held while nothing consumed a loop; batch submission through the server is that consumer, and leaving the loop to callers would put the same three lines in every backend, tool and notebook. The decision the absent method was deferring is therefore made rather than dodged: failures are collected, with no `fail_fast` escape.
+
+  ## Changes
+
+  **Target validation on the handler**
+
+  - `validate_target(target_name, contract=None, resolver=None, check_existing_primary_key=False, check_existing_foreign_key=False, lazy=True)` composes `get_target_data` with the contract's `validate_data` and returns the validated, coerced frame. A target claiming no rows validates like any other and
+    returns an empty frame.
+  - The contract arrives from the caller, directly or through a `ContractResolver`; the handler never constructs one, so it stays loadable and runnable with no platform connection. An explicitly passed contract wins over one the resolver would return, which lets a provider validate against a contract not yet on the platform.
+  - Three wiring failures raise `ValueError` immediately: no contract and no resolver, a contract whose `name` does not match the target's, and a contract the resolver cannot supply. The last names both the target and the contract, so a failure inside a loop says which target sent you there. An unknown target name stays the `KeyError` that `get_target` already raises, keeping "no such target" distinguishable from "no such
+    contract".
+  - No guard was added for a `check_existing_*` flag set without a resolver — `validate_data` already raises there naming the contract and both remedies, and a
+    second guard would produce two messages for one mistake.
+
+  **Collecting across targets**
+
+  - `validate_targets(resolver, targets=None, ...)` delegates per target and returns the validated frames keyed by **target name**, not by contract name: contract-uniqueness is a relaxable guard while a target's name is its identity, so a contract-keyed result
+    would silently collapse two entries if that guard were ever relaxed.
+  - Every target is attempted before anything is raised. Data failures are collected and raised together as `TargetValidationError`; wiring failures escape immediately and uncollected, because they mean the run is set up wrongly rather than that the rows are bad. The result is all-or-nothing — a partly successful run returns nothing.
+  - `targets=None` means every target in declaration order, `targets=[]` means none. A subset asks the resolver only for the contracts it needs, so re-checking three fixed
+    targets stays cheap on the wire.
+
+  **`TargetValidationError`**
+
+  - New `submission/exceptions.py`. Holds `dict[str, SchemaValidationError]` keyed by target name; `to_list()` flattens every sub-error's rows with a `target` key added, `to_pandas()` wraps that in a frame, and the message names the failing targets.
+  - Deliberately not a `SchemaValidationError` subclass: that class wraps and parses a single pandera exception, while this one holds a mapping of already-parsed failures
+    and parses nothing.
+  - `to_list()` and `to_pandas()` mean the same thing on both classes; `errors` does not — a dict of exceptions here, a list of parsed failure rows there. The `Attributes:` block says so rather than renaming, keeping the flattening pair as the polymorphic surface a
+    caller handling both exceptions can rely on.
+  - Exported from both `crosscontract` and `crosscontract.submission`.
+
+  **Resolver, renamed and exported**
+
+  - `ClientContractResolver` → `CrossContractResolver`, now exported from `crosscontract.crossclient`. It was internal to `ContractResource`; callers need it to
+    supply target contracts to `validate_targets`.
+  - Docstrings state what the rename makes visible: it reaches the platform over HTTP and sees whatever the authenticated caller may read, and only a missing contract becomes `None` — a permission error or server failure propagates as the client exception.
+
+  **Prose corrected where the code now contradicts it**
+
+  - The `SubmissionHandler` class docstring no longer claims no method runs every target;
+    the paragraph is rewritten to state the current shape.
+  - CLAUDE.md's `submission/` section gains `submission_handler.py` and `exceptions.py`, both previously absent, and drops the "(later) the code that executes them" phrasing
+    there and in `submission/__init__.py`.
+  - CONTEXT.md's **Submission handler** entry is rewritten and a
+  **Submission validation** entry added; ADR 0004 carries a dated amendment recording the withdrawn consequence and
+    the decisions that replace it.
+  - ADR 0005 carries a dated amendment for the resolver rename, so its two mentions of the old name still resolve for a reader. The PRD that names it is left alone as the
+    historical record it is.
+  - `.ai-context/TODO.md` loses its **Execution.** item — "hand the result to the named contract for validation" is exactly what this branch writes — and gains the deferred
+    target-contract-existence check in its place.
+  - `docs/reference/client.md` gains `CrossContractResolver`: that page enumerates its
+    namespace's members, and the rename promoted the class into it.
+  - Housekeeping: the previous branch's `.github/PRs/introduce_checks.md` is deleted, and
+    `uv.lock` picks up the 0.16.2 → 0.17.0 bump already released on dev.
+
+  ## Testing
+
+  `src/tests/submission/test_validate_targets.py` (new, 575 lines) covers the three surfaces in four classes:
+
+  - `TestValidateTarget` — the composition and its coerced result, contract precedence over the resolver (asserted with a resolver whose contract *would* fail, so a regression surfaces as a failure rather than a pass), resolver-only resolution, argument pass-through, and the empty-target case. Coercion is asserted by a changed
+    dtype, not by the absence of an exception.
+  - `TestValidateTargetGuards` — one test per wiring failure, including that an unknown target stays a `KeyError` and that a `check_existing_*` flag without a resolver
+    surfaces `validate_data`'s own message rather than a second one.
+  - `TestValidateTargets` — every target attempted before raising, passing frames discarded, the message and flattened rows carrying target names, a wiring failure escaping even after an earlier target already failed on its data, a forgotten `drop_columns` (extra column, caught by `strict=True`) arriving as a
+  *collected*
+    failure, and `lazy=False` still yielding one error per failing target.
+  - `TestSelectiveTargets` — `None` vs `[]`, an unknown name raising, a repeated name
+    collapsing, and a subset leaving the other contracts unresolved.
+
+  `src/tests/submission/test_exceptions.py` (new) builds its sub-errors by validating genuinely bad frames rather than constructing bare `SchemaValidationError`s, whose `to_list()` is empty and would make the flattening assertions vacuous.
+
+  `src/tests/contracts/schema/validation/test_pandas_validation.py` gains `TestEmptyDataFrame`, pinning the assumption target validation rests on: a strict, coercing schema accepts a zero-row frame, and `primary_key_values=[]` still turns the uniqueness check on.
+
+  Resolvers are `Mock(spec=ContractResolver)` doubles throughout; nothing reaches the platform.
+
+
+
+## v0.18.0 (2026-08-30)
+
+### Features
+
+
+- **Replace ad-hoc pandera checks with check objects derived in one place** ([`3ac31ad`](https://github.com/sweet-cross/crosscontract/commit/3ac31ad4d2c345cbe4a0faf014f4fad273fc8d66))
+
+  # Replace ad-hoc pandera checks with check objects derived in one place
+
+  ## Summary Validation checks were three differently-shaped, differently-gated blocks inside `PanderaPandasAdapter`, each building a `pa.Check` around a closure that delegated back to a module-level helper, with the dimension rules living in a separate module under a different signature. There was no answer to *what a check is*, so a new one had nowhere to go and nobody could read "what gets checked on this schema" in one place. This branch introduces checks as objects, moves their derivation to a single function, and rebuilds the pandera adapter around it. It carries deliberate behaviour changes and removes public parameters — see *Notes for reviewer*.
+
+  Base is `dev`, not `main`: `main` is five merged PRs behind, so a `main` diff shows unrelated submission and transformation work.
+
+  ## Changes
+
+  **New `contracts/schema/validation/checks/` package.** A check is a pydantic model holding what it needs, callable on a DataFrame (`__call__(df) -> pd.Series`), rendering itself via `to_pandera() -> list[pa.Check]`, and describing its own failure. `name` is a `Literal` discriminator so checks can later be read from a specification.
+
+  - `base_checks.py` — one operation each: `IsUnique`, `IsIn`, `IsNotIn`, `IsNotNull`, and `IsSubsetOf`, which carries SQL `MATCH SIMPLE` foreign-key semantics (empty strings read as null, a null anywhere in the key passes the row, `within` joins the frame's own rows
+    to the valid set for a self-reference).
+  - `reference_checks.py` — `IsValidPrimaryKey`, a composite that unpacks into one pandera
+    check per sub-rule so a report says which rule broke.
+  - `dimension_checks.py` — the four hierarchy rules over a `DimensionCheck` base carrying configurable column names, plus the `IsValidCrossDimension` composite. Ported from
+    `_pandera_dimension_checks.py`.
+  - `utils.py` — `validate_existing_length_match`, used by a `model_validator` on every check
+    carrying existing values.
+
+  **Pandera adapter rebuilt as `adapters/pandera_pandas/`.** `field_convertors.py` holds one converter class per field type behind a `get_field_converter` factory; `adapter.py` holds `PanderaAdapter` with `create_base_schema()` (columns only) and `_derive_checks(primary_key_values, foreign_key_values)` — the single place a schema becomes checks, taking existing values as optional arguments. `_pandera_dimension_checks.py` and the old `pandera_adapter.py` are deleted, along with `convert_schema_to_pandera`.
+
+  **`TableSchema` and the runner are thinned.** `validate_dataframe` forwards values to `to_pandera_schema` and calls the runner; it builds no checks and imports no check classes. `validation/validate_dataframe.py` takes a `pa.DataFrameSchema` rather than a `TableSchema`, executes it, and translates pandera exceptions — its `if TYPE_CHECKING: from ..schema import TableSchema` is gone, as is `backend`.
+
+  **`SchemaValidationError` recognises the new checks.** Its reference-error handling collapses a violation to one row and substitutes the offending key values; it identified those failures by the old `PrimaryKeyError: ['id']` naming. `CHECK_COLUMNS_PATTERN` now matches the check classes' message shape alongside the legacy tokens.
+
+  **Documentation.** ADR 0006 records the design; ADR 0005 carries a dated amendment for the retired `ValueError` and the changed `None`/`[]` semantics, with its reasoning left intact. `CONTEXT.md` retires **Standard check** / **Additional check** in favour of **Base check**,
+  **Composite check** and **Derivation**. The check-based-validation PRD is updated to what landed; a new `validation-reporting.md` PRD states the error-reporting problem and its options. The three work-package issue files are removed now that they are complete.
+
+  ## Testing New suites under `src/tests/contracts/schema/validation/checks/` (abstract base, base checks, dimension checks, reference checks, utils) and `src/tests/contracts/schema/adapters/pandera_pandas/` (field converters, adapter and derivation). `validation/test_pandas_validation.py` is re-pointed at `TableSchema.validate_dataframe` and its expectations updated for the behaviour changes below. The old `adapters/pandera/` suite is deleted; its field-conversion, integration and dimension cases are ported.
+
+  ## Notes for reviewer
+
+  **Public removals.** `skip_primary_key_validation` / `skip_foreign_key_validation` and `backend` on `TableSchema.validate_dataframe`, and `convert_schema_to_pandera`. `PanderaPandasAdapter` is also renamed to `PanderaAdapter`. `cross_back` passes both `skip_*` arguments at `backend/app/api/crud/contract_data.py:111` and will raise `TypeError` until updated — worth landing in the same cycle.
+
+  **The key checks became opt-in, reversing the PRD's original goal.** `None` for a group of values now means "do not check this"; an empty collection means "check it, with nothing to compare against". So `to_pandera_schema()` called bare returns a schema permitting duplicate keys, and `contract.validate_data(df)` with no resolver validates types and dimension structure only. This is deliberate and recorded in ADR 0006, but it is the opposite of what the PRD set out to do, so it deserves a second opinion.
+
+  **Two behaviour changes worth checking against your expectations.** An external foreign key with no supplied values is now left unchecked rather than raising `ValueError` — the test asserting the old behaviour is inverted, not deleted. And a dimension frame whose non-root rows all lack a parent no longer raises `ValueError: cannot set using a list-like indexer…`. The crash is what was retired, not the double report: a parentless row sitting alongside rows that do name a parent still fails the catch-all rule as well as `NonRootElementHasParent`, which is the rule that owns the defect.
+
+  **End-to-end coverage restored.** The deleted `adapters/pandera/` suite held the only tests where a converted schema met a DataFrame. Those are ported into `adapters/pandera_pandas/test_integration.py` (coercion, numeric bounds, string length, datetime bounds, nullability, strict mode) and `test_integration_dimension.py` (an assembled `DimensionSchema`, one rule per frame, plus lazy collection of several). Two cases are new rather than ported: that a bare conversion permits a duplicate primary key while an empty list rejects it, since the opt-in semantics had no end-to-end test.
+
+  **One coupling to be aware of.** `SchemaValidationError` recovers a check's columns by parsing its `failure_message()`, because pandera exposes exactly one identifying string per check. Rewording a `failure_message()` silently degrades reports with no test failing. `validation-reporting.md` states the problem and sketches the ways out.
+
+  ---------
+
+  Co-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>
+
+
+
+## v0.17.0 (2026-08-29)
+
+### Features
+
+
+- **Resolver for validation** ([`4cec6e1`](https://github.com/sweet-cross/crosscontract/commit/4cec6e15effd423dda51d1b1895063c3a710ff61))
+
+  # Give contracts a resolver and let them validate their own data
+
+  ## Summary
+
+  Every consumer that validates a DataFrame against a contract re-derives the same few lines of schema semantics to build the reference values first — which contract to read, which columns, how to key the result. That logic existed twice already (here and in `cross_back`) and submission execution would have been the third, and confusing `fk.fields` with `fk.reference.fields` is silently wrong rather than a crash.
+
+  This branch moves that derivation into the library behind `BaseContract.validate_data`, extends `ContractResolver` so one object answers both questions a contract cannot answer about itself — what other contracts *are*, and what values already
+  *exist* under them — and migrates the client onto it. It also fixes a reachable bug where an empty referenced table produced a confusing `ValueError` instead of a validation failure.
+
+  ## Changes
+
+  **Fix: an empty referenced table is a validation result, not an inability**
+  - `_get_foreign_key_check` tested truthiness, merging "nothing supplied" (`None`) with "the referenced table exists and is empty" (`[]`). It now tests the parameter, so `[]` produces a `SchemaValidationError` naming the failing rows while `None` still raises `ValueError` as documented. Reachable today: `get_foreign_key_values` wrote `[]`
+    unconditionally.
+
+  **`ContractResolver` gains a data lookup**
+  - One protocol carries `resolve` and `get_data`, both `@abstractmethod`, so a real implementor that misses one fails at construction rather than as an `AttributeError`
+    during data submission. Test doubles still satisfy it structurally.
+  - The protocol says nothing about access control. How an implementation resolves permissions is its own business — the client issues an HTTP read and the platform answers it or refuses — so neither the docstring nor the signature mentions it.
+  - Exported from `crosscontract.contracts`; it was previously reachable only by full
+    module path.
+
+  **`BaseContract.validate_data`**
+  - Owns the whole derivation: primary key against `self.name`, foreign-key targets via `fk.reference.resource or self.name`, columns via `fk.reference.fields`, keyed by
+    `tuple(fk.fields)`, and order-safe tuple-ification.
+  - `check_existing_primary_key` / `check_existing_foreign_key` read in the positive and default to `False`; they govern whether stored values are fetched, nothing else.
+  - `resolver` is optional, so a `BaseContract` used off-platform validates without one. Requesting a check without a resolver raises, naming the contract and both remedies.
+
+  **The client migrated onto it**
+  - New `ClientContractResolver` wrapping a `ContractService`, mirroring `DbContractResolver` on the server. `_get_data` stays private — users read through a
+    `ContractResource`, not by name off the service.
+  - `ContractResource.get_primary_key_values` and `get_foreign_key_values` are gone; their logic now lives in `validate_data`. `validate_dataframe` still fetches nothing by
+    default.
+
+  **Documentation**
+  - `CONTEXT.md` gains a *Validation* section: **Well-formedness**,
+  **Reference validation**, **Data validation**, **Contract resolver**, **Existing values**, plus
+    **Check** / **Standard check** / **Additional check**.
+  - ADR 0005 records the design; two PRDs and a task breakdown for the follow-on work.
+
+  ## Testing
+
+  - New `test_validate_data.py` (13 cases) covering the derivation, including one where `fk.fields` and `fk.reference.fields` differ — the direction error this work exists to prevent — and a composite foreign key whose resolver returns columns in a different
+    order, which is silently wrong without the reindex.
+  - New `test_resolver.py` (7 cases). The one that matters: only `ResourceNotFoundError` becomes `None`; permission and server errors propagate, so a refused request is never
+    reported as a missing contract.
+  - WP1's two arms plus the surprising half — a null foreign-key value still passes against an empty referenced table — in both the adapter and `validate_dataframe` suites.
+  - `test_contract_resource.py`: three tests that mocked the now-moved orchestration were deleted rather than re-pointed; four added, including one proving the default call
+    performs no data fetch.
+  - Also removed four never-collected test methods in `test_foreign_key.py` that called a `ForeignKeys.get_pandera_checks` which does not exist, plus a duplicated test.
+  - `pytest`, `ruff` and `mypy` all pass.
+
+  ## Notes for reviewer
+
+  **A deliberate gap.** `check_existing_*=False` reads as "do not consult other contracts", but today it maps onto `skip_*=True`, which suppresses the check
+  *entirely* — so a `Dimension` validated through `validate_data` does not get its self-referencing foreign key checked, and no contract gets uniqueness checking within the frame. That matches the client's previous behaviour, so nothing regressed. The name is the specification and the validator is brought up to it in
+
+  [check-based-validation.md](../../.ai-context/prds/check-based-validation.md); renaming once now is cheaper than letting `cross_back` and the submission handler bind to `skip_*` and churning them later. It is stated in `validate_data`'s docstring so it is not read as a bug.
+
+  **`CONTEXT.md` runs ahead of the code in one place.** The new
+  *Validation* section states that a **Data validation** runs every **Standard check** its **Schema** requires and that a caller can only add strictness, never remove it. That is not true today — it is the far side of the deliberate gap above. It is written in the present tense because the validator rework in [check-based-validation.md](../../.ai-context/prds/check-based-validation.md) lands next and makes it true; until then ADR 0005's Consequences section records the gap. Read the two together rather than as a contradiction.
+
+  **`ClientContractResolver` inherits the protocol deliberately** — inheriting makes a missed method fail at construction. That reverses an earlier note saying `cross_back` should drop its explicit base; the PRD now records inheriting as the convention for real implementors, with test doubles staying duck-typed.
+
+  **Breaking, and intended on 0.x:** `ContractResource.validate_dataframe`'s parameters are renamed from `skip_*` to `check_existing_*`, and its polarity flips. `ContractResource.get_primary_key_values` / `get_foreign_key_values` are removed. `ContractResolver` becoming public means further changes to it affect implementors outside this repository.
+
+  **Worth extra scrutiny:** the `df[columns]` reindex in `_get_existing_values`. It looks redundant, and it is what stops a composite foreign key comparing `(a, b)` against `(b, a)` when a supplier returns columns in its own order.
+
+  **Not done here:** `cross_back` still needs the version bump and its own migration; the validator-level rework has its own PRD and tasks.
+
+
+
+## v0.16.2 (2026-08-24)
+
+### Bug fixes
+
+
+- **Submission Handler** ([`bd33b57`](https://github.com/sweet-cross/crosscontract/commit/bd33b578fac72887176ec216909aca4e3ae52508))
+
+  # Add `SubmissionHandler` to execute a submission contract against a bundle
+
+  ## Summary
+
+  Submission contracts described how a delivered bundle splits into per-variable datasets, but nothing executed that description — ADR 0004 closed with "execution is not in this package yet". This branch adds `SubmissionHandler`, which holds a `SubmissionContract` and a bundle and answers per target: select the rows the target claims, apply its transformation profile and then its own transformations.
+
+  It also moves `unclaimed_rows` off `SubmissionContract`. The spec models' contact with pandas is otherwise adapter-mediated and backend-parameterized (`validate_dataframe` carries `backend: Literal["pandas"]`); `unclaimed_rows` was raw `pd.Series` accumulation sitting in a spec model, and unclaimed rows are a property of a bundle
+  *paired with* instructions rather than of the contract alone.
+
+  ## Changes
+
+  **`ExtractionInstructions.get_target(name)`** — the spec-side lookup, on the model that owns `targets`. Raises `KeyError` for an unknown name. Target names are already validated unique, so no tie-breaking is needed.
+
+  **`SubmissionHandler(contract, bundle)`** in a new `submission/submission_handler.py`, exported from `submission/__init__.py` and the top-level package. The bundle is copied on construction, so later changes to the frame handed in do not alter the handler's answers.
+
+  - `extract_target_data(name)` — rows the target claims, untransformed.
+  - `transform_target_data(df, name)` — profile steps first, then the target's own.
+  - `get_target_data(name)` — the composition.
+  - `unclaimed_rows()` — rows no target claims, moved here from `SubmissionContract`.
+
+  Every path returns a new frame: `transform_target_data` copies before applying its steps, so a target with neither a profile nor transformations hands back a copy rather than the frame it was given, matching the convention every transformation in `transformations/` states explicitly. The `KeyError` an unknown target name — or a filter column absent from the bundle — surfaces is documented on each method that propagates it.
+
+  Two design points that are decisions rather than details:
+
+  - **The handler is per-target and never loops over all of them.** Whether a run aborts on the first failing target or collects every failure and reports them together is the caller's, not the library's — and with no aggregate return type there is nothing to
+    retrofit when that choice is made.
+  - **A private per-target boolean mask is the single implementation of the filter semantics.** `extract_target_data` indexes with one mask; `unclaimed_rows` inverts the OR of all of them. Writing the two independently would put the string-form cast and the conjunction in two places, and drift between them would be silent — extraction claiming
+    a different row set than coverage reports as claimed.
+
+  The hoisted per-column string cast from the shipped `unclaimed_rows` was
+  **not** carried over. The cast covers only filter columns — one column in the cross2025 spec, since the routing column is required to be string-typed and the cast is near-free there — so the state a cached string frame costs outweighs what it saves. Recomputing inside the mask is stateless and leaves hoisting as a local change if profiling ever asks for it.
+
+  **Documentation.** CONTEXT.md gains a *Submission handler* term; the three `_Avoid_` lines that banned "extractor" now point at it rather than leaving a banned word with no replacement. ADR 0004's "execution is not in this package yet" becomes three consequences — what landed, pandas as settled, and the resolver constraint (below). `TODO.md` drops the raise-or-warn item as answered and reprices contested rows.
+
+  ## Testing
+
+  `src/tests/submission/test_submission_handler.py`, built on a fixture with two transformation profiles and four targets covering every shape: profile only, own transformations only, both, and neither.
+
+  - **Transformation** — one test per shape. The both-case is the order test: `t_year`'s own step casts `period`, a column that exists only after the `annual` profile renamed `year` to it, so a reversed order raises on a missing column rather than returning a
+    subtly different frame.
+  - **Extraction** — a target claiming rows, claiming none, claiming via a non-routing
+    typed column, and an unknown name.
+  - **Composition** — that `get_target_data` equals transform-of-extract, plus a direct assertion on the result so a refactor changing both halves compensatingly still fails.
+  - **Coverage** — the five `unclaimed_rows` cases moved from `test_submission_contract.py` unchanged in substance, which is the regression proof that relocating the computation did not alter it, plus a new case pinning that a row
+    claimed by two targets counts as claimed.
+  - Non-mutation on both the transform and coverage paths, plus that the no-op transform path returns a new frame rather than the one it was handed, and that changing the
+    bundle after construction does not reach the handler.
+
+  ## Notes for reviewer
+
+  **Base is `dev`, not `main`.**
+
+  **The handler resolves nothing, deliberately.** ADR 0004's second named decision is that target contracts are named and never looked up, so a spec loads and runs with no platform connection. If a `validate_target_data` is added later, the contract must arrive from the caller — passed in, or via the `ContractResolver` protocol `BaseContract` already defines for `validate_references`. A lookup inside `submission/` would quietly undo the property the format is built around. This is now written into the ADR rather than left to memory.
+
+  **`transform_target_data(df, name)` takes the frame and the name independently**, so a caller can pass one target's rows with another target's name and get a plausible-looking wrong answer. Left unguarded deliberately — the per-target design is what makes it useful for rows fetched some other way, and a guard would need a notion of "these rows belong to that target" the class does not have — but the docstring now states it rather than leaving it to be discovered.
+
+  **Still deferred, in `TODO.md`:** contested-row detection (now a sum over the masks rather than a loop reshape, so what remains is the decision, not the plumbing), and load-time filter-value parseability.
+
+  ---------
+
+  Co-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>
+
+
+
+## v0.16.1 (2026-08-24)
+
+### Bug fixes
+
+
+- **unclaimed rows in submission** ([`6cbb7c9`](https://github.com/sweet-cross/crosscontract/commit/6cbb7c9190bb1e1dbf6cd5f4472b64904472fa14))
+
+  # Replace the derived routing `enum` with an unclaimed-row check
+
+  ## Summary
+
+  A submission contract's routing field was specified to carry an `enum`
+  *derived* from the targets, and `_check_routing_column` rejected an authored one on that basis — but nothing ever built the derived set, so the rule was enforced without being delivered. The derivation turns out to be impossible: `Target.filters` is an arbitrary column → value conjunction, so a target may never mention the routing column at all, and a set derived from only the targets that *do* mention it would wrongly reject rows destined for the rest.
+
+  The `enum` also never expressed the property it appeared to. It asserts that a routing vocabulary is *known*, not that a row is *consumed* — a row carrying a valid routing value still vanishes when a second filter over another column fails to match. That property is row coverage, it is decidable only against data, and this branch delivers it as `SubmissionContract.unclaimed_rows`.
+
+  ## Changes
+
+  **Dropped the routing-column `enum` ban** — `_check_routing_column` no longer rejects an authored `enum`; the exists / required / string rules are untouched, since they still underwrite deriving a target's `filters` from its `name`. An authored `enum` is now an ordinary field constraint, useful to an author who does know the closed set.
+
+  **Added `SubmissionContract.unclaimed_rows(df)`** — returns the rows of a submission bundle that no target's `filters` match. It is a pure query: no raise, no warning, input frame untouched. Whether an unclaimed row is an error or a warning is deliberately left to the caller, which is what keeps that decision reversible.
+
+  Two details worth naming:
+
+  - **Filters match on the column's string form** (`df[col].astype(str) == value`). No Frictionless → backend type mapping is introduced anywhere. This follows the `cast_column` precedent: spec vocabulary stays Frictionless, the pandas mapping lives in the code that touches pandas. It is sound because string comparison can only
+  *under*-match, and under-matching is exactly what this method detects — the two
+    mechanisms close the loop on each other.
+  - **The per-target string cast is hoisted.** Columns named by any target's filters are cast once, not once per (target, filter) pair — with 24 targets filtering on
+    `variable`, the naive form casts the same column 24 times.
+
+  **Documentation.** `Target.filters`' description now states the conjunction semantics and the string-form matching, with the datetime case spelled out. CONTEXT.md's *Routing column* term is rewritten and an *Unclaimed rows* term added. ADR 0004's
+  *Why* clause and its first Consequences bullet are amended — the bullet states the withdrawal explicitly rather than quietly reading as though it always said this.
+
+  ## Testing
+
+  `TestUnclaimedRows` in `src/tests/submission/test_submission_contract.py` — five tests over a three-target contract: the core unclaimed case (asserting index labels survive, so a caller can report *which* rows), a fully claimed bundle returning an empty frame, a target constraining only a non-routing `Int64` column, filters behaving as a conjunction, and input-frame purity. The shared fixture builds `year` as nullable `Int64` rather than plain `int64`, since that is the dtype the method meets after pandera coercion.
+
+  The test that asserted the `enum` ban is inverted rather than deleted: it now asserts the constraint survives onto the loaded model, which proves the `enum` actually reaches the field and will be enforced by the pandera adapter.
+
+  Suite green locally (`uv run pytest src/tests/submission/`).
+
+  ## Notes for reviewer
+
+  **Base is `dev`, not `main`.** `main...HEAD` pulls in PRs #80–#82, which already landed.
+
+  **Deliberate non-goals**, each recorded in `TODO.md` rather than implemented:
+
+  - *Contested rows* (claimed by more than one target). ADR 0004 makes overlap legal, so this is a question, not a bug — but note `unclaimed_rows` folds each target's mask into a single accumulator and keeps no intermediates, so adding contested detection later means reshaping that loop rather than adding a line. That is the shape decision most
+    worth a second opinion here.
+  - *Load-time filter parseability* (`{year: "abc"}` on an integer column). Would sit beside the existing filter-key check and needs no backend. It would
+  **not** catch the datetime case, which is why that trap is documented on `Target.filters` instead.
+  - *Raise-or-warn on unclaimed rows*, which belongs at the execution site.
+
+  **Known sharp edge:** a filter on a datetime column must match the full string form (`2030-01-01 00:00:00`). It fails toward unclaimed, so it surfaces rather than corrupting anything, but the report will not name the cause. Documented on the field description.
+
+  **Precondition, not a branch:** `unclaimed_rows` assumes a frame conforming to the `tableschema`. A missing filter column raises `KeyError` from the hoisted column selection, which names the columns and fails before any target is scanned.
+
+
+
+## v0.16.0 (2026-08-22)
+
+### Features
+
+
+- **identify extraction targets by name** ([`c71a035`](https://github.com/sweet-cross/crosscontract/commit/c71a035614b250fe0ac3f8fe5fce6af747fcf6b8))
+
+  # feat: identify extraction targets by name
+
+  ## Summary
+
+  A `Target` had no identifier of its own. In practice it was identified by its `contract`, which the contract-uniqueness validator happened to enforce — an accident of that check rather than a design. This branch gives targets a `name`, and uses it to derive the routing filter when none is authored.
+
+  Two problems go away. `contract` is a platform-side resource name that ends up in a URL, so using it as a spec-local identifier was semantically wrong. More importantly, binding identity to it cemented contract-uniqueness as an *identity* constraint rather than the primary-key-collision guard it actually is — which would have made it expensive to relax if combining several targets into one dataset (netting supply against demand, say) ever becomes a feature. That combination is **not** implemented here and is not planned as part of this work; the point is only that identity no longer rides on `contract`.
+
+  Base branch is `dev`.
+
+  ## Changes
+
+  **`Target.name`** — required, `min_length=1`, whitespace-stripped, and deliberately carrying **no pattern and no maximum length**. It is spec-local identification: what an author calls their own target is their decision, and `"StUpid nAming 0f a V@riable"` is legal. `contract` keeps `CONTRACT_NAME_PATTERN` and `max_length=100` for the opposite reason — it names a platform resource that appears in URLs. The constraint is expressed as `Annotated[str, StringConstraints(...)]`, matching `ValidFieldName` in `contracts/valid_items.py`, rather than a model-wide `str_strip_whitespace`, which would also have stripped `filters` values and silently changed row matching.
+
+  **Filters derive from the name; the scalar shorthand is gone.** The authoring surface is now two forms instead of three: omit `filters` and it becomes `{routing_column: name}`, or write the mapping out and `name` plays no part in routing. The old scalar `filters: some_value` is rejected. `filters` stays `dict[str, str]` and required on the model — the before-validator populates it — so the annotation continues to describe the stored value rather than the input that produced it.
+
+  The derivation replaces the scalar branch in the existing `field_validator("targets", mode="before")`, keeping its shape: it reads `routing_column` off `info.data` (which is why it is a field validator rather than a model validator — the value is already validated there), copies rather than mutating the caller's dicts, and hands unrecognised shapes through so pydantic reports them. Two details are deliberate and easy to undo by accident: it triggers on the `filters` key being
+  **absent**, not on its value being `None`, so a half-written `filters:` is rejected rather than silently derived; and it `.strip()`s the name, because `strip_whitespace` on `Target.name` runs
+  *after* this validator and the stored name would otherwise differ from the derived routing value.
+
+  **Two independent uniqueness rules.** `_check_name_unique` joins `_check_contract_unique` as a separate validator with its own message, rather than being folded in. They enforce different things and have different futures: name-uniqueness is structural and permanent; contract-uniqueness guards against merged rows colliding on the contract's primary key and is relaxable. Folding them together would have re-created the coupling this branch removes.
+
+  **Documentation.** ADR 0004's Consequences split the single "one target per contract" bullet into the two rules, recording explicitly that contract-uniqueness is a guard and not an identity constraint, and that keeping it distinct is what leaves it relaxable. Its "filters are mapping-only" bullet now describes the two current authoring forms and notes the scalar form's removal. `CONTEXT.md`'s **Target** entry leads with the name and covers the routing-value default — the one place in that vocabulary where an identifier doubles as data.
+
+  ## Testing
+
+  `src/tests/submission/` — 17 tests, no new dependencies.
+
+  - **New:** duplicate target names raise, with a message distinct from the duplicate
+    contract one; and `filters` omitted yields `{routing_column: name}`.
+  - **Rewritten:** `test_filter_raises_validation_error_no_routing_column` previously fed a scalar `filters` and no `name`, so its payload was invalid three ways and it passed on whichever error happened to land. It now supplies a well-formed target relying on the derivation, making the missing `routing_column` the only defect — which is what the test claims to check.
+  - **Updated:** every fixture gains a `name`; `example_submission.yaml` drops the two scalar-filter targets in favour of derived ones, keeping the explicit-mapping target so
+    the round-trip tests still cover both forms.
+
+  ## Notes for reviewer
+
+  **The `.strip()` in the validator duplicates knowledge that also lives in `StringConstraints(strip_whitespace=True)`.** They cannot share, because the derivation runs on raw input before field constraints apply. Without the strip, `name: " electricity "` stores `name == "electricity"` but derives `filters == {"variable": " electricity "}` — a routing value matching no rows, which only warns and skips at runtime. The docstring says why the duplication exists so nobody removes it as redundant. The alternative is dropping `strip_whitespace` and accepting `" "` as a legal name.
+
+  **"A scalar `filters` is rejected" has no test.** It reduces to pydantic refusing a `str` for `dict[str, str]`, and the project's convention is not to test pydantic's own behaviour. Flagging it because it *is* a behaviour change from the previous release — though no authored file uses the old form, so there is nothing to migrate.
+
+  **No test pins "`name` has no pattern" either**, for the same reason: it would assert the absence of a constraint. The reasoning now lives in ADR 0004 and `CONTEXT.md` instead, which is what stops someone adding `CONTRACT_NAME_PATTERN` to `name` out of symmetry with `contract`.
+
+  **`Target.name`'s field description** was written during WP1, when the derivation did not exist yet; it has been correct since WP2 landed but is worth reading against the final behaviour.
+
+
+
+## v0.15.0 (2026-08-21)
+
+### Features
+
+
+- **add extraction instructions and the submission contract** ([`3680600`](https://github.com/sweet-cross/crosscontract/commit/3680600c4bcee211383c102caff23e5dc975c896))
+
+  # feat: add extraction instructions and the submission contract
+
+  ## Summary
+
+  Completes the submission-contract feature: the declarative models that describe how a delivered bundle is split (`Target`, `ExtractionInstructions`), the `SubmissionContract` that binds them to a schema, and the language and decision record that keep the design findable once the planning documents are gone.
+
+  A submission bundle is one wide file carrying rows for many datasets at once. Until now the knowledge of how to split it lived in hand-written Python dictionaries that could not be authored, reviewed or versioned. This branch makes that knowledge a YAML artifact that loads, validates standalone, and round-trips.
+
+  Base branch is `dev`. The transformations and the `Submission` contract type landed earlier; this branch is the ingress spec on top of them.
+
+  ## Changes
+
+  **`submission/` becomes a real package.** `submission_contract.py` moves out of `contracts/contracts/` (history preserved via `git mv`), and `submission/extraction/` is added alongside it. The package now owns the contract, the spec models, and — when it lands — the code that executes them. `SubmissionContract` is exported from `crosscontract/__init__.py`.
+
+  **`Target`** carries `filters` (mapping-only; a bare value is accepted as authoring shorthand and expanded on load), a `contract` **name** validated against `CONTRACT_NAME_PATTERN`, an optional `transformation_profile`, and its own `transformations`. It names its target contract and never resolves it.
+
+  **`ExtractionInstructions`** holds the required `routing_column`, the reusable `transformation_profiles`, and a non-empty `targets` list. Three validators:
+
+  - a `field_validator("targets", mode="before")` that expands scalar `filters` into `{routing_column: value}`. It is a *field* validator rather than a model validator so `info.data` already carries the validated `routing_column`; it copies rather than mutating the caller's dicts, and hands unrecognised shapes straight through so pydantic
+    reports them.
+  - contract-uniqueness across targets. Repeated *filters* are deliberately allowed — the same rows may feed two contracts through different transformations — because a repeated contract is the only case that actually breaks: after the routing column is dropped the
+    merged rows collide on that contract's primary key.
+  - every `transformation_profile` reference resolves to a defined profile.
+
+  **`SubmissionContract(CrossContract)`** adds `project_name`, `extraction`, and `contract_type` pinned to `Literal["Submission"]`, plus two model validators: the routing
+
+  column must exist in the tableschema, be `required`, be `type: string`, and carry no authored `enum` (it is derived); and every key of every target's `filters` must name a field in the tableschema.
+
+  **Documentation.** `CONTEXT.md` gains a **Submission and extraction** section defining
+  *Submission contract*, *Extraction instructions*, *Transformation profile*, *Target* and
+  *Routing column*, three new **Relationships** bullets for the ingress path, and an updated
+  **Table type** entry — the mapping is no longer the identity. The
+  **General** ambiguity is resolved in place: "General is legacy" is true of the *contract type* only, since `Submission` maps onto the General *table type*, which outlives it. `ADR 0004` records the three decisions that are expensive to reverse. `CLAUDE.md` gains the `submission/` architecture entry.
+
+  **The PRD and its task files are deleted.** They were planning artifacts; their durable content is now in ADR 0004 and `CONTEXT.md`.
+
+  ## Testing
+
+  `src/tests/submission/` — 16 tests, no new dependencies.
+
+  - **Extraction models** (8): valid construction, scalar-`filters` expansion, an invalid contract name, omitted and empty `targets`, duplicate contracts, an undefined profile reference, and a missing `routing_column` — the last one pinning that the before-validator hands input through so pydantic reports the real error rather than
+    failing on raw data first.
+  - **`SubmissionContract`** (6): each routing-column invariant separately, plus a filter
+    key naming a column absent from the tableschema.
+  - **Round-trip** (2): `example_submission.yaml` → model → YAML file → model, and the same through JSON, asserting model equality. Both hops go through an actual file, so the dump
+    is proven serializable rather than merely re-validatable.
+
+  `example_submission.yaml` is purpose-built and deliberately small, but covers what can silently break: both `filters` forms, a profile shared by two targets, a target appending its own steps after a profile, and a `map_column_values` with `default_value` omitted — the `KEEP_ORIGINAL` sentinel, which has no serialized form and is nested inside a contract here for the first time.
+
+  ## Notes for reviewer
+
+  **Nothing derives the routing enum yet.** The format's central claim is that the routing field's permitted values come from the targets rather than being authored — the contract
+  *rejects* an authored `enum` for exactly that reason. But no code assembles the derived set. Where it belongs (a property on the contract, a helper on the instructions, or the validator that checks data against the contract) was deliberately left open, and it is recorded for follow-up. Worth confirming you're happy shipping the rejection without the derivation.
+
+  **The cross2025 acceptance test was dropped on purpose.** `.ai-context/prds/cross2025_submission.yaml` was written to drive design discussion, not as a fixture; this is all new work with no legacy specification to match, so pinning the models to one hand-written file would have measured that file rather than the format. If the PRD directory goes, decide whether that YAML goes with it.
+
+  **Deferred, recorded for planning rather than fixed here:** column tracking through a transformation pipeline (the `output_columns` hook was never added, so adopting it now means retrofitting all six transformations), the `MapColumnValues` `on_conflict` guard, and the execution package itself.
+
+  **Minor:** the module is `extraction_instruction.py` (singular) while the class is `ExtractionInstructions` (plural).
+
+  ---------
+
+  Co-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>
+
+
+
+## v0.14.0 (2026-08-21)
+
+### Features
+
+
+- **Submission contract I - Initial contract and transformations** ([`fd55e43`](https://github.com/sweet-cross/crosscontract/commit/fd55e4328ce8c336d0bdebe30d75cffce2dfd9dd))
+
+  # feat: add the Submission contract type and the first transformation union
+
+  ## Summary
+
+  Lays the two independent foundations for submission contracts (PRD `2026-08-14-submission-contracts.md`, WP0 and WP1): a `Submission` contract type, and the vocabulary of transformations plus the discriminated union that authored extraction specs will dispatch on. Neither half depends on the other — `Submission` is inert until something emits it, and the three new transformations are additive. The one behavioural change is to `MapColumnValues.default_value` (below); no authored specs exist yet, so nothing in the wild changes meaning.
+
+  The union is the higher-leverage half: no discriminated union over transformations had ever been defined, and `DataInstructions` in the release spec is documented as an extension point waiting for one. This PR supplies it.
+
+  Base branch is `dev`.
+
+  ## Changes
+
+  **`Submission` contract type (WP0).** `ContractType` gains `"Submission"`, and `CONTRACT_TYPE_TO_TABLE_TYPE` maps it onto the existing `General` table type. No new schema class: the submission bundle is a standard flat table with a primary key and foreign keys, so it needs its own contract type but not its own schema. This is the first entry that makes the mapping non-identity, and the comment above the table was rewritten accordingly — including the note that the relation is many-to-one, so a `table_type` no longer determines a `contract_type`.
+
+  **Three new transformations (WP1).** Each is a pure function plus a thin `BaseTransformation` subclass whose `apply()` is a single delegating call:
+
+  - `cast_column` / `CastColumn` — `to_type` is a `CastableType` literal spelled with the Frictionless field-type vocabulary (`integer`, `number`, `string`, `boolean`), not pandas dtype strings, so a bad value fails at load rather than at execution. Integer and number casts target the pandas nullable `Int64` / `Float64`, so fractional floats raise rather than truncating and nulls survive the cast. `datetime` is deliberately
+  *not* a member: including it would let a spec validate at load and then fail at `apply()` time, which is precisely what the literal exists to prevent. The pure function keeps a dedicated branch raising a pointer to `parse_datetime_column`, since it is the obvious thing a direct caller tries. The literal is declared locally rather than imported from `contracts/schema/fields/`, because `contracts/` imports from this
+    package and the reverse import would be circular.
+  - `parse_datetime_column` / `ParseDatetimeColumn` — `format` defaults to `None` (pandas infers); `format: mixed` and `dayfirst` pass through. Parse errors propagate
+    from pandas unchanged.
+  - `drop_rows_by_value` / `DropRowsByValue` — boolean-mask filter, copied before it is returned so callers do not inherit a slice and the `SettingWithCopyWarning` that comes with it. The original index is preserved deliberately and pinned by tests.
+
+  **`TransformationUnion`.** New `transformation/union.py` holding `Annotated[... , Field(discriminator="type")]` over all six transformations, following the house idiom and the `field_descriptors/` split of classes from union. It imports the leaf modules rather than the package `__init__`, which re-exports it — going through `__init__` would be circular. Exported from both `transformation/` and `transformations/`, along with the four new symbols that were previously reachable only from the leaf module.
+
+  **`MapColumnValues` serialization.** `default_value` now defaults to the `KEEP_ORIGINAL` sentinel directly, so `apply()` is a pure delegation instead of translating `None` into the sentinel — which is what previously made "map unmapped entries to `None`" unreachable from a spec. Because the sentinel has no serialized form and would crash the JSON encoder, the field carries `exclude=True` and a `mode="wrap"` serializer re-adds the key only when it holds a real value. Omission is therefore the default path, which is exactly what "keep the original values" means on reload. Three cases now round-trip: omitted → keep original, explicit `null` → `None` is the fallback, explicit value → that value.
+
+  **Test restructure.** Function tests and spec tests for a transformation now live in the same file and class, so `test_transformation_specs.py` is deleted and its union-and-discrimination tests move to a new `test_union.py`. Two principles are applied throughout: don't re-test pandas, and test spec pass-through by patching the underlying function. `MapColumnValues` is the deliberate exception — its default handling is involved enough to be worth exercising end to end.
+
+  That file's two chained-application tests (`test_ordered_application` and `test_rename_after_drop_raises_on_missing_column`) are dropped rather than moved. There is no function yet that applies a list of specs to a DataFrame, so a hand-rolled `for` loop over `apply()` tests the test rather than the package. They return as integration tests once that function exists.
+
+  **Docs.** PRD and task files updated as decisions were settled: §4.5 (no `SubmissionSchema`), §5.3 (`SubmissionContract` shape and the deferred routing-enum question), §5.4 (`project` renamed `project_name` to match the existing `ContractService` keyword), §3.5 and §5.1 (integer casts keep nulls; datetime parse errors come from pandas; the `format` default). WP0's task file is deleted, per the convention of removing a task description once it lands. `CLAUDE.md` gains a section on implementing only what was asked, as simply as possible.
+
+  **Housekeeping.** Removed two stale PR descriptions from `.github/PRs/`, and wrapped four over-long `description=` strings in `_standards/frictionless/fields.py`.
+
+  ## Testing
+
+  Suite reported green by the author.
+
+  - `test_union.py` — discriminator resolution parametrized over all six members, `extra="forbid"` through the union, and rejection of an unknown `type`.
+  - `test_column_transformations.py` — cast success matrix and error cases (kept deliberately broad, since type casting is sensitive and the behaviour is worth documenting), datetime wiring and kwarg pass-through, and a three-case round-trip test for `MapColumnValues` across both the python and JSON dump paths. The two halves of the `datetime` decision are pinned separately: the spec rejects it at load, while a direct call to `cast_column` still gets the pointer to `parse_datetime_column`.
+  - `test_dataframe_transformations.py` — per-transformation success and error cases plus
+    a patched pass-through test for each spec.
+  - `test_contract_types.py` — `contract_type: Submission` resolving to `TableSchema`, and the pre-instantiated-schema pass-through parametrized over `General` and `Submission`, which is the branch that breaks if the lookup ever regresses to comparing
+    `contract_type` against `table_type` directly.
+
+  ## Notes for reviewer
+
+  **`submission_contract.py` lands as a draft and is finished in WP3.** It composes `BaseContract, CrossMetaData` as a sibling and has `extraction` commented out behind a TODO. The design settled later on inheriting `CrossContract` — for `validate_references`'s `enforce_star_schema=True` default, which is correct here since the submission foreign keys all point at dimensions, and to stay usable wherever a `CrossContract` is accepted. PRD §5.3 and the WP3 task file record that shape.
+
+  Until then the class is deliberately inert: it is exported from nowhere, has no tests, and — because it is not a `CrossContract` — has no `to_server()`, so `ContractService.create()` cannot accept it. Nothing can reach it by accident. It carries drafted docstrings so the file reads as intended rather than as an orphan; the class docstring states the `Submission` → `General` mapping as a design fact rather than as something this class performs, since `_inject_table_type` only runs on `CrossContract`. That sentence can take its stronger form once WP3 changes the base.
+
+  **The `output_columns` hook was not implemented.** WP1's task file noted that adding it while the transformations were being written is cheap and retrofitting is not. It went in without. If WP3 adopts option (a) or (b) for column tracking, the cost is now retrofitting all six rather than writing three — recorded in the WP3 task file.
+
+  **Still open, tracked in the WP4 task file:** `MapColumnValues` has no `on_conflict` guard, so mapping a value onto one already present in the column merges the two silently. On a foreign-key column that produces duplicate primary keys downstream, breaking the sum invariant of ADR 0001.
+
+  **Worth extra scrutiny:** the `exclude=True` plus wrap-serializer pattern on `MapColumnValues.default_value` is the only place in the package where a field is hidden from the standard serializer and reinstated by hand. An earlier attempt using only a wrap serializer crashed inside `handler(self)`, because the handler serializes the sentinel before the callback can drop it; `exclude=True` is what keeps the handler away from it. `model_json_schema()` emits a `PydanticJsonSchemaWarning` about the non-serializable default and omits it — the resulting schema is correct, but the warning is visible.
+
+
+### Refactoring
+
+
+- **decouple `contract_type` from `table_type` via an explicit mapping** ([`abb7a91`](https://github.com/sweet-cross/crosscontract/commit/abb7a91961d91dc966874a51fc92fef77419ac34))
+
+  # refactor: decouple `contract_type` from `table_type` via an explicit mapping
+
+  ## Summary
+
+  `CrossContract._inject_table_type_to_schema` established the schema discriminator by copying the contract type straight into the tableschema (`schema_copy["table_type"] = contr_type`). That made the two vocabularies string-identical by construction: a contract type could never map onto an existing schema, and the identity was implicit in an assignment rather than stated anywhere. This branch replaces that assignment with an explicit `CONTRACT_TYPE_TO_TABLE_TYPE` table, so adding a contract type that reuses `DimensionSchema` (or any other) becomes a one-line dict entry.
+
+  The mapping is the identity today, so **behaviour is unchanged** apart from the wording of one error message (below). This is a refactor that opens a door, not a fix.
+
+  ## Changes
+
+  - Added a `TableType` literal alias alongside `ContractType`. The two carry identical members today; declaring them separately is the statement that they are different
+    vocabularies that happen to coincide.
+  - Added `CONTRACT_TYPE_TO_TABLE_TYPE: dict[ContractType, TableType]` as the single place relating the two. Both the discriminator injection and the mismatch check now
+    read from it.
+  - An unmapped `contract_type` is no longer rejected inside the before-validator. The helper returns the data untouched so the `Literal`-typed `contract_type` field raises pydantic's own `literal_error` at `loc=("contract_type",)`, preserving field
+    anchoring for callers that inspect `.errors()`.
+  - **Reworded the mismatch error** to name the expected table type. It previously read `Mismatch between contract_type 'X' and tableschema.table_type 'Y'`, which silently assumed the two vocabularies are equal; it now reads `... contract_type 'X', which maps to table_type 'Z', and the provided tableschema.table_type 'Y'`. This is the
+    only observable change on the branch.
+  - Documented the design in the helper docstring and added the missing `Raises:`
+    section.
+  - Recorded the branches that still key schema behaviour off a contract type in
+    `.ai-context/TODO.md` — `from_server` / `to_server`, plus
+    `CrossRegistry.add_variable`.
+  - Added a **Table type** term to `.ai-context/CONTEXT.md` and updated the **Contract type** entry, since this change splits one concept into two. `CLAUDE.md`'s
+    "maps 1:1" note was updated to point at the mapping table.
+
+  ## Testing
+
+  New tests, none run in this session (per the repo's no-automatic-validation rule):
+
+  - `TestContractTypeToTableTypeMapping` — three guards: every `ContractType` member has a mapping; every mapped value is a `table_type` some schema class actually declares; and the `TableType` alias itself still matches the schema union. The latter two read the tags off `AnyTableSchema`'s members rather than off `TableType`, so a mapping pointing at a table type no schema can resolve fails here instead of at runtime.
+  - `test_instantiated_subclass_schema_mismatch_raises_value_error` — covers the subclass direction of the mismatch check, which had no coverage. Note this passes on `dev`
+    too; it is a regression guard, not new behaviour.
+  - Updated the two mismatch-message assertions for the reworded error.
+
+  **Please run `uv run pytest` and `uv run mypy src/crosscontract/` before merging.**
+
+  ## Notes for reviewer
+
+  - **Two identical literal definitions.** `ContractType` and `TableType` list the same four members. That is deliberate, but it reads as duplication and invites someone to alias one to the other later, which would re-introduce the coupling. The mapping
+    tests are the guard against that.
+  - **The unknown-contract-type path produces two validation errors**, not one: the `literal_error` on `contract_type`, plus a discriminator error on `tableschema` because no `table_type` was injected. This is unchanged from `dev` (which produced a `union_tag_invalid` there instead), and is now stated in the helper docstring and in
+    the test docstring so nobody tightens the assertion to an error count.
+  - **`refactor:` rather than `fix:`.** The mapping is the identity, so no input changes its outcome; the only observable delta is the error-message wording. Under PSR a `refactor:` prefix does not bump the version, which is the right outcome for a change with no user-visible behaviour. The branch name still says `fix/` — harmless,
+    since the squash-commit message comes from this title.
+  - **`uv.lock` carries an incidental one-line change** syncing `crosscontract` to `0.13.1` to match `pyproject.toml`; it was picked up by a `uv run` during the
+    session and is unrelated to the logic here.
+
+
+
+## v0.13.1 (2026-08-20)
+
+### Bug fixes
+
+
+- **deprecate the construction-time `filters` argument on `CrossDataVariable`** ([`56a24eb`](https://github.com/sweet-cross/crosscontract/commit/56a24eb1a65950554f94d9b2ec7b9434925f6bbe))
+
+- **deprecate the construction-time `filters` argument on** ([`56a24eb`](https://github.com/sweet-cross/crosscontract/commit/56a24eb1a65950554f94d9b2ec7b9434925f6bbe))
+
+
+### Code style
+
+
+- **apply sweet-cross branding to docs** ([`5357f0d`](https://github.com/sweet-cross/crosscontract/commit/5357f0d01ef3380c4929c9a24fca587c9786f3e5))
+
+  Match the docs theme to sweet-cross.ch: brand palette (red/orange/yellow/ green gradient, white/black header per scheme), Space Grotesk/IBM Plex Sans/JetBrains Mono fonts, logo/favicon, gradient stripe under the header, navigation.indexes so section titles link to their overview page, and a wider content column (80rem) to match the data-model docs.
+
+
+### Chores
+
+
+- **planning submission contract** ([`b462914`](https://github.com/sweet-cross/crosscontract/commit/b462914fe1fc4011cdf51840105a01b561f5d160))
+
+
+
+
+
 ## v0.13.0 (2026-08-07)
 
 ### Features

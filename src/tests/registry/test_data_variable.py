@@ -1,5 +1,7 @@
 # test_data_variable.py
 
+import warnings
+
 import pandas as pd
 import pytest
 
@@ -125,7 +127,8 @@ class TestInit:
 
     def test_filters_stored(self, make_contract_resource):
         cr = make_contract_resource(data=var_data, contract_dict=var_contract)
-        var = CrossDataVariable(contract_resource=cr, filters={"year": "2024"})
+        with pytest.warns(FutureWarning, match="deprecated"):
+            var = CrossDataVariable(contract_resource=cr, filters={"year": "2024"})
         assert var._filters == {"year": "2024"}
 
     def test_no_filters_by_default(self, data_variable: CrossDataVariable):
@@ -136,12 +139,25 @@ class TestInit:
         assert "my_data" in repr_str
         assert "filters={'year': '2024'}" not in repr_str
 
-        var_with_filters = CrossDataVariable(
-            contract_resource=data_variable._contract_resource, filters={"year": "2024"}
-        )
+        with pytest.warns(FutureWarning, match="deprecated"):
+            var_with_filters = CrossDataVariable(
+                contract_resource=data_variable._contract_resource,
+                filters={"year": "2024"},
+            )
         repr_with_filters = repr(var_with_filters)
         assert "my_data" in repr_with_filters
         assert "filters={'year': '2024'}" in repr_with_filters
+
+    def test_filters_emits_deprecation_warning(self, make_contract_resource):
+        cr = make_contract_resource(data=var_data, contract_dict=var_contract)
+        with pytest.warns(FutureWarning, match="deprecated"):
+            CrossDataVariable(contract_resource=cr, filters={"year": "2024"})
+
+    def test_no_warning_without_filters(self, make_contract_resource):
+        cr = make_contract_resource(data=var_data, contract_dict=var_contract)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            CrossDataVariable(contract_resource=cr)
 
 
 class TestAddDimension:
@@ -212,7 +228,8 @@ class TestFetchData:
 
     def test_fetch_with_filters(self, make_contract_resource):
         cr = make_contract_resource(data=var_data, contract_dict=var_contract)
-        var = CrossDataVariable(contract_resource=cr, filters={"year": "2024"})
+        with pytest.warns(FutureWarning, match="deprecated"):
+            var = CrossDataVariable(contract_resource=cr, filters={"year": "2024"})
         # trigger lazy load
         _ = var.data
         # get_data should have been called with columns excluding "year" and the filter
@@ -600,7 +617,10 @@ class TestFromClient:
         client = MagicMock()
         client.contracts.get.return_value = cr
 
-        var = CrossDataVariable.from_client(client, "my_data", filters={"year": "2024"})
+        with pytest.warns(FutureWarning, match="deprecated"):
+            var = CrossDataVariable.from_client(
+                client, "my_data", filters={"year": "2024"}
+            )
 
         client.contracts.get.assert_called_once_with("my_data")
         assert var._filters == {"year": "2024"}

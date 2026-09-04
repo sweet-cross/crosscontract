@@ -1,4 +1,3 @@
-import pandera.pandas as pa
 import pytest
 
 from crosscontract.contracts.schema.reference.foreign_key import ForeignKey, ForeignKeys
@@ -86,24 +85,6 @@ class TestForeignKey:
             fk.validate_referenced_fields(["ref_id1", "other_field"])
         assert "['ref_id2']" in str(execinfo.value)
 
-    def test_foreign_keys_iteration(self):
-        """Test iteration over ForeignKeys."""
-        fks = ForeignKeys.model_validate(
-            [
-                {
-                    "fields": ["user_id"],
-                    "reference": {"resource": "user_contract", "fields": ["id"]},
-                },
-                {
-                    "fields": ["order_id"],
-                    "reference": {"resource": "order_contract", "fields": ["id"]},
-                },
-            ]
-        )
-        for fk in fks:
-            assert isinstance(fk, ForeignKey)
-            assert fk.fields in (["user_id"], ["order_id"])
-
 
 class TestForeignKeys:
     """Test class for ForeignKeys collection."""
@@ -125,105 +106,3 @@ class TestForeignKeys:
         for fk in fks:
             assert isinstance(fk, ForeignKey)
             assert fk.fields in (["user_id"], ["order_id"])
-
-    def get_checks_self_reference(self):
-        """Test getting pandera checks from ForeignKeys collection."""
-        fks = ForeignKeys.model_validate(
-            [
-                {
-                    "fields": ["manager_id"],
-                    "reference": {"resource": None, "fields": ["emp_id"]},
-                },
-                {
-                    "fields": ["mentor_id"],
-                    "reference": {"resource": None, "fields": ["emp_id"]},
-                },
-            ]
-        )
-
-        # Create checks
-        checks = fks.get_pandera_checks()
-
-        assert len(checks) == 2
-        for check in checks:
-            assert isinstance(check, pa.Check)
-
-    def get_checks_self_reference_with_values(self):
-        """Test getting pandera checks from ForeignKeys collection with
-        static values."""
-        fks = ForeignKeys.model_validate(
-            [
-                {
-                    "fields": ["manager_id"],
-                    "reference": {"resource": None, "fields": ["emp_id"]},
-                },
-                {
-                    "fields": ["mentor_id"],
-                    "reference": {"resource": None, "fields": ["emp_id"]},
-                },
-            ]
-        )
-
-        # Static valid values for both FKs
-        valid_values = {
-            ("manager_id",): {(1,), (2,)},
-            ("mentor_id",): {(3,), (4,)},
-        }
-
-        # Create checks
-        checks = fks.get_pandera_checks(foreign_key_values=valid_values)
-
-        assert len(checks) == 2
-        for check in checks:
-            assert isinstance(check, pa.Check)
-
-    def get_checks_external_reference_with_values(self):
-        """Test getting pandera checks from ForeignKeys collection with
-        static values."""
-        fks = ForeignKeys.model_validate(
-            [
-                {
-                    "fields": ["manager_id"],
-                    "reference": {"resource": "external_db", "fields": ["emp_id"]},
-                },
-                {
-                    "fields": ["mentor_id"],
-                    "reference": {"resource": "external_db", "fields": ["emp_id"]},
-                },
-            ]
-        )
-
-        # Static valid values for both FKs
-        valid_values = {
-            ("manager_id",): {(1,), (2,)},
-            ("mentor_id",): {(3,), (4,)},
-        }
-
-        # Create checks
-        checks = fks.get_pandera_checks(foreign_key_values=valid_values)
-
-        assert len(checks) == 2
-        for check in checks:
-            assert isinstance(check, pa.Check)
-
-    def get_checks_external_reference_warning(self):
-        """Test getting pandera checks from ForeignKeys collection with
-        static values."""
-        fks = ForeignKeys.model_validate(
-            [
-                {
-                    "fields": ["manager_id"],
-                    "reference": {"resource": "external_db", "fields": ["emp_id"]},
-                },
-                {
-                    "fields": ["mentor_id"],
-                    "reference": {"resource": "external_db", "fields": ["emp_id"]},
-                },
-            ]
-        )
-
-        with pytest.warns(
-            UserWarning,
-            match=r"Foreign Key \['emp_id'\] reference field in external,",
-        ):
-            fks.get_pandera_checks()

@@ -1,0 +1,214 @@
+import pytest
+from pydantic import ValidationError
+
+from crosscontract.submission.extraction import ExtractionInstructions, Target
+from crosscontract.transformations import DropColumns
+
+
+class TestExtractionInstructions:
+    def test_valid(self):
+        """Test the creation of an ExtractionInstructions instance with valid data."""
+        instructions = ExtractionInstructions(
+            routing_column="variable",
+            transformation_profiles={
+                "profile1": [DropColumns(columns=["col1", "col2"])],
+            },
+            targets=[
+                Target(
+                    name="target1",
+                    filters={"variable": "var1"},
+                    contract="contract1",
+                    transformation_profile="profile1",
+                    transformations=[DropColumns(columns=["col3"])],
+                ),
+                Target(
+                    name="target2",
+                    filters={"variable": "var2"},
+                    contract="contract2",
+                ),
+            ],
+        )
+        assert instructions.routing_column == "variable"
+        assert len(instructions.transformation_profiles) == 1
+        assert len(instructions.targets) == 2
+
+    def test_filter_created(self):
+        """Test that the filters are correctly created in the Target instances."""
+        data = {
+            "routing_column": "variable",
+            "targets": [
+                {
+                    "name": "target1",
+                    "contract": "contract1",
+                }
+            ],
+        }
+        instructions = ExtractionInstructions.model_validate(data)
+        my_target = instructions.targets[0]
+        assert isinstance(my_target.filters, dict)
+        assert my_target.filters == {"variable": "target1"}
+
+    def test_derived_filter_uses_the_stripped_name(self):
+        """Test that a padded name is stripped in the name and the derived filter.
+
+        `strip_whitespace` on `Target.name` runs after the derivation, so the
+        derivation strips as well: otherwise the stored name and the routing
+        value derived from it would differ.
+        """
+        data = {
+            "routing_column": "variable",
+            "targets": [
+                {
+                    "name": "  target1  ",
+                    "contract": "contract1",
+                }
+            ],
+        }
+        instructions = ExtractionInstructions.model_validate(data)
+        my_target = instructions.targets[0]
+        assert my_target.name == "target1"
+        assert my_target.filters == {"variable": "target1"}
+
+    def test_filter_raises_validation_error_no_routing_column(self):
+        """Test that a missing `routing_column` is reported rather than swallowed.
+
+        The target itself is well-formed and relies on the derivation, so the
+        missing `routing_column` is the only defect: the before-validator must
+        hand the input through instead of failing on it first.
+        """
+        data = {
+            "targets": [
+                {
+                    "name": "target1",
+                    "contract": "contract1",
+                }
+            ],
+        }
+        with pytest.raises(ValueError, match="routing_column"):
+            ExtractionInstructions.model_validate(data)
+
+    def test_invalid_contract_name_raises(self):
+        """Test that a contract name violating CONTRACT_NAME_PATTERN is rejected."""
+        data = {
+            "routing_column": "variable",
+            "targets": [
+                {
+                    "filters": {"variable": "var1"},
+                    "name": "target1",
+                    "contract": "Not A Valid Name",
+                }
+            ],
+        }
+        with pytest.raises(ValidationError):
+            ExtractionInstructions.model_validate(data)
+
+    def test_missing_targets_raises(self):
+        """Test that omitting `targets` is rejected, not defaulted to an empty list."""
+        with pytest.raises(ValidationError, match="targets"):
+            ExtractionInstructions.model_validate({"routing_column": "variable"})
+
+    def test_empty_targets_raises(self):
+        """Test that an empty `targets` list is rejected."""
+        data = {"routing_column": "variable", "targets": []}
+        with pytest.raises(ValidationError, match="targets"):
+            ExtractionInstructions.model_validate(data)
+
+    def test_non_unique_contract_raises(self):
+        """Test that a ValueError is raised when duplicate contracts are present."""
+        data = {
+            "routing_column": "variable",
+            "targets": [
+                {
+                    "filters": {"variable": "var1"},
+                    "name": "target1",
+                    "contract": "contract1",
+                },
+                {
+                    "filters": {"variable": "var2"},
+                    "name": "target2",
+                    "contract": "contract1",  # Duplicate contract
+                },
+            ],
+        }
+        with pytest.raises(
+            ValueError, match="Duplicate contracts found in targets: contract1"
+        ):
+            ExtractionInstructions.model_validate(data)
+
+    def test_undefined_transformation_profile_raises(self):
+        """Test that a ValueError is raised when a target references an undefined
+        transformation profile.
+        """
+        data = {
+            "routing_column": "variable",
+            "transformation_profiles": {
+                "profile1": [DropColumns(columns=["col1", "col2"])],
+            },
+            "targets": [
+                {
+                    "filters": {"variable": "var1"},
+                    "name": "target1",
+                    "contract": "contract1",
+                    "transformation_profile": "undefined_profile",  # Undefined profile
+                }
+            ],
+        }
+        with pytest.raises(
+            ValueError,
+            match="Undefined transformation profiles referenced in targets: "
+            "undefined_profile",
+        ):
+            ExtractionInstructions.model_validate(data)
+
+    def test_duplicated_target_name_raises(self):
+        """Test that a ValueError is raised when duplicate target names are present."""
+        data = {
+            "routing_column": "variable",
+            "targets": [
+                {
+                    "filters": {"variable": "var1"},
+                    "name": "target1",
+                    "contract": "contract1",
+                },
+                {
+                    "filters": {"variable": "var2"},
+                    "name": "target1",  # Duplicate name
+                    "contract": "contract2",
+                },
+            ],
+        }
+        with pytest.raises(
+            ValueError, match="Duplicate target names found in targets: target1"
+        ):
+            ExtractionInstructions.model_validate(data)
+
+    def test_get_target_success(self):
+        """Get a target by its name."""
+        target_data = {
+            "filters": {"variable": "var1"},
+            "name": "target1",
+            "contract": "contract1",
+        }
+        expected = Target.model_validate(target_data)
+        data = {
+            "routing_column": "variable",
+            "targets": [target_data],
+        }
+        instructions = ExtractionInstructions.model_validate(data)
+        given = instructions.get_target("target1")
+        assert given == expected
+
+    def test_get_target_key_error(self):
+        """Test that getting a non-existent target raises a KeyError."""
+        target_data = {
+            "filters": {"variable": "var1"},
+            "name": "target1",
+            "contract": "contract1",
+        }
+        data = {
+            "routing_column": "variable",
+            "targets": [target_data],
+        }
+        instructions = ExtractionInstructions.model_validate(data)
+        with pytest.raises(KeyError, match="No target with name 'target2' found."):
+            instructions.get_target("target2")

@@ -30,21 +30,6 @@ def rename_columns(df: pd.DataFrame, column_mapping: dict[Any, Any]) -> pd.DataF
     return renamed
 
 
-def drop_columns(df: pd.DataFrame, columns_to_drop: list[Any]) -> pd.DataFrame:
-    """Drop the specified columns from the DataFrame.
-
-    The input DataFrame is not mutated; a new DataFrame is returned.
-
-    Args:
-        df (pd.DataFrame): The DataFrame to drop columns from.
-        columns_to_drop (list[Any]): A list of column names to drop.
-
-    Returns:
-        pd.DataFrame: A new DataFrame with the specified columns dropped.
-    """
-    return df.drop(columns=columns_to_drop)
-
-
 class RenameColumns(BaseTransformation):
     """Declarative spec for `rename_columns`.
 
@@ -71,6 +56,21 @@ class RenameColumns(BaseTransformation):
         return rename_columns(df, self.mapping)
 
 
+def drop_columns(df: pd.DataFrame, columns_to_drop: list[Any]) -> pd.DataFrame:
+    """Drop the specified columns from the DataFrame.
+
+    The input DataFrame is not mutated; a new DataFrame is returned.
+
+    Args:
+        df (pd.DataFrame): The DataFrame to drop columns from.
+        columns_to_drop (list[Any]): A list of column names to drop.
+
+    Returns:
+        pd.DataFrame: A new DataFrame with the specified columns dropped.
+    """
+    return df.drop(columns=columns_to_drop)
+
+
 class DropColumns(BaseTransformation):
     """Declarative spec for `drop_columns`.
 
@@ -95,3 +95,61 @@ class DropColumns(BaseTransformation):
             pd.DataFrame: A new DataFrame with the columns dropped.
         """
         return drop_columns(df, self.columns)
+
+
+def drop_rows_by_value(
+    df: pd.DataFrame, column_name: Any, values_to_drop: list[Any]
+) -> pd.DataFrame:
+    """Drop rows from the DataFrame where the specified column has any of the
+    given values.
+
+    The input DataFrame is not mutated; a new DataFrame is returned.
+
+    Args:
+        df (pd.DataFrame): The DataFrame to drop rows from.
+        column_name (Any): The name of the column to check for values.
+        values_to_drop (list[Any]): A list of values; rows with these values in
+            the specified column will be dropped.
+
+    Returns:
+        pd.DataFrame: A new DataFrame with the specified rows dropped.
+    """
+    return df[~df[column_name].isin(values_to_drop)].copy()
+
+
+class DropRowsByValue(BaseTransformation):
+    """Declarative spec for `drop_rows_by_value`.
+
+    Drops rows where the specified column has any of the given values.
+
+    Attributes:
+        column_name (str): The name of the column to check for values.
+        values (list[Any]): A list of values; rows with these values in the
+            specified column will be dropped.
+    """
+
+    type: Literal["drop_rows_by_value"] = Field(
+        default="drop_rows_by_value",
+        description="Discriminator identifying this transformation.",
+    )
+    column_name: str = Field(
+        description="The name of the column to check for values.",
+    )
+    values: list[Any] = Field(
+        description=(
+            "A list of values; rows with these values in the specified "
+            "column will be dropped."
+        ),
+    )
+
+    def apply(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Drop rows where the specified column has any of the given values,
+        returning a new DataFrame.
+
+        Args:
+            df (pd.DataFrame): The DataFrame to transform.
+
+        Returns:
+            pd.DataFrame: A new DataFrame with the specified rows dropped.
+        """
+        return drop_rows_by_value(df, self.column_name, self.values)

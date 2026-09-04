@@ -85,6 +85,129 @@ While sweeping, check the same files for docstrings missing an applicable
 `Args:` / `Returns:` / `Raises:` section — the convention now requires all three where
 they apply.
 
+### Remove the construction-time `filters` argument from `CrossDataVariable`
+
+Deprecated (`FutureWarning`) on `fix/filter_at_var_level`; the removal itself is gated
+on confirming there are no callers outside this repo. Full write-up, rationale, and
+removal checklist in
+[issue #77](https://github.com/sweet-cross/crosscontract/issues/77).
+
+### Key the remaining contract-type branches off the schema instead
+
+`CONTRACT_TYPE_TO_TABLE_TYPE` decoupled the discriminator injection, but three branches
+still hardcode a contract type against schema behaviour. Once a second contract type
+maps onto `DimensionSchema`, each of them silently does the wrong thing.
+
+- `CrossContract.from_server` / `CrossContract.to_server` in
+  `src/crosscontract/contracts/contracts/cross_contract.py` branch on
+  `contract_type == "Dimension"` to strip the `tableschema` the server owns. Rework
+  them to test the resolved schema — `isinstance(self.tableschema, DimensionSchema)`,
+  **not** `BaseDimensionSchema`: that also matches `FlexibleDimensionSchema`, whose
+  fields are user-defined and must round-trip, so the broader check would silently drop
+  them from the `to_server` payload. An explicit "server owns this schema" marker on
+  the schema class would work too.
+- `CrossRegistry.add_variable` in `src/crosscontract/registry/registry.py` picks
+  `CrossDimension` vs `CrossFlexibleDimension` off
+  `cr.contract.contract_type == "Dimension"`. The surrounding `cr.is_dimension` already
+  keys off the schema, so this should read
+  `isinstance(cr.contract.tableschema, DimensionSchema)` for consistency.
+
+Deferred because the first item touches the client round-trip and both want their own
+test pass.
+
+### Submission extraction follow-ups
+
+Deferred while landing the extraction spec models
+([ADR 0004](./adrs/0004-submission-contracts-carry-extraction-instructions.md)). The PRD
+and task files that carried the analysis are deleted, so the detail is reproduced here.
+
+- **Decide whether contested rows are worth detecting.** A row claimed by *more* than one
+  target. [ADR 0004](./adrs/0004-submission-contracts-carry-extraction-instructions.md)
+  makes overlap deliberately legal — two targets may take the same rows and reshape them
+  for two different contracts — so this is not a bug to fix but a question to answer:
+  *unintentional* overlap is as damaging as an unclaimed row, since the same rows land in
+  two contracts, and nothing surfaces it. `SubmissionHandler._mask_target` in
+  [submission_handler.py](../src/crosscontract/submission/submission_handler.py) makes
+  this cheap — the per-target mask is already the primitive both public methods stand on,
+  so contested rows are a sum over the masks where unclaimed rows are an OR. What is left
+  is the decision, not the plumbing. Note it needs its own raise-or-warn call: the handler
+  answers one target at a time and reports rather than acts, so any such policy belongs
+  in the caller's loop.
+
+- **Consider checking filter values against their field type at load time.** `filters`
+  values are matched against the column's *string* form, so `{year: "abc"}` on an integer
+  column is not an authoring error today — it simply claims nothing, and the rows surface
+  as unclaimed at runtime. A check in `_check_filters` that each authored value parses as
+  its field's Frictionless type would move that to load time. It needs no backend — it
+  compares a string against a Frictionless type, not a pandas dtype — so it sits beside
+  the existing filter-key check in
+  [submission_contract.py](../src/crosscontract/submission/submission_contract.py).
+  Deferred because the unclaimed-row report already surfaces the failure; this only
+  sharpens *where* it is reported. Note it would **not** catch the cases where the value
+  parses but the string form differs: against a datetime column the string form is
+  `2030-01-01 00:00:00`, so `{date: "2030-01-01"}` parses fine and still claims nothing,
+  and against a column that lands as `float64` — which any numeric bundle column carrying
+  a missing value does — the string form is `2030.0`, so `{year: "2030"}` parses fine and
+  still claims nothing. Those traps are documented on `Target.filters` instead.
+
+- **Decide how far column tracking goes.** Column references are order-dependent: after
+  `rename_columns {timestamp: year}` a later `cast_column year` is correct and
+  `cast_column timestamp` is not, so static checking needs the column set tracked
+  *through* the pipeline rather than compared against the schema fields. The options are
+  (a) every transformation declares `output_columns(input_columns) -> set[str]` —
+  strongest checking, but it raises the cost of adding a transformation, which cuts
+  against the extensibility goal; (b) *recommended* — the method is optional, a
+  transformation that omits it returns `None` and tracking stops there with the remainder
+  unchecked; (c) no static checking, rely on runtime failures. Under (a) or (b) these
+  raise: a `rename_columns` key not in the tracked set, a `drop_columns` naming an
+  untracked column, and a `column_name` not in the tracked set. Strictness on
+  `drop_columns` is deliberate — it is what removes the `uploaded_by` / `uploaded_at`
+  wart, which exists today only because `admin_tools` reads back from the server while
+  the backend reads the raw upload. The hook was never added to the six transformations
+  in [transformation/](../src/crosscontract/transformations/transformation/), so adopting
+  (a) or (b) now means retrofitting all six rather than writing it into three while they
+  were being drafted. That changes the price, not which option is right.
+
+- **`MapColumnValues` has no conflict guard.** Mapping a value onto one already present
+  in the column merges the two silently; on a foreign-key column that produces duplicate
+  primary keys downstream and breaks the sum invariant of
+  [ADR 0001](./adrs/0001-dimensions-are-strict-trees.md). Either add an `on_conflict`
+  option to `MapColumnValues` in
+  [column_transformations.py](../src/crosscontract/transformations/transformation/column_transformations.py)
+  or decide that the silent merge is acceptable — but decide, rather than leaving it
+  undecided. This is a correctness question about the transformation itself; no legacy
+  specification depends on the current behaviour.
+
+- **Nothing checks that a target's contract exists.** `SubmissionContract` inherits
+  `validate_references` from `BaseContract`, which walks `tableschema.foreignKeys` and
+  never looks at `extraction.targets`. So a target naming a contract that is not on the
+  platform loads, validates, and extracts happily, and is only discovered when target
+  validation asks a resolver for it — i.e. at data time, by whoever submitted the bundle,
+  rather than at authoring time by whoever wrote the contract. The check is the same shape
+  as the existing one (`resolver.resolve(target.contract)` per target, collect the misses,
+  raise naming them) and belongs beside it in
+  [base_contract.py](../src/crosscontract/contracts/contracts/base_contract.py)'s
+  `validate_references`, overridden on `SubmissionContract` in
+  [submission_contract.py](../src/crosscontract/submission/submission_contract.py).
+  Deferred because it is a contract-lifecycle check, not part of executing a submission —
+  and keeping it out is what lets target validation treat an unresolvable contract as an
+  immediate wiring error rather than folding it into the collected per-target data
+  failures. Worth deciding at the same time whether it also belongs at contract *creation*
+  on the platform, where `cross_back` already runs reference validation.
+
+### Write a docs page for the submission path
+
+Deferred from WP4 of the `CrossSubmitter` work. `docs/` covers `CrossRegistry` but has
+nothing for the provider side, so the whole submission path — authoring a
+`SubmissionContract`, extraction instructions, `SubmissionHandler`, and the one-call
+`CrossSubmitter.validate_submission` — is undocumented outside docstrings.
+
+Mirror the registry's page. It must be explicit that client-side validation is
+**advisory** (the platform re-validates on ingest,
+[ADR 0005](./adrs/0005-one-contract-resolver-supplies-definitions-and-values.md)) and
+that `submit` is not yet available, since the platform exposes no submission endpoint.
+Note `mkdocs.yml` needs the nav entry as well.
+
 ## Related context (not TODO items)
 
 - The release layer is a contract → Frictionless adapter; `CrossDataResource` /

@@ -5,3 +5,5 @@
 ::: crosscontract.crossclient.services.ContractService
 
 ::: crosscontract.crossclient.services.ContractResource
+
+::: crosscontract.crossclient.services.CrossContractResolver

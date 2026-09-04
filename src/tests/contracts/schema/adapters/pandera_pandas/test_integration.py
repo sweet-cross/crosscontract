@@ -1,11 +1,17 @@
-"""Integration tests for PanderaPandasAdapter with DataFrame validation."""
+"""Integration tests: a converted schema meeting a DataFrame.
+
+Ported from src/tests/contracts/schema/adapters/pandera/test_integration_pandera.py.
+The check classes are covered directly under validation/checks/; what these add is
+the assembled schema — coercion, the column constraints the field converters
+emit, and strict mode — actually running against data.
+"""
 
 import pandas as pd
 import pandera.pandas as pa
 import pytest
 
 from crosscontract.contracts.schema import TableSchema
-from crosscontract.contracts.schema.adapters.pandera_adapter import PanderaPandasAdapter
+from crosscontract.contracts.schema.adapters.pandera_pandas import PanderaAdapter
 
 
 @pytest.fixture
@@ -38,7 +44,7 @@ def pandera_schema() -> pa.DataFrameSchema:
         },
     ]
     schema = TableSchema.model_validate({"fields": fields})
-    return PanderaPandasAdapter.convert_schema(schema)
+    return PanderaAdapter.convert_schema(schema)
 
 
 @pytest.fixture
@@ -63,11 +69,14 @@ class TestValidData:
     def test_nullable_field_accepts_none(
         self, pandera_schema: pa.DataFrameSchema, valid_df: pd.DataFrame
     ):
+        """A field that is not required converts to a nullable column."""
         valid_df["country"] = [None, "DE"]
         result = pandera_schema.validate(valid_df)
         assert len(result) == 2
 
     def test_string_numbers_are_coerced(self, pandera_schema: pa.DataFrameSchema):
+        """The conversion sets coerce=True, so a CSV-shaped frame still lands on
+        the declared types."""
         df = pd.DataFrame(
             {
                 "year": ["2020"],
@@ -129,6 +138,8 @@ class TestStrictMode:
     def test_extra_column_fails(
         self, pandera_schema: pa.DataFrameSchema, valid_df: pd.DataFrame
     ):
+        """The conversion sets strict=True, so a column the schema does not
+        describe is a failure rather than an ignored extra."""
         valid_df["extra"] = ["x", "y"]
         with pytest.raises(pa.errors.SchemaError):
             pandera_schema.validate(valid_df)
@@ -137,3 +148,33 @@ class TestStrictMode:
         df = pd.DataFrame({"year": [2020], "score": [50.0]})
         with pytest.raises(pa.errors.SchemaError):
             pandera_schema.validate(df)
+
+
+class TestKeyChecksAreOptIn:
+    """The counterpart to the constraint tests: column constraints always run,
+    the key checks only when values are supplied. See ADR 0006."""
+
+    @pytest.fixture
+    def keyed_schema(self) -> TableSchema:
+        return TableSchema.model_validate(
+            {
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {"name": "name", "type": "string"},
+                ],
+                "primaryKey": ["id"],
+            }
+        )
+
+    def test_duplicate_key_passes_without_values(self, keyed_schema: TableSchema):
+        """Converted bare, the schema permits duplicate primary keys."""
+        df = pd.DataFrame({"id": ["a", "a"], "name": ["x", "y"]})
+        result = PanderaAdapter.convert_schema(keyed_schema).validate(df, lazy=True)
+        assert len(result) == 2
+
+    def test_duplicate_key_fails_with_an_empty_list(self, keyed_schema: TableSchema):
+        """An empty list turns the check on with nothing to compare against."""
+        df = pd.DataFrame({"id": ["a", "a"], "name": ["x", "y"]})
+        schema = PanderaAdapter.convert_schema(keyed_schema, primary_key_values=[])
+        with pytest.raises(pa.errors.SchemaErrors):
+            schema.validate(df, lazy=True)

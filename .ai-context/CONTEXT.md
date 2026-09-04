@@ -13,7 +13,7 @@ implemented.
 A formal, documented agreement describing a tabular dataset — a blueprint shared between
 a **Data provider** and a **Data consumer**. It is **Metadata** + **Schema**, and
 carries no data itself. Every contract has a **contract type** (**ValueVariable**,
-**Dimension**, **FlexibleDimension**, or **General**).
+**Dimension**, **FlexibleDimension**, **Submission**, or **General**).
 _Avoid_: spec, model, definition (when meaning the whole Contract)
 
 **Metadata**:
@@ -24,7 +24,7 @@ custom contracts may define their own set.
 **Schema**:
 The structural half of a **Contract** — field names, data types, mandatory/optional,
 constraints, and the primary/foreign keys. *Is* a Frictionless Table Schema, more
-strictly defined (typed **contract types**, mandatory fields, dimension invariants) and
+strictly defined (typed **table types**, mandatory fields, dimension invariants) and
 slightly extended (**Field descriptors**). Describes logical content only, independent of
 file format. The correspondence is tight at this level only — a **Contract** above it is
 *not* a Frictionless Data Resource, which would bind to a physical file.
@@ -40,8 +40,18 @@ Extra semantic information attached to a **Schema** field beyond its type and
 constraints — e.g. unit information — enriching the Frictionless standard.
 
 **Contract type**:
-The kind of a **Contract**, fixing the shape of its **Schema**: **ValueVariable**,
-**Dimension**, **FlexibleDimension**, or **General**.
+The kind of a **Contract** — what the contract is *for*: **ValueVariable**,
+**Dimension**, **FlexibleDimension**, **Submission**, or **General**. It selects, but is
+not the same thing as, the **Table type** that shapes the contract's **Schema**.
+
+**Table type**:
+The kind of a **Schema** — which structural template the **Schema** follows. Each
+**Contract type** maps to exactly one table type, but several contract types may share
+one: there are five contract types and four table types, and **Submission** maps onto
+the **General** table type because a submission bundle needs its own contract type but
+not its own schema. The mapping is therefore *not* the identity — never assume the two
+strings are equal, and never mint an empty schema class just to give a contract type a
+name of its own. Go through the mapping.
 
 ### The platform and its access layers
 
@@ -59,6 +69,21 @@ The lower-level access layer to the **CROSS platform**, and currently the *only*
 path — creating contracts, changing status, and submitting data go through it. (The
 **Registry** may gain write paths later; for now both are needed.)
 
+**Submitter**:
+The provider-facing access layer, and the mirror of the **Registry** on the write side:
+hand it a **Submission contract** and a delivered bundle and it runs the whole
+**Submission validation** against contracts fetched from the platform, and (later)
+submits the result. It performs no validation of its own — it asks the **Submission
+contract** for the bundle step, wires a **Submission handler** to a **Contract resolver**
+for the target step, and supplies the policy joining them: a bundle that fails its own
+**Schema**, and **Unclaimed rows** that no **Target** takes, each stop the run before the
+next step. Like the **Registry** it stands *on* a **Client** and holds its own
+**Contract resolver**; unlike the **Submission handler** it is connected by definition —
+that is what distinguishes it from every other `Submission*` term, all of which run
+offline.
+_Avoid_: submission client (the word **Client** names the layer beneath it), uploader,
+ingest client
+
 **Project**:
 The owner of submitted data on the **CROSS platform**. A caller acts *on behalf of* one
 project when writing or deleting data — named explicitly, or inferred by the platform
@@ -67,11 +92,78 @@ project the caller may read. A **Contract** itself belongs to no project; only t
 stored under it do.
 _Avoid_: workspace, tenant, organisation, group
 
+### Validation
+
+Three checks, distinguished by what must be fetched from outside the **Contract**:
+nothing, other **Contracts**' definitions, or the values already stored.
+
+**Well-formedness**:
+A **Schema** satisfying its own structural rules — field types, mandatory fields,
+dimension invariants, key definitions. Established when a **Contract** is loaded and
+needs nothing beyond the contract itself.
+_Avoid_: validation (unqualified), schema check
+
+**Reference validation**:
+A **Contract** checked against the **Contracts** it names — they exist, and the
+referenced fields line up. Definition against definition; no data is read. Needs a
+**Contract resolver**.
+_Avoid_: foreign key validation (that is the row-level check inside **Data
+validation**), dependency check
+
+**Data validation**:
+Tabular data checked against a **Contract** — types, constraints, and keys. Meaningful
+without a **Contract resolver**, which is required only to check against **Existing
+values**; without one, keys are still checked *within* the data at hand.
+_Avoid_: schema validation, dataframe validation
+
+**Contract resolver**:
+The single supplier of everything a **Contract** cannot know alone — the definitions of
+other **Contracts**, and the **Existing values** stored under them. It says nothing about
+access control: each implementation reads through whatever its environment allows, and a
+**Data validation** is only as complete as what that read returns.
+_Avoid_: reference source, lookup, repository
+
+**Existing values**:
+The already-stored values a **Data validation** is checked against — the **Contract**'s
+own primary keys, and the referenced fields of the **Contracts** it points to. Distinct
+from the values in the data being validated.
+_Avoid_: reference values (overloads **Reference validation**), existing keys
+
+**Check**:
+A single named rule applied to data during a **Data validation** — that a set of columns
+holds unique values, that their values all appear in a given set, that a **Dimension**'s
+levels line up. A check names the *rule*, not the reason for it: the same uniqueness rule
+serves a primary key on one **Schema** and a single-column unique constraint on another,
+so what it means here is recorded alongside it as a label.
+_Avoid_: task, validator, constraint (a constraint is declared on a **Schema** field; the
+check is the rule derived from it)
+
+**Base check**:
+A **Check** performing one operation, whatever it is about — jointly unique columns,
+membership in a set, absence of nulls, a foreign key. Base checks carry no domain meaning
+of their own; what a rule means on a particular **Schema** is its label.
+_Avoid_: primitive check, simple check
+
+**Composite check**:
+A **Check** combining several base checks and naming what they mean together, such as a
+valid primary key. A composite is warranted only when its parts produce distinct,
+actionable messages, so a report can say which of them broke. A foreign key is not one:
+"value not in the referenced set" is a single message.
+_Avoid_: compound check, aggregate check
+
+**Derivation**:
+Turning a **Schema** into the checks a **Data validation** runs, in one place, taking the
+**Existing values** as optional inputs. A caller supplies values, never checks, so it can
+inform a check but cannot weaken one it has asked for. Supplying nothing for a group of
+keys leaves those checks out entirely; supplying an empty collection runs them with
+nothing to compare against.
+_Avoid_: assembly, check building
+
 ### Roles and lifecycle
 
 **Data provider**:
-The party that delivers data conforming to a **Contract** and validates it against that
-contract before submission.
+The party that delivers data conforming to a **Contract** and runs **Data validation**
+against that contract before submission.
 
 **Data consumer**:
 The party that reads data described by a **Contract**, relying on it to know the
@@ -123,7 +215,13 @@ The legacy fallback **contract type**, predating the typed contracts. Any tabula
 contract that isn't a **Variable** or a **Dimension** (e.g. a mapping/bridge or lookup
 table). Should no longer be chosen for new contracts; its long-term fate (deprecate vs.
 keep as a generic escape hatch) is undecided while existing contracts migrate to the
-typed forms.
+typed forms. **Submission** was added rather than reusing it, precisely to avoid
+deepening a dependency on a type whose deprecation is open.
+
+The **General** *table type* is not legacy in the same way, and this is the one place
+the two vocabularies visibly come apart: **Submission** maps onto it, so the structural
+template outlives the contract type that shares its name. "General is legacy" is a
+statement about the contract type only.
 
 ### Dimensions — the anchors of the model
 
@@ -160,7 +258,7 @@ _Avoid_: entry, element, category value (pick "member")
 
 **"other" entry**:
 The catch-all sentinel **member** every hierarchical **Dimension** carries — `other` at
-the root, `other_<parent_id>` at each sub-level — so uncategorised data has a home and the
+the root, `<parent_id>_other` at each sub-level — so uncategorised data has a home and the
 **Sum invariant** still holds.
 
 ### Release and distribution
@@ -224,9 +322,90 @@ permitted set of **Transformations**. Distinct from a **Data specification**, wh
 file-binding part of a single **Data Resource**, not a build recipe.
 _Avoid_: spec (unqualified — ambiguous with **Data specification**)
 
+### Submission and extraction
+
+**Submission contract**:
+A **Contract** describing a delivered *bundle* — one file carrying rows for many
+datasets at once — together with the **Extraction instructions** for splitting it. Its
+**Schema** describes the bundle itself, not any dataset extracted from it. Contract type
+**Submission**.
+_Avoid_: extractor (the legacy hand-written Python form; the thing that *executes* a
+submission contract is the **Submission handler**), submission spec
+
+**Extraction instructions**:
+The declarative half of a **Submission contract**: a **Routing column**, reusable
+**Transformation profiles**, and one **Target** per dataset to extract. They *name* their
+target **Contracts** and never resolve them — extraction is a pure bundle → tabular data
+function, and validating each result against its target contract happens downstream.
+_Avoid_: extractor (say **Submission handler** for the executor), mapping, rules
+
+**Transformation profile**:
+A named, ordered list of **Transformations** defined once in **Extraction instructions**
+and referenced by several **Targets**. A target's own transformations run *after* its
+profile's. Profiles do not compose and do not inherit from one another.
+_Avoid_: template, base, mixin (each implies composition, which is deliberately absent)
+
+**Target**:
+One entry in **Extraction instructions**, identified by its **name**: which rows to take
+from the bundle, the **Transformations** to apply to them, and the name of the
+**Contract** the result is validated against. Where the rows to take are not stated
+explicitly, they default to those whose **Routing column** holds the target's name — the
+one place in this language where an identifier doubles as data. A target's name carries
+no pattern and no maximum length, unlike a **Contract**'s: it identifies the target
+inside its own spec and never leaves it. Exactly one target per contract — a contract is
+never fed twice — though several targets may take the same rows and reshape them
+differently.
+_Avoid_: output, destination, extractor (say **Submission handler** for the executor)
+
+**Routing column**:
+The bundle column whose value selects a **Target**, conventionally `variable`, required
+and string-typed. When a **Target** omits its `filters`, they default to a single filter
+on this column. Its permitted values are *not* derivable from the targets — a target may
+constrain other columns entirely and never mention this one — so no `enum` is derived and
+an authored one is an ordinary field constraint. Whether every row actually reaches a
+target is answered against data instead; see **Unclaimed rows**.
+_Avoid_: discriminator (reserved for the `type` / `table_type` tags of the pydantic
+unions), variable column
+
+**Unclaimed rows**:
+The rows of a submitted bundle that no **Target**'s filters match, and which extraction
+would therefore silently drop. A property of the **bundle**, not of any one **Target** —
+so it is asked for on its own and is no part of the target step of a **Submission
+validation**. Reported by the **Submission handler** and never acted on
+by it — whether an unclaimed row is an error or a warning is the caller's policy. Filters
+are matched against the column's string form, which can only under-match, so a filter
+that fails to match surfaces here rather than passing unnoticed. Rows claimed by *more*
+than one target are legal and a separate question; they have no term yet.
+_Avoid_: leftover, unpacked, orphan rows, unrouted, uncovered
+
+**Submission handler**:
+The executor that applies a **Submission contract**'s **Extraction instructions** to a
+delivered bundle. Its scope is **Targets and nothing else**: for one target, select the
+rows it claims, apply its **Transformation profile** and then its own
+**Transformations**, and check the result against the **Contract** it names. It answers
+for one target or for every target, and across targets it collects every failure rather
+than stopping at the first — the same posture the row-level checks take within one
+dataset. It reports **Unclaimed rows** and never acts on them. It obtains a target's
+**Contract** from the caller, either handed over directly or through a **Contract
+resolver**, and never reaches for one itself.
+_Avoid_: extractor, processor, pipeline
+
+**Submission validation**:
+The two-step check of a delivered bundle: first the bundle as a whole against the
+**Submission contract**'s own **Schema**, then each extracted **Target** against the
+**Contract** it names. The first step is an ordinary **Data validation** of the
+**Submission contract** against the bundle, so it needs nothing new — the contract
+already answers it; the second is the **Submission handler**'s. The steps are sequential
+but not welded, and *whether a failed bundle stops the run* is the caller's policy. The
+**Submitter** is the caller that makes it, and it stops.
+_Avoid_: bundle validation for the whole (it names only the first step — which is the
+right name for that step alone), submission check
+
 ## Relationships
 
 - A **Contract** is **Metadata** + **Schema**, and has exactly one **Contract type**.
+- Each **Contract type** maps to exactly one **Table type**, which fixes the shape of
+  the **Schema**. Several contract types may map to the same table type.
 - A **ValueVariable** contract declares a **Variable**; a **Dimension** /
   **FlexibleDimension** contract declares a **Dimension**.
 - A **Variable** references one or more **Dimensions** (star schema: Variable = fact,
@@ -239,6 +418,8 @@ _Avoid_: spec (unqualified — ambiguous with **Data specification**)
   (**Draft → Active ⇄ Suspended → Retired**).
 - The **Registry** reads **Variables** from the platform; the **Client** is the write
   path. **Data providers** write, **Data consumers** read.
+- The **Registry** and the **Submitter** are the two role-facing layers over one
+  **Client** — **Data consumer** and **Data provider** respectively.
 - A **Data Resource** is a **Contract** + a **Data specification**; a **Data Package**
   bundles many **Data Resources** for distribution.
 - The **Release adapter** consumes a **Release spec** (a **CrossDataPackageReleaseSpec** + many
@@ -249,6 +430,41 @@ _Avoid_: spec (unqualified — ambiguous with **Data specification**)
   **Transformations** per variable; each kind of **Build spec** permits its own subset of
   **Transformations**. A **Transformation** touches tabular data only — never
   **Contracts**, **Schema**, or **Dimensions**.
+- A **Contract** is checked three ways: **Well-formedness** when it is loaded,
+  **Reference validation** against the **Contracts** it names, and **Data validation**
+  against actual rows. Only the first needs nothing from outside the contract.
+- **Reference validation** consumes a **Contract resolver**'s definitions; **Data
+  validation** consumes its **Existing values**. One resolver answers both, because both
+  questions are about the world outside the **Contract**.
+- The **Client** and the **CROSS platform** each provide a **Contract resolver**. A
+  **Data provider** validates through the client before submitting; the platform
+  re-validates authoritatively on ingest.
+- A **Data validation** runs the checks a single **Derivation** produces from the
+  **Schema**. The caller passes **Existing values**, never checks, so it can inform a
+  check but cannot weaken one it has asked for.
+- The key checks are opt-in: a caller that supplies no values for the primary key or the
+  foreign keys leaves those checks out. A **Dimension**'s invariants and the field
+  constraints run either way, needing nothing from outside the data.
+- A **Submission contract** is a **Contract** whose **Schema** describes a delivered
+  bundle, plus **Extraction instructions**. Its **Contract type** is **Submission**,
+  which maps to the **General** **Table type** — the first contract type not backed by a
+  table type of its own name.
+- **Extraction instructions** hold a **Routing column**, zero or more **Transformation
+  profiles**, and one **Target** per extracted dataset. Each **Target** names the
+  **Contract** its output is validated against and never resolves it; one contract is fed
+  by exactly one target.
+- Submission is the ingress mirror of the **Release adapter**: release turns
+  **Contracts** into a **Data Package** for distribution, submission describes a
+  delivered bundle and how it splits back into per-contract datasets. Both name
+  **Contracts** without resolving them. Executing the instructions against actual data is
+  a separate concern from the spec that describes them.
+- The **Submission handler** is that execution: it holds a **Submission contract** and a
+  bundle, and answers per **Target**. **Unclaimed rows** are a property of the pairing —
+  the bundle against the instructions — not of either alone, which is why the handler
+  rather than the contract reports them.
+- A **Submission validation** is two **Data validations** at different grains: the bundle
+  against the **Submission contract**, then each **Target**'s extracted rows against the
+  **Contract** that target names. The handler owns the second grain only.
 
 ## Example dialogue
 
@@ -286,6 +502,17 @@ _Avoid_: spec (unqualified — ambiguous with **Data specification**)
   was the bespoke release descriptor and is **retired** (the **Release adapter** emits a
   **Frictionless descriptor** instead). When someone says "the release resource", they mean
   the Frictionless resource descriptor, never the fetch handle.
+- **The three validations have no distinct names in code.** **Well-formedness** is
+  `validate_structural_integrity` on the schema, **Reference validation** is
+  `validate_references` on the contract, and **Data validation** appears as
+  `validate_data` / `validate_dataframe` at three layers. The language distinguishes
+  them; the code does not yet. Renaming is a separate decision — use the terms in prose
+  regardless.
+- **"reference" is load-bearing twice.** A foreign key *is* a reference, so both
+  **Reference validation** (do the named contracts line up?) and the foreign-key check
+  inside **Data validation** (do these row values exist?) concern references. Resolved:
+  **Reference validation** is definition-only; anything concerning values is **Data
+  validation**, and its inputs are **Existing values** — never "reference values".
 - **"spec" was overloaded.** Resolved: a single **Transformation** is *not* "a spec"; the
   declarative manifest that lists variables and transformations is a **Build spec**
   (data-package spec, plot spec). Unqualified "spec" is banned because it also collides

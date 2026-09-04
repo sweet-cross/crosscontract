@@ -48,6 +48,23 @@ making changes, stop and **ask for permission** before running any of them. Only
 a validation command when the user has explicitly asked for it or granted permission
 in the current exchange.
 
+### Implement only what was asked, as simply as possible
+
+When handed a scoped change, implement **exactly** that change and nothing adjacent.
+Acceptance criteria in a task or PRD file you happened to read, and findings from your
+own earlier review, are **not** authorization — they stay open until handed over
+separately. State the requested change in one line before editing, and let only that
+line justify each edit; everything else you noticed goes in the reply as a note, never
+into the code. If a fix seems to require adjacent work, say so and ask rather than
+bundling it in.
+
+Prefer the simplest implementation that satisfies the request. Do not add helper
+functions, module constants, curated error messages, or defensive branches unless the
+change cannot be expressed without them — a one-line change should land as a one-line
+change. The house style is deliberately plain (pure function plus thin pydantic model,
+`apply()` a single delegating call); match it. If you think an abstraction is
+warranted, propose it and let the user decide.
+
 ## Branching and releases
 
 - `main` is the public release branch. Pushes to main publish to PyPI (gated by the `pypi` GitHub Environment) and deploy the docs.
@@ -71,7 +88,7 @@ The public surface — `contracts/`, `crossclient/`, and `registry/` — is re-e
 
 **`contracts/contracts/`** — The contract classes:
 - `BaseContract` (Pydantic model): minimal contract with `name` + `tableschema`. Intended for custom contract definitions outside the CROSS platform. Loads from YAML/JSON via `from_file()`.
-- `CrossContract(BaseContract, CrossMetaData)`: the full contract for the CROSS platform, adding `title`, `description`, `tags`, and `contract_type`. The `contract_type` field (`"General"` | `"Dimension"` | `"ValueVariable"` | `"FlexibleDimension"`) drives a discriminated union: it is automatically injected as `table_type` into the `tableschema` dict before validation, so callers never set `table_type` manually.
+- `CrossContract(BaseContract, CrossMetaData)`: the full contract for the CROSS platform, adding `title`, `description`, `tags`, and `contract_type`. The `contract_type` field (`"General"` | `"Dimension"` | `"ValueVariable"` | `"FlexibleDimension"` | `"Submission"`) drives a discriminated union: it is resolved through `CONTRACT_TYPE_TO_TABLE_TYPE` and the resulting `table_type` is injected into the `tableschema` dict before validation, so callers never set `table_type` manually.
 - `CrossContract.from_server()` / `to_server()`: strip/restore the `tableschema` for `Dimension` contracts because the server owns that schema.
 - `ContractResolver` protocol: used to look up contracts by name during `validate_references()`.
 
@@ -85,10 +102,14 @@ The public surface — `contracts/`, `crossclient/`, and `registry/` — is re-e
 - Vendored copies of the upstream Frictionless JSON Schemas (`table-schema.json`, `data-resource.json`, `data-package.json`, `tabular-data-resource.json`) live in `.ai-context/additional_info/` — the authoritative reference for what fields, types, and constraints the schema layer must stay compatible with. Reference only; no code loads them at runtime. The `_standards/frictionless/` package (below) is a faithful pydantic mirror of these.
 
 **`contracts/schema/adapters/`** — Converts `TableSchema` to external formats:
-- `PanderaPandasAdapter`: builds a `pandera.DataFrameSchema` with primary-key uniqueness and foreign-key checks.
+- `pandera_pandas/`: `PanderaAdapter` builds a `pandera.DataFrameSchema` in two halves — `create_base_schema()` for the columns, `_derive_checks()` for the checks the schema requires of its own data. `field_convertors.py` holds one converter class per field type behind the `get_field_converter` factory. Reached publicly through `TableSchema.to_pandera_schema()`; the adapter class itself is not re-exported from `contracts/schema/`.
 - `PydanticAdapter`: generates a dynamic Pydantic model class.
 - `SQLAlchemyPostgresAdapter`: generates SQLAlchemy `Table` columns.
-- `_pandera_dimension_checks.py`: custom Pandera checks enforcing dimension hierarchy invariants (level 0 = no parent, level N > 0 = parent at N-1, required "other" sentinel entries).
+
+**`contracts/schema/validation/`** — Runs a schema against a DataFrame:
+- `checks/`: a check is a pydantic model holding what it needs, callable as `__call__(df) -> pd.Series`, rendering itself via `to_pandera() -> list[pa.Check]`. `base_checks.py` (`IsUnique`, `IsIn`, `IsNotIn`, `IsNotNull`, `IsSubsetOf`) names mechanics rather than meanings — what a rule means on a given schema is a `label` supplied at derivation. `reference_checks.py` (`IsValidPrimaryKey`) and `dimension_checks.py` (`IsValidCrossDimension`) are composites that unpack into one pandera check per sub-rule, so a report names the rule that broke.
+- `validate_dataframe.py`: executes a `pa.DataFrameSchema` and translates pandera exceptions into `SchemaValidationError`.
+- `PanderaAdapter._derive_checks` is the only place a schema becomes checks, and it takes existing values as optional arguments. **The key checks are opt-in**: `None` for `primary_key_values` / `foreign_key_values` leaves those checks out entirely, while an empty collection runs them with nothing to compare against. A `Dimension`'s hierarchy and the field constraints run either way. See ADR 0006.
 
 **`contracts/schema/fields/`** — Field types (`IntegerField`, `NumberField`, `StringField`, `DateTimeField`, `ListField`), all discriminated by `type`. Each carries a typed `constraints` submodel (e.g. `min`/`max` for numbers, `pattern`/`maxLength` for strings).
 
@@ -122,13 +143,24 @@ A stateless adapter that turns CROSS contracts into a Frictionless Data Package 
 - `_resolve_resource.py` — `fetch_data` (fetch via the registry's trusted path), `build_data_resource` (overlay contract metadata with the spec field-by-field, embed the contract `schema`, derive `path`/`profile` from `format`), and `resolve_resources` (the per-resource loop: empty data is warned-and-skipped; an all-empty release raises).
 - `_resolve_package.py` — `save_data_package`: writes each resource's data file plus `datapackage.json` and `datapackage.yaml` into the output zip.
 
+### `submission/` — Submission contracts and extraction instructions
+
+The ingress mirror of `release/`, and top-level for the same reason: it owns its spec models *and* the code that executes them, so the concept lives in one package. `release/` turns contracts into a published data package; `submission/` describes a delivered bundle — one wide file carrying many variables — and how it is split back into per-variable contracts.
+
+- `submission_contract.py` — `SubmissionContract`: a contract whose `tableschema` describes the bundle itself, plus `project_name` and an `extraction` block.
+- `extraction/` — the declarative split instructions: `Target` (which rows go to which target contract, and the transformations applied on the way) and `ExtractionInstructions` (the routing column, the reusable transformation profiles, and the targets).
+- `submission_handler.py` — `SubmissionHandler`: the executor that applies those instructions to a delivered bundle. Extraction is `extract_target_data` / `transform_target_data` / `get_target_data` per target, plus `unclaimed_rows` for the bundle rows no target claims. Validation is `validate_target` (one target's extracted rows against the contract it names) and `validate_targets` (every target, or a named selection, collecting each failure into a `TargetValidationError` instead of stopping at the first). Target contracts arrive from the caller or through a `ContractResolver`; the handler never constructs one.
+- `exceptions.py` — `TargetValidationError`: the aggregate raised by `validate_targets`, holding one `SchemaValidationError` per failing target keyed by target name.
+
+`SubmissionContract` lives here rather than in `contracts/` deliberately: that it *is* a contract is expressed by inheritance, not by file location, and `contracts/` describes what a dataset looks like while extraction is a process. Keeping it out of `contracts/` also keeps the import graph one-way — `transformations/fetch/fetch_spec.py` already imports `CONTRACT_NAME_PATTERN` out of `contracts`, so extraction living under `contracts/` and importing `transformations` would close a cycle.
+
 ### `_helpers/` — Internal, dependency-free helpers
 
 Not re-exported from the top-level package. `_pydantic.py` holds reusable pydantic types (`OptionalNonEmptyList`, which collapses `[]`→`None` for Frictionless `minItems: 1` optional arrays); `_io.py` holds `read_yaml_or_json_file` and `dump_to_file`.
 
 ### Key design patterns
 
-- **Discriminated unions**: `contract_type` on `CrossContract` maps 1:1 to `table_type` on the schema. The `_inject_table_type` validator bridges them automatically.
+- **Discriminated unions**: `contract_type` on `CrossContract` selects the schema's `table_type` via the `CONTRACT_TYPE_TO_TABLE_TYPE` table in `contracts/contracts/cross_contract.py`. The mapping is **not** the identity: `Submission` resolves to the `General` table type, because a submission bundle needs its own contract type but not its own schema. The two vocabularies are deliberately separate so several contract types can share one schema — never assume the two strings are equal, and never add an empty schema class just to give a contract type a discriminator target. The `_inject_table_type` validator bridges them automatically.
 - **Adapters are stateless class methods**: call `Adapter.convert_schema(schema, ...)` directly; the adapter pattern exists for extensibility but doesn't require instantiation in practice.
 - **Two `name` patterns, deliberately distinct**: `CONTRACT_NAME_PATTERN` (in `contracts/contracts/base_contract.py`) is the strict contract/field identifier — no `/`; `FRICTIONLESS_NAME_PATTERN` (in `_standards/frictionless/metadata.py`) is the looser standard resource/package identifier that permits `/`. The contract pattern is a subset, so any contract name is also a valid Frictionless name.
 - **Tests live in `src/tests/`**, mirroring the `src/crosscontract/` structure. `pythonpath = "src"` in `pyproject.toml` means imports use `from crosscontract import ...` without editable install, though the package should be installed via `uv sync`.
@@ -162,7 +194,9 @@ def f(x: int, y: str | None = None) -> bool:
 
 Rules of thumb:
 
-- Docstrings are user-facing. Do **not** reference internal notes (ADRs, issue numbers, task numbers, migration cycles) — those belong in commit messages, PRs, or `.ai-context/`.
+- Docstrings are user-facing. Write what the thing does, and where a caller needs it, how to use it. Do **not** write *why it was built that way* — design rationale, rejected alternatives, comparisons to how a sibling class is built, or a justification for something the class deliberately does not have. A reader calling the code has no use for it and it obscures what they came for. Rationale belongs in commit messages, PRs, ADRs, or `.ai-context/`.
+- For the same reason, do **not** reference internal notes (ADRs, issue numbers, task numbers, migration cycles) from a docstring.
+- A consequence a caller must act on is *not* rationale and belongs in the docstring — e.g. "validation here is advisory; the platform re-validates on ingest" tells them their data can still be rejected. State the consequence, not the decision behind it.
 - For Pydantic field descriptions, use the `Field(description=...)` argument with the same markdown conventions; no Args block on the field itself.
 - For `@model_validator` / `@model_serializer` methods, document the invariant they enforce in the summary, plus `Returns:` (typically `Self`) and `Raises:` where applicable.
 - Properties: document via `Returns:` rather than restating the property name.
