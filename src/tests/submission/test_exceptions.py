@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from crosscontract import TargetValidationError
+from crosscontract import TargetValidationError, UnclaimedRowsError
 from crosscontract.contracts.schema import SchemaValidationError, TableSchema
 
 
@@ -62,3 +62,29 @@ class TestTargetValidationError:
         )
 
         assert FromSubmission is TargetValidationError
+
+
+class TestUnclaimedRowsError:
+    @pytest.fixture
+    def unclaimed_rows(self) -> pd.DataFrame:
+        return pd.DataFrame({"id": [1, 2, 3]})
+
+    @pytest.fixture
+    def error(self, unclaimed_rows):
+        return UnclaimedRowsError(unclaimed_rows)
+
+    def test_unclaimed_rows_are_exposed_unchanged(self, error, unclaimed_rows):
+        assert error.unclaimed_rows.equals(unclaimed_rows)
+
+    def test_message_mentions_number_of_unclaimed_rows(self, error):
+        assert "3 unclaimed rows found" in str(error)
+
+    def test_to_list_returns_list_of_dicts(self, error, unclaimed_rows):
+        rows = error.to_list()
+        assert isinstance(rows, list)
+        assert all(isinstance(row, dict) for row in rows)
+        assert rows == unclaimed_rows.to_dict(orient="records")
+
+    def test_to_pandas_returns_dataframe(self, error, unclaimed_rows):
+        df = error.to_pandas()
+        pd.testing.assert_frame_equal(df, unclaimed_rows)

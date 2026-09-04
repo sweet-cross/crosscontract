@@ -69,6 +69,21 @@ The lower-level access layer to the **CROSS platform**, and currently the *only*
 path — creating contracts, changing status, and submitting data go through it. (The
 **Registry** may gain write paths later; for now both are needed.)
 
+**Submitter**:
+The provider-facing access layer, and the mirror of the **Registry** on the write side:
+hand it a **Submission contract** and a delivered bundle and it runs the whole
+**Submission validation** against contracts fetched from the platform, and (later)
+submits the result. It performs no validation of its own — it asks the **Submission
+contract** for the bundle step, wires a **Submission handler** to a **Contract resolver**
+for the target step, and supplies the policy joining them: a bundle that fails its own
+**Schema**, and **Unclaimed rows** that no **Target** takes, each stop the run before the
+next step. Like the **Registry** it stands *on* a **Client** and holds its own
+**Contract resolver**; unlike the **Submission handler** it is connected by definition —
+that is what distinguishes it from every other `Submission*` term, all of which run
+offline.
+_Avoid_: submission client (the word **Client** names the layer beneath it), uploader,
+ingest client
+
 **Project**:
 The owner of submitted data on the **CROSS platform**. A caller acts *on behalf of* one
 project when writing or deleting data — named explicitly, or inferred by the platform
@@ -370,17 +385,21 @@ rows it claims, apply its **Transformation profile** and then its own
 **Transformations**, and check the result against the **Contract** it names. It answers
 for one target or for every target, and across targets it collects every failure rather
 than stopping at the first — the same posture the row-level checks take within one
-dataset. It obtains a target's **Contract** from the caller, either handed over directly
-or through a **Contract resolver**, and never reaches for one itself.
+dataset. It reports **Unclaimed rows** and never acts on them. It obtains a target's
+**Contract** from the caller, either handed over directly or through a **Contract
+resolver**, and never reaches for one itself.
 _Avoid_: extractor, processor, pipeline
 
 **Submission validation**:
 The two-step check of a delivered bundle: first the bundle as a whole against the
 **Submission contract**'s own **Schema**, then each extracted **Target** against the
-**Contract** it names. The first step is an ordinary **Data validation** and belongs to
-the caller; only the second is the **Submission handler**'s. The steps are sequential but
-not welded: a caller decides whether a failed bundle stops the run.
-_Avoid_: bundle validation (that is only the first step), submission check
+**Contract** it names. The first step is an ordinary **Data validation** of the
+**Submission contract** against the bundle, so it needs nothing new — the contract
+already answers it; the second is the **Submission handler**'s. The steps are sequential
+but not welded, and *whether a failed bundle stops the run* is the caller's policy. The
+**Submitter** is the caller that makes it, and it stops.
+_Avoid_: bundle validation for the whole (it names only the first step — which is the
+right name for that step alone), submission check
 
 ## Relationships
 
@@ -399,6 +418,8 @@ _Avoid_: bundle validation (that is only the first step), submission check
   (**Draft → Active ⇄ Suspended → Retired**).
 - The **Registry** reads **Variables** from the platform; the **Client** is the write
   path. **Data providers** write, **Data consumers** read.
+- The **Registry** and the **Submitter** are the two role-facing layers over one
+  **Client** — **Data consumer** and **Data provider** respectively.
 - A **Data Resource** is a **Contract** + a **Data specification**; a **Data Package**
   bundles many **Data Resources** for distribution.
 - The **Release adapter** consumes a **Release spec** (a **CrossDataPackageReleaseSpec** + many

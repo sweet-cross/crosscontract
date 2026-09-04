@@ -30,6 +30,7 @@ class SubmissionHandler:
     A target's contract arrives from the caller, either handed over directly or
     through a `ContractResolver`; the handler never constructs one. With a
     contract in hand it loads and runs with no platform connection.
+    `CrossSubmitter` runs this against contracts fetched from the platform.
 
     Attributes:
         contract (SubmissionContract): The contract describing the bundle and how
