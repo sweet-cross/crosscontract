@@ -130,9 +130,7 @@ class TestValidateSubmissionSequence:
         """Step 1 fails, so no handler is even built."""
         with patch("crosscontract.submission.submitter.SubmissionHandler") as handler:
             with pytest.raises(SchemaValidationError):
-                submitter.validate_submission(
-                    contract, bundle((None, "CH", 2020, 1.0))
-                )
+                submitter.validate_submission(contract, bundle((None, "CH", 2020, 1.0)))
         handler.assert_not_called()
 
     def test_unclaimed_rows_stop_before_the_targets(self, submitter, contract):

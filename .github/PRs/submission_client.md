@@ -34,6 +34,9 @@ yet.
   because target filters match a column's string form and a coerced value can change
   which target claims a row.
 - A `SubmissionHandler` is built per call and not retained.
+- Imports `CrossClient` from `crosscontract.crossclient` rather than from the top-level
+  package the way `registry.py` does, so the module does not depend on the order in which
+  `crosscontract/__init__.py` loads its subpackages.
 
 **New `UnclaimedRowsError`** (`submission/exceptions.py`)
 - Carries the unclaimed rows as a `pd.DataFrame`, not a count or a formatted string,
@@ -80,21 +83,30 @@ modules use them; the call sites in that module are unchanged.
 
 ## Notes for reviewer
 
-- **Two edge cases from the plan are unreachable and deliberately untested.**
+- **The step-2 `KeyError` is reachable, and is documented rather than closed.** An
+  earlier draft of this branch claimed `SubmissionContract._check_filters` made it
+  unreachable and dropped the clause from the docstring. That was wrong: the validator
+  checks that a filter column exists in the *tableschema*, not that it arrives in the
+  *bundle*, and step 1 does not close the gap — `BaseConstraint.required` defaults to
+  `False`, the field converter maps it onto `pa.Column(required=...)`, and pandera treats
+  a non-required column as allowed to be missing. So a bundle delivered without an
+  optional filter column passes step 1 and raises a bare `KeyError` out of `_mask_target`
+  in step 2 (and again in step 3). The clause is back in the `Raises:` block.
+  **Worth a decision:** whether `_check_filters` should additionally require that every
+  filter column carries `required: true`, which would make the invariant real instead of
+  documented. Left out here as adjacent work.
+- **One edge case from the plan is genuinely unreachable and deliberately untested.**
   `ExtractionInstructions.targets` carries `min_length=1`, so a contract with no targets
-  cannot be constructed; and `SubmissionContract._check_filters` rejects a filter column
-  absent from the schema at construction, so the `KeyError` path in step 2 cannot
-  surface through `validate_submission`. The `KeyError` clause was removed from the
-  docstring for that reason.
-- **`submitter.py` imports `from crosscontract import CrossClient`**, matching
-  `registry.py`. This works only because `crosscontract/__init__.py` loads `.crossclient`
-  before `.submission` — inert until this branch exported `CrossSubmitter`, load-bearing
-  now. `from crosscontract.crossclient import CrossClient` would remove the constraint
-  and fold in the resolver import on the next line. Left alone as out of scope; worth a
-  decision.
-- **`submit()`** has no `-> None` annotation, and its `NotImplementedError` message
-  restates the exception type rather than naming the platform gap. The docstring says it;
-  the message a caller sees does not.
+  cannot be constructed.
+- **`validate_submission` can raise `CrossClientError`.** The `check_existing_*` defaults
+  make a platform read unavoidable on every call, and `CrossContractResolver.get_data`
+  propagates client errors rather than swallowing them the way `resolve` swallows a
+  missing contract. Now named in the `Raises:` block, so the four data-shaped exceptions
+  no longer read as exhaustive.
+- **`submit()`** still has no `-> None` annotation, in line with the ~10 other
+  unannotated methods in the package (`close`, `clear_data_cache`, …). Its
+  `NotImplementedError` message now names the platform gap instead of restating the
+  method name.
 - **No docs page.** `docs/` covers `CrossRegistry` but nothing on the provider side.
   Deferred to `.ai-context/TODO.md` rather than expanding this branch.
 - Repeated `get_data` calls across steps (once in step 1, once per target) are a known,

@@ -1,7 +1,6 @@
 import pandas as pd
 
-from crosscontract import CrossClient
-from crosscontract.crossclient.services import CrossContractResolver
+from crosscontract.crossclient import CrossClient, CrossContractResolver
 
 from .exceptions import UnclaimedRowsError
 from .submission_contract import SubmissionContract
@@ -59,7 +58,9 @@ class CrossSubmitter:
             NotImplementedError: Always. The CROSS platform does not yet expose
                 a submission endpoint.
         """
-        raise NotImplementedError("The submit method is not yet implemented.")
+        raise NotImplementedError(
+            "The CROSS platform does not yet expose a submission endpoint."
+        )
 
     def validate_submission(
         self,
@@ -122,9 +123,15 @@ class CrossSubmitter:
                 first, and the frames of those that passed are discarded along
                 with the failures.
             ValueError: A target names a contract the resolver cannot supply.
-                Raised for the first target that hits it rather than collected,
-                because it says the run was set up wrongly rather than that the
-                data is bad.
+                Raised for the first target that hits it rather than collected.
+            KeyError: A column named by a target's `filters` is absent from the
+                bundle. Step 1 only enforces the presence of columns whose field
+                is `required`, so an optional filter column can be missing by
+                the time step 2 reads it.
+            CrossClientError: A read against the platform failed. Both key
+                checks reach the platform through this submitter's resolver, so
+                a contract or its stored data being unreadable surfaces here
+                rather than as a validation failure.
         """
         # validate the full bundle
         _ = contract.validate_data(
