@@ -137,7 +137,7 @@ class CrossSubmitter:
             lazy=lazy,
         )
 
-        handler = SubmissionHandler(contract, df, resolver=self._resolver)
+        handler = SubmissionHandler(contract, df)
 
         # check whether there are unclaimed rows
         unclaimed_rows = handler.unclaimed_rows()

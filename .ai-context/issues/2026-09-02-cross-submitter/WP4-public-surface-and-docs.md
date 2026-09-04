@@ -1,6 +1,7 @@
 # WP4 — Public surface and documentation
 
 ## Context
+
 **Part of PRD:** [2026-09-02-cross-submitter.md](../../prds/2026-09-02-cross-submitter.md)
 
 `CrossSubmitter` is a top-level entry point for a whole role — the **Data provider** —
@@ -11,20 +12,21 @@ structural property the code no longer enforces: `SubmissionHandler` stays offli
 Depends on **WP1**, **WP2** and **WP3**.
 
 ## Acceptance Criteria
-- [ ] `src/crosscontract/submission/__init__.py` exports `CrossSubmitter` and
-      `UnclaimedRowsError`, both added to `__all__`.
-- [ ] `src/crosscontract/__init__.py` re-exports both, both added to `__all__`.
-- [ ] `from crosscontract import CrossSubmitter, UnclaimedRowsError` works, covered by a
-      test in `src/tests/submission/test_submitter.py`.
+
+- [X] `src/crosscontract/submission/__init__.py` exports `CrossSubmitter` and
+  `UnclaimedRowsError`, both added to `__all__`.
+- [X] `src/crosscontract/__init__.py` re-exports both, both added to `__all__`.
+- [X] `from crosscontract import CrossSubmitter, UnclaimedRowsError` works, covered by a
+  test in `src/tests/submission/test_submitter.py`.
 - [ ] The `submission/__init__.py` module docstring notes that the package now contains
-      both the offline concepts and the one connected class, and why
-      ([ADR 0007](../../adrs/0007-the-submitter-is-the-provider-side-mirror-of-the-registry.md)).
+  both the offline concepts and the one connected class, and why
+  ([ADR 0007](../../adrs/0007-the-submitter-is-the-provider-side-mirror-of-the-registry.md)).
 - [ ] `SubmissionHandler`'s class docstring
-      (`src/crosscontract/submission/submission_handler.py`) states that it remains
-      offline and that `CrossSubmitter` is the connected composition. **Docstring only —
-      no behavioural change.**
+  (`src/crosscontract/submission/submission_handler.py`) states that it remains
+  offline and that `CrossSubmitter` is the connected composition. **Docstring only —
+  no behavioural change.**
 - [ ] A usage page exists under `docs/` *if* the docs tree covers `CrossRegistry`
-      equivalently — check first; not a blocker if there is no comparable page.
+  equivalently — check first; not a blocker if there is no comparable page.
 
 ## Implementation Details
 
