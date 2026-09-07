@@ -17,34 +17,6 @@ description: |
 # This part does not change as long as the the submission file structure is not
 # changed. In fact we could even make that invisible for the moment.
 tableschema:
-  primaryKey:
-    [
-      model,
-      scenario_group,
-      scenario_name,
-      scenario_variant,
-      country,
-      timestamp,
-      time_resolution,
-      unit,
-      variable,
-      use_technology_fuel,
-    ]
-
-  foreignKeys:
-    - fields: country
-      reference:
-        resource: dim_iso_region
-        fields: id
-    - fields: model
-      reference:
-        resource: dim_model
-        fields: id
-    - fields: [scenario_group, scenario_name, scenario_variant]
-      reference:
-        resource: dim_scenario
-        fields: [group, name, variant]
-
   fields:
     - name: model
       type: string
