@@ -453,8 +453,8 @@ right name for that step alone), submission check
   bundle, plus **Extraction instructions**. Its **Contract type** is **Submission**,
   which maps to the **General** **Table type** — the first contract type not backed by a
   table type of its own name. Because nothing is stored under a bundle's name, its
-  **Schema** may declare no primary key and no foreign keys; field constraints still
-  apply.
+  **Schema** must declare neither a primary key nor foreign keys; field constraints
+  still apply.
 - **Extraction instructions** hold a **Routing column**, zero or more **Transformation
   profiles**, and one **Target** per extracted dataset. Each **Target** names the
   **Contract** its output is validated against and never resolves it; one contract is fed

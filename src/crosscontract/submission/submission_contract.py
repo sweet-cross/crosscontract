@@ -116,7 +116,7 @@ class SubmissionContract(CrossContract):
         if self.tableschema.primaryKey:
             raise ValueError(
                 "Submission contracts must not have primary keys in "
-                "their tableschema. Primary keys are enforced at the target level"
+                "their tableschema. They belong to the contracts the targets name"
             )
         return self
 
@@ -133,6 +133,6 @@ class SubmissionContract(CrossContract):
         if self.tableschema.foreignKeys:
             raise ValueError(
                 "Submission contracts must not have foreign keys in "
-                "their tableschema. Foreign keys are enforced at the target level"
+                "their tableschema. They belong to the contracts the targets name"
             )
         return self
