@@ -327,8 +327,10 @@ _Avoid_: spec (unqualified — ambiguous with **Data specification**)
 **Submission contract**:
 A **Contract** describing a delivered *bundle* — one file carrying rows for many
 datasets at once — together with the **Extraction instructions** for splitting it. Its
-**Schema** describes the bundle itself, not any dataset extracted from it. Contract type
-**Submission**.
+**Schema** describes the bundle itself, not any dataset extracted from it, and declares
+neither a primary key nor foreign keys: a bundle is not stored as a table, so structural
+claims about it cannot be honoured. They belong to the **Contracts** its **Targets** name.
+Contract type **Submission**.
 _Avoid_: extractor (the legacy hand-written Python form; the thing that *executes* a
 submission contract is the **Submission handler**), submission spec
 
@@ -395,7 +397,9 @@ The two-step check of a delivered bundle: first the bundle as a whole against th
 **Submission contract**'s own **Schema**, then each extracted **Target** against the
 **Contract** it names. The first step is an ordinary **Data validation** of the
 **Submission contract** against the bundle, so it needs nothing new — the contract
-already answers it; the second is the **Submission handler**'s. The steps are sequential
+already answers it, and answers it without reaching the platform, since a bundle schema
+declares no keys to look up; the second is the **Submission handler**'s. The steps are
+sequential
 but not welded, and *whether a failed bundle stops the run* is the caller's policy. The
 **Submitter** is the caller that makes it, and it stops.
 _Avoid_: bundle validation for the whole (it names only the first step — which is the
@@ -448,7 +452,9 @@ right name for that step alone), submission check
 - A **Submission contract** is a **Contract** whose **Schema** describes a delivered
   bundle, plus **Extraction instructions**. Its **Contract type** is **Submission**,
   which maps to the **General** **Table type** — the first contract type not backed by a
-  table type of its own name.
+  table type of its own name. Because nothing is stored under a bundle's name, its
+  **Schema** must declare neither a primary key nor foreign keys; field constraints
+  still apply.
 - **Extraction instructions** hold a **Routing column**, zero or more **Transformation
   profiles**, and one **Target** per extracted dataset. Each **Target** names the
   **Contract** its output is validated against and never resolves it; one contract is fed
