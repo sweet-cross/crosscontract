@@ -16,8 +16,6 @@ description: A small submission bundle used to exercise contract round-tripping.
 project_name: example_project
 
 tableschema:
-  primaryKey: [model, scenario, country, timestamp, variable, use_technology_fuel]
-
   fields:
     - name: model
       type: string

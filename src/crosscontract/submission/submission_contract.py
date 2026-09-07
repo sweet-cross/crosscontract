@@ -29,7 +29,8 @@ class SubmissionContract(CrossContract):
         description (str): A human-readable description of the submission.
         tags (list[str]): Tags used for categorization and filtering.
         tableschema (TableSchema): The Frictionless Table Schema describing the
-            submitted table.
+            submitted table. Must declare neither `primaryKey` nor
+            `foreignKeys`; those belong to the contracts the targets name.
         contract_type (Literal["Submission"]): Fixed discriminator identifying
             this contract type.
         project_name (str): The name of the project the submission belongs to.
@@ -100,4 +101,38 @@ class SubmissionContract(CrossContract):
                     f"Target: {target.name}: Filter columns "
                     f"{', '.join(sorted(not_valid))} do not exist in the tableschema."
                 )
+        return self
+
+    @model_validator(mode="after")
+    def _check_no_primary_key(self) -> Self:
+        """Check that the tableschema does not have a primary key.
+
+        Returns:
+            Self: The validated SubmissionContract instance.
+
+        Raises:
+            ValueError: If the tableschema has a primary key.
+        """
+        if self.tableschema.primaryKey:
+            raise ValueError(
+                "Submission contracts must not have primary keys in "
+                "their tableschema. They belong to the contracts the targets name"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _check_no_foreign_keys(self) -> Self:
+        """Check that the tableschema does not have foreign keys.
+
+        Returns:
+            Self: The validated SubmissionContract instance.
+
+        Raises:
+            ValueError: If the tableschema has foreign keys.
+        """
+        if self.tableschema.foreignKeys:
+            raise ValueError(
+                "Submission contracts must not have foreign keys in "
+                "their tableschema. They belong to the contracts the targets name"
+            )
         return self

@@ -78,9 +78,10 @@ class CrossSubmitter:
         2. the bundle for rows that no target claims,
         3. each target's extracted data against the contract it names.
 
-        Every step is checked against the platform through this submitter's
-        resolver, so the contracts a target names and the values already stored
-        under them are read live.
+        Step 3 reaches the platform through this submitter's resolver, so the
+        contracts a target names and the values already stored under them are
+        read live. Step 1 does not: a submission contract declares no keys, so
+        it has nothing to look up.
 
         Extraction runs on the bundle exactly as delivered: the coerced frame
         step 1 returns is discarded, because target filters match a column's
@@ -90,16 +91,22 @@ class CrossSubmitter:
             contract (SubmissionContract): The contract describing the bundle
                 and how it is split into targets.
             df (pd.DataFrame): The bundle as delivered.
-            check_existing_primary_key (bool): If True, also check primary keys
-                against the values already stored for the contract they belong
-                to — the submission contract in step 1, each target's contract
-                in step 3. A False value suppresses the primary-key check
-                entirely rather than only its stored-value half, so uniqueness
-                within the bundle goes unchecked too. Defaults to True.
-            check_existing_foreign_key (bool): If True, also check foreign keys
-                against the values already stored for the contracts they
-                reference. A False value suppresses the foreign-key check
-                entirely, self-references included. Defaults to True.
+            check_existing_primary_key (bool): If True, also check each target's
+                primary key against the values already stored for the contract
+                it names. Applies to step 3 only — a submission contract
+                declares no primary key, so step 1 has none to check. A False
+                value suppresses the primary-key check entirely rather than only
+                its stored-value half, so uniqueness within a target's rows goes
+                unchecked too. Duplicated bundle rows are caught only by a target
+                contract that declares a primary key of its own, so a False value
+                leaves them undetected anywhere in the pipeline. Defaults to
+                True.
+            check_existing_foreign_key (bool): If True, also check each target's
+                foreign keys against the values already stored for the contracts
+                they reference. Applies to step 3 only — a submission contract
+                declares no foreign keys. A False value suppresses the
+                foreign-key check entirely, self-references included. Defaults to
+                True.
             lazy (bool): If True, collect all of a step's validation errors and
                 raise them together. If False, raise the first error
                 encountered. Note that a non-lazy failure yields a degraded
