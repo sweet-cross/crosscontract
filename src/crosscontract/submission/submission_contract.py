@@ -29,7 +29,8 @@ class SubmissionContract(CrossContract):
         description (str): A human-readable description of the submission.
         tags (list[str]): Tags used for categorization and filtering.
         tableschema (TableSchema): The Frictionless Table Schema describing the
-            submitted table.
+            submitted table. Must declare neither `primaryKey` nor
+            `foreignKeys`; those belong to the contracts the targets name.
         contract_type (Literal["Submission"]): Fixed discriminator identifying
             this contract type.
         project_name (str): The name of the project the submission belongs to.

@@ -87,6 +87,27 @@ class TestSubmissionContract:
         with pytest.raises(ValueError, match="Filter columns"):
             SubmissionContract.model_validate(invalid_data)
 
+    def test_primary_key_not_allowed(self):
+        """Test that a ValidationError is raised when the tableschema declares a
+        primary key."""
+        invalid_data = deepcopy(valid_data)
+        invalid_data["tableschema"]["primaryKey"] = ["variable"]
+        with pytest.raises(ValueError, match="must not have primary keys"):
+            SubmissionContract.model_validate(invalid_data)
+
+    def test_foreign_keys_not_allowed(self):
+        """Test that a ValidationError is raised when the tableschema declares a
+        foreign key."""
+        invalid_data = deepcopy(valid_data)
+        invalid_data["tableschema"]["foreignKeys"] = [
+            {
+                "fields": "variable",
+                "reference": {"resource": "dim_variable", "fields": "id"},
+            }
+        ]
+        with pytest.raises(ValueError, match="must not have foreign keys"):
+            SubmissionContract.model_validate(invalid_data)
+
 
 class TestRoundTrip:
     fn_yaml = Path(__file__).parent / "example_submission.yaml"
