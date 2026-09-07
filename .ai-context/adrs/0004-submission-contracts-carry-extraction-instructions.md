@@ -20,8 +20,8 @@ On egress, `CrossDataPackageReleaseSpec` **names** contracts and is emphatically
 itself. On ingress the reverse holds: the artifact *is* a contract, and the extraction
 instructions ride along inside it.
 
-The reason is that a submission bundle has a schema of its own — eleven columns, a
-composite primary key, foreign keys into dimensions — and that schema and the
+The reason is that a submission bundle has a schema of its own — a dozen columns, their
+types and required-ness, the routing column among them — and that schema and the
 instructions for splitting it are two halves of one authored thing. Separating them
 would mean two files that must agree about the bundle's shape, with nothing enforcing
 the agreement. Keeping them together is what lets the routing column be checked against
@@ -101,6 +101,41 @@ its usual meaning would be a silent correctness bug, not a feature.
   and `CrossMetaData` as a sibling — for `validate_references`'s star-schema default,
   which is correct here since a bundle's foreign keys all point at dimensions, and so the
   contract stays usable wherever a `CrossContract` is accepted.
+
+  > **Amended 2026-09-07.** The first half of that reasoning is withdrawn. A submission
+  > contract's schema now declares **neither `primaryKey` nor `foreignKeys`** (below), so
+  > `validate_references` has nothing to validate on one and the star-schema default is
+  > no longer what the inheritance buys. The decision itself stands on its second half
+  > alone: the contract stays usable wherever a `CrossContract` is accepted.
+  >
+  > The sentence in *Why* above that cited "a composite primary key, foreign keys into
+  > dimensions" as evidence that the bundle has a schema of its own is corrected for the
+  > same reason. Only the illustration was wrong — the bundle still has a schema, and it
+  > and the extraction instructions are still two halves of one authored thing.
+
+- **A submission bundle's schema makes no structural claims.** `primaryKey` and
+  `foreignKeys` are rejected at construction. A bundle is not stored as a table — it is
+  instructions — so nothing is ever stored under its name, and a key declared on it is a
+  claim nothing can honour. Worse, honouring one is what `validate_data` tries to do:
+  `check_existing_primary_key` drives a read against `self.name`, and a self-referencing
+  foreign key does the same, so both drove a lookup against a table that does not exist.
+  Rejecting the declarations removes the failure at its source, and `CrossSubmitter`
+  needs no special case — it forwards both flags verbatim and they are simply inert for
+  step 1, because each lookup is already guarded on the (now always empty) declaration.
+
+  **The accepted cost is that duplicate bundle rows are caught later, or not at all.**
+  A bundle primary key expressed something real — each delivered row is a distinct
+  observation. That is now the target contracts' business: because the routing column is
+  itself part of any identifying key, duplicated rows always land in the same target and
+  are caught by that contract's own primary key. But only if it declares one, and only if
+  the caller left `check_existing_primary_key` on. A caller that turns the key checks off
+  now has no duplicate detection anywhere in the pipeline. That is the caller asking for
+  exactly that, and it is stated in `validate_submission`'s docstring rather than left to
+  be discovered.
+
+  External foreign keys go too, though they resolve to contracts that do exist and the
+  read would work: the same reference is declared by the target contract that owns the
+  column, and a second copy on the bundle only invites the two to drift.
 - **`submission/` is top-level, peer to `release/`.** It owns its spec models and, when
   it lands, the code that executes them, so the concept lives in one package. It also
   keeps the import graph one-way: `transformations` already imports `CONTRACT_NAME_PATTERN`
