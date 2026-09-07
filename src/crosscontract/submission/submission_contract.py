@@ -101,3 +101,37 @@ class SubmissionContract(CrossContract):
                     f"{', '.join(sorted(not_valid))} do not exist in the tableschema."
                 )
         return self
+
+    @model_validator(mode="after")
+    def _check_no_primary_key(self) -> Self:
+        """Check that the tableschema does not have a primary key.
+
+        Returns:
+            Self: The validated SubmissionContract instance.
+
+        Raises:
+            ValueError: If the tableschema has a primary key.
+        """
+        if self.tableschema.primaryKey:
+            raise ValueError(
+                "Submission contracts must not have primary keys in "
+                "their tableschema. Primary keys are enforced at the target level"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _check_no_foreign_keys(self) -> Self:
+        """Check that the tableschema does not have foreign keys.
+
+        Returns:
+            Self: The validated SubmissionContract instance.
+
+        Raises:
+            ValueError: If the tableschema has foreign keys.
+        """
+        if self.tableschema.foreignKeys:
+            raise ValueError(
+                "Submission contracts must not have foreign keys in "
+                "their tableschema. Foreign keys are enforced at the target level"
+            )
+        return self
