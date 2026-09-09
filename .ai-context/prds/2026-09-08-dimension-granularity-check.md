@@ -1,15 +1,12 @@
 # Dimension granularity check PRD
 
-> **Sequencing.** Pairs with
-> [2026-09-08-value-variable-is-keys-plus-measures.md](2026-09-08-value-variable-is-keys-plus-measures.md),
-> which should land first — it makes the row identity a guarantee rather than a
-> convention, so this PRD's fallback branches become unreachable by construction.
->
-> The dependency is weaker than it first looked, though: the audit in §3 found that all
-> 51 ValueVariable contracts already declare a primary key and all dimension foreign keys
-> already sit inside it. So this PRD can land alone if the other stalls on the `unit`
-> decision — the guards would simply be dead code against today's corpus rather than
-> provably unreachable. Do not let the ordering block the check.
+> **Sequencing.** The companion PRD
+> [2026-09-08-value-variable-is-keys-plus-measures.md](2026-09-08-value-variable-is-keys-plus-measures.md)
+> has landed (#94), and it turns out to be load-bearing rather than merely convenient.
+> `ValueVariableSchema` now requires every field outside the primary key to be `integer`
+> or `number`, so every non-numeric axis — a dimension foreign key among them — is in the
+> primary key by construction. That is what makes the group derivation in §4 sound; see
+> §6, where it replaces the justification this PRD originally gave.
 
 ## 1. Overview
 
@@ -51,11 +48,12 @@ Two things this is *not*:
 - `BaseContract.validate_data` gains an opt-in flag. When set, it uses the resolver to
   (a) identify which foreign keys point at a `DimensionSchema` and (b) fetch that
   dimension's `id` / `parent_id` rows to build the parent map.
-- The check also accepts the contract's **already-stored** group+member rows, so a
-  violation split across two uploads is caught. Same `None` / supplied semantics as the
-  key checks.
-- `ContractResource.validate_dataframe` exposes the flag, so the client path can gate an
-  upload.
+- The check is **in-frame only**. It compares the rows of the frame under validation
+  against each other and against nothing else; the contract's already-stored rows are not
+  read. That is how the rule is normally applied, and the stored-rows half is deferred —
+  see the decision in §4.
+- `ContractResource.validate_dataframe` exposes the flag. `add_data` does **not** set it,
+  so the check ships dormant and a caller opts in explicitly.
 
 Done means: uploading `(A, 2030, ch, 100)` and `(A, 2030, ch_ag, 30)` together raises
 `SchemaValidationError` naming the `ch` row; uploading `(A, 2030, ch, 100)` and
@@ -71,6 +69,7 @@ Done means: uploading `(A, 2030, ch, 100)` and `(A, 2030, ch_ag, 30)` together r
 | Foreign key to a `FlexibleDimensionSchema` | **Skipped.** Flat — no hierarchy, no ancestry, nothing to check. The resolved type test must be `DimensionSchema`, **not** `BaseDimensionSchema`, which also matches `FlexibleDimensionSchema` — the same trap already documented in `.ai-context/TODO.md` for `from_server`/`to_server`. **This is not hypothetical:** `dim_model` and `dim_scenario` are the corpus's two FlexibleDimensions and nearly every ValueVariable references both, so a `BaseDimensionSchema` test would wrongly derive a check on almost every contract in the model. |
 | Self-referencing foreign key (`reference.resource is None`) | Skipped. Only a dimension's own `parent_id` is self-referencing, and a Dimension contract is not a fact table. |
 | Foreign key to a `TableSchema` ("General") | Skipped. |
+| Contract whose own `tableschema` is not a `ValueVariableSchema` | **Skipped — no check derived at all.** The group is `primaryKey - fk.fields`, and that is only a sound row identity where every non-numeric field is guaranteed to be in the primary key, which `ValueVariableSchema` enforces and no other schema does. A `General` contract may carry an unkeyed string attribute; two rows differing in both that attribute and the dimension column then have distinct primary keys — so the primary key check stays silent — while collapsing into one group here, and legitimate rows are rejected. Restricting derivation is one type test and keeps the check sound wherever it runs. The cost is that a `General` contract holding fact data gets no granularity check. |
 | Referenced contract does not resolve | **Raise**, naming the contract. Consistent with `validate_references` and with ADR 0005's treatment of an unresolvable contract as a wiring error rather than a data failure. |
 | Composite foreign key into a dimension | A `DimensionSchema` primary key is the single `id`, so a composite key referencing it is malformed. Skip and leave it to reference validation; do not attempt a multi-column ancestry. The corpus has no such case — but composite keys into a *Flexible* dimension are universal (`[scenario_group, scenario_name, scenario_variant]` → `dim_scenario`), and those are already skipped by the type test above. |
 | Foreign key fields not a subset of `primaryKey.fields` | **Skipped.** Rows differing only in that column are already duplicate primary keys, so `IsValidPrimaryKey` owns the defect — "one mistake, one message". After the companion PRD this state is unreachable for a ValueVariable (a dimension `id` is `string`, non-key fields are numeric), but the guard stays as insurance: nothing enforces that a referring field's type matches the referenced field's. |
@@ -93,7 +92,7 @@ written and tested, but nothing in the corpus depends on them.
 | Case | Behaviour |
 |---|---|
 | Member in the data absent from the parent map | Passes this check. It has no ancestors and cannot be an ancestor of anything present. "Unknown member" is `IsSubsetOf`'s defect to report. |
-| Null in the dimension column | Passes. `ignore_na` defaults `True` on `BaseCheck`; a null member belongs to no branch. |
+| Null in the dimension column | Passes — but the predicate must return `True` for it itself. Do **not** delegate this to `ignore_na`: on a DataFrame-level pandera check `ignore_na` does not filter rows before the predicate runs (it only suppresses null cells from the reported `failure_cases`), so it cannot make a row pass. The same reason `IsSubsetOf` and `IsNotNull` handle nulls in `__call__`. The flip side is that `ignore_na` also cannot drop a row with a null group column, so the row below is safe. |
 | Null in a *group* column | The row still forms a group with other rows sharing that null. Verify the grouping implementation treats NaN keys as equal rather than dropping them — `groupby` drops null keys by default, which is precisely the bug called out for `EachLevelHasOther` in ADR 0006's consequences. Prefer a set-based grouping over `groupby` (see §4), which sidesteps it. |
 | `parent_id` empty string vs. null | Both mean "no parent" and terminate the chain. `EachLevelHasOther` reads an empty string as a real parent id while `RootElementHasNoParent` reads it as no parent; that inconsistency is pre-existing and must not be inherited here. Pick "empty or null terminates" and test both. |
 | Cycle in the parent map | The dimension's own validation forbids one, but a resolver can return anything. Carry a `seen` set while walking, exactly as `CrossDimension._build_ancestry_chains` does, so a malformed dimension cannot hang an upload. |
@@ -136,7 +135,6 @@ Fields:
 - `column: str` — the dimension foreign key column in the data.
 - `group_columns: list[str]` — the columns defining the group.
 - `parent_map: dict[Any, Any]` — member id → parent id, from the referenced dimension.
-- `existing: list[tuple[Any, ...]] | None` — already-stored `(group..., member)` rows.
 
 **The check takes a plain `dict`, never a `CrossDimension`.** `CrossDimension` lives in
 `registry/`, a layer above; `checks/` depends on pandas, pandera and pydantic only, and
@@ -147,17 +145,19 @@ Algorithm — sets, not joins:
 
 1. Build proper-ancestor chains from `parent_map` once, with a `seen` guard.
 2. `implied = {(group_key, ancestor) for each present row, for each proper ancestor of
-   its member}`, over the frame's rows **and** `existing`.
+   its member}`, over the frame's rows.
 3. A row fails iff `(its group_key, its own member) in implied`.
 
 `O(rows x depth)` with hash lookups. This is the `cross_back` script's logic without its
 `explode` + `merge`, which materialise a frame several times the input size.
 
-New module `hierarchy_checks.py` rather than adding to `dimension_checks.py`: the checks
-there are rules about a *dimension's own table*, this is a rule about a *fact table that
-references one*. Different subject, and `dimension_checks.py`'s `DimensionCheck` base
-(with its `id_col` / `parent_id_col` / `level_col` fields) does not fit. Worth a second
-opinion at implementation time; `reference_checks.py` is the other plausible home.
+A new module rather than an addition to `dimension_checks.py`: the checks there are rules
+about a *dimension's own table*, this is a rule about a *fact table that references one*.
+Different subject, and `dimension_checks.py`'s `DimensionCheck` base (with its `id_col` /
+`parent_id_col` / `level_col` fields) does not fit. The working name `hierarchy_checks.py`
+reads confusingly next to `dimension_checks.py`, though — prefer a filename that names the
+fact-table subject. Settle it at implementation time; `reference_checks.py` is the other
+plausible home.
 
 ### The plumbing
 
@@ -195,14 +195,23 @@ self-referencing foreign key (`fields: ["parent_id"], reference: {fields: ["id"]
 strings; hardcoding `"id"` / `"parent_id"` is defensible because `DimensionSchema` is
 rigid. Decide at implementation; the PRD leans to reading it off the schema.
 
-**Fetching stored rows** (the `existing` argument) is a wider read than any existing
-lookup — the contract's own `group_columns + column` over every stored row, not a small
-dimension table. Two consequences: it must be gated behind its own consideration when
-wiring `ContractResource.add_data`, and the parent-map fetch (cheap — dimensions are
-small) should not be conflated with it. **Open decision:** whether `validate_data` uses
-one flag for both halves or two. One flag is simpler and matches the existing pair; two
-lets a caller take the cheap within-frame check without the wide read. The PRD leans to
-one flag, with the wide read as the thing that flag buys.
+**Decided: the stored-rows half is out of scope**, and `existing` is not added to the
+check. The rule is normally applied in-frame, and the deferred half has two unresolved
+questions of its own:
+
+- *Which row is reported.* This check reports the aggregate row and tells the submitter to
+  remove it. When the aggregate is the **stored** row and the detail is the uploaded one,
+  the only row pandera can flag is the uploaded detail row, and that remedy is wrong — the
+  row to remove is not in the frame. One rule, one message does not survive the split; a
+  second message would be needed, and this PRD has not written it.
+- *Idempotency.* Whether `_add_data` appends or upserts decides whether re-uploading a
+  corrected row is flagged as a violation against the very row it replaces. See §5.
+
+It is also the only part that costs a wide read — the contract's own
+`group_columns + column` over every stored row, not a small dimension table. The
+parent-map fetch is cheap (dimensions are small) and is not conflated with it. So
+`validate_data` takes **one flag**, and what that flag buys is the parent-map fetch.
+Capture the deferred half in [TODO.md](../TODO.md) with both questions above.
 
 ### Files
 
@@ -222,7 +231,7 @@ Modify:
   resolve-and-build step. Consider a private helper beside `_get_existing_values`, which
   returns tuples and does not fit a dict-shaped result.
 - `src/crosscontract/crossclient/services/contract_resource.py` —
-  `validate_dataframe` gains the flag; decide whether `add_data` sets it.
+  `validate_dataframe` gains the flag. `add_data` does not set it (§5).
 - `src/tests/contracts/schema/adapters/pandera_pandas/test_adapter.py`,
   `src/tests/contracts/contracts/test_base_contract.py` (or equivalent) — derivation and
   plumbing tests.
@@ -257,9 +266,11 @@ still break a pipeline the day it ships.
 
 Two things follow:
 
-- **Open decision: raise or warn first.** A release that warns before it raises gives
-  submitters a cycle to fix their pipelines. Against it: a warning nobody reads leaves
-  the invariant broken for another release. The PRD does not choose.
+- **Decided: it raises, and there is no warn mode.** The grace period is bought by the
+  flag's default, not by a third behaviour: `check_dimension_granularity` defaults `False`
+  and `add_data` does not set it, so nothing starts rejecting on the day this ships and a
+  submitter opts in when ready. A warn mode would add a third state to five layers to buy
+  what the default already gives.
 - Existing violations already on the platform are not this PRD's business — the
   `cross_back` script remains the tool for those, and should be run before the check is
   enforced, or contracts will reject *corrections* to data they already hold once the
@@ -293,7 +304,7 @@ in `cross_back`. This PRD delivers early, actionable feedback, not the guarantee
   validates as an ordinary variable, so `SubmissionHandler.validate_target` inherits the
   check with no submission-specific code.
 
-### Proposed ADR change (not decided)
+### New ADR (decided)
 
 A new ADR, working title **"Fact data is reported at one granularity per group"** (next
 free number). It should record:
@@ -304,19 +315,27 @@ free number). It should record:
 - Why the group and not the whole column — the cross-scenario counter-example from §1.
   This is the point most likely to be re-litigated, so the example belongs in the ADR
   rather than only here.
-- Why the group is `primaryKey - fk.fields`: the primary key is the row identity by
-  declaration, and a column that genuinely distinguishes rows but is missing from the key
-  produces duplicate primary keys, which the primary key check owns. Record the caveat
-  that the primary key check is opt-in and off by default.
+- Why the group is `primaryKey - fk.fields`, and why it is sound: because
+  `ValueVariableSchema` requires every field outside the primary key to be `integer` or
+  `number`, every non-numeric axis is in the key, so no column that distinguishes rows can
+  fall out of the group. Record the reasoning this **replaces**, because it is wrong and
+  will otherwise be re-derived: that a distinguishing column missing from the key produces
+  duplicate primary keys which the primary key check owns. That holds only when the
+  missing column is the *sole* differentiator. Two rows differing in both an unkeyed
+  attribute and the dimension column have distinct primary keys — the primary key check
+  says nothing — yet collapse into one group, and legitimate data is rejected. This is why
+  derivation is restricted to `ValueVariableSchema` (§3), which is the guarantee the
+  soundness actually rests on.
 - Why the aggregate row is reported rather than the detail row.
 - Consequences: the behaviour change for partial reporters and the `<parent_id>_other`
   remedy; the client result being advisory per ADR 0005; the wide read the stored-rows
   half costs.
 
-Whether ADR 0001 should also be **amended** to say its invariant has a fact-side half,
-rather than a wholly separate ADR being written, is an open question — the two readings
-are "one decision, recorded once" versus "a dimension-shape decision and a data-shape
-decision". **Not decided here.**
+**Decided: a separate ADR, cross-linked to ADR 0001, rather than an amendment to it.**
+ADR 0001 decides the *shape of a dimension* and has no submitter-facing consequences; this
+decides the *shape of fact data* and its principal consequence is a behaviour change for
+partial reporters. Different decisions with different consequence sections, so they are
+recorded separately and linked.
 
 ## 7. Testing Strategy
 
@@ -341,9 +360,6 @@ Fixture: a three-level parent map, e.g.
 - Cyclic parent map → terminates and does not hang.
 - Empty DataFrame → passes.
 - Multi-column group.
-- `existing` supplied: a stored `ch` row makes an uploaded `ch_ag` row's group violate;
-  assert the uploaded row is reported (there is no stored row to report on).
-- `existing=None` → the stored half is not consulted.
 - `to_pandera()` returns exactly one check, and its `error` is `failure_message()`.
 
 ### Unit — derivation (`test_adapter.py`)
@@ -354,7 +370,9 @@ Fixture: a three-level parent map, e.g.
 - Foreign key outside the primary key → no check derived.
 - No primary key → no check derived.
 - Two foreign keys into the same dimension → two checks, each excluding only its own
-  column from the group.
+  column from the group. A real shape in the model (`from` / `to` both referencing
+  `dim_iso_region`), so it gets a test rather than being left to fall out.
+- Contract whose `tableschema` is not a `ValueVariableSchema` → no check derived.
 
 ### Unit — `validate_data`
 
@@ -365,6 +383,7 @@ Test doubles for `ContractResolver` already exist in the suite; extend one to re
 - Flag set, foreign key to a `FlexibleDimension` → resolver may be asked, no check runs.
   **The regression test that matters** — a `BaseDimensionSchema` isinstance test passes
   this case wrongly.
+- Flag set, contract is not a `ValueVariable` → no check runs.
 - Flag set, no resolver → raises, message names the contract and the remedy.
 - Flag unset → resolver not consulted for hierarchies at all.
 - Unresolvable referenced contract → raises naming it.
