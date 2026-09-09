@@ -69,27 +69,40 @@ class TestContractTypeDifferentiation:
     specialized schemas."""
 
     @pytest.mark.parametrize(
-        "input_type, expected_type, expected_schema_cls",
+        "input_type, expected_type, expected_schema_cls, tableschema",
         [
             (
                 None,
                 "General",
                 TableSchema,
+                data_base_contract["tableschema"],
             ),  # Tests the default fallback when key is omitted
-            ("ValueVariable", "ValueVariable", ValueVariableSchema),
+            (
+                "ValueVariable",
+                "ValueVariable",
+                ValueVariableSchema,
+                {
+                    "primaryKey": ["id"],
+                    "fields": [
+                        {"name": "id", "type": "integer"},
+                        {"name": "value", "type": "number"},
+                    ],
+                },
+            ),  # ValueVariable needs a key and a measure to satisfy its own rules
             (
                 "Submission",
                 "Submission",
                 TableSchema,
+                data_base_contract["tableschema"],
             ),  # Submission maps to General schema
         ],
         ids=["default_general", "value_variable", "submission"],
     )
     def test_contract_type_resolves_to_correct_schema(
-        self, input_type, expected_type, expected_schema_cls
+        self, input_type, expected_type, expected_schema_cls, tableschema
     ):
         """Ensure specific contract types build their corresponding schema classes."""
-        data = {**data_base_contract}
+        data = {**data_base_contract, "tableschema": tableschema}
 
         # Only inject if it's not None, to test the default fallback behavior
         if input_type is not None:
@@ -242,7 +255,13 @@ class TestInjectTableTypeToSchema:
     def test_instantiated_subclass_schema_mismatch_raises_value_error(self):
         """Ensure a specialized schema is rejected under a contract_type that maps to
         its base schema, not just the other way around."""
-        schema_instance = ValueVariableSchema(fields=[{"name": "id", "type": "string"}])
+        schema_instance = ValueVariableSchema(
+            primaryKey=["id"],
+            fields=[
+                {"name": "id", "type": "string"},
+                {"name": "value", "type": "number"},
+            ],
+        )
 
         input_data = {
             "contract_type": "General",
