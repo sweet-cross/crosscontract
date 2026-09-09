@@ -206,9 +206,23 @@ The thing a data consumer actually wants.
 _Avoid_: indicator, time series, fact, value (when meaning the whole dataset)
 
 **ValueVariable**:
-The **contract type** that declares a **Variable** — rows that are *measurements*, with
-a numeric value meant to be aggregated across **Dimensions**. Names the schema flavour,
-not the data itself.
+The **contract type** that declares a **Variable**: a primary key identifying the row,
+plus one or more **Measures**. Names the schema flavour, not the data itself. Every field
+is one or the other, so an attribute that is not a **Measure** is part of the row's
+identity or does not belong in the contract at all.
+
+**Measure**:
+A field of a **ValueVariable** outside its primary key — the measured quantity itself,
+always numeric and meant to be aggregated across **Dimensions**. A **ValueVariable** has
+at least one.
+_Avoid_: value, metric, observation (an observation is the whole row, not one field)
+
+**Qualifier**:
+A non-numeric key column of a **ValueVariable** that references no **Dimension** — `unit`
+is the worked example. It is part of the row's identity, because the same quantity may be
+delivered in two units and those are two rows rather than a conflict, but it is not an
+axis: summing across it is meaningless.
+_Avoid_: attribute, tag, descriptor (a **Field descriptor** is a different thing)
 
 **General**:
 The legacy fallback **contract type**, predating the typed contracts. Any tabular
@@ -412,6 +426,10 @@ right name for that step alone), submission check
   the **Schema**. Several contract types may map to the same table type.
 - A **ValueVariable** contract declares a **Variable**; a **Dimension** /
   **FlexibleDimension** contract declares a **Dimension**.
+- A **ValueVariable**'s fields partition into its primary key and its **Measures**, both
+  non-empty and neither overlapping. A key column is not necessarily a **Dimension**
+  reference: it may be a **Qualifier**, so "in the key" does not imply "safe to aggregate
+  over".
 - A **Variable** references one or more **Dimensions** (star schema: Variable = fact,
   Dimensions = axes).
 - A **Dimension** references only itself (member → parent member); it never references
