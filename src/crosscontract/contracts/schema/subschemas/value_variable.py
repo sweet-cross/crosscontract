@@ -36,11 +36,20 @@ class ValueVariableSchema(TableSchema):
 
     @model_validator(mode="after")
     def _check_is_value_variable(self) -> Self:
-        """Check that the schema conforms to the value variable constraints. That
-        includes three tests:
-        1. The schema must have a non-empty primary key.
-        2. Every field outside the primary key must be of type `integer` or `number`.
-        3. The schema must have at least one non-numeric attribute in the primary key.
+        """Enforce that the schema is a primary key plus numeric measures.
+
+        Three rules, checked in order:
+
+        1. The schema declares a non-empty `primaryKey`.
+        2. At least one field lies outside that key.
+        3. Every field outside the key is of type `integer` or `number`.
+
+        Returns:
+            Self: The validated schema.
+
+        Raises:
+            ValueError: If the primary key is missing, if no field lies outside
+                it, or if a field outside it is not numeric.
         """
         if not self.primaryKey:
             raise ValueError("ValueVariable tables must have a primary key.")
