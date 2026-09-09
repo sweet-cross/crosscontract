@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from crosscontract.contracts.schema.validation.checks import (
+from crosscontract.contracts.schema.validation.checks.hierarchy_checks import (
     HasNoDescendantInGroup,
 )
 
