@@ -410,7 +410,11 @@ class TestIsDimension:
             description="d",
             contract_type=contract_type,
             tableschema={
-                "fields": [{"name": "id", "type": "string"}],
+                "primaryKey": ["id"],
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {"name": "value", "type": "number"},
+                ],
                 "foreignKeys": [],
             },
         )
