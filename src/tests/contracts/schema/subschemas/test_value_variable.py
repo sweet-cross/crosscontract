@@ -20,9 +20,7 @@ def valid_data():
 
 
 class TestValueVariableInvariants:
-    @pytest.mark.parametrize(
-        "primary_key", [None, []], ids=["omitted", "empty_list"]
-    )
+    @pytest.mark.parametrize("primary_key", [None, []], ids=["omitted", "empty_list"])
     def test_primary_key_is_required(self, valid_data, primary_key):
         """A ValueVariable without a primary key is rejected.
 
@@ -43,9 +41,7 @@ class TestValueVariableInvariants:
 
         valid_data["primaryKey"] = [field["name"] for field in base_fields]
 
-        with pytest.raises(
-            ValueError, match="at least one non-primary key field"
-        ):
+        with pytest.raises(ValueError, match="at least one non-primary key field"):
             ValueVariableSchema.model_validate(valid_data)
 
     @pytest.mark.parametrize(
@@ -59,7 +55,5 @@ class TestValueVariableInvariants:
         """
         valid_data["fields"] = [*base_fields, {"name": "source", "type": field_type}]
 
-        with pytest.raises(
-            ValueError, match="Non-primary key columns 'source'"
-        ):
+        with pytest.raises(ValueError, match="Non-primary key columns 'source'"):
             ValueVariableSchema.model_validate(valid_data)
