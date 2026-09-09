@@ -63,13 +63,14 @@ class ValueVariableSchema(TableSchema):
                 "ValueVariable tables must have at least one non-primary key field."
             )
 
-        wrong_fields = []
-        for field, field_type in non_key_fields.items():
-            if field_type not in ["integer", "number"]:
-                wrong_fields.append(field)
+        wrong_fields = [
+            name
+            for name, field_type in non_key_fields.items()
+            if field_type not in ("integer", "number")
+        ]
         if wrong_fields:
             raise ValueError(
-                f"Non-primary key columns '{', '.join(wrong_fields)}' must be "
-                "numeric measurements."
+                f"Non-primary key columns {', '.join(repr(f) for f in wrong_fields)} "
+                "must be numeric measures."
             )
         return self

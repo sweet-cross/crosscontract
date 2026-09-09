@@ -91,26 +91,4 @@ composite of several fields.
 Unlike a `Dimension`, a `ValueVariable` schema is authored in full — nothing is
 generated for you.
 
-### Where non-numeric columns go
-
-Rule 3 is the one that requires a decision when authoring a contract. A non-numeric
-column has to be part of the row's identity, or it does not belong in the contract:
-
-| Column | Where it belongs | Why |
-| :--- | :--- | :--- |
-| A column that distinguishes two rows | Primary key | It is part of the row's identity. Numeric types are allowed inside the key as well. |
-| A measured quantity | Outside the key | These are the measures. |
-| A property of the dataset as a whole | Contract metadata | It does not vary by row. |
-
-Note which way the consequence runs: a non-numeric column left *outside* the key does not
-give the contract more freedom, it gives it less. Two rows that agree on every key column
-are a duplicate primary key and are rejected, whatever that outside column says. Moving it
-into the key removes a restriction rather than adding one.
-
-### Key columns are not necessarily dimensions
-
-A `ValueVariable` is not required to declare any foreign key, and a key column need not
-reference a dimension. Being in the primary key therefore does **not** mean a column is an
-axis you may aggregate over. Code that aggregates has to know which of the key columns are
-dimension references; the schema does not say.
 
