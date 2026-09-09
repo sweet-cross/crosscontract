@@ -13,7 +13,8 @@ class ValueVariableSchema(TableSchema):
     numeric measures, so every field is one or the other:
 
     - the schema must declare a non-empty `primaryKey`;
-    - every field outside that key must be of type `integer` or `number`.
+    - at least one field must lie outside that key;
+    - every field outside the key must be of type `integer` or `number`.
 
     A non-numeric attribute therefore has to be part of the row's identity, or it
     does not belong in the contract at all.
