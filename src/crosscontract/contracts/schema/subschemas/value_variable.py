@@ -15,13 +15,11 @@ class ValueVariableSchema(TableSchema):
     - the schema must declare a non-empty `primaryKey`;
     - every field outside that key must be of type `integer` or `number`.
 
-    A non-numeric attribute therefore has to be part of the row's identity — the
-    same quantity delivered in two units is two rows, so `unit` belongs in the
-    key — or it does not belong in the contract at all.
+    A non-numeric attribute therefore has to be part of the row's identity, or it
+    does not belong in the contract at all.
 
     Key columns are not required to reference a dimension, so being in the
-    primary key does not imply being an axis: summing across a qualifier such as
-    `unit` is meaningless.
+    primary key does not imply being an axis to aggregate over.
     """
 
     # ignore type error as we want to enforce the table_type for this schema

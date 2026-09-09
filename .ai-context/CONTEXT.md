@@ -218,10 +218,9 @@ at least one.
 _Avoid_: value, metric, observation (an observation is the whole row, not one field)
 
 **Qualifier**:
-A non-numeric key column of a **ValueVariable** that references no **Dimension** — `unit`
-is the worked example. It is part of the row's identity, because the same quantity may be
-delivered in two units and those are two rows rather than a conflict, but it is not an
-axis: summing across it is meaningless.
+A non-numeric key column of a **ValueVariable** that references no **Dimension**. It is
+part of the row's identity — two rows differing only in a qualifier are two observations,
+not a conflict — but it is not an axis: summing across it is meaningless.
 _Avoid_: attribute, tag, descriptor (a **Field descriptor** is a different thing)
 
 **General**:
@@ -541,13 +540,6 @@ right name for that step alone), submission check
   declarative manifest that lists variables and transformations is a **Build spec**
   (data-package spec, plot spec). Unqualified "spec" is banned because it also collides
   with **Data specification** (the file-binding part of a **Data Resource**).
-- **`unit` appears in two places — resolved.** A **ValueVariable** carries `unit` as a
-  **Qualifier** in its primary key, while `ValueFieldDescriptor` carries a `unit`
-  attribute as a **Field descriptor**. They are not competing: the key column is the unit
-  *of the row*, which may differ between rows of one dataset; the descriptor states the
-  unit *of a field*, which cannot. Where `unit` is a key column, the descriptor has
-  nothing left to say about the measure and should be left unset — setting it to the unit
-  the data "usually" uses states something the rows may contradict.
 - **"registry" for transformation dispatch — not a Registry.** When transformations were
   proposed, "registry" was meant only in the dict/dispatch-pattern sense, not the domain
   **Registry** (`CrossRegistry`, the read layer). Resolved: there is no transformation

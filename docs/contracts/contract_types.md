@@ -13,8 +13,8 @@ key references to other resources or other dimensions; only self-references with
 same dimension table (for hierarchy, e.g., `parent_id -> id`) are allowed. The actual
 data are provided in fact tables that are characterized by one or more columns holding
 numerical values, plus the columns that identify the row — typically references to
-dimensions, but not necessarily so (see `unit` below). We differentiate between the
-following types of contracts:
+dimensions, but not necessarily so. We differentiate between the following types of
+contracts:
 
 - *General*: This is the most flexible type. The schema to describe the data is the
  [standard table schema](schema.md)
@@ -98,21 +98,19 @@ column has to be part of the row's identity, or it does not belong in the contra
 
 | Column | Where it belongs | Why |
 | :--- | :--- | :--- |
-| `country`, `scenario` | Primary key | They identify the observation. |
-| `year` | Primary key | Numeric types are allowed inside the key as well. |
-| `unit` | Primary key | The same quantity may be delivered in two units, and those are two rows rather than a conflict. |
-| `value`, `capacity` | Outside the key | These are the measures. |
-| A description of the dataset as a whole | Contract metadata | It does not vary by row. |
+| A column that distinguishes two rows | Primary key | It is part of the row's identity. Numeric types are allowed inside the key as well. |
+| A measured quantity | Outside the key | These are the measures. |
+| A property of the dataset as a whole | Contract metadata | It does not vary by row. |
 
-Note the consequence for `unit` in particular: with `unit` *outside* the key, a contract
-cannot accept the same country/year in two units — the second row is a duplicate primary
-key. Putting it in the key removes a restriction rather than adding one.
+Note which way the consequence runs: a non-numeric column left *outside* the key does not
+give the contract more freedom, it gives it less. Two rows that agree on every key column
+are a duplicate primary key and are rejected, whatever that outside column says. Moving it
+into the key removes a restriction rather than adding one.
 
 ### Key columns are not necessarily dimensions
 
 A `ValueVariable` is not required to declare any foreign key, and a key column need not
-reference a dimension — `unit` is the common example. Being in the primary key therefore
-does **not** mean a column is an axis you may aggregate over: summing across `unit` is
-meaningless in a way that summing across `country` is not. Code that aggregates has to
-know which of the key columns are dimension references; the schema does not say.
+reference a dimension. Being in the primary key therefore does **not** mean a column is an
+axis you may aggregate over. Code that aggregates has to know which of the key columns are
+dimension references; the schema does not say.
 

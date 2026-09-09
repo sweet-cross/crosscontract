@@ -30,46 +30,30 @@ Rule 2 is what makes the partition total: with no third kind of field, an attrib
 either identity or a measure. That is what lets a consumer take `primaryKey.fields` as the
 grain and everything else as values, with no fallback branch.
 
-It costs nothing here because **schema drift is not allowed**. A future non-numeric
-column — a per-row `source`, say — cannot appear by accretion; it arrives through a
-contract migration that backfills a value for every existing row, and is therefore part of
-the row's identity by construction. There is no case of a descriptive per-row string
-column that the rule wrongly forces into the key, because there is no way for one to come
-into being.
+It costs nothing here because **schema drift is not allowed**. A non-numeric column cannot
+appear by accretion; it arrives through a contract migration that backfills a value for
+every existing row, and is therefore part of the row's identity by construction. There is
+no case of a descriptive per-row column that the rule wrongly forces into the key, because
+there is no way for one to come into being.
 
 The rule is an allow-list of `{"integer", "number"}`, not a deny-list, so a future
 `FieldUnion` member is rejected outside the key until someone decides otherwise.
 
-## `unit` as the worked example
-
-`unit` was the only rule-2 offender in the corpus: 18 of 51 ValueVariable contracts, all
-in the assumptions family, carried `unit: string` outside the key, while all 32 `result_*`
-contracts already carried it inside. The corpus was internally inconsistent, and the rule
-is what surfaced it.
-
-The results were right. The same quantity may legitimately be delivered in two units for
-one scenario/country/year, and those are two rows, not a conflict. Note the consequence
-runs opposite to how it first reads: with `unit` *outside* the key those 18 contracts
-**could not** accept two units for one key — the second row was a duplicate primary key.
-Promoting `unit` removed a restriction nobody had chosen. Because every stored row was
-single-unit, no row's uniqueness changed and the promotion was safe to apply live. It has
-been applied; the corpus conforms.
-
-The rejected alternative — dropping the column and carrying the unit as contract metadata
-or a `ValueFieldDescriptor` — is what "unit is a constant descriptor of the dataset" would
-imply. It is wrong for the reason above, and it would have changed the uploaded frame's
-column set for every producer of those datasets.
+A non-numeric column outside the key is, in general, a column whose part in the row's
+identity was never decided. Rule 2 forces the decision at authoring time instead of
+leaving it to whoever later has to guess the grain.
 
 ## Considered and rejected: requiring key columns to reference a Dimension
 
 A fourth rule was considered — that every non-numeric key column must be a foreign key to
 a `Dimension` or `FlexibleDimension` — which would make the key partition mechanically
 into axes and scalars. It was rejected: a ValueVariable has no foreign key requirement at
-all, and `unit` references nothing. A **Qualifier** is a permanent, legitimate shape.
+all, and a **Qualifier** — a key column referencing nothing — is a permanent, legitimate
+shape.
 
 The consequence is that "in the primary key" does not imply "safe to aggregate over", and
-nothing in the schema distinguishes `country` from `unit`. Code that aggregates must not
-assume otherwise.
+nothing in the schema distinguishes a dimension reference from a qualifier. Code that
+aggregates must not assume otherwise.
 
 ## Consequences
 
