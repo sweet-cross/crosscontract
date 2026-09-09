@@ -541,6 +541,13 @@ right name for that step alone), submission check
   declarative manifest that lists variables and transformations is a **Build spec**
   (data-package spec, plot spec). Unqualified "spec" is banned because it also collides
   with **Data specification** (the file-binding part of a **Data Resource**).
+- **`unit` appears in two places — resolved.** A **ValueVariable** carries `unit` as a
+  **Qualifier** in its primary key, while `ValueFieldDescriptor` carries a `unit`
+  attribute as a **Field descriptor**. They are not competing: the key column is the unit
+  *of the row*, which may differ between rows of one dataset; the descriptor states the
+  unit *of a field*, which cannot. Where `unit` is a key column, the descriptor has
+  nothing left to say about the measure and should be left unset — setting it to the unit
+  the data "usually" uses states something the rows may contradict.
 - **"registry" for transformation dispatch — not a Registry.** When transformations were
   proposed, "registry" was meant only in the dict/dispatch-pattern sense, not the domain
   **Registry** (`CrossRegistry`, the read layer). Resolved: there is no transformation

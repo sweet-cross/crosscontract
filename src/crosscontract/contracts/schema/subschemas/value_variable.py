@@ -24,7 +24,6 @@ class ValueVariableSchema(TableSchema):
     `unit` is meaningless.
     """
 
-    # todo add value variable-specific fields or constraints
     # ignore type error as we want to enforce the table_type for this schema
     # for the pydantic discriminator to work correctly
     table_type: Literal["ValueVariable"] = Field(  # type: ignore[assignment]
@@ -54,7 +53,7 @@ class ValueVariableSchema(TableSchema):
         if not self.primaryKey:
             raise ValueError("ValueVariable tables must have a primary key.")
 
-        primary_key_columns = set(self.primaryKey.root)
+        primary_key_columns = set(self.primaryKey.fields)
         non_key_fields = {
             field.name: field.type
             for field in self.field_iterator()
@@ -71,7 +70,7 @@ class ValueVariableSchema(TableSchema):
                 wrong_fields.append(field)
         if wrong_fields:
             raise ValueError(
-                f"Non-primary key columns '{', '.join(wrong_fields)}' must be numeric"
-                "measurements."
+                f"Non-primary key columns '{', '.join(wrong_fields)}' must be "
+                "numeric measurements."
             )
         return self

@@ -11,17 +11,22 @@ as countries, generation technologies, or economic sectors are
 organized as hierarchies with various sub-levels. Dimensions must not contain foreign
 key references to other resources or other dimensions; only self-references within the
 same dimension table (for hierarchy, e.g., `parent_id -> id`) are allowed. The actual
-data are provided in fact tables that are characterized by one or more column that
-contain the numerical values and a set of columns that reference the dimensions. We
-therefore differentiate between three main types of contracts:
+data are provided in fact tables that are characterized by one or more columns holding
+numerical values, plus the columns that identify the row — typically references to
+dimensions, but not necessarily so (see `unit` below). We differentiate between the
+following types of contracts:
 
 - *General*: This is the most flexible type. The schema to describe the data is the
  [standard table schema](schema.md)
-- *Dimensions*: The dimensions contract is the most rigid form of a contract as dimensions
-are highly standardized. This results in a contract that allows the user to only provide
-meta-data but the schema of the data is automatically provided.
+- *Dimension* and *FlexibleDimension*: The dimension contracts are the most rigid form
+of a contract as dimensions are highly standardized. For *Dimension* this results in a
+contract that allows the user to only provide meta-data but the schema of the data is
+automatically provided.
 - *ValueVariable*: The value variable contract, corresponds to what is more commonly
   known as Fact table in data modeling.
+- *Submission*: A contract describing a delivered bundle — one file carrying rows for
+many datasets at once — together with the instructions for splitting it back into the
+contracts it feeds. It uses the standard table schema.
 
 
 ## Dimension contracts
@@ -71,4 +76,43 @@ consistent and valid.
 4. The root level of the dimension hierarchy must have an entry with id "other".
     Each sub-level must have a sibling entry with id "<parent_id>_other" to
     capture uncategorized entries at that level.
+
+## ValueVariable contracts
+
+A `ValueVariable` is the fact table of the star schema: a primary key that identifies
+the row, plus one or more numeric measures. Every field is one or the other, which the
+schema enforces at load time with three rules:
+
+1. The schema must declare a non-empty primary key. It can be a single field or a
+composite of several fields.
+2. At least one field must lie outside that primary key.
+3. Every field outside the primary key must be of type `integer` or `number`.
+
+Unlike a `Dimension`, a `ValueVariable` schema is authored in full — nothing is
+generated for you.
+
+### Where non-numeric columns go
+
+Rule 3 is the one that requires a decision when authoring a contract. A non-numeric
+column has to be part of the row's identity, or it does not belong in the contract:
+
+| Column | Where it belongs | Why |
+| :--- | :--- | :--- |
+| `country`, `scenario` | Primary key | They identify the observation. |
+| `year` | Primary key | Numeric types are allowed inside the key as well. |
+| `unit` | Primary key | The same quantity may be delivered in two units, and those are two rows rather than a conflict. |
+| `value`, `capacity` | Outside the key | These are the measures. |
+| A description of the dataset as a whole | Contract metadata | It does not vary by row. |
+
+Note the consequence for `unit` in particular: with `unit` *outside* the key, a contract
+cannot accept the same country/year in two units — the second row is a duplicate primary
+key. Putting it in the key removes a restriction rather than adding one.
+
+### Key columns are not necessarily dimensions
+
+A `ValueVariable` is not required to declare any foreign key, and a key column need not
+reference a dimension — `unit` is the common example. Being in the primary key therefore
+does **not** mean a column is an axis you may aggregate over: summing across `unit` is
+meaningless in a way that summing across `country` is not. Code that aggregates has to
+know which of the key columns are dimension references; the schema does not say.
 

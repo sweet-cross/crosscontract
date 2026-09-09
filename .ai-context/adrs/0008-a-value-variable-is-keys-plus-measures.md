@@ -91,10 +91,10 @@ assume otherwise.
   identifies a *unique* row, but the primary key check is opt-in and off by default
   ([ADR 0006](0006-validation-is-a-set-of-check-objects.md)) — `to_pandera_schema()`
   called bare permits duplicate keys. So on the ordinary path nothing verifies the
-  declaration that downstream code is now entitled to trust. Whether ValueVariable should
-  run within-frame key uniqueness unconditionally — which needs no **Contract resolver**,
-  being the empty-collection case — is open, and should be settled before anything groups
-  by the declared key.
+  declaration that downstream code is now entitled to trust. Making the check
+  unconditional for a ValueVariable would need no **Contract resolver**, being the
+  empty-collection case — but it is a question about validation, not about what a
+  ValueVariable is, and this decision deliberately does not answer it.
 - **The rule catches string mistakes, not integer ones.** A `year: integer` column omitted
   from the key is, by rule 2, a perfectly good measure, and no validator fires. Only the
   uniqueness check above would catch it.
