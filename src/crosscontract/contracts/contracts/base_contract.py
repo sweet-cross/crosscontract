@@ -350,4 +350,4 @@ class BaseContract(BaseMetaData):
 
             dimension_hierarchies[field] = parent_map
 
-        return dimension_hierarchies or None
+        return dimension_hierarchies or None  # type: ignore[return-value]
