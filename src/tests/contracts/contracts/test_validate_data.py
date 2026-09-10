@@ -353,9 +353,35 @@ class TestDimensionGranularityDerivation:
         contract.validate_data(df, resolver=resolver, check_dimension_granularity=True)
 
     def test_root_members_reach_the_check_as_having_no_parent(self, contract, resolver):
-        """A root's `parent_id` arrives from the frame as a null and must not
-        reach `HasNoDescendantInGroup`, whose `parent_map` takes `str | None` and
-        rejects a float. Two roots in one group is the case that exercises it."""
+        """A root's `parent_id` arrives from the frame as a null and must reach
+        `HasNoDescendantInGroup` as `None`, the only null its `parent_map`
+        accepts. Here the frame spells it `None` already, in an object column.
+        Two roots in one group is the case that exercises it."""
+        df = self._df([("ch", "A", 2030), ("other", "A", 2030)])
+        contract.validate_data(df, resolver=resolver, check_dimension_granularity=True)
+
+    def test_float_null_parents_are_normalised(
+        self, contract, dimension, flexible_dimension
+    ):
+        """The same, for a frame that spells a missing parent as a float `NaN`.
+        A dimension whose members are all roots comes back with a `parent_id`
+        column typed `float64`, and a resolver reading a tabular source spells a
+        blank cell that way too. `parent_map` takes `str | None` and rejects a
+        float, so this is the shape the normalisation exists for."""
+        resolver = RecordingResolver(
+            data={
+                "dim_region": pd.DataFrame(
+                    {
+                        "id": ["ch", "other"],
+                        "parent_id": [float("nan"), float("nan")],
+                    }
+                )
+            },
+            contracts={
+                "dim_region": dimension,
+                "dim_scenario": flexible_dimension,
+            },
+        )
         df = self._df([("ch", "A", 2030), ("other", "A", 2030)])
         contract.validate_data(df, resolver=resolver, check_dimension_granularity=True)
 

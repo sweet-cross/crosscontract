@@ -28,7 +28,9 @@ before it can be picked up.
   remedy; the flag default as the grace period and the absence of a warn mode; the
   client result being advisory per ADR 0005; a `General` contract holding fact data
   getting no granularity check.
-- [X] An entry is appended to `.ai-context/TODO.md` for the deferred stored-rows half,
+- [X] The deferred stored-rows half is recorded — in PRD §4 rather than
+  `.ai-context/TODO.md`, decided at implementation time so the questions sit beside the
+  scope decision that produced them —
   carrying both unresolved questions: **which row is reported** when the aggregate is
   the stored row and the detail is the uploaded one (the "remove the aggregate row"
   remedy names a row not in the frame), and **whether `_add_data` appends or upserts**
@@ -38,8 +40,7 @@ before it can be picked up.
 ## Implementation Details
 
 - Create: `.ai-context/adrs/0009-fact-data-is-reported-at-one-granularity-per-group.md`.
-- Modify: `.ai-context/adrs/0001-dimensions-are-strict-trees.md` (cross-link only) and
-  `.ai-context/TODO.md`.
+- Modify: `.ai-context/adrs/0001-dimensions-are-strict-trees.md` (cross-link only).
 - A separate ADR rather than an amendment to 0001 was decided (PRD §6): 0001 decides the
   shape of a *dimension* and has no submitter-facing consequences; this decides the shape
   of *fact data* and its principal consequence is a behaviour change.

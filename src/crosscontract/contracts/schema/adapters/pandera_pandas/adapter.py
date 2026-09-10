@@ -76,7 +76,9 @@ class PanderaAdapter(AbstractAdapter):
                 The hierarchy of each referenced dimension, keyed by the column
                 that references it and mapping a member to its parent. Supplying
                 one checks that no group reports a member alongside one of its
-                descendants; `None` leaves the hierarchies unchecked.
+                descendants; `None` leaves the hierarchies unchecked. A group is
+                the schema's primary key minus the column being judged, so a
+                schema declaring no primary key puts every row in one group.
                 Defaults to `None`.
 
         Returns:
@@ -165,7 +167,9 @@ class PanderaAdapter(AbstractAdapter):
                 The hierarchy of each referenced dimension, keyed by the column
                 that references it and mapping a member to its parent. Supplying
                 one checks that no group reports a member alongside one of its
-                descendants; `None` leaves the hierarchies unchecked.
+                descendants; `None` leaves the hierarchies unchecked. A group is
+                the schema's primary key minus the column being judged, so a
+                schema declaring no primary key puts every row in one group.
                 Defaults to `None`.
 
         Returns:
@@ -212,7 +216,9 @@ class PanderaAdapter(AbstractAdapter):
                 The hierarchy of each referenced dimension, keyed by the column
                 that references it and mapping a member to its parent. Supplying
                 one checks that no group reports a member alongside one of its
-                descendants; `None` leaves the hierarchies unchecked.
+                descendants; `None` leaves the hierarchies unchecked. A group is
+                the schema's primary key minus the column being judged, so a
+                schema declaring no primary key puts every row in one group.
                 Defaults to `None`.
 
         Returns:

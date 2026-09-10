@@ -210,11 +210,13 @@ class BaseContract(BaseMetaData):
             check_existing_foreign_key (bool): If True, also check the foreign
                 keys against the values already stored for the contracts they
                 reference. Defaults to False.
-            check_dimension_granularity (bool): If True, also check the dimension
-                granularity against the hierarchies already stored for the
-                referenced dimensions. This option exists only for ValueVariables
-                and is activated if the ValueVariable has a reference to a
-                CrossDimension. Defaults to False.
+            check_dimension_granularity (bool): If True, also check that no group
+                of otherwise-identical rows reports a member of a hierarchical
+                dimension alongside one of its descendants, which would count
+                that member twice when the data is summed. Only a ValueVariable
+                is checked, and only its references to a `Dimension`; a
+                `FlexibleDimension` is flat and has nothing to check.
+                Defaults to False.
             lazy (bool): If True, collect all validation errors and raise them
                 together. If False, raise the first error encountered. Defaults
                 to True.
@@ -238,7 +240,7 @@ class BaseContract(BaseMetaData):
             ):
                 raise ValueError(
                     f"Contract '{self.name}': checking against existing values requires"
-                    " a resolver. Pass resolver=, or leave check_existing_primary_key "
+                    " a resolver. Pass resolver=, or leave check_existing_primary_key, "
                     "check_existing_foreign_key, and check_dimension_granularity "
                     "False to validate the data on its own."
                 )
@@ -302,10 +304,10 @@ class BaseContract(BaseMetaData):
     def _resolve_dimension_hierarchies(
         self, resolver: ContractResolver
     ) -> dict[str, dict[str, str | None]] | None:
-        """Resolve the dimension hierarchies for the foreign keys referencing
-        dimension tables. Keys are the foreign key field names, and values are
-        dictionaries mapping each member of the dimension to its parent, or to
-        `None` where it has none.
+        """Read the hierarchy of every referenced dimension.
+
+        Keys are the foreign key field names, and values map each member of the
+        dimension to its parent, or to `None` where it has none.
 
         Args:
             resolver (ContractResolver): Supplier of the stored values.
@@ -317,8 +319,8 @@ class BaseContract(BaseMetaData):
         Raises:
             ValueError: If a referenced contract does not resolve.
         """
-        dimension_hierarchies = {}
-        # for each CrossDimension, get the hierarchy from the resolver
+        dimension_hierarchies: dict[str, dict[str, str | None]] = {}
+        # for each Dimension, get the hierarchy from the resolver
         for fk in self.tableschema.foreignKeys.root:
             if len(fk.fields) > 1 or fk.reference.resource is None:
                 # skip composite foreign keys for dimension hierarchy checks
@@ -348,6 +350,6 @@ class BaseContract(BaseMetaData):
                 .to_dict()
             )
 
-            dimension_hierarchies[field] = parent_map
+            dimension_hierarchies[field] = parent_map  # type: ignore[assignment]
 
-        return dimension_hierarchies or None  # type: ignore[return-value]
+        return dimension_hierarchies or None

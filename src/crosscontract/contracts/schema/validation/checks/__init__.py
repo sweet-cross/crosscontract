@@ -12,6 +12,6 @@ __all__ = [
     "IsNotNull",
     "IsSubsetOf",
     "IsValidCrossDimension",
-    "IsValidPrimaryKey",
     "HasNoDescendantInGroup",
+    "IsValidPrimaryKey",
 ]
