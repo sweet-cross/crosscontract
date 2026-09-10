@@ -183,6 +183,7 @@ class TableSchema(BaseModel):
         self,
         primary_key_values: list[tuple[Any, ...]] | None = None,
         foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
+        dimension_hierarchies: dict[str, dict[str, str | None]] | None = None,
     ) -> pa.DataFrameSchema:
         """Convert the TableSchema to a Pandera DataFrameSchema.
 
@@ -205,6 +206,13 @@ class TableSchema(BaseModel):
                 DataFrame's own rows; an external reference is checked only when
                 its values are given.
                 Defaults to `None`.
+            dimension_hierarchies (dict[str, dict[str, str | None]] | None, optional):
+                A mapping from the column name to a mapping from each node in the
+                related dimensions to its parents. If provided, it will be used to
+                validate the hierarchical integrity ensuring that parent entries
+                are not provided if a child entry exists.
+                None does not check any hierarchies.
+                Defaults to `None`.
 
         Returns:
             pa.DataFrameSchema: The converted Pandera DataFrameSchema.
@@ -213,6 +221,7 @@ class TableSchema(BaseModel):
             self,
             primary_key_values=primary_key_values,
             foreign_key_values=foreign_key_values,
+            dimension_hierarchies=dimension_hierarchies,
         )
 
     def to_pydantic_model(
@@ -231,6 +240,7 @@ class TableSchema(BaseModel):
         df: Any,
         primary_key_values: list[tuple[Any, ...]] | None = None,
         foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
+        dimension_hierarchies: dict[str, dict[str, str | None]] | None = None,
         lazy: bool = True,
     ) -> pd.DataFrame:
         """Validate a DataFrame against the schema.
@@ -267,6 +277,12 @@ class TableSchema(BaseModel):
                 self-referencing keys against the DataFrame's own rows; an
                 external reference is checked only when its values are given.
                 Default is None.
+            dimension_hierarchies (dict[str, dict[str, str | None]] | None):
+                Existing dimension hierarchies to check against. This is provided as a
+                dictionary where the keys are the column names and the values are
+                dictionaries mapping each node in the related dimensions to its parent.
+                `None` leaves the dimension hierarchies unchecked.
+                Default is None.
             lazy (bool): Whether to perform lazy validation, collecting all errors.
                 Defaults to True.
 
@@ -282,6 +298,7 @@ class TableSchema(BaseModel):
         pandera_schema = self.to_pandera_schema(
             primary_key_values=primary_key_values,
             foreign_key_values=foreign_key_values,
+            dimension_hierarchies=dimension_hierarchies,
         )
 
         df = validate_dataframe_schema(

@@ -167,11 +167,27 @@ lives at the contract layer. So the decision is made in `validate_data` and reac
 adapter as **values, never checks** (ADR 0006) — the same path `foreign_key_values`
 already takes.
 
-New argument, keyed like `foreign_key_values` by `tuple(fk.fields)`:
+New argument, keyed by the single referring column:
 
 ```python
-dimension_hierarchies: dict[tuple[str, ...], dict[Any, Any]] | None = None
+dimension_hierarchies: dict[str, dict[str, str | None]] | None = None
 ```
+
+**Not** keyed by `tuple(fk.fields)` like `foreign_key_values`, and the difference is
+deliberate — do not "restore" the symmetry later. That argument takes a tuple because a
+foreign key genuinely can span several columns. This one cannot: a `DimensionSchema`
+primary key is the single `id`, so a foreign key that qualifies always has exactly one
+field, which is also the check's `column`. A tuple would encode an arity that cannot
+occur and be unwrapped again at every use.
+
+The value type is the same as `HasNoDescendantInGroup.parent_map`, so a parent map passes
+through the layers unchanged and no `Any` enters the signature.
+
+One consequence for `_derive_checks`: with a tuple key, a composite foreign key is skipped
+because the lookup happens to miss. With a single-column key there is nothing sensible to
+look up, so the arity is checked explicitly (`len(fk.fields) == 1`) and the key skipped
+when it does not hold. That is the better guard — it holds however the caller builds the
+mapping, whereas a missing lookup only holds while the caller stays well-behaved.
 
 threaded through `_derive_checks` → `convert` → `convert_schema` →
 `TableSchema.to_pandera_schema` → `TableSchema.validate_dataframe`.
