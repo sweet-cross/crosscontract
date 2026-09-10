@@ -15,15 +15,15 @@ member present may be a proper ancestor of another member present. It reports th
 - [X] `name: Literal["has_no_descendant_in_group"] = "has_no_descendant_in_group"`.
 - [X] Fields: `column: str`, `group_columns: list[str]`, `parent_map: dict[Any, Any]`.
   **No `existing` field** — the stored-rows half is deferred (PRD §4).
-- [ ] `__call__(df) -> pd.Series` returns one boolean per row; the aggregate row fails.
-- [ ] A member absent from `parent_map` passes; a null member passes; an empty-string or
+- [X] `__call__(df) -> pd.Series` returns one boolean per row; the aggregate row fails.
+- [X] A member absent from `parent_map` passes; a null member passes; an empty-string or
   null parent terminates the chain; a cyclic parent map terminates rather than hangs.
-- [ ] Nulls are decided **inside `__call__`**, not delegated to `ignore_na` (PRD §3).
-- [ ] `failure_message()` names the column and states the remedy in one line (PRD §3).
-- [ ] `to_pandera()` is **not** overridden — one rule, one message, so the inherited
+- [X] Nulls are decided **inside `__call__`**, not delegated to `ignore_na` (PRD §3).
+- [X] `failure_message()` names the column and states the remedy in one line (PRD §3).
+- [X] `to_pandera()` is **not** overridden — one rule, one message, so the inherited
   single-check implementation is correct.
-- [ ] Exported from `checks/__init__.py` and added to its `__all__`.
-- [ ] The two tests from `01` pass.
+- [X] Exported from `checks/__init__.py` and added to its `__all__`.
+- [X] The two tests from `01` pass.
 
 ## Implementation Details
 
