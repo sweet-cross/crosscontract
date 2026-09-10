@@ -26,7 +26,7 @@ group columns are.
 - [X] Guards (PRD §3), each of which skips the foreign key silently:
   no `primaryKey`; `fk.fields` not a subset of `primaryKey.fields`; a composite
   foreign key; a self-referencing foreign key (`reference.resource is None`).
-- [X] The composite guard is an explicit `len(fk.fields) == 1` test, not a lookup that
+- [X] git a The composite guard is an explicit `len(fk.fields) == 1` test, not a lookup that
   happens to miss. With a single-column key there is no sensible thing to look up for
   a multi-column foreign key, and an explicit refusal holds however the caller builds
   the mapping. Its test is only meaningful this way round.
