@@ -312,7 +312,10 @@ class TestValidation:
         object.__setattr__(contract_resource.contract, "validate_data", validate_mock)
 
         contract_resource.validate_dataframe(
-            df, check_existing_primary_key=True, check_existing_foreign_key=True
+            df,
+            check_existing_primary_key=True,
+            check_existing_foreign_key=True,
+            check_dimension_granularity=True,
         )
 
         validate_mock.assert_called_once()
@@ -320,8 +323,29 @@ class TestValidation:
         assert args[0] is df
         assert kwargs["check_existing_primary_key"] is True
         assert kwargs["check_existing_foreign_key"] is True
+        assert kwargs["check_dimension_granularity"] is True
         assert kwargs["lazy"] is True
         assert isinstance(kwargs["resolver"], CrossContractResolver)
+
+    def test_add_data_leaves_every_check_flag_off(
+        self, contract_resource: ContractResource
+    ):
+        """An upload validates with the flags at their defaults.
+
+        This is what lets the granularity check ship without rejecting data that
+        was accepted yesterday: a caller opts in through `validate_dataframe`,
+        and `add_data` never does it for them.
+        """
+        contract_resource._service._add_data = Mock(return_value=None)
+        validate_mock = Mock(return_value=None)
+        object.__setattr__(contract_resource.contract, "validate_data", validate_mock)
+
+        contract_resource.add_data(pd.DataFrame({"col1": [1, 2]}), validate=True)
+
+        _, kwargs = validate_mock.call_args
+        assert kwargs["check_existing_primary_key"] is False
+        assert kwargs["check_existing_foreign_key"] is False
+        assert kwargs["check_dimension_granularity"] is False
 
     def test_checking_existing_keys_reads_own_contract(self, service: ContractService):
         """The resolver reads the contract's own stored primary keys."""
@@ -410,7 +434,11 @@ class TestIsDimension:
             description="d",
             contract_type=contract_type,
             tableschema={
-                "fields": [{"name": "id", "type": "string"}],
+                "primaryKey": ["id"],
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {"name": "value", "type": "number"},
+                ],
                 "foreignKeys": [],
             },
         )

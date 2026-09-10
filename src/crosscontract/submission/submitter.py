@@ -68,6 +68,7 @@ class CrossSubmitter:
         df: pd.DataFrame,
         check_existing_primary_key: bool = True,
         check_existing_foreign_key: bool = True,
+        check_dimension_granularity: bool = True,
         lazy: bool = True,
     ) -> dict[str, pd.DataFrame]:
         """Validate a delivered bundle and everything extracted from it.
@@ -107,6 +108,14 @@ class CrossSubmitter:
                 declares no foreign keys. A False value suppresses the
                 foreign-key check entirely, self-references included. Defaults to
                 True.
+            check_dimension_granularity (bool): If True, also check that no group
+                of otherwise-identical rows reports a member of a hierarchical
+                dimension alongside one of its descendants, which would count
+                that member twice when the data is summed. Only a ValueVariable
+                is checked, and only its references to a `Dimension`; a
+                `FlexibleDimension` is flat and has nothing to check. Applies to
+                step 3 only — a submission contract is not a ValueVariable.
+                Defaults to True.
             lazy (bool): If True, collect all of a step's validation errors and
                 raise them together. If False, raise the first error
                 encountered. Note that a non-lazy failure yields a degraded
@@ -146,6 +155,7 @@ class CrossSubmitter:
             resolver=self._resolver,
             check_existing_primary_key=check_existing_primary_key,
             check_existing_foreign_key=check_existing_foreign_key,
+            check_dimension_granularity=check_dimension_granularity,
             lazy=lazy,
         )
 
@@ -161,5 +171,6 @@ class CrossSubmitter:
             resolver=self._resolver,
             check_existing_primary_key=check_existing_primary_key,
             check_existing_foreign_key=check_existing_foreign_key,
+            check_dimension_granularity=check_dimension_granularity,
             lazy=lazy,
         )

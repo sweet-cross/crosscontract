@@ -3,6 +3,7 @@ import pytest
 from crosscontract.contracts.schema import DimensionSchema, TableSchema
 from crosscontract.contracts.schema.adapters.pandera_pandas import PanderaAdapter
 from crosscontract.contracts.schema.validation.checks import (
+    HasNoDescendantInGroup,
     IsSubsetOf,
     IsValidCrossDimension,
 )
@@ -193,6 +194,91 @@ class TestDeriveChecks:
         adapter = PanderaAdapter(DimensionSchema.model_validate({}))
         checks = adapter._derive_checks()
         assert [type(c) for c in checks] == [IsValidCrossDimension]
+
+
+# ---------------------------------------------------------------------------
+# _derive_checks: the granularity check the caller's hierarchies ask for
+# ---------------------------------------------------------------------------
+PARENT_MAP = {"ch": None, "ch_ag": "ch"}
+
+
+class TestDeriveGranularityChecks:
+    """Test the checks derived from `dimension_hierarchies`.
+
+    Unlike the key checks, these answer to no schema construct: a schema records
+    that a column references a resource, not that the resource is hierarchical.
+    The mapping the caller supplies is therefore what decides which columns get a
+    check, and the schema supplies only the group.
+    """
+
+    @staticmethod
+    def _schema(columns: list[str]) -> TableSchema:
+        """A schema whose primary key is the given columns, plus a measure."""
+        fields = [{"name": name, "type": "string"} for name in columns]
+        fields.append({"name": "value", "type": "number"})
+        return TableSchema.model_validate({"fields": fields, "primaryKey": columns})
+
+    def test_none_derives_no_granularity_check(self):
+        """The check is opt-in: without a hierarchy there is nothing to compare
+        a member against, so none is derived."""
+        adapter = PanderaAdapter(self._schema(["model", "scenario", "region"]))
+        assert adapter._derive_checks(dimension_hierarchies=None) == []
+
+    def test_supplied_hierarchy_derives_one_check(self):
+        """A hierarchy for one column derives exactly one check, carrying that
+        column, the parent map it was given, and the granularity label."""
+        adapter = PanderaAdapter(self._schema(["model", "scenario", "region"]))
+        (check,) = adapter._derive_checks(dimension_hierarchies={"region": PARENT_MAP})
+        assert isinstance(check, HasNoDescendantInGroup)
+        assert check.column == "region"
+        assert check.parent_map == PARENT_MAP
+        assert check.label == "dimension granularity"
+
+    def test_group_is_the_primary_key_without_the_dimension_column(self):
+        """The group is what makes two rows comparable: everything identifying a
+        row except the member itself, in the order the key declares."""
+        adapter = PanderaAdapter(self._schema(["model", "scenario", "region", "year"]))
+        (check,) = adapter._derive_checks(dimension_hierarchies={"region": PARENT_MAP})
+        assert check.group_columns == ["model", "scenario", "year"]
+
+    def test_two_columns_into_the_same_dimension_get_a_check_each(self):
+        """A contract may reference one dimension twice — `from` and `to` both
+        naming regions. Each column is checked against its own group, and the
+        other stays in that group, so a flow out of 'ch' and a flow into 'ch_ag'
+        do not constrain each other."""
+        adapter = PanderaAdapter(self._schema(["model", "origin", "destination"]))
+        checks = adapter._derive_checks(
+            dimension_hierarchies={"origin": PARENT_MAP, "destination": PARENT_MAP}
+        )
+        assert [(c.column, c.group_columns) for c in checks] == [
+            ("origin", ["model", "destination"]),
+            ("destination", ["model", "origin"]),
+        ]
+
+    def test_unknown_column_raises(self):
+        """A column the schema does not declare is a wiring mistake, not a data
+        defect. Deriving a check for it would fail later inside pandera with a
+        `KeyError` against the frame, so it is refused here and named."""
+        adapter = PanderaAdapter(self._schema(["model", "region"]))
+        with pytest.raises(ValueError, match="nope"):
+            adapter._derive_checks(dimension_hierarchies={"nope": PARENT_MAP})
+
+    def test_convert_attaches_the_check_to_the_pandera_schema(self):
+        """The argument survives the trip through `convert`: one rule with one
+        remedy becomes one pandera check."""
+        schema = self._schema(["model", "region"])
+        result = PanderaAdapter(schema).convert(
+            dimension_hierarchies={"region": PARENT_MAP}
+        )
+        assert len(result.checks) == 1
+
+    def test_convert_schema_classmethod_passes_the_hierarchies_on(self):
+        """The classmethod entry point threads the argument the same way."""
+        schema = self._schema(["model", "region"])
+        result = PanderaAdapter.convert_schema(
+            schema, dimension_hierarchies={"region": PARENT_MAP}
+        )
+        assert len(result.checks) == 1
 
 
 # ---------------------------------------------------------------------------

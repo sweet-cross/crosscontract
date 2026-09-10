@@ -183,6 +183,7 @@ class TableSchema(BaseModel):
         self,
         primary_key_values: list[tuple[Any, ...]] | None = None,
         foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
+        dimension_hierarchies: dict[str, dict[str, str | None]] | None = None,
     ) -> pa.DataFrameSchema:
         """Convert the TableSchema to a Pandera DataFrameSchema.
 
@@ -205,6 +206,14 @@ class TableSchema(BaseModel):
                 DataFrame's own rows; an external reference is checked only when
                 its values are given.
                 Defaults to `None`.
+            dimension_hierarchies (dict[str, dict[str, str | None]] | None, optional):
+                The hierarchy of each referenced dimension, keyed by the column
+                that references it and mapping a member to its parent. Supplying
+                one checks that no group reports a member alongside one of its
+                descendants; `None` leaves the hierarchies unchecked. A group is
+                the schema's primary key minus the column being judged, so a
+                schema declaring no primary key puts every row in one group.
+                Defaults to `None`.
 
         Returns:
             pa.DataFrameSchema: The converted Pandera DataFrameSchema.
@@ -213,6 +222,7 @@ class TableSchema(BaseModel):
             self,
             primary_key_values=primary_key_values,
             foreign_key_values=foreign_key_values,
+            dimension_hierarchies=dimension_hierarchies,
         )
 
     def to_pydantic_model(
@@ -231,6 +241,7 @@ class TableSchema(BaseModel):
         df: Any,
         primary_key_values: list[tuple[Any, ...]] | None = None,
         foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
+        dimension_hierarchies: dict[str, dict[str, str | None]] | None = None,
         lazy: bool = True,
     ) -> pd.DataFrame:
         """Validate a DataFrame against the schema.
@@ -267,6 +278,16 @@ class TableSchema(BaseModel):
                 self-referencing keys against the DataFrame's own rows; an
                 external reference is checked only when its values are given.
                 Default is None.
+            dimension_hierarchies (dict[str, dict[str, str | None]] | None):
+                The hierarchy of each referenced dimension, keyed by the column
+                that references it and mapping a member to its parent. Supplying
+                one checks that no group of otherwise-identical rows reports a
+                member alongside one of its descendants, which would count that
+                member twice when the data is summed. A group is the schema's
+                primary key minus the column being judged, so a schema declaring
+                no primary key puts every row in one group.
+                `None` leaves the dimension hierarchies unchecked.
+                Default is None.
             lazy (bool): Whether to perform lazy validation, collecting all errors.
                 Defaults to True.
 
@@ -282,6 +303,7 @@ class TableSchema(BaseModel):
         pandera_schema = self.to_pandera_schema(
             primary_key_values=primary_key_values,
             foreign_key_values=foreign_key_values,
+            dimension_hierarchies=dimension_hierarchies,
         )
 
         df = validate_dataframe_schema(

@@ -1,5 +1,150 @@
 # CHANGELOG
 
+## v0.22.0 (2026-09-10)
+
+### Features
+
+
+- **Reject fact data that reports a dimension member alongside its own descendants** ([`12d07fc`](https://github.com/sweet-cross/crosscontract/commit/12d07fcfa7559ec270a59998f28562e157dfc46d))
+
+  # Reject fact data that reports a dimension member alongside its own descendants
+
+  Base branch: `dev`.
+
+  ## Summary
+
+  A hierarchical `Dimension` is a strict tree whose members roll up without overlap ([ADR 0001](../../.ai-context/adrs/0001-dimensions-are-strict-trees.md)), and `IsValidCrossDimension` enforces that for the dimension table. Nothing enforced the corresponding invariant on the fact side: a ValueVariable could carry a row for `ch` *and* rows for `ch_ag` / `ch_other` under the same scenario and year, and summing the region column then double-counts. The dimension is valid; the data is not.
+
+  This adds a validation check that rejects such an upload, replacing cleanup with prevention — `admin_tasks/delete_hierachy_duplicates.py` in the sibling `cross_back` repository exists to delete those rows after the fact. The rule: within one group of otherwise-identical rows, the members present must form an antichain. It is recorded as [ADR 0009](../../.ai-context/adrs/0009-fact-data-is-reported-at-one-granularity-per-group.md).
+
+  ## Changes
+
+  **The check** — `contracts/schema/validation/checks/hierarchy_checks.py`
+
+  - `HasNoDescendantInGroup(BaseCheck)`: a column, its group columns, and a plain `dict` parent map. Sets rather than joins — each row marks the aggregates it is part of as covered within its own group, and a row fails when its own member is already marked.
+    `O(rows x depth)`, with no `explode`/`merge`.
+  - Reports the **aggregate** row, since that is the row a submitter removes. A member missing from the parent map passes, as does a null member; an empty-string parent ends a chain; a cyclic parent map terminates via a `seen` set rather than hanging.
+  - `to_pandera()` is not overridden — one rule, one message. The message leads with `Columns '...'` so `SchemaValidationError` parses the columns back out and reports the
+    offending row's values.
+
+  **Derivation** — `adapters/pandera_pandas/adapter.py`, `schema.py`
+
+  - `_derive_checks` gains `dimension_hierarchies: dict[str, dict[str, str | None]] | None`, keyed by the single referring column (**not** by `tuple(fk.fields)` like `foreign_key_values` — a qualifying foreign key always has exactly one field). Threaded
+    unchanged through `convert`, `convert_schema`, `to_pandera_schema` and
+    `validate_dataframe`.
+  - Group columns are `primaryKey.fields` minus the judged column. A column the schema does not declare raises `ValueError` rather than failing later inside pandera.
+
+  **Resolution** — `contracts/base_contract.py`
+
+  - `validate_data` gains `check_dimension_granularity`. When set, and only for a `ValueVariableSchema`, `_resolve_dimension_hierarchies` resolves each single-column external foreign key and keeps those whose `tableschema` is a `DimensionSchema` — **not** `BaseDimensionSchema`, which also matches `FlexibleDimensionSchema`. An unresolvable
+    contract raises, naming the column and the contract.
+  - The parent map is read as `[reference.fields[0], "parent_id"]`, with nulls normalised so
+    a root's parent reaches the check as `None`.
+
+  **Entry points** — `crossclient/services/contract_resource.py`, `submission/`
+
+  - `ContractResource.validate_dataframe` exposes the flag; `add_data` does not set it.
+  - `SubmissionHandler.validate_target` / `validate_targets` and `CrossSubmitter.validate_submission` expose and forward it. The submitter defaults it
+    **`True`**, beside the two key flags already `True` there.
+
+  **Docs** — ADR 0009 (new), ADR 0001 (cross-link), the PRD, and eight task files under `.ai-context/issues/`.
+
+  ## Testing
+
+  `pytest`, `ruff` and `mypy` were run by the repository owner throughout; all green at each step. New tests:
+
+  - `test_granularity_checks.py` — the predicate: the done-means pair, two models reporting at different granularities, siblings, transitivity through a missing level, `ch` + `ch_other`, unknown member, null member, null group column (a float `NaN`, the case that breaks tuple keys), empty-string parent, cyclic map, empty frame, single row, duplicate
+    rows, multi-column group, and `to_pandera()`.
+  - `test_adapter.py` — derivation: `None` derives nothing; the column, group and label; two columns into one dimension get a check each; an unknown column raises; both `convert`
+    entry points thread the argument.
+  - `test_validate_data.py` — resolution: the dimension is resolved and read, a `FlexibleDimension` never is, a `General` contract derives nothing, no resolver raises, the flag unset consults nothing, unresolvable raises, composite reference skipped.
+  - `test_integration_granularity.py` — the assembled schema: the done-means pair, the parsed report naming the column and pointing at the `ch` row, and a frame breaking the primary key, a foreign key and granularity in one lazy run reporting all three.
+  - `test_target_granularity.py` — the submission path inherits the check with no submission-specific code, keyed by target name. These caught a dropped forward in
+    `SubmissionHandler.validate_target`, which is fixed here.
+
+  ## Notes for reviewer
+
+  - **The check is in-frame only.** A violation split across two uploads — aggregate stored, detail arriving now — is not caught. Deferred deliberately: it needs a second failure message (the "remove the aggregate row" remedy names a row not in the frame) and it depends on whether `_add_data` appends or upserts. Both questions are recorded in PRD §4.
+  - **Two defaults, on purpose.** Off on the upload path so nothing an existing caller does starts rejecting; on for `validate_submission`. That asymmetry is the grace period, and it is why no warn mode was built — see ADR 0009's consequences before aligning them.
+  - **`DimensionSchema` vs `BaseDimensionSchema`** is the trap worth checking in review. `dim_model` and `dim_scenario` are flat and referenced by nearly every ValueVariable, so the looser test would derive a check on almost every contract in the model. `ContractResource.is_dimension` still uses the looser test for its own purpose.
+  - **Derivation is restricted to `ValueVariableSchema`** because the group is only sound where ADR 0008 forces every non-numeric field into the primary key. A `General` contract gets no check. The PRD originally justified the group differently, via duplicate primary keys; that argument is wrong when the dimension column is not the sole differentiator,
+    and ADR 0009 records both the correction and what it replaces.
+  - `PanderaAdapter._derive_checks` trusts the caller's column list — a direct caller of
+    `to_pandera_schema` gets none of the qualifying logic above.
+  - `.github/PRs/value_variables.md` is deleted here; it belonged to the previous PR.
+
+
+
+## v0.21.0 (2026-09-09)
+
+### Features
+
+
+- **define a ValueVariable as a primary key plus numeric measures** ([`3698655`](https://github.com/sweet-cross/crosscontract/commit/36986552612be84beb7a311b2635e60e458f6c67))
+
+  # feat: define a ValueVariable as a primary key plus numeric measures
+
+  ## Summary
+
+  `ValueVariableSchema` added nothing to `TableSchema` beyond its `table_type` discriminator — its body was a `todo`. A ValueVariable contract was therefore constructible with no primary key at all and with arbitrary non-numeric columns beside its values, which left the row identity to be guessed downstream (the admin script in the sibling `cross_back` repository reconstructs it as `[c for c in df.columns if c != "value"]`, relying on a column name no schema mandates).
+
+  This branch makes the schema say what a fact table is: a primary key that identifies the row, plus one or more numeric measures, with no third kind of field. The identity becomes a declaration rather than an inference.
+
+  **This is breaking for stored contracts.** ValueVariable schemas round-trip to the platform in full, so a stored contract violating a rule stops loading via `from_server`. The contract corpus was migrated ahead of this change; see Testing.
+
+  ## Changes
+
+  **The rule** — `src/crosscontract/contracts/schema/subschemas/value_variable.py`
+
+  One `model_validator(mode="after")` enforcing three rules in order:
+
+  1. a non-empty `primaryKey` is declared; 2. at least one field lies outside that key; 3. every field outside the key is of type `integer` or `number`.
+
+  The type test is an allow-list of `{"integer", "number"}`, not a deny-list, so a future `FieldUnion` member is rejected outside the key until someone decides otherwise. Multiple offending fields are collected into one message rather than raising on the first. No other schema type changes behaviour — `TableSchema`, the two dimension schemas, and the `Submission` contract type (which resolves to the `General` table type) are untouched.
+
+  **Decision record** — `.ai-context/adrs/0008-a-value-variable-is-keys-plus-measures.md`
+
+  New ADR recording the three rules, why the identity is declared rather than inferred, and why the numeric rule costs nothing given that schema drift is not allowed: a non-numeric column cannot appear by accretion, only through a migration that backfills every row, so it is identity by construction. Records two rejections and several consequences — see Notes.
+
+  **Glossary** — `.ai-context/CONTEXT.md`
+
+  **ValueVariable** redefined as key plus measures; **Measure** and
+  **Qualifier** added (a qualifier being a non-numeric key column referencing no dimension), plus a relationships entry stating that a key column is not necessarily a dimension reference, so "in the key" does not imply "safe to aggregate over".
+
+  **User-facing docs** — `docs/contracts/`
+
+  New *ValueVariable contracts* section in `contract_types.md` with the three rules, a table for deciding where a non-numeric column belongs, and a subsection on key columns not being dimensions. Also corrected two pre-existing errors on that page: the fact-table description asserted that non-measure columns reference dimensions (which this branch explicitly does not require), and the type list named three contract types out of five. `metadata.md` was missing `Submission` from the `contract_type` row.
+
+  **Removed** — `.ai-context/prds/2026-09-08-value-variable-is-keys-plus-measures.md`, superseded by the ADR.
+
+  ## Testing
+
+  New `src/tests/contracts/schema/subschemas/test_value_variable.py`, one test per rule: the primary key requirement (parametrized over an omitted key and `primaryKey: []`, which must not diverge since the field has a `default_factory`), the at-least-one-measure rule (asserting both directions), and the numeric rule (parametrized over `string`, `datetime` and `list`, asserting the message names the offending field). The shared fixture keeps string and integer columns *inside* the key, so it doubles as the inside-the-key case.
+
+  Three existing tests constructed non-conforming ValueVariables and were fixed: `test_contract_type_resolves_to_correct_schema` and `test_instantiated_subclass_schema_mismatch_raises_value_error` in `test_contract_types.py`, and `test_is_dimension_false` in `test_contract_resource.py`. The first took its schema from the module-level `data_base_contract`, which the `Submission` case also uses — and submission contracts reject a `primaryKey` — so the conforming schema was added as a parametrize column rather than by changing the shared fixture.
+
+  Corpus audit: all 51 ValueVariable contracts in the local snapshot at `/Users/jan/git/data_model_tmp/data` conform to all three rules, with zero violations. Re-confirm against the live platform before merging, and check `cross_back` for server-side fixtures or seeded contracts that would now fail contract
+  *creation*, since the server validates with these same models.
+
+  ## Notes for reviewer
+
+  - **Ordering across repositories.** The corpus and the platform must be correct before this ships, not after. That is the main scheduling risk and it is not enforceable from
+    this repository.
+  - **The uniqueness claim is stronger than what runs.** The definition says the key identifies a *unique* row, but the key checks are opt-in and off by default ([ADR 0006](../../.ai-context/adrs/0006-validation-is-a-set-of-check-objects.md)) — `to_pandera_schema()` called bare permits duplicate primary keys. So downstream code is now entitled to trust a declaration that nothing verifies on the ordinary path. This was raised and deliberately left out of scope as a validation question; the ADR records it
+    as a consequence.
+  - **The type rule has a blind spot.** An `integer` column wrongly left out of the key is, by rule 3, a valid measure, and no validator fires. Only the uniqueness check above would catch it. The rule catches non-numeric mistakes loudly and numeric ones not at all.
+  - **No leniency door on `from_server`.** `Dimension` has a trusted-source path that strips and regenerates its rigid schema; ValueVariable has none, so a pre-migration document restored from a backup is unloadable. Deliberate by omission — worth a second opinion.
+  - **`General` is now a permanent escape hatch.** A dataset with a non-numeric measured outcome can no longer be a ValueVariable, so this settles General's open deprecation
+    question in favour of keeping it. Recorded in the ADR.
+  - **Rejected: requiring key columns to reference a dimension.** A fourth rule was considered and rejected — a ValueVariable declares no foreign keys by requirement, and a qualifier is a legitimate permanent shape. The cost is that nothing distinguishes an
+    aggregatable key column from one that is not.
+  - **Title is `feat!:`** because stored contracts break. With `major_on_zero = false` this
+    bumps 0.20.1 to 0.21.0 rather than 1.0.0.
+
+
+
+
+
 ## v0.20.1 (2026-09-07)
 
 ### Bug fixes

@@ -8,8 +8,9 @@ import pandera.pandas as pa
 
 # Checks built from the check classes report themselves as
 #   Columns '<col>, <col>' in check '<label>' <what went wrong>.
-# The leading column list both marks the failure as a key or reference violation
-# and names the columns whose values belong in the report.
+# The leading column list both marks the failure as one whose report should carry
+# the offending row's values — a key or reference violation, or a granularity one
+# — and names the columns those values are read from.
 CHECK_COLUMNS_PATTERN = r"^Columns '(?P<columns>[^']*)' in check '"
 
 
@@ -109,9 +110,10 @@ class SchemaValidationError(Exception):
     def _parse_reference_errors(
         self, df_failures: pd.DataFrame, data: pd.DataFrame | None
     ) -> pd.DataFrame:
-        """Parse pandera SchemaErrors related to foreign key violations by combining
-        the error messages for multiple rows into a single message per reference
-        violation.
+        """Parse the pandera SchemaErrors whose check names its own columns by
+        combining the error messages for multiple rows into a single message per
+        violation. Key and reference violations are named this way, and so is a
+        dimension granularity one.
 
         Note: The function relies on the columns being named in the check's
         message, in one of two shapes:

@@ -8,6 +8,7 @@ import pandera.pandas as pa
 from crosscontract.contracts.schema.adapters.abstract_adapter import AbstractAdapter
 from crosscontract.contracts.schema.validation.checks import (
     BaseCheck,
+    HasNoDescendantInGroup,
     IsSubsetOf,
     IsValidCrossDimension,
     IsValidPrimaryKey,
@@ -44,6 +45,7 @@ class PanderaAdapter(AbstractAdapter):
         self,
         primary_key_values: list[tuple[Any, ...]] | None = None,
         foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
+        dimension_hierarchies: dict[str, dict[str, str | None]] | None = None,
     ) -> list[BaseCheck]:
         """Derive the checks this schema requires of a DataFrame.
 
@@ -70,9 +72,21 @@ class PanderaAdapter(AbstractAdapter):
                 DataFrame's own rows; an external reference is checked only when
                 its values are given.
                 Defaults to `None`.
+            dimension_hierarchies (dict[str, dict[str, str | None]] | None, optional):
+                The hierarchy of each referenced dimension, keyed by the column
+                that references it and mapping a member to its parent. Supplying
+                one checks that no group reports a member alongside one of its
+                descendants; `None` leaves the hierarchies unchecked. A group is
+                the schema's primary key minus the column being judged, so a
+                schema declaring no primary key puts every row in one group.
+                Defaults to `None`.
 
         Returns:
             list[BaseCheck]: The checks to run against the data.
+
+        Raises:
+            ValueError: If a column in `dimension_hierarchies` is not a field of
+                the schema.
         """
         checks: list[BaseCheck] = []
 
@@ -104,12 +118,35 @@ class PanderaAdapter(AbstractAdapter):
         if self.schema.table_type == "Dimension":
             checks.append(IsValidCrossDimension(label="dimension hierarchy"))
 
+        if dimension_hierarchies is not None:
+            wrong_columns = [
+                c for c in dimension_hierarchies if c not in self.schema.field_names
+            ]
+            if wrong_columns:
+                raise ValueError(
+                    "Dimension hierarchies contain unknown columns: "
+                    f"{', '.join(wrong_columns)}"
+                )
+            for column, parent_map in dimension_hierarchies.items():
+                # groups are the set of rows in the primary key excluding the
+                # controlled column
+                groups = [col for col in self.schema.primaryKey.fields if col != column]
+                checks.append(
+                    HasNoDescendantInGroup(
+                        column=column,
+                        group_columns=groups,
+                        parent_map=parent_map,
+                        label="dimension granularity",
+                    )
+                )
+
         return checks
 
     def convert(
         self,
         primary_key_values: list[tuple[Any, ...]] | None = None,
         foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
+        dimension_hierarchies: dict[str, dict[str, str | None]] | None = None,
     ) -> pa.DataFrameSchema:
         """Convert the TableSchema into a Pandera DataFrameSchema.
 
@@ -126,6 +163,14 @@ class PanderaAdapter(AbstractAdapter):
                 DataFrame's own rows; an external reference is checked only when
                 its values are given.
                 Defaults to `None`.
+            dimension_hierarchies (dict[str, dict[str, str | None]] | None, optional):
+                The hierarchy of each referenced dimension, keyed by the column
+                that references it and mapping a member to its parent. Supplying
+                one checks that no group reports a member alongside one of its
+                descendants; `None` leaves the hierarchies unchecked. A group is
+                the schema's primary key minus the column being judged, so a
+                schema declaring no primary key puts every row in one group.
+                Defaults to `None`.
 
         Returns:
             pa.DataFrameSchema: The converted Pandera DataFrameSchema, carrying the
@@ -135,6 +180,7 @@ class PanderaAdapter(AbstractAdapter):
         checks = self._derive_checks(
             primary_key_values=primary_key_values,
             foreign_key_values=foreign_key_values,
+            dimension_hierarchies=dimension_hierarchies,
         )
         pandera_schema.checks = (pandera_schema.checks or []) + [
             pandera_check for check in checks for pandera_check in check.to_pandera()
@@ -148,6 +194,7 @@ class PanderaAdapter(AbstractAdapter):
         schema: "TableSchema",
         primary_key_values: list[tuple[Any, ...]] | None = None,
         foreign_key_values: dict[tuple[str, ...], list[tuple[Any, ...]]] | None = None,
+        dimension_hierarchies: dict[str, dict[str, str | None]] | None = None,
     ) -> pa.DataFrameSchema:
         """Convert a TableSchema without needing to instantiate the adapter.
 
@@ -165,6 +212,14 @@ class PanderaAdapter(AbstractAdapter):
                 DataFrame's own rows; an external reference is checked only when
                 its values are given.
                 Defaults to `None`.
+            dimension_hierarchies (dict[str, dict[str, str | None]] | None, optional):
+                The hierarchy of each referenced dimension, keyed by the column
+                that references it and mapping a member to its parent. Supplying
+                one checks that no group reports a member alongside one of its
+                descendants; `None` leaves the hierarchies unchecked. A group is
+                the schema's primary key minus the column being judged, so a
+                schema declaring no primary key puts every row in one group.
+                Defaults to `None`.
 
         Returns:
             pa.DataFrameSchema: The converted Pandera DataFrameSchema.
@@ -172,4 +227,5 @@ class PanderaAdapter(AbstractAdapter):
         return cls(schema).convert(
             primary_key_values=primary_key_values,
             foreign_key_values=foreign_key_values,
+            dimension_hierarchies=dimension_hierarchies,
         )

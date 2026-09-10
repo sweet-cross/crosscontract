@@ -14,3 +14,7 @@ across any combination of dimensions without reasoning about overlap.
   the codebase.
 - The mandatory `other` entries are not optional cosmetics — they are what makes the
   invariant total rather than approximate.
+- The invariant holds for a dimension's own table only. Fact data referencing a valid
+  dimension can still double-count, by reporting a member alongside its own descendants;
+  [ADR 0009](0009-fact-data-is-reported-at-one-granularity-per-group.md) covers that half
+  and relies on the `other` entries above for its remedy.
