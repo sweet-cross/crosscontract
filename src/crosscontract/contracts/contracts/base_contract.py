@@ -301,17 +301,21 @@ class BaseContract(BaseMetaData):
 
     def _resolve_dimension_hierarchies(
         self, resolver: ContractResolver
-    ) -> dict[str, dict[str, str]] | None:
+    ) -> dict[str, dict[str, str | None]] | None:
         """Resolve the dimension hierarchies for the foreign keys referencing
         dimension tables. Keys are the foreign key field names, and values are
-        dictionaries mapping each field to its parent in the hierarchy.
+        dictionaries mapping each member of the dimension to its parent, or to
+        `None` where it has none.
 
         Args:
             resolver (ContractResolver): Supplier of the stored values.
 
         Returns:
-            dict[str, dict[str, str]] | None: The resolved dimension hierarchies.
-                If no dimension hierarchies are found, returns None.
+            dict[str, dict[str, str | None]] | None: The resolved dimension
+                hierarchies. If no dimension hierarchies are found, returns None.
+
+        Raises:
+            ValueError: If a referenced contract does not resolve.
         """
         dimension_hierarchies = {}
         # for each CrossDimension, get the hierarchy from the resolver
@@ -332,12 +336,14 @@ class BaseContract(BaseMetaData):
                 continue
 
             field = fk.fields[0]
-            # construct the parent map knowing that we have a CrossDimension table
+            # the referring key names the column it points at, while 'parent_id'
+            # is fixed by the rigid DimensionSchema template
+            id_col = fk.reference.fields[0]
             parent_map = (
                 resolver.get_data(
-                    name=fk_contract.name, unique=True, columns=["id", "parent_id"]
+                    name=fk_contract.name, unique=True, columns=[id_col, "parent_id"]
                 )
-                .set_index("id")["parent_id"]
+                .set_index(id_col)["parent_id"]
                 .replace({np.nan: None, pd.NA: None})
                 .to_dict()
             )
