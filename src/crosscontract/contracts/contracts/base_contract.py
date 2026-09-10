@@ -5,7 +5,7 @@ import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..._helpers import read_yaml_or_json_file
-from ..schema import TableSchema
+from ..schema import DimensionSchema, TableSchema, ValueVariableSchema
 from .resolvers import ContractResolver
 
 # A deliberately strict subset of the Frictionless identifier pattern
@@ -181,6 +181,7 @@ class BaseContract(BaseMetaData):
         resolver: ContractResolver | None = None,
         check_existing_primary_key: bool = False,
         check_existing_foreign_key: bool = False,
+        check_dimension_granularity: bool = False,
         lazy: bool = True,
     ) -> pd.DataFrame:
         """Validate the data for this contract.
@@ -208,6 +209,11 @@ class BaseContract(BaseMetaData):
             check_existing_foreign_key (bool): If True, also check the foreign
                 keys against the values already stored for the contracts they
                 reference. Defaults to False.
+            check_dimension_granularity (bool): If True, also check the dimension
+                granularity against the hierarchies already stored for the
+                referenced dimensions. This option exists only for ValueVariables
+                and is activated if the ValueVariable has a reference to a
+                CrossDimension. Defaults to False.
             lazy (bool): If True, collect all validation errors and raise them
                 together. If False, raise the first error encountered. Defaults
                 to True.
@@ -222,13 +228,18 @@ class BaseContract(BaseMetaData):
         """
         existing_primary_keys: list[tuple] | None = None
         foreign_key_values: dict[tuple[str, ...], list[tuple]] | None = None
+        dimension_hierarchies: dict[str, dict[str, str | None]] | None = None
         if resolver is None:
-            if check_existing_primary_key or check_existing_foreign_key:
+            if (
+                check_existing_primary_key
+                or check_existing_foreign_key
+                or check_dimension_granularity
+            ):
                 raise ValueError(
                     f"Contract '{self.name}': checking against existing values requires"
                     " a resolver. Pass resolver=, or leave check_existing_primary_key "
-                    "and check_existing_foreign_key False to validate the data on its "
-                    "own."
+                    "check_existing_foreign_key, and check_dimension_granularity "
+                    "False to validate the data on its own."
                 )
         else:
             if check_existing_primary_key and self.tableschema.primaryKey:
@@ -246,10 +257,26 @@ class BaseContract(BaseMetaData):
                     )
                     foreign_key_values[tuple(fk.fields)] = existing_values
 
+            if check_dimension_granularity and isinstance(
+                self.tableschema, ValueVariableSchema
+            ):
+                # for each CrossDimension, get the hierarchy from the resolver
+                for fk in self.tableschema.foreignKeys.root:
+                    if len(fk.fields) > 1 or fk.reference.resource is None:
+                        # skip composite foreign keys for dimension hierarchy checks
+                        # and self-references
+                        continue
+                    fk_contract = resolver.resolve(fk.reference.resource)
+                    if not isinstance(fk_contract.tableschema, DimensionSchema):
+                        # only consider foreign keys referencing dimension tables
+                        continue
+                    # todo: extract parent map
+
         df = self.tableschema.validate_dataframe(
             df,
             primary_key_values=existing_primary_keys,
             foreign_key_values=foreign_key_values,
+            dimension_hierarchies=dimension_hierarchies,
             lazy=lazy,
         )
         return df
