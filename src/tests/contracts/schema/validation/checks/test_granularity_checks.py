@@ -125,9 +125,7 @@ class TestHasNoDescendantInGroup:
         )
         assert check(df).tolist() == [False, True]
 
-    def test_parent_fails_beside_its_own_catch_all(
-        self, check: HasNoDescendantInGroup
-    ):
+    def test_parent_fails_beside_its_own_catch_all(self, check: HasNoDescendantInGroup):
         """Puts 'ch' beside 'ch_other' and expects 'ch' to fail. A catch-all is
         a child like any other, and this is the shape that occurs in practice:
         a submitter reports the total and then the remainder underneath it."""
