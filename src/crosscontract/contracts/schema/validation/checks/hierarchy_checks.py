@@ -76,11 +76,9 @@ class HasNoDescendantInGroup(BaseCheck):
         """Pair every row with its group, in the frame's own order.
 
         A group key is the row's values in `group_columns` as a tuple, so two
-        rows share a group when those values match. Nulls are normalised to
-        `None` first: the group columns come from the primary key and so for a
-        ValueVariable are never null, but the primary key check is opt-in, and
-        two nan values never compare equal, which would split rows that belong
-        in one group.
+        rows share a group when those values match. If a group contains nulls,
+        they are treated as normal values, i.e., two identical groups with nulls
+        are considered the same.
 
         Args:
             df (pd.DataFrame): The data to validate.
@@ -89,8 +87,13 @@ class HasNoDescendantInGroup(BaseCheck):
             list[tuple[tuple[Any, ...], Any]]: One (group key, member) pair per
                 row.
         """
-        groups = df[self.group_columns].astype(object)
-        groups = groups.where(groups.notna(), None)
+        groups = df[self.group_columns]
+        # Nulls are normalised to `pd.NA` first: the group columns come from the
+        # primary key and so for a
+        # ValueVariable are never null, but the primary key check is opt-in, and
+        # two nan values never compare equal, which would split rows that belong
+        # in one group.
+        groups = groups.astype(object).mask(groups.isna(), pd.NA)
         return list(
             zip(groups.itertuples(index=False, name=None), df[self.column], strict=True)
         )
