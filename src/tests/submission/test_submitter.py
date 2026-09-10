@@ -185,6 +185,7 @@ class TestFlagForwarding:
             "resolver": submitter._resolver,
             "check_existing_primary_key": True,
             "check_existing_foreign_key": True,
+            "check_dimension_granularity": True,
             "lazy": True,
         }
         assert validate_data.call_args.kwargs == expected
@@ -199,12 +200,14 @@ class TestFlagForwarding:
             full_bundle,
             check_existing_primary_key=False,
             check_existing_foreign_key=False,
+            check_dimension_granularity=False,
             lazy=False,
         )
         expected = {
             "resolver": submitter._resolver,
             "check_existing_primary_key": False,
             "check_existing_foreign_key": False,
+            "check_dimension_granularity": False,
             "lazy": False,
         }
         assert validate_data.call_args.kwargs == expected

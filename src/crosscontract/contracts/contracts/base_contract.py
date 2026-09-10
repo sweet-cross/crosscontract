@@ -1,11 +1,12 @@
 from pathlib import Path
 from typing import Self
 
+import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..._helpers import read_yaml_or_json_file
-from ..schema import TableSchema
+from ..schema import DimensionSchema, TableSchema, ValueVariableSchema
 from .resolvers import ContractResolver
 
 # A deliberately strict subset of the Frictionless identifier pattern
@@ -181,6 +182,7 @@ class BaseContract(BaseMetaData):
         resolver: ContractResolver | None = None,
         check_existing_primary_key: bool = False,
         check_existing_foreign_key: bool = False,
+        check_dimension_granularity: bool = False,
         lazy: bool = True,
     ) -> pd.DataFrame:
         """Validate the data for this contract.
@@ -208,6 +210,13 @@ class BaseContract(BaseMetaData):
             check_existing_foreign_key (bool): If True, also check the foreign
                 keys against the values already stored for the contracts they
                 reference. Defaults to False.
+            check_dimension_granularity (bool): If True, also check that no group
+                of otherwise-identical rows reports a member of a hierarchical
+                dimension alongside one of its descendants, which would count
+                that member twice when the data is summed. Only a ValueVariable
+                is checked, and only its references to a `Dimension`; a
+                `FlexibleDimension` is flat and has nothing to check.
+                Defaults to False.
             lazy (bool): If True, collect all validation errors and raise them
                 together. If False, raise the first error encountered. Defaults
                 to True.
@@ -222,13 +231,18 @@ class BaseContract(BaseMetaData):
         """
         existing_primary_keys: list[tuple] | None = None
         foreign_key_values: dict[tuple[str, ...], list[tuple]] | None = None
+        dimension_hierarchies: dict[str, dict[str, str | None]] | None = None
         if resolver is None:
-            if check_existing_primary_key or check_existing_foreign_key:
+            if (
+                check_existing_primary_key
+                or check_existing_foreign_key
+                or check_dimension_granularity
+            ):
                 raise ValueError(
                     f"Contract '{self.name}': checking against existing values requires"
-                    " a resolver. Pass resolver=, or leave check_existing_primary_key "
-                    "and check_existing_foreign_key False to validate the data on its "
-                    "own."
+                    " a resolver. Pass resolver=, or leave check_existing_primary_key, "
+                    "check_existing_foreign_key, and check_dimension_granularity "
+                    "False to validate the data on its own."
                 )
         else:
             if check_existing_primary_key and self.tableschema.primaryKey:
@@ -246,10 +260,16 @@ class BaseContract(BaseMetaData):
                     )
                     foreign_key_values[tuple(fk.fields)] = existing_values
 
+            if check_dimension_granularity and isinstance(
+                self.tableschema, ValueVariableSchema
+            ):
+                dimension_hierarchies = self._resolve_dimension_hierarchies(resolver)
+
         df = self.tableschema.validate_dataframe(
             df,
             primary_key_values=existing_primary_keys,
             foreign_key_values=foreign_key_values,
+            dimension_hierarchies=dimension_hierarchies,
             lazy=lazy,
         )
         return df
@@ -280,3 +300,56 @@ class BaseContract(BaseMetaData):
             unique=True,
         )[columns]
         return [tuple(row) for row in df_.itertuples(index=False, name=None)]
+
+    def _resolve_dimension_hierarchies(
+        self, resolver: ContractResolver
+    ) -> dict[str, dict[str, str | None]] | None:
+        """Read the hierarchy of every referenced dimension.
+
+        Keys are the foreign key field names, and values map each member of the
+        dimension to its parent, or to `None` where it has none.
+
+        Args:
+            resolver (ContractResolver): Supplier of the stored values.
+
+        Returns:
+            dict[str, dict[str, str | None]] | None: The resolved dimension
+                hierarchies. If no dimension hierarchies are found, returns None.
+
+        Raises:
+            ValueError: If a referenced contract does not resolve.
+        """
+        dimension_hierarchies: dict[str, dict[str, str | None]] = {}
+        # for each Dimension, get the hierarchy from the resolver
+        for fk in self.tableschema.foreignKeys.root:
+            if len(fk.fields) > 1 or fk.reference.resource is None:
+                # skip composite foreign keys for dimension hierarchy checks
+                # and self-references
+                continue
+            fk_contract = resolver.resolve(fk.reference.resource)
+            if fk_contract is None:
+                raise ValueError(
+                    f"Contract '{self.name}': cannot check the granularity "
+                    f"of '{fk.fields[0]}' because the referenced contract "
+                    f"'{fk.reference.resource}' does not resolve."
+                )
+            if not isinstance(fk_contract.tableschema, DimensionSchema):
+                # only consider foreign keys referencing dimension tables
+                continue
+
+            field = fk.fields[0]
+            # the referring key names the column it points at, while 'parent_id'
+            # is fixed by the rigid DimensionSchema template
+            id_col = fk.reference.fields[0]
+            parent_map = (
+                resolver.get_data(
+                    name=fk_contract.name, unique=True, columns=[id_col, "parent_id"]
+                )
+                .set_index(id_col)["parent_id"]
+                .replace({np.nan: None, pd.NA: None})
+                .to_dict()
+            )
+
+            dimension_hierarchies[field] = parent_map  # type: ignore[assignment]
+
+        return dimension_hierarchies or None
