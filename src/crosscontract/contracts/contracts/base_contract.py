@@ -260,17 +260,7 @@ class BaseContract(BaseMetaData):
             if check_dimension_granularity and isinstance(
                 self.tableschema, ValueVariableSchema
             ):
-                # for each CrossDimension, get the hierarchy from the resolver
-                for fk in self.tableschema.foreignKeys.root:
-                    if len(fk.fields) > 1 or fk.reference.resource is None:
-                        # skip composite foreign keys for dimension hierarchy checks
-                        # and self-references
-                        continue
-                    fk_contract = resolver.resolve(fk.reference.resource)
-                    if not isinstance(fk_contract.tableschema, DimensionSchema):
-                        # only consider foreign keys referencing dimension tables
-                        continue
-                    # todo: extract parent map
+                dimension_hierarchies = self._resolve_dimension_hierarchies(resolver)
 
         df = self.tableschema.validate_dataframe(
             df,
@@ -307,3 +297,49 @@ class BaseContract(BaseMetaData):
             unique=True,
         )[columns]
         return [tuple(row) for row in df_.itertuples(index=False, name=None)]
+
+    def _resolve_dimension_hierarchies(
+        self, resolver: ContractResolver
+    ) -> dict[str, dict[str, str]] | None:
+        """Resolve the dimension hierarchies for the foreign keys referencing
+        dimension tables. Keys are the foreign key field names, and values are
+        dictionaries mapping each field to its parent in the hierarchy.
+
+        Args:
+            resolver (ContractResolver): Supplier of the stored values.
+
+        Returns:
+            dict[str, dict[str, str]] | None: The resolved dimension hierarchies.
+                If no dimension hierarchies are found, returns None.
+        """
+        dimension_hierarchies = {}
+        # for each CrossDimension, get the hierarchy from the resolver
+        for fk in self.tableschema.foreignKeys.root:
+            if len(fk.fields) > 1 or fk.reference.resource is None:
+                # skip composite foreign keys for dimension hierarchy checks
+                # and self-references
+                continue
+            fk_contract = resolver.resolve(fk.reference.resource)
+            if fk_contract is None:
+                raise ValueError(
+                    f"Contract '{self.name}': cannot check the granularity "
+                    f"of '{fk.fields[0]}' because the referenced contract "
+                    f"'{fk.reference.resource}' does not resolve."
+                )
+            if not isinstance(fk_contract.tableschema, DimensionSchema):
+                # only consider foreign keys referencing dimension tables
+                continue
+
+            field = fk.fields[0]
+            # construct the parent map knowing that we have a CrossDimension table
+            parent_map = (
+                resolver.get_data(
+                    name=fk_contract.name, unique=True, columns=["id", "parent_id"]
+                )
+                .set_index("id")["parent_id"]
+                .to_dict()
+            )
+
+            dimension_hierarchies[field] = parent_map
+
+        return dimension_hierarchies or None
