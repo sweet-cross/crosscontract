@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Self
 
+import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -337,6 +338,7 @@ class BaseContract(BaseMetaData):
                     name=fk_contract.name, unique=True, columns=["id", "parent_id"]
                 )
                 .set_index("id")["parent_id"]
+                .replace({np.nan: None, pd.NA: None})
                 .to_dict()
             )
 
