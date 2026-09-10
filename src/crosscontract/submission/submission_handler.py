@@ -181,6 +181,7 @@ class SubmissionHandler:
         resolver: ContractResolver | None = None,
         check_existing_primary_key: bool = False,
         check_existing_foreign_key: bool = False,
+        check_dimension_granularity: bool = False,
         lazy: bool = True,
     ) -> pd.DataFrame:
         """Extract a target's rows, transform them, and validate the result.
@@ -206,6 +207,13 @@ class SubmissionHandler:
             check_existing_foreign_key (bool): If True, also check the foreign
                 keys against the values already stored for the contracts they
                 reference. Defaults to False.
+            check_dimension_granularity (bool): If True, also check that no group
+                of otherwise-identical rows reports a member of a hierarchical
+                dimension alongside one of its descendants, which would count
+                that member twice when the data is summed. Only a ValueVariable
+                is checked, and only its references to a `Dimension`; a
+                `FlexibleDimension` is flat and has nothing to check.
+                Defaults to False.
             lazy (bool): If True, collect all validation errors and raise them
                 together. If False, raise the first error encountered. Note that
                 a non-lazy failure yields a degraded report: pandera does not
@@ -261,6 +269,7 @@ class SubmissionHandler:
         targets: list[str] | None = None,
         check_existing_primary_key: bool = False,
         check_existing_foreign_key: bool = False,
+        check_dimension_granularity: bool = False,
         lazy: bool = True,
     ) -> dict[str, pd.DataFrame]:
         """Validate every target of the submission bundle, or a selection of them.
@@ -285,15 +294,22 @@ class SubmissionHandler:
                 returns an empty result. Defaults to `None`.
             check_existing_primary_key (bool): If True, also check each target's
                 primary key against the values already stored for its contract.
-                Defaults to False.
+                Default is False.
             check_existing_foreign_key (bool): If True, also check each target's
                 foreign keys against the values already stored for the contracts
-                they reference. Defaults to False.
+                they reference. Default is False.
+            check_dimension_granularity (bool): If True, also check that no group
+                of otherwise-identical rows reports a member of a hierarchical
+                dimension alongside one of its descendants, which would count
+                that member twice when the data is summed. Only a ValueVariable
+                is checked, and only its references to a `Dimension`; a
+                `FlexibleDimension` is flat and has nothing to check.
+                Default is False.
             lazy (bool): If True, collect all of a target's validation errors and
                 raise them together. If False, raise on the first error that
                 target hits — one `SchemaValidationError` per failing target
                 either way, but a non-lazy one carries a degraded report.
-                Defaults to True.
+                Default is True.
 
         Returns:
             dict[str, pd.DataFrame]: The validated data, coerced, keyed by target
@@ -322,6 +338,7 @@ class SubmissionHandler:
                     resolver=resolver,
                     check_existing_primary_key=check_existing_primary_key,
                     check_existing_foreign_key=check_existing_foreign_key,
+                    check_dimension_granularity=check_dimension_granularity,
                     lazy=lazy,
                 )
             except SchemaValidationError as e:
