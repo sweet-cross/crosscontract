@@ -230,6 +230,7 @@ class TestValidateTargets:
             resolver,
             check_existing_primary_key=True,
             check_existing_foreign_key=True,
+            check_dimension_granularity=True,
             lazy=False,
         )
 
@@ -237,6 +238,7 @@ class TestValidateTargets:
             "resolver": resolver,
             "check_existing_primary_key": True,
             "check_existing_foreign_key": True,
+            "check_dimension_granularity": True,
             "lazy": False,
         }
         assert [call.args for call in handler.validate_target.call_args_list] == [

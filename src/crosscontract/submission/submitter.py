@@ -68,7 +68,7 @@ class CrossSubmitter:
         df: pd.DataFrame,
         check_existing_primary_key: bool = True,
         check_existing_foreign_key: bool = True,
-        check_dimension_granularity: bool = False,
+        check_dimension_granularity: bool = True,
         lazy: bool = True,
     ) -> dict[str, pd.DataFrame]:
         """Validate a delivered bundle and everything extracted from it.

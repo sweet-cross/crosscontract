@@ -53,7 +53,9 @@ Two things this is *not*:
   read. That is how the rule is normally applied, and the stored-rows half is deferred —
   see the decision in §4.
 - `ContractResource.validate_dataframe` exposes the flag. `add_data` does **not** set it,
-  so the check ships dormant and a caller opts in explicitly.
+  so on the upload path the check ships dormant and a caller opts in explicitly.
+- `CrossSubmitter.validate_submission` exposes it too, and defaults it **`True`**, like the
+  two key flags it sits beside. The two defaults differ on purpose; see §5.
 
 Done means: uploading `(A, 2030, ch, 100)` and `(A, 2030, ch_ag, 30)` together raises
 `SchemaValidationError` naming the `ch` row; uploading `(A, 2030, ch, 100)` and
@@ -282,11 +284,25 @@ still break a pipeline the day it ships.
 
 Two things follow:
 
-- **Decided: it raises, and there is no warn mode.** The grace period is bought by the
-  flag's default, not by a third behaviour: `check_dimension_granularity` defaults `False`
-  and `add_data` does not set it, so nothing starts rejecting on the day this ships and a
-  submitter opts in when ready. A warn mode would add a third state to five layers to buy
-  what the default already gives.
+- **Decided: it raises, and there is no warn mode.** A warn mode would add a third state
+  to five layers. What it would buy — time to fix a pipeline — is instead bought by the
+  flag's default, which is deliberately **not the same on both entry points**:
+
+  - **Client upload — off.** `check_dimension_granularity` defaults `False` on
+    `BaseContract.validate_data` and `ContractResource.validate_dataframe`, and `add_data`
+    does not set it. Nothing an existing caller does starts rejecting on the day this
+    ships; a submitter opts in when ready.
+  - **Submission — on.** `CrossSubmitter.validate_submission` defaults it `True`,
+    alongside `check_existing_primary_key` and `check_existing_foreign_key`, which are
+    already `True` there. A submission is the strictest gate in the system and should not
+    admit data the platform will have to clean up later. There is no installed base to
+    break: `submit()` still raises `NotImplementedError`.
+
+  So the grace period covers the upload path, not the submission path, and that is the
+  intended asymmetry rather than an oversight — do not "align" the two defaults later
+  without deciding this again. The flag is a no-op on the bundle itself in any case: a
+  `SubmissionContract` resolves to the `General` table type, never `ValueVariable`, so it
+  bites only on the targets a bundle is split into.
 - Existing violations already on the platform are not this PRD's business — the
   `cross_back` script remains the tool for those, and should be run before the check is
   enforced, or contracts will reject *corrections* to data they already hold once the
@@ -345,7 +361,9 @@ free number). It should record:
 - Why the aggregate row is reported rather than the detail row.
 - Consequences: the behaviour change for partial reporters and the `<parent_id>_other`
   remedy; the client result being advisory per ADR 0005; the wide read the stored-rows
-  half costs.
+  half costs; and the split default — off on the upload path, on for a submission — with
+  the reasoning from §5, since that is the consequence most likely to be flattened by a
+  later reader looking for consistency.
 
 **Decided: a separate ADR, cross-linked to ADR 0001, rather than an amendment to it.**
 ADR 0001 decides the *shape of a dimension* and has no submitter-facing consequences; this
