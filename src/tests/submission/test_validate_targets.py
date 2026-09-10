@@ -105,6 +105,7 @@ class TestValidateTarget:
             resolver=resolver,
             check_existing_primary_key=True,
             check_existing_foreign_key=True,
+            check_dimension_granularity=True,
             lazy=False,
         )
 
@@ -115,6 +116,7 @@ class TestValidateTarget:
             "resolver": resolver,
             "check_existing_primary_key": True,
             "check_existing_foreign_key": True,
+            "check_dimension_granularity": True,
             "lazy": False,
         }
 

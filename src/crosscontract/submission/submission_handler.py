@@ -260,6 +260,7 @@ class SubmissionHandler:
             resolver=resolver,
             check_existing_primary_key=check_existing_primary_key,
             check_existing_foreign_key=check_existing_foreign_key,
+            check_dimension_granularity=check_dimension_granularity,
             lazy=lazy,
         )
 
