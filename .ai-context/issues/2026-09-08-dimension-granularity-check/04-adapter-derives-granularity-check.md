@@ -23,10 +23,10 @@ group columns are.
   qualifying foreign key. Same opt-in semantics as the key checks (ADR 0006).
 - [X] Group columns are `primaryKey.fields` minus `fk.fields`, in the schema's declared
   order.
-- [ ] Guards (PRD §3), each of which skips the foreign key silently:
+- [X] Guards (PRD §3), each of which skips the foreign key silently:
   no `primaryKey`; `fk.fields` not a subset of `primaryKey.fields`; a composite
   foreign key; a self-referencing foreign key (`reference.resource is None`).
-- [ ] The composite guard is an explicit `len(fk.fields) == 1` test, not a lookup that
+- [X] The composite guard is an explicit `len(fk.fields) == 1` test, not a lookup that
   happens to miss. With a single-column key there is no sensible thing to look up for
   a multi-column foreign key, and an explicit refusal holds however the caller builds
   the mapping. Its test is only meaningful this way round.
@@ -35,7 +35,7 @@ group columns are.
   `TableSchema.to_pandera_schema`, `TableSchema.validate_dataframe` — each gaining the
   same argument with the same default and a docstring entry matching the existing
   `foreign_key_values` wording.
-- [ ] Tests in `test_adapter.py`: `None` → nothing derived; supplied → one check per
+- [X] Tests in `test_adapter.py`: `None` → nothing derived; supplied → one check per
   qualifying key with the right `column`, `group_columns` and `label`; fk outside the
   primary key → nothing; no primary key → nothing; **two foreign keys into the same
   dimension → two checks, each excluding only its own column from the group** (a real

@@ -73,15 +73,18 @@ class PanderaAdapter(AbstractAdapter):
                 its values are given.
                 Defaults to `None`.
             dimension_hierarchies (dict[str, dict[str, str | None]] | None, optional):
-                A mapping from the column name to a mapping from each node in the
-                related dimensions to its parents. If provided, it will be used to
-                validate the hierarchical integrity ensuring that parent entries
-                are not provided if a child entry exists.
-                None does not check any hierarchies.
+                The hierarchy of each referenced dimension, keyed by the column
+                that references it and mapping a member to its parent. Supplying
+                one checks that no group reports a member alongside one of its
+                descendants; `None` leaves the hierarchies unchecked.
                 Defaults to `None`.
 
         Returns:
             list[BaseCheck]: The checks to run against the data.
+
+        Raises:
+            ValueError: If a column in `dimension_hierarchies` is not a field of
+                the schema.
         """
         checks: list[BaseCheck] = []
 
@@ -114,6 +117,14 @@ class PanderaAdapter(AbstractAdapter):
             checks.append(IsValidCrossDimension(label="dimension hierarchy"))
 
         if dimension_hierarchies is not None:
+            wrong_columns = [
+                c for c in dimension_hierarchies if c not in self.schema.field_names
+            ]
+            if wrong_columns:
+                raise ValueError(
+                    "Dimension hierarchies contain unknown columns: "
+                    f"{', '.join(wrong_columns)}"
+                )
             for column, parent_map in dimension_hierarchies.items():
                 # groups are the set of rows in the primary key excluding the
                 # controlled column
@@ -123,7 +134,7 @@ class PanderaAdapter(AbstractAdapter):
                         column=column,
                         group_columns=groups,
                         parent_map=parent_map,
-                        label="dimension hierarchy",
+                        label="dimension granularity",
                     )
                 )
 
@@ -151,11 +162,10 @@ class PanderaAdapter(AbstractAdapter):
                 its values are given.
                 Defaults to `None`.
             dimension_hierarchies (dict[str, dict[str, str | None]] | None, optional):
-                A mapping from the column name to a mapping from each node in the
-                related dimensions to its parents. If provided, it will be used to
-                validate the hierarchical integrity ensuring that parent entries
-                are not provided if a child entry exists.
-                None does not check any hierarchies.
+                The hierarchy of each referenced dimension, keyed by the column
+                that references it and mapping a member to its parent. Supplying
+                one checks that no group reports a member alongside one of its
+                descendants; `None` leaves the hierarchies unchecked.
                 Defaults to `None`.
 
         Returns:
@@ -199,11 +209,10 @@ class PanderaAdapter(AbstractAdapter):
                 its values are given.
                 Defaults to `None`.
             dimension_hierarchies (dict[str, dict[str, str | None]] | None, optional):
-                A mapping from the column name to a mapping from each node in the
-                related dimensions to its parents. If provided, it will be used to
-                validate the hierarchical integrity ensuring that parent entries
-                are not provided if a child entry exists.
-                None does not check any hierarchies.
+                The hierarchy of each referenced dimension, keyed by the column
+                that references it and mapping a member to its parent. Supplying
+                one checks that no group reports a member alongside one of its
+                descendants; `None` leaves the hierarchies unchecked.
                 Defaults to `None`.
 
         Returns:

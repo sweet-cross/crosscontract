@@ -207,11 +207,10 @@ class TableSchema(BaseModel):
                 its values are given.
                 Defaults to `None`.
             dimension_hierarchies (dict[str, dict[str, str | None]] | None, optional):
-                A mapping from the column name to a mapping from each node in the
-                related dimensions to its parents. If provided, it will be used to
-                validate the hierarchical integrity ensuring that parent entries
-                are not provided if a child entry exists.
-                None does not check any hierarchies.
+                The hierarchy of each referenced dimension, keyed by the column
+                that references it and mapping a member to its parent. Supplying
+                one checks that no group reports a member alongside one of its
+                descendants; `None` leaves the hierarchies unchecked.
                 Defaults to `None`.
 
         Returns:
@@ -278,9 +277,11 @@ class TableSchema(BaseModel):
                 external reference is checked only when its values are given.
                 Default is None.
             dimension_hierarchies (dict[str, dict[str, str | None]] | None):
-                Existing dimension hierarchies to check against. This is provided as a
-                dictionary where the keys are the column names and the values are
-                dictionaries mapping each node in the related dimensions to its parent.
+                The hierarchy of each referenced dimension, keyed by the column
+                that references it and mapping a member to its parent. Supplying
+                one checks that no group of otherwise-identical rows reports a
+                member alongside one of its descendants, which would count that
+                member twice when the data is summed.
                 `None` leaves the dimension hierarchies unchecked.
                 Default is None.
             lazy (bool): Whether to perform lazy validation, collecting all errors.
