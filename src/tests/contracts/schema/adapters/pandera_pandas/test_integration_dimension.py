@@ -96,6 +96,14 @@ class TestValidDimension:
         result = dimension_schema.validate(df, lazy=True)
         assert len(result) == len(df)
 
+    def test_roots_with_a_blank_parent_pass(self, dimension_schema):
+        """A tabular source carries no null, so a root's empty `parent_id` cell
+        arrives as `""` — which the rigid template's pattern must not reject."""
+        df = VALID_TWO_LEVEL.copy()
+        df["parent_id"] = df["parent_id"].fillna("")
+        result = dimension_schema.validate(df, lazy=True)
+        assert len(result) == len(df)
+
 
 class TestOneRuleAtATime:
     """Each defect surfaces as its own rule, because IsValidCrossDimension

@@ -1,6 +1,6 @@
 [project]
 name = "crosscontract"
-version = "0.22.0"
+version = "0.22.1"
 description = "Provides data contracts with frictionless schemas and client to interact with CROSS data platform.   "
 readme = "README.md"
 requires-python = ">=3.11"
@@ -91,7 +91,7 @@ exclude = ["notebooks", "backend/alembic"]
 
 #-------- Pytest Configuration --------#
 [tool.pytest.ini_options]
-addopts = "-W ignore::DeprecationWarning --tb=no --log-level=WARNING"
+addopts = "--tb=no --log-level=WARNING"
 testpaths = ["src/tests"]
 pythonpath = "src"
 

@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import pytest
 import yaml
+from pydantic import ConfigDict
 from sqlalchemy import MetaData, Table
 
 from crosscontract.contracts import TableSchema
@@ -259,8 +260,7 @@ class TestToPydanticModel:
         from pydantic import BaseModel
 
         class CustomBaseModel(BaseModel):
-            class Config:
-                arbitrary_types_allowed = True
+            model_config = ConfigDict(arbitrary_types_allowed=True)
 
         contract = TableSchema.model_validate({"fields": field_data})
 

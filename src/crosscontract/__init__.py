@@ -11,7 +11,7 @@ from .submission import (
     UnclaimedRowsError,
 )
 
-__version__ = "0.22.0"
+__version__ = "0.22.1"
 
 __all__ = [
     "CrossClient",

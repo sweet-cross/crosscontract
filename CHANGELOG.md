@@ -1,5 +1,58 @@
 # CHANGELOG
 
+## v0.22.1 (2026-09-11)
+
+### Bug fixes
+
+
+- **read an empty string as a null when validating a DataFrame** ([`c9c9f99`](https://github.com/sweet-cross/crosscontract/commit/c9c9f998d3527274273403b4eb01e3ce7939a032))
+
+  # fix: read an empty string as a null when validating a DataFrame
+
+  ## Summary
+
+  A tabular source carries no null of its own, so a missing value arrives as `""`. The pandera conversion judged that blank as a value, which made an optional field's own constraints reject it — most visibly a `Dimension`, whose root rows have an empty `parent_id` and so failed the template's `ID_PATTERN`. A blank in a numeric column had it worse: it never reached a check, failing dtype coercion first.
+
+  This makes the empty string mean null, once, at the table level: the converted schema carries a parser that replaces `""` before coercion and before any column check runs.
+
+  ## Changes
+
+  - **`PanderaAdapter.create_base_schema` parses blanks to nulls.** A schema-level `pa.Parser` replaces `""` with `np.nan` on the whole frame — `pd.NA` does not survive coercion into a numpy `float64` column, so a `number` field would still have raised.
+    Placing it on the `DataFrameSchema` rather than on each column is what makes it run
+  *before* dtype coercion, so it covers numeric and datetime columns as well as strings.
+  - **Every constraint follows from that one place.** `pattern`, `enum`, `minLength` and any constraint added later get the behaviour without their own exemption, and the
+    field converters are untouched by this PR.
+  - **A blank in a required field now reports as missing.** It fails `not_nullable`
+    instead of as a constraint violation, which names the actual problem.
+  - **Removed `-W ignore::DeprecationWarning` from pytest `addopts`**, so deprecations
+    surface rather than being swallowed.
+  - **Logged `missingValues` as follow-up work** in `.ai-context/TODO.md`.
+
+  ## Testing
+
+  - `TestBlankCells` in `test_integration.py` — a blank optional field passes as a null despite `minLength: 2`; it passes a `pattern`; a non-blank pattern violation still fails (the guard that the parser did not neuter the pattern); a blank required field fails, and a blank required string fails as missing rather than as a constraint violation; a blank numeric cell parses instead of raising a coercion error, over both
+    `integer` and `number`.
+  - `test_roots_with_a_blank_parent_pass` in `test_integration_dimension.py` — the
+    motivating case, through `PanderaAdapter.convert_schema`.
+
+  ## Notes for reviewer
+
+  - **The first commit took a different approach and was reverted.** `90e9f88` appended an empty alternative to the compiled regex (`(?:{pattern}|)$`) for non-required string fields. That fixed `pattern` alone and would have needed a separate exemption in `enum`, and in `minLength` a hand-written lambda replacing `pa.Check.str_length` — losing the named check that `_reported()` and ADR 0006 rely on for per-rule failure reporting. `field_convertors.py` is back to its pre-branch state; the net diff does
+    not touch it.
+  - **The reading is not new.** `IsSubsetOf` already documents "an empty string is read as null" and `IsValidCrossDimension` already implements it as `notna() & (!= "")`. The converter was the outlier. Frictionless names the same idea `missingValues`, a
+  **table-level** property defaulting to `[""]` — which is the argument for the parser
+    sitting on the schema rather than in the field converters.
+  - **`unique` does not follow.** pandera counts multiple `<NA>` as duplicates, so an optional unique column with two blanks still fails. Pre-existing — two genuine nulls
+    fail the same way today — but it means "blank == null" is not total.
+  - **The validated frame now comes back carrying nulls where blanks were.** Nothing changes on the wire: `ContractResource.add_data` validates and then uploads the
+    original frame, not the validated one.
+  - **`missingValues` is deferred, not forgotten.** The `""` token is hardcoded; the TODO entry covers carrying `missingValues` on the strict `TableSchema` so a contract can declare its own vocabulary, and the open question of whether it rides through
+    `to_server`.
+  - **Two changes are incidental to the fix**: the `uv.lock` version refresh (`0.21.0` → `0.22.0`, drift left by PSR bumping `pyproject.toml` only), and a `class Config` → `model_config = ConfigDict(...)` migration in `test_schema.py` — a pydantic deprecation that the `addopts` change surfaced. Say the word if either should come
+    out.
+
+
+
 ## v0.22.0 (2026-09-10)
 
 ### Features
