@@ -1,5 +1,4 @@
 import pandas as pd
-import pandera.pandas as pa
 import pytest
 from pandera import DateTime
 
@@ -140,36 +139,6 @@ class TestStringFieldConverter:
         field = StringField(name="code", constraints={"pattern": pattern})
         check = StringFieldConverter(field).convert().checks[0]
         assert bool(check(pd.Series([value])).check_passed) is passes
-
-    @pytest.mark.parametrize(
-        ("required", "value", "passes"),
-        [
-            pytest.param(False, "AB", True, id="optional_match"),
-            pytest.param(False, "", True, id="optional_blank"),
-            pytest.param(False, None, True, id="optional_null"),
-            pytest.param(False, "ab", False, id="optional_violation"),
-            pytest.param(True, "AB", True, id="required_match"),
-            pytest.param(True, "", False, id="required_blank"),
-            pytest.param(True, "ab", False, id="required_violation"),
-        ],
-    )
-    def test_a_blank_passes_the_pattern_only_when_optional(
-        self, required: bool, value: str | None, passes: bool
-    ):
-        """A tabular source carries no null of its own, so a blank cell arrives
-        as `""` and means the same thing — on a non-required field. A required
-        one has no null to mean, so its pattern still rejects a blank."""
-        field = StringField(
-            name="code",
-            constraints={"pattern": r"^[A-Z]+$", "required": required},
-        )
-        schema = pa.DataFrameSchema({"code": StringFieldConverter(field).convert()})
-        df = pd.DataFrame({"code": pd.Series([value], dtype="object")})
-        if passes:
-            assert len(schema.validate(df, lazy=True)) == 1
-        else:
-            with pytest.raises(pa.errors.SchemaErrors):
-                schema.validate(df, lazy=True)
 
     def test_min_length_only(self):
         field = StringField(name="label", constraints={"minLength": 5})

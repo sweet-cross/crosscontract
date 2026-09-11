@@ -83,12 +83,9 @@ class StringFieldConverter(BaseFieldConverter[StringField]):
             # str_matches anchors the start only; the group and `$` anchor the
             # end, because Frictionless patterns follow XML Schema regex syntax
             # and those match the whole value. The group survives alternation.
-            pattern = self.field.constraints.pattern
-            if not self.field.constraints.required:
-                # a blank cell is a null on a non-required field, so it is not
-                # the pattern's business: the empty alternative admits ""
-                pattern = f"{pattern}|"
-            checks.append(pa.Check.str_matches(f"(?:{pattern})$"))
+            checks.append(
+                pa.Check.str_matches(f"(?:{self.field.constraints.pattern})$")
+            )
         min_l = self.field.constraints.minLength
         max_l = self.field.constraints.maxLength
 

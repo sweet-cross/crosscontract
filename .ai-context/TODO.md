@@ -56,6 +56,25 @@ Deferred while landing the first `create_data_package` draft:
   as `RuntimeError`; unknown-column errors from `filters`/`aggregation` should
   propagate as-is instead.
 
+### Carry `missingValues` on the strict `TableSchema`
+
+`PanderaAdapter.create_base_schema`
+([adapter.py](../src/crosscontract/contracts/schema/adapters/pandera_pandas/adapter.py))
+hardcodes `""` as the one token read as a null. Frictionless has a first-class name for
+this: `missingValues`, a **table-level** property whose default is exactly `[""]`. The
+permissive mirror already models it
+([_standards/frictionless/table_schema.py](../src/crosscontract/_standards/frictionless/table_schema.py));
+the strict contract `TableSchema` does not.
+
+Add the field to the strict schema (defaulting to `[""]`, so today's behaviour is the
+default) and have the parser read `self.schema.missingValues` instead of the literal.
+That lets a contract declare `["", "NA", "-"]` for a source that writes those. Note the
+list is the *schema's* vocabulary, not a field's, which is why the parser sits at the
+DataFrameSchema level rather than in the field converters.
+
+Decide at the same time whether `missingValues` should ride through `to_server` /
+`from_server` — the platform may have its own view of what a blank means on ingest.
+
 ### Replace rST double-backtick literals in docstrings with markdown single backticks
 
 The docstring convention in [CLAUDE.md](../.claude/CLAUDE.md) now bans reStructuredText

@@ -90,6 +90,67 @@ class TestValidData:
         assert result["score"].dtype == float
 
 
+@pytest.fixture
+def patterned_schema() -> pa.DataFrameSchema:
+    """One optional string field carrying a pattern."""
+    fields = [
+        {
+            "name": "code",
+            "type": "string",
+            "constraints": {"required": False, "pattern": r"^[A-Z]+$"},
+        }
+    ]
+    schema = TableSchema.model_validate({"fields": fields})
+    return PanderaAdapter.convert_schema(schema)
+
+
+class TestBlankCells:
+    """A blank cell is read as a null, before coercion and the column checks."""
+
+    def test_a_blank_optional_field_passes_as_a_null(
+        self, pandera_schema: pa.DataFrameSchema, valid_df: pd.DataFrame
+    ):
+        """`country` declares minLength 2, which a blank read as a value would
+        trip. It comes back as a null."""
+        valid_df["country"] = ["", "DE"]
+        result = pandera_schema.validate(valid_df)
+        assert result["country"].isna().tolist() == [True, False]
+
+    def test_a_blank_optional_field_passes_its_pattern(
+        self, patterned_schema: pa.DataFrameSchema
+    ):
+        """A pattern judges a value, and a blank is not one."""
+        result = patterned_schema.validate(pd.DataFrame({"code": ["AB", ""]}))
+        assert result["code"].isna().tolist() == [False, True]
+
+    def test_a_pattern_violation_still_fails(
+        self, patterned_schema: pa.DataFrameSchema
+    ):
+        """Only a blank is exempt — the pattern still judges every other value."""
+        with pytest.raises(pa.errors.SchemaError):
+            patterned_schema.validate(pd.DataFrame({"code": ["ab", ""]}))
+
+    def test_a_blank_required_field_fails(
+        self, pandera_schema: pa.DataFrameSchema, valid_df: pd.DataFrame
+    ):
+        """A required field has no null to mean, so a blank is a violation."""
+        valid_df["created_at"] = ["", "2024-01-01 00:00"]
+        with pytest.raises(pa.errors.SchemaError):
+            pandera_schema.validate(valid_df)
+
+    def test_a_blank_numeric_cell_is_not_a_coercion_error(self):
+        """The parse runs before coercion, so a blank in a numeric column lands
+        as a null rather than failing to become an integer."""
+        fields = [
+            {"name": "year", "type": "integer", "constraints": {"required": False}}
+        ]
+        schema = TableSchema.model_validate({"fields": fields})
+        result = PanderaAdapter.convert_schema(schema).validate(
+            pd.DataFrame({"year": ["2020", ""]})
+        )
+        assert result["year"].isna().tolist() == [False, True]
+
+
 class TestConstraintViolations:
     def test_integer_below_minimum_fails(
         self, pandera_schema: pa.DataFrameSchema, valid_df: pd.DataFrame
