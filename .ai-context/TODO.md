@@ -72,6 +72,12 @@ That lets a contract declare `["", "NA", "-"]` for a source that writes those. N
 list is the *schema's* vocabulary, not a field's, which is why the parser sits at the
 DataFrameSchema level rather than in the field converters.
 
+The same reading is spelled out in two more places: `IsSubsetOf.__call__` replaces `""`
+on its own slice, and `IsValidCrossDimension` writes it as `notna() & (!= "")`
+([validation/checks/](../src/crosscontract/contracts/schema/validation/checks/)). They
+are reachable outside the adapter, so neither is dead, but all three must read the same
+vocabulary — take them along.
+
 Decide at the same time whether `missingValues` should ride through `to_server` /
 `from_server` — the platform may have its own view of what a blank means on ingest.
 
