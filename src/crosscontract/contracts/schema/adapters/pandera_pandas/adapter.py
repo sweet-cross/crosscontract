@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:  # pragma: no cover
     from crosscontract.contracts.schema import TableSchema
 
+import numpy as np
 import pandera.pandas as pa
 
 from crosscontract.contracts.schema.adapters.abstract_adapter import AbstractAdapter
@@ -26,6 +27,11 @@ class PanderaAdapter(AbstractAdapter):
         """Create the base Pandera schema with all columns and
         their column level checks.
 
+        An empty string is read as a null: the schema parses every `""` to a
+        null before coercion and the column checks, so a blank cell is judged as
+        a missing value rather than as a value of its own. The validated frame
+        comes back carrying those nulls.
+
         Returns:
             pa.DataFrameSchema: The base Pandera DataFrameSchema.
         """
@@ -38,6 +44,8 @@ class PanderaAdapter(AbstractAdapter):
             index=None,  # Currently we do not support index columns
             coerce=True,  # Useful for CSVs (str -> int)
             strict=True,  # Fails if DataFrame contains columns not in Schema
+            # on the schema rather than the columns, so it runs before coercion
+            parsers=[pa.Parser(lambda df: df.replace("", np.nan))],
         )
         return pandera_schema
 

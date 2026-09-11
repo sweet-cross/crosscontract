@@ -91,7 +91,7 @@ exclude = ["notebooks", "backend/alembic"]
 
 #-------- Pytest Configuration --------#
 [tool.pytest.ini_options]
-addopts = "-W ignore::DeprecationWarning --tb=no --log-level=WARNING"
+addopts = "--tb=no --log-level=WARNING"
 testpaths = ["src/tests"]
 pythonpath = "src"
 
