@@ -5,7 +5,10 @@ from tempfile import TemporaryDirectory
 import pytest
 import yaml
 
+from crosscontract.contracts import BaseContract
 from crosscontract.submission import SubmissionContract
+
+from .conftest import resolver_for, resolver_returning
 
 valid_data = {
     "name": "submission1",
@@ -107,6 +110,63 @@ class TestSubmissionContract:
         ]
         with pytest.raises(ValueError, match="must not have foreign keys"):
             SubmissionContract.model_validate(invalid_data)
+
+
+class TestValidateReferences:
+    """The contracts the targets name, resolved by name without reading data."""
+
+    def test_all_targets_resolve(
+        self,
+        contract: SubmissionContract,
+        contract_a: BaseContract,
+        contract_c: BaseContract,
+    ):
+        """Test that each target's contract is looked up by its name."""
+        resolver = resolver_for(contract_a=contract_a, contract_c=contract_c)
+        contract.validate_references(resolver)
+        assert [c.args for c in resolver.resolve.call_args_list] == [
+            ("contract_a",),
+            ("contract_c",),
+        ]
+        resolver.get_data.assert_not_called()
+
+    def test_one_unresolved_target_raises(
+        self, contract: SubmissionContract, contract_a: BaseContract
+    ):
+        resolver = resolver_for(contract_a=contract_a, contract_c=None)
+        with pytest.raises(ValueError) as exc_info:
+            contract.validate_references(resolver)
+        message = str(exc_info.value)
+        assert "contract_c" in message
+        assert "contract_a" not in message
+
+    def test_all_unresolved_targets_are_reported_together(
+        self, contract: SubmissionContract
+    ):
+        resolver = resolver_returning(None)
+        with pytest.raises(ValueError) as exc_info:
+            contract.validate_references(resolver)
+        message = str(exc_info.value)
+        assert "contract_a" in message
+        assert "contract_c" in message
+
+    def test_resolver_error_propagates(self, contract: SubmissionContract):
+        resolver = resolver_returning(None)
+        resolver.resolve.side_effect = ConnectionError("unreachable")
+        with pytest.raises(ConnectionError):
+            contract.validate_references(resolver)
+
+    @pytest.mark.parametrize("enforce_star_schema", [True, False])
+    def test_enforce_star_schema_has_no_effect(
+        self,
+        contract: SubmissionContract,
+        contract_a: BaseContract,
+        contract_c: BaseContract,
+        enforce_star_schema: bool,
+    ):
+        """Test that non-dimension target contracts pass either way."""
+        resolver = resolver_for(contract_a=contract_a, contract_c=contract_c)
+        contract.validate_references(resolver, enforce_star_schema=enforce_star_schema)
 
 
 class TestRoundTrip:

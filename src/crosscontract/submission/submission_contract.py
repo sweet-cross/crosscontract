@@ -9,7 +9,7 @@ from typing import Literal, Self
 
 from pydantic import Field, model_validator
 
-from crosscontract.contracts import CrossContract
+from crosscontract.contracts import ContractResolver, CrossContract
 
 from .extraction import ExtractionInstructions
 
@@ -136,3 +136,34 @@ class SubmissionContract(CrossContract):
                 "their tableschema. They belong to the contracts the targets name"
             )
         return self
+
+    def validate_references(
+        self,
+        resolver: ContractResolver,
+        enforce_star_schema: bool = True,
+    ) -> None:
+        """Validate that the contract named by every target resolves.
+
+        Only the existence of each contract is checked; its type and fields are
+        not, and no stored data is read.
+
+        Args:
+            resolver (ContractResolver): Lookup for the target contracts by name.
+            enforce_star_schema (bool, optional): Has no effect. Defaults to
+                `True`.
+
+        Raises:
+            ValueError: If one or more target contracts do not resolve. All
+                unresolved contracts are reported in a single exception.
+        """
+        errors: list[str] = []
+        for target in self.extraction.targets:
+            if resolver.resolve(target.contract) is None:
+                errors.append(
+                    f"Target '{target.name}': unknown contract '{target.contract}'."
+                )
+        if errors:
+            raise ValueError(
+                f"Reference validation failed for '{self.name}':\n  - "
+                + "\n  - ".join(errors)
+            )
