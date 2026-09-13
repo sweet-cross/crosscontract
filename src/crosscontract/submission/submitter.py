@@ -136,7 +136,9 @@ class CrossSubmitter:
                 first, and the frames of those that passed are discarded along
                 with the failures.
             ValueError: One or more targets name a contract the resolver cannot
-                supply. Raised before step 1, listing every such target.
+                supply, raised before step 1 and listing every such target. Also
+                raised in step 3 when the granularity check meets a referenced
+                dimension the resolver cannot supply.
             KeyError: A column named by a target's `filters` is absent from the
                 bundle. Step 1 only enforces the presence of columns whose field
                 is `required`, so an optional filter column can be missing by

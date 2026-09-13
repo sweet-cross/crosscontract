@@ -140,7 +140,7 @@ class SubmissionContract(CrossContract):
     def validate_references(
         self,
         resolver: ContractResolver,
-        enforce_star_schema: bool = False,
+        enforce_star_schema: bool = True,
     ) -> None:
         """Validate that the contract named by every target resolves.
 
@@ -149,9 +149,8 @@ class SubmissionContract(CrossContract):
 
         Args:
             resolver (ContractResolver): Lookup for the target contracts by name.
-            enforce_star_schema (bool, optional): Accepted for compatibility with
-                `CrossContract.validate_references`; has no effect. Defaults to
-                `False`.
+            enforce_star_schema (bool, optional): Has no effect. Defaults to
+                `True`.
 
         Raises:
             ValueError: If one or more target contracts do not resolve. All
@@ -161,8 +160,7 @@ class SubmissionContract(CrossContract):
         for target in self.extraction.targets:
             if resolver.resolve(target.contract) is None:
                 errors.append(
-                    f"Target '{target.name}' names unknown contract '{target.contract}'"
-                    "."
+                    f"Target '{target.name}': unknown contract '{target.contract}'."
                 )
         if errors:
             raise ValueError(
