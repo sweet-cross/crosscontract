@@ -9,7 +9,7 @@ from typing import Literal, Self
 
 from pydantic import Field, model_validator
 
-from crosscontract.contracts import CrossContract
+from crosscontract.contracts import ContractResolver, CrossContract
 
 from .extraction import ExtractionInstructions
 
@@ -136,3 +136,41 @@ class SubmissionContract(CrossContract):
                 "their tableschema. They belong to the contracts the targets name"
             )
         return self
+
+    def validate_references(
+        self,
+        resolver: ContractResolver,
+        enforce_star_schema: bool = False,
+    ) -> None:
+        """Validate that every external foreign key resolves to a contract whose
+        fields match the reference.
+
+        This check is topology-agnostic by default — it only verifies that
+        referenced contracts exist and their fields line up. Subclasses that
+        enforce a particular topology (e.g. star schema) may flip the default
+        of `enforce_star_schema` to True; see `CrossContract.validate_references`.
+
+        Args:
+            resolver: Lookup for referenced contracts by name.
+            enforce_star_schema: If True, additionally require that every
+                external reference points to a contract whose tableschema is a
+                BaseDimensionSchema. The check is on the schema type, not the
+                contract type — users pick contract types (e.g. Dimension,
+                FlexibleDimension) that in turn enforce the schema constraint.
+                For submission contracts this has no effect and can be ignored.
+
+        Raises:
+            ValueError: If any reference validation checks fail, with details on
+                the specific errors. All failures are collected and reported in
+                a single exception.
+        """
+        not_resolved_targets: list[str] = []
+        for target in self.extraction.targets:
+            referenced_contract = resolver.resolve(target)
+            if referenced_contract is None:
+                not_resolved_targets.append(target)
+        if not_resolved_targets:
+            raise ValueError(
+                "Referenced contracts could not be resolved: "
+                f"{', '.join(not_resolved_targets)}"
+            )

@@ -1,6 +1,7 @@
 # WP2 — Reference validation of a Submission Contract checks its targets
 
 ## Context
+
 **Part of PRD:** `.ai-context/prds/2026-09-13-submission-0-crosscontract-prerequisites.md` (Part B)
 
 `SubmissionContract` inherits `validate_references`, which only walks foreign keys. A
@@ -12,18 +13,20 @@ Contract is created.
 **Priority:** unblocks cross_back Step 1 and WP3.
 
 ## Acceptance Criteria
-- [ ] `SubmissionContract.validate_references(resolver, enforce_star_schema=True)`
-      resolves every target's `contract` through `resolver.resolve`.
-- [ ] All targets resolve → returns `None`.
-- [ ] One or several unresolved targets → one `ValueError` listing each, naming target and
-      contract, in the style of `BaseContract.validate_references`.
-- [ ] `enforce_star_schema` is accepted and has no effect; docstring says so.
-- [ ] The contract type a target resolves to is not checked.
-- [ ] Resolver exceptions propagate unchanged.
-- [ ] `resolver.get_data` is never called.
-- [ ] Google-style docstring per CLAUDE.md.
+
+- [X] `SubmissionContract.validate_references(resolver, enforce_star_schema=True)`
+  resolves every target's `contract` through `resolver.resolve`.
+- [X] All targets resolve → returns `None`.
+- [X] One or several unresolved targets → one `ValueError` listing each, naming target and
+  contract, in the style of `BaseContract.validate_references`.
+- [X] `enforce_star_schema` is accepted and has no effect; docstring says so.
+- [X] The contract type a target resolves to is not checked.
+- [X] Resolver exceptions propagate unchan sged.
+- [X] `resolver.get_data` is never called.
+- [X] Google-style docstring per CLAUDE.md.
 
 ## Implementation Details
+
 - `src/crosscontract/submission/submission_contract.py` — the override. Iterate
   `self.extraction.targets`; collect failures; raise once.
 - Out of scope: duplicate contracts across targets (already rejected at parse time),
@@ -34,5 +37,6 @@ Contract is created.
   `enforce_star_schema` either way changes nothing; `get_data` not called.
 
 ## Verification
+
 Ask before running: `uv run pytest src/tests/submission/test_submission_contract.py`,
 then `uv run mypy src/crosscontract/`.
