@@ -95,13 +95,9 @@ class CrossSubmitter:
             check_existing_primary_key (bool): If True, also check each target's
                 primary key against the values already stored for the contract
                 it names. Applies to step 3 only — a submission contract
-                declares no primary key, so step 1 has none to check. A False
-                value suppresses the primary-key check entirely rather than only
-                its stored-value half, so uniqueness within a target's rows goes
-                unchecked too. Duplicated bundle rows are caught only by a target
-                contract that declares a primary key of its own, so a False value
-                leaves them undetected anywhere in the pipeline. Defaults to
-                True.
+                declares no primary key, so step 1 has none to check. Each
+                target's rows are checked for duplicated or missing key values
+                either way. Defaults to True.
             check_existing_foreign_key (bool): If True, also check each target's
                 foreign keys against the values already stored for the contracts
                 they reference. Applies to step 3 only — a submission contract

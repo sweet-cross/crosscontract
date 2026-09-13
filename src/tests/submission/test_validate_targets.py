@@ -131,6 +131,31 @@ class TestValidateTarget:
         assert data.empty
         assert list(data.columns) == ["region", "year", "value"]
 
+    def test_duplicate_key_in_the_target_fails_without_the_existing_check(
+        self, contract: SubmissionContract
+    ):
+        """Test that two bundle rows landing on one key are rejected even though
+        stored keys are not consulted."""
+        keyed = BaseContract.model_validate(
+            {
+                "name": "contract_a",
+                "tableschema": {
+                    "primaryKey": ["region", "year"],
+                    "fields": [
+                        {"name": "region", "type": "string"},
+                        {"name": "year", "type": "integer"},
+                        {"name": "value", "type": "number"},
+                    ],
+                },
+            }
+        )
+        handler = SubmissionHandler(
+            contract=contract,
+            bundle=bundle(("a", "CH", 2020, 1.0), ("a", "CH", 2020, 2.0)),
+        )
+        with pytest.raises(SchemaValidationError):
+            handler.validate_target("t_a", contract=keyed)
+
 
 class TestValidateTargetGuards:
     """The ways the contract can fail to arrive, kept distinguishable."""

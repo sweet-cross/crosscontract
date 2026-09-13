@@ -192,12 +192,11 @@ class BaseContract(BaseMetaData):
         the referenced fields of the contracts it points to. Fetching those needs
         a `resolver`; without one the data is validated on its own.
 
-        Note that a `False` flag suppresses the corresponding check *entirely*,
-        rather than only its stored-value half: with
-        `check_existing_primary_key=False` no uniqueness is checked within the
-        data either, and with `check_existing_foreign_key=False` a
-        self-referencing foreign key is not checked against the data's own rows.
-        The key checks are opt-in by design, not pending a fix.
+        The primary key is always checked within the data: duplicated or missing
+        key values fail regardless of `check_existing_primary_key`. The foreign
+        key check is different: `check_existing_foreign_key=False` suppresses it
+        *entirely*, so a self-referencing foreign key is not checked against the
+        data's own rows either.
 
         Args:
             df (pd.DataFrame): The data to validate.
@@ -229,7 +228,8 @@ class BaseContract(BaseMetaData):
                 `resolver`.
             SchemaValidationError: If the data does not conform to the schema.
         """
-        existing_primary_keys: list[tuple] | None = None
+        # an empty list still checks the key within the data
+        existing_primary_keys: list[tuple] = []
         foreign_key_values: dict[tuple[str, ...], list[tuple]] | None = None
         dimension_hierarchies: dict[str, dict[str, str | None]] | None = None
         if resolver is None:

@@ -113,6 +113,36 @@ class TestPrimaryKeyDerivation:
             )
 
 
+class TestPrimaryKeyWithinTheData:
+    """The primary key is checked within the data whatever the flag says."""
+
+    @pytest.fixture
+    def contract(self):
+        return _contract("simple", ID_VALUE_FIELDS, primary_key=["id"])
+
+    @pytest.mark.parametrize(
+        "ids",
+        [[1, 1], pd.array([1, None], dtype="Int64")],
+        ids=["duplicate", "null"],
+    )
+    @pytest.mark.parametrize("with_resolver", [False, True])
+    def test_invalid_key_fails_without_the_existing_check(
+        self, contract, ids, with_resolver
+    ):
+        resolver = RecordingResolver() if with_resolver else None
+        df = pd.DataFrame({"id": ids, "value": [1.0, 2.0]})
+        with pytest.raises(SchemaValidationError) as exc_info:
+            contract.validate_data(df, resolver=resolver)
+        assert any(
+            "primary key" in str(error["check"]) for error in exc_info.value.to_list()
+        )
+
+    def test_contract_without_primary_key_accepts_duplicates(self):
+        contract = _contract("simple", ID_VALUE_FIELDS)
+        df = pd.DataFrame({"id": [1, 1], "value": [1.0, 1.0]})
+        contract.validate_data(df)
+
+
 class TestForeignKeyDerivation:
     """Referring fields and referenced fields must not be confused."""
 
