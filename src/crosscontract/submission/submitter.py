@@ -73,16 +73,17 @@ class CrossSubmitter:
     ) -> dict[str, pd.DataFrame]:
         """Validate a delivered bundle and everything extracted from it.
 
-        Runs three steps in order, stopping at the first failure:
+        First checks that every target's contract exists, then runs three steps
+        in order, stopping at the first failure:
 
         1. the bundle against the submission contract's own `tableschema`,
         2. the bundle for rows that no target claims,
         3. each target's extracted data against the contract it names.
 
-        Step 3 reaches the platform through this submitter's resolver, so the
-        contracts a target names and the values already stored under them are
-        read live. Step 1 does not: a submission contract declares no keys, so
-        it has nothing to look up.
+        The contract check and step 3 reach the platform through this
+        submitter's resolver, so the contracts a target names and the values
+        already stored under them are read live. Step 1 does not: a submission
+        contract declares no keys, so it has nothing to look up.
 
         Extraction runs on the bundle exactly as delivered: the coerced frame
         step 1 returns is discarded, because target filters match a column's
@@ -134,8 +135,8 @@ class CrossSubmitter:
                 holding one entry per failing target. Every target is attempted
                 first, and the frames of those that passed are discarded along
                 with the failures.
-            ValueError: A target names a contract the resolver cannot supply.
-                Raised for the first target that hits it rather than collected.
+            ValueError: One or more targets name a contract the resolver cannot
+                supply. Raised before step 1, listing every such target.
             KeyError: A column named by a target's `filters` is absent from the
                 bundle. Step 1 only enforces the presence of columns whose field
                 is `required`, so an optional filter column can be missing by
@@ -145,6 +146,9 @@ class CrossSubmitter:
                 a contract or its stored data being unreadable surfaces here
                 rather than as a validation failure.
         """
+        # check that every target's contract exists before touching the bundle
+        contract.validate_references(self._resolver)
+
         # validate the full bundle
         _ = contract.validate_data(
             df,

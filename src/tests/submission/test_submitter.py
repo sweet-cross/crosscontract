@@ -153,15 +153,18 @@ class TestValidateSubmissionSequence:
             submitter.validate_submission(contract, full_bundle)
         assert set(exc_info.value.errors) == {"t_a"}
 
-    def test_an_unresolvable_target_contract_escapes_uncollected(
+    def test_an_unresolvable_target_contract_stops_before_the_bundle(
         self, client, contract, contract_a, full_bundle
     ):
-        """A wiring error propagates rather than joining the collection."""
+        """A wiring error propagates before step 1 rather than joining the
+        collection."""
         submitter = submitter_resolving(client, contract_a=contract_a, contract_c=None)
-        with pytest.raises(ValueError) as exc_info:
-            submitter.validate_submission(contract, full_bundle)
+        with patch.object(SubmissionContract, "validate_data") as validate_data:
+            with pytest.raises(ValueError) as exc_info:
+                submitter.validate_submission(contract, full_bundle)
         assert not isinstance(exc_info.value, TargetValidationError)
         assert "t_year" in str(exc_info.value)
+        validate_data.assert_not_called()
 
 
 class TestFlagForwarding:
