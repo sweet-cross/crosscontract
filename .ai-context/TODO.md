@@ -203,23 +203,6 @@ and task files that carried the analysis are deleted, so the detail is reproduce
   undecided. This is a correctness question about the transformation itself; no legacy
   specification depends on the current behaviour.
 
-- **Nothing checks that a target's contract exists.** `SubmissionContract` inherits
-  `validate_references` from `BaseContract`, which walks `tableschema.foreignKeys` and
-  never looks at `extraction.targets`. So a target naming a contract that is not on the
-  platform loads, validates, and extracts happily, and is only discovered when target
-  validation asks a resolver for it — i.e. at data time, by whoever submitted the bundle,
-  rather than at authoring time by whoever wrote the contract. The check is the same shape
-  as the existing one (`resolver.resolve(target.contract)` per target, collect the misses,
-  raise naming them) and belongs beside it in
-  [base_contract.py](../src/crosscontract/contracts/contracts/base_contract.py)'s
-  `validate_references`, overridden on `SubmissionContract` in
-  [submission_contract.py](../src/crosscontract/submission/submission_contract.py).
-  Deferred because it is a contract-lifecycle check, not part of executing a submission —
-  and keeping it out is what lets target validation treat an unresolvable contract as an
-  immediate wiring error rather than folding it into the collected per-target data
-  failures. Worth deciding at the same time whether it also belongs at contract *creation*
-  on the platform, where `cross_back` already runs reference validation.
-
 ### Write a docs page for the submission path
 
 Deferred from WP4 of the `CrossSubmitter` work. `docs/` covers `CrossRegistry` but has

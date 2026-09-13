@@ -106,7 +106,8 @@ _Avoid_: validation (unqualified), schema check
 **Reference validation**:
 A **Contract** checked against the **Contracts** it names — they exist, and the
 referenced fields line up. Definition against definition; no data is read. Needs a
-**Contract resolver**.
+**Contract resolver**. For a **Submission contract**, the **Contracts** it names are those
+its **Targets** name.
 _Avoid_: foreign key validation (that is the row-level check inside **Data
 validation**), dependency check
 
@@ -463,8 +464,12 @@ right name for that step alone), submission check
 - A **Data validation** runs the checks a single **Derivation** produces from the
   **Schema**. The caller passes **Existing values**, never checks, so it can inform a
   check but cannot weaken one it has asked for.
-- The key checks are opt-in: a caller that supplies no values for the primary key or the
-  foreign keys leaves those checks out. A **Dimension**'s invariants and the field
+- A **Contract resolver** supplies Contracts that hold data; it never supplies a
+  **Submission contract**, which is stored apart and holds no data of its own.
+- Validating a **Contract**'s data always checks its primary key within the data: data
+  with a duplicated or missing key is never valid. Comparing the key against **Existing
+  values** is opt-in. The foreign-key checks are opt-in as a whole: a caller that supplies
+  no values for them leaves them out. A **Dimension**'s invariants and the field
   constraints run either way, needing nothing from outside the data.
 - A **Submission contract** is a **Contract** whose **Schema** describes a delivered
   bundle, plus **Extraction instructions**. Its **Contract type** is **Submission**,

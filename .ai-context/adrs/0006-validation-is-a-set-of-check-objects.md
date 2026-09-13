@@ -77,6 +77,23 @@ that permits duplicate keys, and `BaseContract.validate_data(df)` with no resolv
 validates types and dimension structure only. Whoever wants the key checked must say so,
 including when there is nothing stored to compare against.
 
+> **Amended 2026-09-13.** For the primary key, the original goal returns at the contract
+> level. `BaseContract.validate_data` now always passes `[]` when stored keys are not
+> requested, so a **Contract**'s data is checked for duplicated and missing key values
+> whatever `check_existing_primary_key` says; the flag governs only the comparison with
+> stored keys. Checking a key within the data needs nothing from outside it, and data
+> with a duplicated key is never valid.
+>
+> The trigger was server-side submission validation: each target's rows must be unique
+> within themselves but are never compared against stored data, a combination the flag
+> could not express. The consequence is that a bare `validate_data(df)` — and with it the
+> client's `add_data(df)` — now rejects duplicate keys.
+>
+> The schema-level entry points are unchanged: `TableSchema.validate_dataframe(df)` and
+> `to_pandera_schema()` called bare still leave the primary key unchecked, and the
+> `None` / empty-collection distinction above still holds there. Foreign keys stay opt-in
+> everywhere — an external reference needs outside values to mean anything.
+
 ## Why a check is identified by its failure message
 
 Pandera puts exactly one string per check into `failure_cases`: the `error` if one is set,

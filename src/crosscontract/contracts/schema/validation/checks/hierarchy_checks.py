@@ -89,10 +89,9 @@ class HasNoDescendantInGroup(BaseCheck):
         """
         groups = df[self.group_columns]
         # Nulls are normalised to `pd.NA` first: the group columns come from the
-        # primary key and so for a
-        # ValueVariable are never null, but the primary key check is opt-in, and
-        # two nan values never compare equal, which would split rows that belong
-        # in one group.
+        # primary key and so for a ValueVariable are never null, but the primary
+        # key check is opt-in at the schema level, and two nan values never
+        # compare equal, which would split rows that belong in one group.
         groups = groups.astype(object).mask(groups.isna(), pd.NA)
         return list(
             zip(groups.itertuples(index=False, name=None), df[self.column], strict=True)
