@@ -36,7 +36,9 @@ existing Contract.
 6. Validation reuses the `CrossSubmitter.validate_submission` sequence —
    bundle schema, unclaimed rows, target validation — with foreign keys and
    dimension granularity checked, and primary keys checked **for uniqueness
-   within the bundle only**, never against stored data.
+   within each target's extracted rows only**, never against stored data. The
+   same key may appear in two targets; two bundle rows that land in one target
+   with the same key after transformation are rejected.
 7. The bundle is stored as delivered, serialized to parquet, with a
    `submission` record.
 8. Extraction of Submissions into data tables is out of scope.
@@ -64,8 +66,8 @@ needs, released together before cross_back Step 1/3 bump the dependency.
 - **Part A — the in-frame primary-key check is always on.**
   `BaseContract.validate_data(check_existing_primary_key=False)` currently
   drops the primary-key check entirely, including uniqueness within the frame.
-  The server wants "unique within the bundle, never compared against stored
-  data". The adapter already supports exactly that: per ADR 0006, `None`
+  The server wants "unique within each target's extracted rows, never compared
+  against stored data". The adapter already supports exactly that: per ADR 0006, `None`
   means "do not check", while an empty collection means "check it, with
   nothing to compare against". `validate_data` should pass `[]` instead of
   `None` when the flag is off (or no resolver is given), so `IsValidPrimaryKey`
@@ -77,7 +79,7 @@ needs, released together before cross_back Step 1/3 bump the dependency.
   `ContractResolver` and reports all failures together.
 
 Both serve the data provider too: `CrossSubmitter.validate_submission` gains
-in-bundle duplicate detection even with `check_existing_primary_key=False`, and
+per-target duplicate detection even with `check_existing_primary_key=False`, and
 a provider can check a Submission Contract before posting it.
 
 ## 2. Core Requirements
@@ -99,15 +101,17 @@ a provider can check a Submission Contract before posting it.
 - ADR 0006 amended and `CONTEXT.md` updated (see §6).
 
 **Part B**
-- A public method on `SubmissionContract` that takes a `ContractResolver`
-  and verifies every target's `contract` resolves. Working name:
-  `validate_targets(resolver)`, or an override of `validate_references` —
-  see open questions.
+- `SubmissionContract` overrides `validate_references(resolver)` to verify
+  that every target's `contract` resolves. The inherited method only walks
+  foreign keys, which a bundle schema never declares, so without the override
+  it passes for any Submission Contract regardless of its targets.
+- `enforce_star_schema` stays in the signature and has no effect: targets are
+  not foreign keys, and no topology applies to them.
 - All failing targets are collected and raised together as one `ValueError`
   (matching `validate_references`' error style), naming target and contract.
-- A target naming another **Submission** contract is rejected: targets are
-  validated as ordinary variables and a Submission contract has no stored
-  data.
+- The contract type a target resolves to is not checked. A resolver resolves
+  Contracts, never Submission Contracts, so a target cannot resolve to one;
+  which contract types a project may write to is the server's concern.
 - Pure: resolves definitions only, never reads stored values.
 
 **Done** when both parts are released on PyPI with tests, updated docstrings,
@@ -137,7 +141,6 @@ the ADR amendment and the CHANGELOG entry produced by semantic release.
 |---|---|
 | All targets resolve | Returns `None` |
 | One or several targets do not resolve | One `ValueError` listing all of them |
-| Target resolves to a `Submission` contract | Reported as a failure in the same collection |
 | Resolver raises (network/DB error) | Propagates unchanged — the caller decides its error policy (as in `validate_references`) |
 | Same contract named by two targets | Already rejected by `ExtractionInstructions._check_contract_unique` at parse time; not re-checked |
 | Target's transformations would not produce the target contract's columns | **Not** checked — impossible without data. Documented as out of scope |
@@ -158,8 +161,8 @@ the ADR amendment and the CHANGELOG entry produced by semantic release.
 - `src/crosscontract/submission/submission_contract.py` — target resolution
   method
 - `src/crosscontract/submission/submission_handler.py` — docstrings
-- `src/crosscontract/submission/submitter.py` — docstring; optionally call the
-  Part B check in `validate_submission` (open)
+- `src/crosscontract/submission/submitter.py` — docstring; `validate_submission`
+  calls `validate_references` first
 - `src/crosscontract/crossclient/services/contract_resource.py` — docstring
 - `.ai-context/adrs/0006-validation-is-a-set-of-check-objects.md` — amendment
 - `.ai-context/CONTEXT.md` — the "key checks are opt-in" relationship line
@@ -168,20 +171,15 @@ the ADR amendment and the CHANGELOG entry produced by semantic release.
 - None beyond tests.
 
 **Open questions**
-1. **Part B API shape.** Override `validate_references(resolver)` on
-   `SubmissionContract` (one entry point the server already calls on contract
-   creation — `create_contract_db` uses it) or a separate `validate_targets`
-   (name clashes with `SubmissionHandler.validate_targets`, which validates
-   data). An override keeps the server generic; a distinct name keeps
-   "references" meaning foreign keys.
-2. **Release type.** Part A makes validation stricter for existing callers.
-   `feat:` (minor) or a breaking-change marker? The package is pre-1.0.
-3. **Should `CrossSubmitter.validate_submission` run Part B first**, so a
-   broken Submission Contract fails as a wiring error before any data is
-   touched? Today an unresolved target surfaces as a `ValueError` during
-   stage 3.
-4. **Split into two PRs?** Parts A and B are independent; cross_back Step 1
-   needs only B and Step 3 needs only A.
+1. ~~**Part B API shape.**~~ Resolved: override `validate_references`.
+   Reference validation already means "checked against the Contracts it
+   names", and the inherited method silently passes today.
+2. ~~**Release type.**~~ Resolved: `feat:`. With `major_on_zero = false` a
+   breaking marker would bump the same minor version.
+3. ~~**Submitter runs Part B first?**~~ Resolved: yes.
+   `CrossSubmitter.validate_submission` calls `validate_references` before
+   touching data, so an unresolved target fails as a wiring error.
+4. ~~**Split into two PRs?**~~ Resolved: one PR for both parts.
 
 ## 5. Data & Schema Changes
 
@@ -240,6 +238,6 @@ the ADR amendment and the CHANGELOG entry produced by semantic release.
 - All targets resolve → no error (resolver mocked, as in the existing
   submission `conftest.py` helpers `resolver_for` / `resolver_returning`).
 - One and several unresolved targets → one `ValueError` naming all.
-- Target resolving to a `SubmissionContract` → failure.
+- Passing `enforce_star_schema` either way changes nothing.
 - Resolver exception propagates unchanged.
 - The method never calls `resolver.get_data`.
