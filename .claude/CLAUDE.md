@@ -74,11 +74,12 @@ warranted, propose it and let the user decide.
 
 ## Deferred work
 
-Out-of-scope, separate-PR follow-ups are collected in
-[`.ai-context/TODO.md`](../.ai-context/TODO.md). When you spot work worth doing but
-that would bloat the change in front of you, **append it there** (with enough context
-to act on it cold) rather than expanding the current PR. Consult this file when
-planning a change, and remove an item once its PR lands.
+`.ai-context/TODO.md` is **deprecated** — do not add to it or propose adding to it.
+
+Do not route every out-of-scope observation into a backlog. Mention it in the reply
+and let the user decide. Only when the user wants something done later does it go
+into [`.ai-context/ideas/`](../.ai-context/ideas/) as a draft PRD (one file per idea,
+with enough context to act on it cold).
 
 ## Architecture
 
