@@ -36,11 +36,16 @@ class TargetValidationError(Exception):
         targets = ", ".join(sorted(errors))
         super().__init__(f"Target validation failed for: {targets}")
 
-    def to_list(self) -> list[dict[Hashable, Any]]:
+    def to_list(self, max_errors: int | None = None) -> list[dict[Hashable, Any]]:
         """Flatten every failing target's errors into a single list of rows.
 
         Each row is one entry from a target's `SchemaValidationError.to_list()`,
         with a `target` key added naming which target it came from.
+
+        Args:
+            max_errors (int | None, optional): The maximum number of distinct
+                failing values kept per check, column and target, at least 1.
+                Defaults to `None`, which returns the full report.
 
         Returns:
             list[dict[Hashable, Any]]: One row per validation failure, across
@@ -49,17 +54,22 @@ class TargetValidationError(Exception):
         return [
             {"target": target, **row}
             for target, error in self.errors.items()
-            for row in error.to_list()
+            for row in error.to_list(max_errors=max_errors)
         ]
 
-    def to_pandas(self) -> pd.DataFrame:
-        """Flatten every failing target's errors into a single DataFrame.
+    def to_pandas(self, max_errors: int | None = None) -> pd.DataFrame:
+        """Flatten every failing target's errors into a single DataFrame.#
+
+        Args:
+            max_errors (int | None, optional): The maximum number of distinct
+                failing values kept per check, column and target, at least 1.
+                Defaults to `None`, which returns the full report.
 
         Returns:
             pd.DataFrame: One row per validation failure, across every failing
             target. Equivalent to `pd.DataFrame(self.to_list())`.
         """
-        return pd.DataFrame(self.to_list())
+        return pd.DataFrame(self.to_list(max_errors=max_errors))
 
 
 class UnclaimedRowsError(Exception):
