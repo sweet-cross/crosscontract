@@ -56,6 +56,36 @@ class TestTargetValidationError:
             one_target, sub_errors["t_a"].to_pandas(), check_dtype=False
         )
 
+    def test_max_errors_none_is_unchanged(self, error):
+        """Without `max_errors`, the full flattened report comes back."""
+        assert error.to_list(max_errors=None) == error.to_list()
+        assert all("count" not in row for row in error.to_list())
+
+    def test_max_errors_limits_each_target(self):
+        """Each target's report is condensed and limited on its own."""
+        error = TargetValidationError(
+            {
+                "t_a": _schema_error(["a", "b", "c", "a"]),
+                "t_b": _schema_error(["x", "y", "z"]),
+            }
+        )
+
+        rows = error.to_list(max_errors=2)
+
+        assert [(r["target"], r["failure_case"], r["count"]) for r in rows] == [
+            ("t_a", "a", 2),
+            ("t_a", "b", 1),
+            ("t_b", "x", 1),
+            ("t_b", "y", 1),
+        ]
+
+    def test_to_pandas_matches_to_list_with_max_errors(self, error):
+        """`to_pandas(max_errors)` holds the rows of `to_list(max_errors)`."""
+        pd.testing.assert_frame_equal(
+            error.to_pandas(max_errors=1),
+            pd.DataFrame(error.to_list(max_errors=1)),
+        )
+
     def test_exported_from_both_paths(self):
         from crosscontract.submission import (
             TargetValidationError as FromSubmission,
