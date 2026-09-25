@@ -1,5 +1,95 @@
 # CHANGELOG
 
+## v0.24.1 (2026-09-25)
+
+### Bug fixes
+
+
+- **report missing key values as None and require pandera>=0.33.1** ([`dee01cc`](https://github.com/sweet-cross/crosscontract/commit/dee01cc13501b8fa09195ac825b5dc13a7a38932))
+
+  ## Summary Closes sweet-cross/crosscontract#103. When a key or reference check fails, the error report's `failure_case` is a tuple of the row's key values. A missing value inside that tuple came out as `nan` or `<NA>` instead of `None`, so `to_list()` was not JSON-safe: `json.dumps(..., allow_nan=False)` fails on it. The existing cleanup only replaces `NaN` when it fills the whole cell, not when it sits inside a tuple. The branch also moves the lock to pandas 3 and raises the pandera floor to 0.33.1. pandas 3 is where the issue first appeared, for `str` key columns. A new CI job tests the lowest allowed versions of the direct dependencies.
+
+  ## Changes
+  - **Missing key values as `None`:** `SchemaValidationError._lookup_values_pandas` now replaces any missing scalar (`NaN`, `pd.NA`, `NaT`) with `None` while it builds the key tuples. `errors`, `to_list()`, `to_pandas()` and `TargetValidationError.to_list()`
+    all read these rows, so the fix reaches every one of them.
+  - **Dependencies:** the pandera floor rises from `>=0.28.1` to `>=0.33.1`. The pandas floor stays at `>=2.3.3`. The lock moves to pandas 3.0.6 and pandera 0.33.1, and
+    `pytz` drops out of the lock. The dev-only `pandas-stubs` rises to
+    `>=3.0.5.260914` to match pandas 3.
+  - **Why not a lower pandera floor:** pandera 0.30.0 stores the schema in `df.attrs`. When one of our DataFrame-level checks fails, pandas compares those `attrs` while concatenating the failure cases. That compares the checks, which fails for our check classes, so the check is reported as crashed and `to_list()` then raises. 0.33.1
+    keeps the schema out of `attrs`. The lowest-versions run caught this.
+  - **Lowest-versions testing:** `scripts/test_lowest_versions.sh` builds a separate `.venv-lowest` on Python 3.11 with the lowest versions `pyproject.toml` allows for the direct dependencies, and runs pytest (extra arguments go to pytest). It leaves `.venv` and `uv.lock` untouched. A new `test-lowest` job in `test_and_coverage.yml` runs the same script. Only direct dependencies are held at their minimums;
+    transitive ones resolve to the newest compatible release on each run.
+  - **pandera 0.33 behaviour change:** in non-lazy mode, a column that isn't in the schema (under `strict=True`) now raises `SchemaErrors` instead of `SchemaError`. `TestStrictMode.test_extra_column_fails` now accepts either one. Production code was
+    already fine, because `validate_dataframe` catches both.
+  - **`.claude/CLAUDE.md`:** `.ai-context/TODO.md` is marked deprecated. Deferred work
+    the user wants kept goes to `.ai-context/ideas/` as a draft PRD.
+
+  ## Testing
+  - New `TestMissingKeyValues` in `test_validation_error.py`:
+  - A missing primary-key value in a `string`, an `integer` and a `datetime` column.
+      Each asserts `failure_case == (None,)` and that
+      `json.dumps(to_list(), allow_nan=False)` succeeds.
+  - A composite key over a `string` and an `integer` column, with the missing value in either position. Only the missing value becomes `None`; the other is kept.
+    - A key over a `list` column still reports `([1],)`.
+  - Before the fix, running the missing-key cases through the real validation path gave
+    `(nan,)` for the `string` key and `(<NA>,)` for the `integer` key.
+  - The full suite passes on the lock (pandas 3.0.6, pandera 0.33.1) and with `scripts/test_lowest_versions.sh` (pandas 2.3.3, pandera 0.33.1, Python 3.11).
+
+  ## Notes for reviewer
+  - **`is_scalar` guard:** the fix checks `pd.api.types.is_scalar(v)` before `pd.isna(v)`. A key can be a list column, and `pd.isna` on a list returns an array, so without the guard building the report would fail with a `ValueError`.
+  - **The bug predates pandas 3:** nullable-integer and float key columns already produced `<NA>`/`nan` on pandas 2. pandas 3 extended it to `str` columns.
+  - **Not fixed here:** key tuples can still hold numpy scalars such as `np.int64`, because integer fields are coerced to nullable `Int64`, whose values iterate as numpy scalars. stdlib `json` can't serialise these. Plain cells don't have this problem, because `to_dict()` converts their values to Python types. The `to_list()`
+    docstring still makes no promise of strict JSON safety.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+
+### Documentation
+
+
+- **fix repository link and show the package version in the docs footer** ([`9629c8c`](https://github.com/sweet-cross/crosscontract/commit/9629c8c01cc6f1c495d56aa79654cba061301a75))
+
+  ## Summary The docs header's repository link pointed at the docs site itself (`https://sweet-cross.github.io/crosscontract`), so clicking it just reloaded the docs. The site also showed no version anywhere. This branch fixes the link and shows the version the docs were built from in the footer. It also fixes a docstring that produced the only warning in the docs build.
+
+  This is WP1 of a staged docs overhaul. The branch also adds the PRD and the task files for the remaining work packages.
+
+  ## Changes
+  - **Repository link:** `repo_url` in `mkdocs.yml` now points to
+    `https://github.com/sweet-cross/crosscontract`.
+  - **Edit link target:** `edit_uri` now targets `dev` instead of `main`. The theme's edit button stays **off**, so readers see no change. The setting only matters if the button
+    is turned on later, and then edits land on `dev`, which PRs target.
+  - **Version in the footer:** the new MkDocs hook `scripts/set_docs_version.py` reads `project.version` from `pyproject.toml` with `tomllib` at build time. It sets `copyright`, which Material renders in the footer as e.g. `crosscontract v0.24.0`. If a `copyright` is ever configured in `mkdocs.yml`, the version is appended to it instead of replacing it. A missing `pyproject.toml` or `project.version` fails the build.
+  - **Docstring fix:** in the `TableSchema.to_pandera_schema` docstring, the type of `foreign_key_values` was wrapped over two lines. griffe could not parse the entry, which caused a build warning and dropped the argument from the rendered API reference. The type now fits on one line as `dict[tuple[str, ...], list[tuple]] | None`, which keeps it within the 88-character limit. Only the docstring changed; no code did.
+  - **Planning files:**
+  - `.ai-context/prds/docs-overhaul.md`: the PRD for the docs overhaul, covering WP1–WP6.
+  - `.ai-context/issues/docs-overhaul/02–06`: one task file per remaining work package.
+      WP1's task file was removed, because this branch implements it.
+
+  ## Testing
+  - `uv run mkdocs build` finishes with no warnings. Before this change it showed the one
+    griffe warning described above.
+  - Checked the built HTML:
+    - The header links to `https://github.com/sweet-cross/crosscontract`.
+    - The footer reads `crosscontract v0.24.0`.
+  - Not checked:
+    - The build failing when the version is missing.
+    - The served site itself, including the repository widget.
+  - No ruff, mypy, or pytest run.
+
+  ## Notes for reviewer
+  - **Two version numbers can appear.** Now that `repo_url` points at GitHub, Material's repository widget in the header shows the latest *GitHub release*, fetched in the reader's browser. Releases are cut on `dev`, so the widget can be ahead of the deployed docs, which are built from `main`. The footer is the authoritative version: it is read from the checked-out ref at build time. The PRD accepts the widget as it is rather than
+    hiding its version with a theme override.
+  - **`uv.lock` is stale on `dev`.** It still records `crosscontract` as 0.23.0. Running `uv sync` or `uv run` rewrites it to 0.24.0. Those rewrites were deliberately kept out
+    of this PR.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  ---------
+
+  Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+
+
+
 ## v0.24.0 (2026-09-25)
 
 ### Features
