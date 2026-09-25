@@ -79,6 +79,8 @@ jobs:
             - uses: pypa/gh-action-pypi-publish@release/v1
 
     deploy_docs:
-        needs: publish
+        needs: [resolve_version, publish]
         if: success()
         uses: ./.github/workflows/deploy_docs.yml
+        with:
+            ref: ${{ needs.resolve_version.outputs.tag }}
