@@ -39,8 +39,15 @@ class TargetValidationError(Exception):
     def to_list(self, max_errors: int | None = None) -> list[dict[Hashable, Any]]:
         """Flatten every failing target's errors into a single list of rows.
 
-        Each row is one entry from a target's `SchemaValidationError.to_list()`,
-        with a `target` key added naming which target it came from.
+        Each row is one entry from a target's
+        `SchemaValidationError.to_list(max_errors)`, with a `target` key added
+        naming which target it came from.
+
+        With `max_errors`, each target's report is condensed on its own, as
+        described on `SchemaValidationError.to_list`: repeated failing values merge
+        into one row carrying a `count`, and each target keeps at most `max_errors`
+        distinct failing values per check and column. With three failing targets,
+        a column can therefore show up to three times `max_errors` values.
 
         Args:
             max_errors (int | None, optional): The maximum number of distinct
@@ -48,8 +55,11 @@ class TargetValidationError(Exception):
                 Defaults to `None`, which returns the full report.
 
         Returns:
-            list[dict[Hashable, Any]]: One row per validation failure, across
-            every failing target.
+            list[dict[Hashable, Any]]: The error rows across every failing target;
+            one row per validation failure without `max_errors`.
+
+        Raises:
+            ValueError: If `max_errors` is smaller than 1.
         """
         return [
             {"target": target, **row}
@@ -58,7 +68,10 @@ class TargetValidationError(Exception):
         ]
 
     def to_pandas(self, max_errors: int | None = None) -> pd.DataFrame:
-        """Flatten every failing target's errors into a single DataFrame.#
+        """Flatten every failing target's errors into a single DataFrame.
+
+        Holds the rows of `to_list`, condensed in the same way when `max_errors`
+        is given.
 
         Args:
             max_errors (int | None, optional): The maximum number of distinct
@@ -66,8 +79,11 @@ class TargetValidationError(Exception):
                 Defaults to `None`, which returns the full report.
 
         Returns:
-            pd.DataFrame: One row per validation failure, across every failing
-            target. Equivalent to `pd.DataFrame(self.to_list())`.
+            pd.DataFrame: The error rows across every failing target. Equivalent
+            to `pd.DataFrame(self.to_list(max_errors))`.
+
+        Raises:
+            ValueError: If `max_errors` is smaller than 1.
         """
         return pd.DataFrame(self.to_list(max_errors=max_errors))
 
