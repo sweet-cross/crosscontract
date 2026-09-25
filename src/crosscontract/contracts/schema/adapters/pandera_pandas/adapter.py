@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:  # pragma: no cover
     from crosscontract.contracts.schema import TableSchema
 
-import numpy as np
 import pandera.pandas as pa
 
 from crosscontract.contracts.schema.adapters.abstract_adapter import AbstractAdapter
@@ -45,7 +44,7 @@ class PanderaAdapter(AbstractAdapter):
             coerce=True,  # Useful for CSVs (str -> int)
             strict=True,  # Fails if DataFrame contains columns not in Schema
             # on the schema rather than the columns, so it runs before coercion
-            parsers=[pa.Parser(lambda df: df.replace("", np.nan))],
+            parsers=[pa.Parser(lambda df: df.mask(df == ""))],
         )
         return pandera_schema
 

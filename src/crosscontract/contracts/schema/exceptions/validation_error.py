@@ -1,5 +1,6 @@
 import ast
 import re
+from collections import Counter
 from collections.abc import Hashable
 from typing import Any
 
@@ -61,20 +62,84 @@ class SchemaValidationError(Exception):
             self._parsed_errors = self._parse_pandera_errors()
         return self._parsed_errors
 
-    def to_list(self) -> list[dict[Hashable, Any]]:
+    def to_list(self, max_errors: int | None = None) -> list[dict[Hashable, Any]]:
         """Return the errors as a list of dictionaries.
 
-        Useful for API responses (JSON serialization).
-        Alias for .errors.
-        """
-        return self.errors
+        Useful for API responses (JSON serialization). Without `max_errors`, this
+        is `errors`: one row per failure.
 
-    def to_pandas(self) -> pd.DataFrame:  # pragma: no cover
+        With `max_errors`, the report is condensed:
+
+        - Rows sharing the same `schema_context`, `column`, `check` and
+          `failure_case` merge into the first one, which keeps its `index` (the
+          first failing row) and gains a `count` (the number of rows merged).
+        - At most `max_errors` distinct `failure_case` values are kept per `check`
+          and `column`. The limit counts distinct failing values, not rows: once it
+          is reached, new values are dropped, while repeats of a kept value still
+          add to its `count`.
+        - Rows keep their original order.
+
+        For example, the failing values `a, b, a, c` of one check and column give
+        `a` (`count` 2) and `b` (`count` 1) with `max_errors=2`.
+
+        Args:
+            max_errors (int | None, optional): The maximum number of distinct
+                failing values kept per check and column, at least 1. Defaults to
+                `None`, which returns the full report.
+
+        Returns:
+            list[dict[Hashable, Any]]: The error rows.
+
+        Raises:
+            ValueError: If `max_errors` is smaller than 1.
+        """
+        if max_errors is None:
+            return self.errors
+        if max_errors < 1:
+            raise ValueError(f"`max_errors` must be at least 1, got {max_errors}.")
+        condensed: dict[tuple[Any, ...], dict[Hashable, Any]] = {}
+        values_per_check: Counter[tuple[Any, Any]] = Counter()
+        for error in self.errors:
+            failure_case = error.get("failure_case")
+            try:
+                hash(failure_case)
+            except TypeError:
+                # a list, or a tuple holding one, is keyed by its repr
+                failure_case = repr(failure_case)
+            key = (
+                error.get("schema_context"),
+                error.get("column"),
+                error.get("check"),
+                failure_case,
+            )
+            if key in condensed:
+                condensed[key]["count"] += 1
+                continue
+            check_key = (error.get("column"), error.get("check"))
+            if values_per_check[check_key] >= max_errors:
+                continue
+            values_per_check[check_key] += 1
+            condensed[key] = {**error, "count": 1}
+        return list(condensed.values())
+
+    def to_pandas(self, max_errors: int | None = None) -> pd.DataFrame:
         """Return the errors as a pandas DataFrame.
 
-        Useful for client-side debugging in Jupyter Notebooks.
+        Useful for client-side debugging in Jupyter Notebooks. Holds the rows of
+        `to_list`, condensed in the same way when `max_errors` is given.
+
+        Args:
+            max_errors (int | None, optional): The maximum number of distinct
+                failing values kept per check and column, at least 1. Defaults to
+                `None`, which returns the full report.
+
+        Returns:
+            pd.DataFrame: The error rows, one per row of `to_list(max_errors)`.
+
+        Raises:
+            ValueError: If `max_errors` is smaller than 1.
         """
-        return pd.DataFrame(self.errors)
+        return pd.DataFrame(self.to_list(max_errors))
 
     def _parse_pandera_errors(self) -> list[dict[Hashable, Any]]:
         """Parse pandera SchemaErrors into a list of error details.
