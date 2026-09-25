@@ -4,6 +4,7 @@ import pandas as pd
 import pandera.pandas as pa
 import pytest
 
+from crosscontract.contracts.schema import TableSchema
 from crosscontract.contracts.schema.exceptions.validation_error import (
     SchemaValidationError,
 )
@@ -198,6 +199,229 @@ class TestSchemaValidationError:
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 1
         assert df.iloc[0]["check"] == "check1"
+
+
+def _error_from_rows(rows: list[tuple[str, str, int, str]]) -> SchemaValidationError:
+    """Build an error from `(schema_context, check, index, failure_case)` rows,
+    all on column `c`."""
+    failure_cases = pd.DataFrame(
+        rows, columns=["schema_context", "check", "index", "failure_case"]
+    ).assign(column="c")
+    mock_errors = MockSchemaErrors(failure_cases, pd.DataFrame())
+    return SchemaValidationError("Test", mock_errors)
+
+
+def _validation_error(
+    schema: dict, df: pd.DataFrame, **kwargs
+) -> SchemaValidationError:
+    """Validate `df` against `schema` and return the raised error."""
+    with pytest.raises(SchemaValidationError) as exc_info:
+        TableSchema.model_validate(schema).validate_dataframe(df, **kwargs)
+    return exc_info.value
+
+
+class TestMaxErrors:
+    """Tests for condensing the report with `max_errors`."""
+
+    def test_default_is_unchanged(self):
+        """Without `max_errors`, the full report comes back without a `count`."""
+        error = _error_from_rows(
+            [("Column", "isin", 0, "x"), ("Column", "isin", 1, "x")]
+        )
+
+        assert error.to_list() == error.errors
+        assert error.to_list(max_errors=None) == error.errors
+        assert len(error.to_list()) == 2
+        assert all("count" not in row for row in error.to_list())
+
+    def test_repeated_values_are_merged(self):
+        """Repeats of a value merge into its first row, which counts them."""
+        error = _error_from_rows(
+            [
+                ("Column", "isin", 0, "x"),
+                ("Column", "isin", 1, "y"),
+                ("Column", "isin", 2, "x"),
+                ("Column", "isin", 3, "x"),
+                ("Column", "isin", 4, "y"),
+            ]
+        )
+
+        condensed = error.to_list(max_errors=10)
+
+        assert [(r["failure_case"], r["index"], r["count"]) for r in condensed] == [
+            ("x", 0, 3),
+            ("y", 1, 2),
+        ]
+
+    def test_same_value_in_different_checks_is_not_merged(self):
+        """A value is merged only within its own check."""
+        error = _error_from_rows(
+            [("Column", "check_a", 0, "x"), ("Column", "check_b", 0, "x")]
+        )
+
+        condensed = error.to_list(max_errors=10)
+
+        assert [(r["check"], r["count"]) for r in condensed] == [
+            ("check_a", 1),
+            ("check_b", 1),
+        ]
+
+    def test_limit_applies_per_check_and_column(self):
+        """Each check and column keeps at most `max_errors` distinct values."""
+        error = _error_from_rows(
+            [("Column", "check_a", i, f"a{i}") for i in range(4)]
+            + [("Column", "check_b", i, f"b{i}") for i in range(4)]
+        )
+
+        condensed = error.to_list(max_errors=2)
+
+        assert [r["failure_case"] for r in condensed] == ["a0", "a1", "b0", "b1"]
+
+    def test_repeats_of_a_kept_value_count_beyond_the_limit(self):
+        """Once the limit is reached, new values are dropped, while repeats of
+        a kept value still add to its count."""
+        error = _error_from_rows(
+            [
+                ("Column", "isin", 0, "a"),
+                ("Column", "isin", 1, "b"),
+                ("Column", "isin", 2, "c"),
+                ("Column", "isin", 3, "a"),
+            ]
+        )
+
+        condensed = error.to_list(max_errors=2)
+
+        assert [(r["failure_case"], r["count"]) for r in condensed] == [
+            ("a", 2),
+            ("b", 1),
+        ]
+
+    def test_limit_applies_to_table_level_errors(self):
+        """Errors reported on the whole table are limited like column errors."""
+        error = _error_from_rows(
+            [("DataFrameSchema", "unique", i, f"k{i}") for i in range(5)]
+        )
+
+        condensed = error.to_list(max_errors=3)
+
+        assert [r["failure_case"] for r in condensed] == ["k0", "k1", "k2"]
+
+    def test_nulls_are_merged(self):
+        """`None`, `NaN` and `""` in a required column merge into one row."""
+        error = _validation_error(
+            {
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {"name": "x", "type": "number", "constraints": {"required": True}},
+                ]
+            },
+            pd.DataFrame({"id": ["a", "b", "c"], "x": [None, float("nan"), ""]}),
+        )
+
+        condensed = error.to_list(max_errors=10)
+
+        assert len(condensed) == 1
+        assert condensed[0]["failure_case"] is None
+        assert condensed[0]["index"] == 0
+        assert condensed[0]["count"] == 3
+
+    def test_list_values_are_merged(self):
+        """An unhashable failing value is merged and keeps its original value."""
+        error = _validation_error(
+            {
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {
+                        "name": "tags",
+                        "type": "list",
+                        "itemType": "integer",
+                        "constraints": {"maxLength": 2},
+                    },
+                ]
+            },
+            pd.DataFrame({"id": ["a", "b", "c"], "tags": [[1, 2, 3], [1, 2, 3], [1]]}),
+        )
+
+        condensed = error.to_list(max_errors=10)
+
+        assert len(condensed) == 1
+        assert condensed[0]["failure_case"] == [1, 2, 3]
+        assert condensed[0]["index"] == 0
+        assert condensed[0]["count"] == 2
+
+    def test_duplicated_primary_key_is_merged(self):
+        """A primary key occurring three times becomes one row counting three."""
+        error = _validation_error(
+            {
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {"name": "y", "type": "integer"},
+                ],
+                "primaryKey": ["id"],
+            },
+            pd.DataFrame({"id": ["a", "a", "a", "b"], "y": [1, 2, 3, 4]}),
+            primary_key_values=[],
+        )
+
+        condensed = error.to_list(max_errors=10)
+
+        assert len(condensed) == 1
+        assert condensed[0]["schema_context"] == "DataFrameSchema"
+        assert condensed[0]["failure_case"] == ("a",)
+        assert condensed[0]["count"] == 3
+
+    def test_duplicated_primary_keys_are_limited(self):
+        """More distinct duplicated keys than `max_errors` are cut to the limit."""
+        error = _validation_error(
+            {
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {"name": "y", "type": "integer"},
+                ],
+                "primaryKey": ["id"],
+            },
+            pd.DataFrame({"id": ["a", "a", "b", "b", "c", "c"], "y": range(6)}),
+            primary_key_values=[],
+        )
+
+        condensed = error.to_list(max_errors=2)
+
+        assert [(r["failure_case"], r["count"]) for r in condensed] == [
+            (("a",), 2),
+            (("b",), 2),
+        ]
+
+    def test_cached_errors_are_not_mutated(self):
+        """A condensed report leaves the full report untouched."""
+        error = _error_from_rows(
+            [
+                ("Column", "isin", 0, "x"),
+                ("Column", "isin", 1, "x"),
+                ("Column", "isin", 2, "y"),
+            ]
+        )
+        full = [dict(row) for row in error.to_list()]
+
+        error.to_list(max_errors=1)
+
+        assert error.to_list() == full
+        assert all("count" not in row for row in error.errors)
+
+    def test_to_pandas_matches_to_list(self):
+        """`to_pandas(max_errors)` holds the rows of `to_list(max_errors)`."""
+        error = _error_from_rows(
+            [
+                ("Column", "isin", 0, "x"),
+                ("Column", "isin", 1, "x"),
+                ("Column", "isin", 2, "y"),
+            ]
+        )
+
+        pd.testing.assert_frame_equal(
+            error.to_pandas(max_errors=1),
+            pd.DataFrame(error.to_list(max_errors=1)),
+        )
+        assert error.to_pandas(max_errors=1)["count"].tolist() == [2]
 
 
 class TestSchemaErrorConversion:
