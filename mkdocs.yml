@@ -1,9 +1,9 @@
 site_name: CrossContracts
 site_description: Documentation for data contracts and client libraries in the CROSS ecosystem.
 site_author: Sweet Cross Team
-repo_url: https://sweet-cross.github.io/crosscontract
+repo_url: https://github.com/sweet-cross/crosscontract
 repo_name: sweet-cross/crosscontract
-edit_uri: edit/main/docs/
+edit_uri: edit/dev/docs/
 
 theme:
   name: material
@@ -40,6 +40,7 @@ theme:
     - content.tabs.link
 hooks:
   - scripts/copy_notebooks_to_docs.py
+  - scripts/set_docs_version.py
 
 plugins:
   - search
