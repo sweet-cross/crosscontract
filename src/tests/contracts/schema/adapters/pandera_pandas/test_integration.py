@@ -221,7 +221,7 @@ class TestStrictMode:
         """The conversion sets strict=True, so a column the schema does not
         describe is a failure rather than an ignored extra."""
         valid_df["extra"] = ["x", "y"]
-        with pytest.raises(pa.errors.SchemaError):
+        with pytest.raises((pa.errors.SchemaError, pa.errors.SchemaErrors)):
             pandera_schema.validate(valid_df)
 
     def test_missing_required_column_fails(self, pandera_schema: pa.DataFrameSchema):

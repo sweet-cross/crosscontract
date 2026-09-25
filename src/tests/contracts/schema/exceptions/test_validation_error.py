@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 import pandas as pd
@@ -449,6 +450,64 @@ class TestMaxErrors:
             pd.DataFrame(error.to_list(max_errors=1)),
         )
         assert error.to_pandas(max_errors=1)["count"].tolist() == [2]
+
+
+class TestMissingKeyValues:
+    """Tests for reporting missing values in a key's failing values."""
+
+    @pytest.mark.parametrize(
+        ("field_type", "values"),
+        [
+            ("string", ["a", None]),
+            ("integer", [1, None]),
+            ("datetime", ["2024-01-01 00:00", None]),
+        ],
+    )
+    def test_missing_key_value_is_reported_as_none(self, field_type, values):
+        """A missing key value appears as `None` in the tuple, so the report is
+        JSON-safe."""
+        error = _validation_error(
+            {"fields": [{"name": "id", "type": field_type}], "primaryKey": ["id"]},
+            pd.DataFrame({"id": values}),
+            primary_key_values=[],
+        )
+
+        assert [row["failure_case"] for row in error.to_list()] == [(None,)]
+        json.dumps(error.to_list(), allow_nan=False)
+
+    @pytest.mark.parametrize(
+        ("codes", "ids", "expected"),
+        [(["a", "b"], [1, None], ("b", None)), (["a", None], [1, 2], (None, 2))],
+    )
+    def test_only_missing_value_in_composite_key_is_none(self, codes, ids, expected):
+        """In a composite key, only the missing value becomes `None`; the other
+        values of the row are reported as they are."""
+        error = _validation_error(
+            {
+                "fields": [
+                    {"name": "code", "type": "string"},
+                    {"name": "id", "type": "integer"},
+                ],
+                "primaryKey": ["code", "id"],
+            },
+            pd.DataFrame({"code": codes, "id": ids}),
+            primary_key_values=[],
+        )
+
+        assert [row["failure_case"] for row in error.to_list()] == [expected]
+
+    def test_list_key_value_is_kept(self):
+        """A list in a key over a list column is reported as it is."""
+        error = _validation_error(
+            {
+                "fields": [{"name": "id", "type": "list", "itemType": "integer"}],
+                "primaryKey": ["id"],
+            },
+            pd.DataFrame({"id": [[1], [1]]}),
+            primary_key_values=[],
+        )
+
+        assert [row["failure_case"] for row in error.to_list()] == [([1],), ([1],)]
 
 
 class TestSchemaErrorConversion:

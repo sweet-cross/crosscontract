@@ -279,8 +279,11 @@ class SchemaValidationError(Exception):
             # is tested but coverage does not verify this branch
             subset = subset[~subset.index.duplicated(keep="first")]  # pragma: no cover
 
-        # Return as list of strings/tuples
-        out_list = list(subset.itertuples(index=False, name=None))
+        # Return as list of tuples, with missing values (NaN, pd.NA, NaT) as None
+        out_list = [
+            tuple(None if pd.api.types.is_scalar(v) and pd.isna(v) else v for v in row)
+            for row in subset.itertuples(index=False, name=None)
+        ]
         return out_list
 
     @staticmethod
