@@ -199,10 +199,10 @@ class TableSchema(BaseModel):
                 primary key unchecked; an empty list checks it within the
                 DataFrame alone.
                 Defaults to `None`.
-            foreign_key_values (dict[tuple[str, ...], list[tuple[Any, ...]]] |
-                None, optional): The referenced values already stored, keyed by
-                the tuple of referring fields. `None` leaves the foreign keys
-                unchecked. An empty dict checks self-referencing keys against the
+            foreign_key_values (dict[tuple[str, ...], list[tuple]] | None, optional):
+                The referenced values already stored, keyed by the tuple of
+                referring fields. `None` leaves the foreign keys unchecked. An
+                empty dict checks self-referencing keys against the
                 DataFrame's own rows; an external reference is checked only when
                 its values are given.
                 Defaults to `None`.
