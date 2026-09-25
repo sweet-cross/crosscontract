@@ -501,7 +501,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "pandas", specifier = ">=2.3.3" },
-    { name = "pandera", extras = ["pandas"], specifier = ">=0.30.0" },
+    { name = "pandera", extras = ["pandas"], specifier = ">=0.33.1" },
     { name = "pre-commit", specifier = ">=4.5.1" },
     { name = "pyarrow", specifier = ">=22.0.0" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.12.5" },
