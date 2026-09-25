@@ -495,7 +495,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "pandas", specifier = ">=2.3.3" },
-    { name = "pandera", extras = ["pandas"], specifier = ">=0.28.1" },
+    { name = "pandera", extras = ["pandas"], specifier = ">=0.30.0" },
     { name = "pre-commit", specifier = ">=4.5.1" },
     { name = "pyarrow", specifier = ">=22.0.0" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.12.5" },
@@ -1881,7 +1881,7 @@ wheels = [
 
 [[package]]
 name = "pandera"
-version = "0.28.1"
+version = "0.33.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
@@ -1890,9 +1890,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspect" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b3/24/c0ed89fa0c0a3d57be06d176990640369b83b942486207604e98c9d9bfef/pandera-0.28.1.tar.gz", hash = "sha256:6d2bbe8e36392a63c5d35143f4deffcd5fcd70bb193428ade4dc0ad183cfd6f1", size = 572675, upload-time = "2026-01-08T14:21:25.996Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/7a/702612a2b5e3335722395d6de71206549f64a43588527f411ff60a7c3456/pandera-0.33.1.tar.gz", hash = "sha256:909e2e269a3f9c17d94c11268f92a5f48e889af633ea1414053993874d613626", size = 976019, upload-time = "2026-09-01T15:56:07.34Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a2/28/8abcbb40058ea6e8aa969ab31407460df97e40b068b2902ba8b38d782a79/pandera-0.28.1-py3-none-any.whl", hash = "sha256:84da487d9348dfd01b91ae3349eb872a9802df6a6c2da589ac52bb9c080fe8f4", size = 295040, upload-time = "2026-01-08T14:21:24.89Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/84/107a480f7aa34a6878fb4fb85cda66f37e8aaee769c5917e3eaa2d55222e/pandera-0.33.1-py3-none-any.whl", hash = "sha256:8283bc12f7c85f0b429107d71b55150205f7e5ca59d68117aff971273a3bd2d8", size = 501976, upload-time = "2026-09-01T15:56:05.944Z" },
 ]
 
 [package.optional-dependencies]
