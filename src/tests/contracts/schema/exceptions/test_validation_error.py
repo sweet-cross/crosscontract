@@ -201,7 +201,9 @@ class TestSchemaValidationError:
         assert df.iloc[0]["check"] == "check1"
 
 
-def _error_from_rows(rows: list[tuple[str, str, int, str]]) -> SchemaValidationError:
+def _error_from_rows(
+    rows: list[tuple[str, str, int, object]],
+) -> SchemaValidationError:
     """Build an error from `(schema_context, check, index, failure_case)` rows,
     all on column `c`."""
     failure_cases = pd.DataFrame(
@@ -349,6 +351,23 @@ class TestMaxErrors:
         assert condensed[0]["index"] == 0
         assert condensed[0]["count"] == 2
 
+    def test_tuple_holding_a_list_is_merged(self):
+        """A tuple holding a list, as a key over a list column reports it, is
+        merged and keeps its original value."""
+        error = _error_from_rows(
+            [
+                ("DataFrameSchema", "unique", 0, ("a", [1, 2])),
+                ("DataFrameSchema", "unique", 1, ("a", [1, 2])),
+            ]
+        )
+
+        condensed = error.to_list(max_errors=10)
+
+        assert len(condensed) == 1
+        assert condensed[0]["failure_case"] == ("a", [1, 2])
+        assert condensed[0]["index"] == 0
+        assert condensed[0]["count"] == 2
+
     def test_duplicated_primary_key_is_merged(self):
         """A primary key occurring three times becomes one row counting three."""
         error = _validation_error(
@@ -406,6 +425,14 @@ class TestMaxErrors:
 
         assert error.to_list() == full
         assert all("count" not in row for row in error.errors)
+
+    @pytest.mark.parametrize("max_errors", [0, -1])
+    def test_max_errors_below_one_raises(self, max_errors):
+        """A limit below 1 is rejected."""
+        error = _error_from_rows([("Column", "isin", 0, "x")])
+
+        with pytest.raises(ValueError, match="`max_errors` must be at least 1"):
+            error.to_list(max_errors=max_errors)
 
     def test_to_pandas_matches_to_list(self):
         """`to_pandas(max_errors)` holds the rows of `to_list(max_errors)`."""

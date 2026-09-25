@@ -68,35 +68,49 @@ class SchemaValidationError(Exception):
         Useful for API responses (JSON serialization). Without `max_errors`, this
         is `errors`: one row per failure.
 
-        With `max_errors`, the report is condensed. Rows sharing the same
-        `schema_context`, `column`, `check` and `failure_case` merge into the first
-        one, which keeps its `index` (the first failing row) and gains a `count`
-        (the number of rows merged). At most `max_errors` distinct `failure_case`
-        values are kept per `check` and `column`; the limit counts distinct failing
-        values, not rows, and further values are dropped. Rows keep their original
-        order.
+        With `max_errors`, the report is condensed:
+
+        - Rows sharing the same `schema_context`, `column`, `check` and
+          `failure_case` merge into the first one, which keeps its `index` (the
+          first failing row) and gains a `count` (the number of rows merged).
+        - At most `max_errors` distinct `failure_case` values are kept per `check`
+          and `column`. The limit counts distinct failing values, not rows: once it
+          is reached, new values are dropped, while repeats of a kept value still
+          add to its `count`.
+        - Rows keep their original order.
+
+        For example, the failing values `a, b, a, c` of one check and column give
+        `a` (`count` 2) and `b` (`count` 1) with `max_errors=2`.
 
         Args:
             max_errors (int | None, optional): The maximum number of distinct
-                failing values kept per check and column. Defaults to `None`, which
-                returns the full report.
+                failing values kept per check and column, at least 1. Defaults to
+                `None`, which returns the full report.
 
         Returns:
             list[dict[Hashable, Any]]: The error rows.
+
+        Raises:
+            ValueError: If `max_errors` is smaller than 1.
         """
         if max_errors is None:
             return self.errors
+        if max_errors < 1:
+            raise ValueError(f"`max_errors` must be at least 1, got {max_errors}.")
         condensed: dict[tuple[Any, ...], dict[Hashable, Any]] = {}
         values_per_check: Counter[tuple[Any, Any]] = Counter()
         for error in self.errors:
             failure_case = error.get("failure_case")
+            try:
+                hash(failure_case)
+            except TypeError:
+                # a list, or a tuple holding one, is keyed by its repr
+                failure_case = repr(failure_case)
             key = (
                 error.get("schema_context"),
                 error.get("column"),
                 error.get("check"),
-                failure_case
-                if isinstance(failure_case, Hashable)
-                else repr(failure_case),
+                failure_case,
             )
             if key in condensed:
                 condensed[key]["count"] += 1
@@ -116,11 +130,14 @@ class SchemaValidationError(Exception):
 
         Args:
             max_errors (int | None, optional): The maximum number of distinct
-                failing values kept per check and column. Defaults to `None`, which
-                returns the full report.
+                failing values kept per check and column, at least 1. Defaults to
+                `None`, which returns the full report.
 
         Returns:
             pd.DataFrame: The error rows, one per row of `to_list(max_errors)`.
+
+        Raises:
+            ValueError: If `max_errors` is smaller than 1.
         """
         return pd.DataFrame(self.to_list(max_errors))
 
