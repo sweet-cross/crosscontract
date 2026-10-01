@@ -36,6 +36,11 @@ class SubmissionContract(CrossContract):
         project_name (str): The name of the project the submission belongs to.
         extraction (ExtractionInstructions): Instructions for extracting each
             variable from the submission file.
+        replace_key (list[str] | Literal["all"]): The columns whose values
+            identify the slice a resubmission replaces, or `all` to replace
+            everything previously submitted under this contract. Names columns
+            of the target contracts as they land after extraction, not of
+            `tableschema`.
     """
 
     contract_type: Literal["Submission"] = Field(  # type: ignore[assignment]
@@ -58,11 +63,12 @@ class SubmissionContract(CrossContract):
     replace_key: list[str] | Literal["all"] = Field(
         ...,
         description=(
-            "The columns to identify which data are replaced by a new submission. "
-            "`all` to replace all data previously submitted under the submission "
-            "contract. Example: If replace_key is ['model_id'], and model A has "
-            "previously submitted data a new submission with model_id=modelA will "
-            "replace it."
+            "The columns whose values identify the slice a resubmission replaces, "
+            "or `all` to replace everything previously submitted under this "
+            "contract. Names columns of the target contracts as they land after "
+            "extraction, not of `tableschema`. Example: with `['model_id']`, a "
+            "submission carrying `model_id=model_a` replaces the rows an earlier "
+            "submission delivered under that value."
         ),
     )
 
@@ -149,15 +155,27 @@ class SubmissionContract(CrossContract):
         return self
 
     @field_validator("replace_key")
+    @classmethod
     def _validate_replace_key(cls, v):
-        """Validate that the replace_key is not empty and does not
-        contain duplicate column names."""
+        """Check that a column list is non-empty and names each column once.
+
+        Args:
+            v (list[str] | Literal["all"]): The value to check. `all` passes
+                through unchecked.
+
+        Returns:
+            list[str] | Literal["all"]: The value, unchanged.
+
+        Raises:
+            ValueError: If the list is empty or repeats a column name.
+        """
         if v == "all":
             return v
         if not v:
             raise ValueError("replace_key must not be empty or None.")
-        if len(v) != len(set(v)):
-            raise ValueError("replace_key contains duplicate column names.")
+        duplicates = sorted({column for column in v if v.count(column) > 1})
+        if duplicates:
+            raise ValueError(f"Duplicate replace_key columns: {', '.join(duplicates)}")
         return v
 
     def validate_references(

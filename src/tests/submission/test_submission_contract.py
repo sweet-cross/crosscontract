@@ -158,10 +158,17 @@ class TestReplaceKey:
             SubmissionContract.model_validate(invalid_data)
 
     def test_duplicate_columns_are_rejected(self):
-        """Test that a repeated column name is rejected and named in the error."""
+        """Test that a repeated column name is rejected and named in the error.
+
+        Matched against the phrase rather than the bare column name: pydantic
+        echoes the rejected input into the error string, so a bare name matches
+        whether or not the message itself names the duplicate.
+        """
         invalid_data = deepcopy(valid_data)
         invalid_data["replace_key"] = ["model_id", "scenario", "model_id"]
-        with pytest.raises(ValueError, match="model_id"):
+        with pytest.raises(
+            ValueError, match=r"Duplicate replace_key columns: model_id"
+        ):
             SubmissionContract.model_validate(invalid_data)
 
     def test_bare_string_is_rejected(self):
