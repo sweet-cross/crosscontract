@@ -156,7 +156,7 @@ class SubmissionContract(CrossContract):
 
     @field_validator("replace_key")
     @classmethod
-    def _validate_replace_key(cls, v):
+    def _validate_replace_key(cls, v: list[str] | Literal["all"]):
         """Check that a column list is non-empty and names each column once.
 
         Args:
@@ -172,7 +172,7 @@ class SubmissionContract(CrossContract):
         if v == "all":
             return v
         if not v:
-            raise ValueError("replace_key must not be empty or None.")
+            raise ValueError("replace_key must not be empty.")
         duplicates = sorted({column for column in v if v.count(column) > 1})
         if duplicates:
             raise ValueError(f"Duplicate replace_key columns: {', '.join(duplicates)}")
