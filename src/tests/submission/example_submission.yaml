@@ -6,6 +6,8 @@
 #   - a target appending its own transformations after a profile
 #   - `map_column_values` with `default_value` omitted, i.e. holding the
 #     KEEP_ORIGINAL sentinel, which has no serialized form of its own
+#   - a `replace_key` in its list form, which shares a field with the literal
+#     `all` form and so can lose its shape on a round trip
 #
 # Not a realistic campaign file — see .ai-context/prds/cross2025_submission.yaml
 # for that. Keep this one minimal.
@@ -14,6 +16,10 @@ name: example_submission
 title: Example Submission
 description: A small submission bundle used to exercise contract round-tripping.
 project_name: example_project
+
+# One slice per model: a resubmission from the same model replaces its earlier
+# rows in every target.
+replace_key: [model]
 
 tableschema:
   fields:
