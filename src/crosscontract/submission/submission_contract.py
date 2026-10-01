@@ -183,10 +183,13 @@ class SubmissionContract(CrossContract):
         resolver: ContractResolver,
         enforce_star_schema: bool = True,
     ) -> None:
-        """Validate that the contract named by every target resolves.
+        """Validate the contracts the targets name against the replace key.
 
-        Only the existence of each contract is checked; its type and fields are
-        not, and no stored data is read.
+        Checks that each target's contract resolves and, where `replace_key`
+        names columns, that the contract declares every one of them as a
+        required field. A column that is absent, or present but optional,
+        leaves the replace unable to identify the rows it must remove. The
+        contract's type is not checked and no stored data is read.
 
         Args:
             resolver (ContractResolver): Lookup for the target contracts by name.
@@ -194,14 +197,30 @@ class SubmissionContract(CrossContract):
                 `True`.
 
         Raises:
-            ValueError: If one or more target contracts do not resolve. All
-                unresolved contracts are reported in a single exception.
+            ValueError: If one or more target contracts do not resolve, or do
+                not declare the replace key. All failures are reported in a
+                single exception.
         """
+        # `all` leaves nothing to check against the targets.
+        key_columns: list[str] = [] if self.replace_key == "all" else self.replace_key
         errors: list[str] = []
         for target in self.extraction.targets:
-            if resolver.resolve(target.contract) is None:
+            target_contract = resolver.resolve(target.contract)
+            if target_contract is None:
                 errors.append(
                     f"Target '{target.name}': unknown contract '{target.contract}'."
+                )
+                continue
+            invalid = []
+            for column in key_columns:
+                field = target_contract.tableschema.get(column)
+                if field is None or not field.constraints.required:
+                    invalid.append(column)
+            if invalid:
+                errors.append(
+                    f"Target '{target.name}': contract '{target.contract}' must "
+                    f"declare the replace key column(s) "
+                    f"{', '.join(invalid)} as required fields."
                 )
         if errors:
             raise ValueError(
