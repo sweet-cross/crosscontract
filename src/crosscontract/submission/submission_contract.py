@@ -72,6 +72,32 @@ class SubmissionContract(CrossContract):
         ),
     )
 
+    @field_validator("replace_key")
+    @classmethod
+    def _validate_replace_key(
+        cls, v: list[str] | Literal["all"]
+    ) -> list[str] | Literal["all"]:
+        """Check that a column list is non-empty and names each column once.
+
+        Args:
+            v (list[str] | Literal["all"]): The value to check. `all` passes
+                through unchecked.
+
+        Returns:
+            list[str] | Literal["all"]: The value, unchanged.
+
+        Raises:
+            ValueError: If the list is empty or repeats a column name.
+        """
+        if v == "all":
+            return v
+        if not v:
+            raise ValueError("replace_key must not be empty.")
+        duplicates = sorted({column for column in v if v.count(column) > 1})
+        if duplicates:
+            raise ValueError(f"Duplicate replace_key columns: {', '.join(duplicates)}")
+        return v
+
     @model_validator(mode="after")
     def _check_routing_column(self) -> Self:
         """Check that the routing column exists in the tableschema, that it is
@@ -154,30 +180,6 @@ class SubmissionContract(CrossContract):
             )
         return self
 
-    @field_validator("replace_key")
-    @classmethod
-    def _validate_replace_key(cls, v: list[str] | Literal["all"]):
-        """Check that a column list is non-empty and names each column once.
-
-        Args:
-            v (list[str] | Literal["all"]): The value to check. `all` passes
-                through unchecked.
-
-        Returns:
-            list[str] | Literal["all"]: The value, unchanged.
-
-        Raises:
-            ValueError: If the list is empty or repeats a column name.
-        """
-        if v == "all":
-            return v
-        if not v:
-            raise ValueError("replace_key must not be empty.")
-        duplicates = sorted({column for column in v if v.count(column) > 1})
-        if duplicates:
-            raise ValueError(f"Duplicate replace_key columns: {', '.join(duplicates)}")
-        return v
-
     def validate_references(
         self,
         resolver: ContractResolver,
@@ -211,7 +213,7 @@ class SubmissionContract(CrossContract):
                     f"Target '{target.name}': unknown contract '{target.contract}'."
                 )
                 continue
-            invalid = []
+            invalid: list[str] = []
             for column in key_columns:
                 field = target_contract.tableschema.get(column)
                 if field is None or not field.constraints.required:
