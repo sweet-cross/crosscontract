@@ -188,10 +188,11 @@ class SubmissionContract(CrossContract):
         """Validate the contracts the targets name against the replace key.
 
         Checks that each target's contract resolves and, where `replace_key`
-        names columns, that the contract declares every one of them as a
-        required field. A column that is absent, or present but optional,
-        leaves the replace unable to identify the rows it must remove. The
-        contract's type is not checked and no stored data is read.
+        names columns, that the contract declares every one of them. A column
+        the contract does not declare never reaches the target, leaving the
+        replace unable to identify the rows it must remove. Whether the column
+        is required is not checked, nor is the contract's type, and no stored
+        data is read.
 
         Args:
             resolver (ContractResolver): Lookup for the target contracts by name.
@@ -213,16 +214,16 @@ class SubmissionContract(CrossContract):
                     f"Target '{target.name}': unknown contract '{target.contract}'."
                 )
                 continue
-            invalid: list[str] = []
-            for column in key_columns:
-                field = target_contract.tableschema.get(column)
-                if field is None or not field.constraints.required:
-                    invalid.append(column)
-            if invalid:
+            missing = [
+                column
+                for column in key_columns
+                if target_contract.tableschema.get(column) is None
+            ]
+            if missing:
                 errors.append(
-                    f"Target '{target.name}': contract '{target.contract}' must "
-                    f"declare the replace key column(s) "
-                    f"{', '.join(invalid)} as required fields."
+                    f"Target '{target.name}': contract '{target.contract}' does "
+                    f"not declare the replace key column(s) "
+                    f"{', '.join(missing)}."
                 )
         if errors:
             raise ValueError(

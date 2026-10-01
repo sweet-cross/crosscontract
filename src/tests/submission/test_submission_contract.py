@@ -329,7 +329,7 @@ class TestValidateReferencesReplaceKey:
     """
 
     def test_every_target_declares_the_key(self):
-        """Test that a key every target declares as required passes."""
+        """Test that a key every target declares passes."""
         contract = keyed_submission(["model_id"])
         resolver = resolver_for(
             contract_a=keyed_target("contract_a", "model_id"),
@@ -366,27 +366,22 @@ class TestValidateReferencesReplaceKey:
         assert "model_id" in message
         assert "'t_a'" not in message
 
-    def test_optional_column_is_reported(self):
+    def test_optional_column_is_accepted(self):
         """Test that a key column the target contract declares but does not
-        require is reported — a null key tuple makes the replace unreliable."""
+        require passes — only the column's presence is checked."""
         contract = keyed_submission(["model_id"])
         resolver = resolver_for(
             contract_a=keyed_target("contract_a", "model_id"),
             contract_b=keyed_target("contract_b", "model_id", required=False),
         )
-        with pytest.raises(ValueError) as exc_info:
-            contract.validate_references(resolver)
-        message = str(exc_info.value)
-        assert "'t_b'" in message
-        assert "model_id" in message
-        assert "'t_a'" not in message
+        contract.validate_references(resolver)
 
     def test_every_offending_target_is_reported(self):
         """Test that both offending targets appear, rather than only the first."""
         contract = keyed_submission(["model_id"])
         resolver = resolver_for(
             contract_a=keyed_target("contract_a"),
-            contract_b=keyed_target("contract_b", "model_id", required=False),
+            contract_b=keyed_target("contract_b"),
         )
         with pytest.raises(ValueError) as exc_info:
             contract.validate_references(resolver)

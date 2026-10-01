@@ -138,9 +138,9 @@ class CrossSubmitter:
                 with the failures.
             ValueError: One or more targets name a contract the resolver cannot
                 supply, or name one that does not declare every `replace_key`
-                column as a required field. Raised before step 1 and listing
-                every such target. Also raised in step 3 when the granularity
-                check meets a referenced dimension the resolver cannot supply.
+                column. Raised before step 1 and listing every such target.
+                Also raised in step 3 when the granularity check meets a
+                referenced dimension the resolver cannot supply.
             KeyError: A column named by a target's `filters` is absent from the
                 bundle. Step 1 only enforces the presence of columns whose field
                 is `required`, so an optional filter column can be missing by
