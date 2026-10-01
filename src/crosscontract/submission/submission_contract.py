@@ -7,7 +7,7 @@ and states how the extracted variables are validated.
 
 from typing import Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from crosscontract.contracts import ContractResolver, CrossContract
 
@@ -36,6 +36,11 @@ class SubmissionContract(CrossContract):
         project_name (str): The name of the project the submission belongs to.
         extraction (ExtractionInstructions): Instructions for extracting each
             variable from the submission file.
+        replace_key (list[str] | Literal["all"]): The columns whose values
+            identify the slice a resubmission replaces, or `all` to replace
+            everything previously submitted under this contract. Names columns
+            of the target contracts as they land after extraction, not of
+            `tableschema`.
     """
 
     contract_type: Literal["Submission"] = Field(  # type: ignore[assignment]
@@ -54,6 +59,44 @@ class SubmissionContract(CrossContract):
             "extracted from it."
         ),
     )
+
+    replace_key: list[str] | Literal["all"] = Field(
+        ...,
+        description=(
+            "The columns whose values identify the slice a resubmission replaces, "
+            "or `all` to replace everything previously submitted under this "
+            "contract. Names columns of the target contracts as they land after "
+            "extraction, not of `tableschema`. Example: with `['model_id']`, a "
+            "submission carrying `model_id=model_a` replaces the rows an earlier "
+            "submission delivered under that value."
+        ),
+    )
+
+    @field_validator("replace_key")
+    @classmethod
+    def _validate_replace_key(
+        cls, v: list[str] | Literal["all"]
+    ) -> list[str] | Literal["all"]:
+        """Check that a column list is non-empty and names each column once.
+
+        Args:
+            v (list[str] | Literal["all"]): The value to check. `all` passes
+                through unchecked.
+
+        Returns:
+            list[str] | Literal["all"]: The value, unchanged.
+
+        Raises:
+            ValueError: If the list is empty or repeats a column name.
+        """
+        if v == "all":
+            return v
+        if not v:
+            raise ValueError("replace_key must not be empty.")
+        duplicates = sorted({column for column in v if v.count(column) > 1})
+        if duplicates:
+            raise ValueError(f"Duplicate replace_key columns: {', '.join(duplicates)}")
+        return v
 
     @model_validator(mode="after")
     def _check_routing_column(self) -> Self:
@@ -142,10 +185,14 @@ class SubmissionContract(CrossContract):
         resolver: ContractResolver,
         enforce_star_schema: bool = True,
     ) -> None:
-        """Validate that the contract named by every target resolves.
+        """Validate the contracts the targets name against the replace key.
 
-        Only the existence of each contract is checked; its type and fields are
-        not, and no stored data is read.
+        Checks that each target's contract resolves and, where `replace_key`
+        names columns, that the contract declares every one of them. A column
+        the contract does not declare never reaches the target, leaving the
+        replace unable to identify the rows it must remove. Whether the column
+        is required is not checked, nor is the contract's type, and no stored
+        data is read.
 
         Args:
             resolver (ContractResolver): Lookup for the target contracts by name.
@@ -153,14 +200,30 @@ class SubmissionContract(CrossContract):
                 `True`.
 
         Raises:
-            ValueError: If one or more target contracts do not resolve. All
-                unresolved contracts are reported in a single exception.
+            ValueError: If one or more target contracts do not resolve, or do
+                not declare the replace key. All failures are reported in a
+                single exception.
         """
+        # `all` leaves nothing to check against the targets.
+        key_columns: list[str] = [] if self.replace_key == "all" else self.replace_key
         errors: list[str] = []
         for target in self.extraction.targets:
-            if resolver.resolve(target.contract) is None:
+            target_contract = resolver.resolve(target.contract)
+            if target_contract is None:
                 errors.append(
                     f"Target '{target.name}': unknown contract '{target.contract}'."
+                )
+                continue
+            missing = [
+                column
+                for column in key_columns
+                if target_contract.tableschema.get(column) is None
+            ]
+            if missing:
+                errors.append(
+                    f"Target '{target.name}': contract '{target.contract}' does "
+                    f"not declare the replace key column(s) "
+                    f"{', '.join(missing)}."
                 )
         if errors:
             raise ValueError(

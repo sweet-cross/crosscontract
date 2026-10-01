@@ -16,6 +16,9 @@ def contract() -> SubmissionContract:
         "title": "Test Submission",
         "description": "A submission contract whose targets get validated.",
         "project_name": "project1",
+        # `all` rather than a column list: the target contracts these tests
+        # resolve to need not declare a key column.
+        "replace_key": "all",
         "tableschema": {
             "fields": [
                 {

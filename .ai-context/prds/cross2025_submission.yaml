@@ -9,6 +9,12 @@ description: |
   scenario runs, and how each submitted variable is extracted into its own
   result contract.
 
+# One slice per model and scenario group: a resubmission replaces the rows an
+# earlier submission delivered under the same pair, in every target. Both
+# columns pass through extraction unrenamed, so the targets carry them as named
+# here.
+replace_key: [model, scenario_group]
+
 # ----------------------------------------------------------------------------
 #              THE SUBMISSION FILE
 # ----------------------------------------------------------------------------

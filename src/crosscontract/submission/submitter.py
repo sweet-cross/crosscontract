@@ -73,7 +73,8 @@ class CrossSubmitter:
     ) -> dict[str, pd.DataFrame]:
         """Validate a delivered bundle and everything extracted from it.
 
-        First checks that every target's contract exists, then runs three steps
+        First checks every target's contract — that it resolves, and that it
+        declares the submission contract's `replace_key` — then runs three steps
         in order, stopping at the first failure:
 
         1. the bundle against the submission contract's own `tableschema`,
@@ -136,9 +137,10 @@ class CrossSubmitter:
                 first, and the frames of those that passed are discarded along
                 with the failures.
             ValueError: One or more targets name a contract the resolver cannot
-                supply, raised before step 1 and listing every such target. Also
-                raised in step 3 when the granularity check meets a referenced
-                dimension the resolver cannot supply.
+                supply, or name one that does not declare every `replace_key`
+                column. Raised before step 1 and listing every such target.
+                Also raised in step 3 when the granularity check meets a
+                referenced dimension the resolver cannot supply.
             KeyError: A column named by a target's `filters` is absent from the
                 bundle. Step 1 only enforces the presence of columns whose field
                 is `required`, so an optional filter column can be missing by
@@ -148,7 +150,7 @@ class CrossSubmitter:
                 a contract or its stored data being unreadable surfaces here
                 rather than as a validation failure.
         """
-        # check that every target's contract exists before touching the bundle
+        # check every target's contract before touching the bundle
         contract.validate_references(self._resolver)
 
         # validate the full bundle
