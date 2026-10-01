@@ -15,6 +15,7 @@ valid_data = {
     "title": "Test Submission",
     "description": "A test submission contract.",
     "project_name": "project1",
+    "replace_key": "all",
     "tableschema": {
         "fields": [
             {
@@ -110,6 +111,86 @@ class TestSubmissionContract:
         ]
         with pytest.raises(ValueError, match="must not have foreign keys"):
             SubmissionContract.model_validate(invalid_data)
+
+
+class TestReplaceKey:
+    """The columns identifying the slice a resubmission replaces.
+
+    Required, so the destructive setting is never reached by omission: either a
+    list of target columns, or the literal `all` for the whole contract.
+    """
+
+    def test_list_of_columns(self):
+        """Test that a list of column names is accepted and kept as given."""
+        data = deepcopy(valid_data)
+        data["replace_key"] = ["model_id", "scenario"]
+        contract = SubmissionContract.model_validate(data)
+        assert contract.replace_key == ["model_id", "scenario"]
+
+    def test_all_literal(self):
+        """Test that the literal `all` is accepted."""
+        data = deepcopy(valid_data)
+        data["replace_key"] = "all"
+        contract = SubmissionContract.model_validate(data)
+        assert contract.replace_key == "all"
+
+    def test_missing_is_rejected(self):
+        """Test that omitting the field is a validation error rather than a
+        default."""
+        invalid_data = deepcopy(valid_data)
+        del invalid_data["replace_key"]
+        with pytest.raises(ValueError, match="replace_key"):
+            SubmissionContract.model_validate(invalid_data)
+
+    def test_none_is_rejected(self):
+        """Test that an explicit null is rejected — there is no "no key" value."""
+        invalid_data = deepcopy(valid_data)
+        invalid_data["replace_key"] = None
+        with pytest.raises(ValueError, match="replace_key"):
+            SubmissionContract.model_validate(invalid_data)
+
+    def test_empty_list_is_rejected(self):
+        """Test that an empty list is rejected, so `all` is the only way to say
+        "the whole contract"."""
+        invalid_data = deepcopy(valid_data)
+        invalid_data["replace_key"] = []
+        with pytest.raises(ValueError, match="replace_key"):
+            SubmissionContract.model_validate(invalid_data)
+
+    def test_duplicate_columns_are_rejected(self):
+        """Test that a repeated column name is rejected and named in the error."""
+        invalid_data = deepcopy(valid_data)
+        invalid_data["replace_key"] = ["model_id", "scenario", "model_id"]
+        with pytest.raises(ValueError, match="model_id"):
+            SubmissionContract.model_validate(invalid_data)
+
+    def test_bare_string_is_rejected(self):
+        """Test that a single column name as a string is rejected — only `all` is
+        accepted unlisted."""
+        invalid_data = deepcopy(valid_data)
+        invalid_data["replace_key"] = "model_id"
+        with pytest.raises(ValueError, match="replace_key"):
+            SubmissionContract.model_validate(invalid_data)
+
+    @pytest.mark.parametrize("replace_key", ["all", ["model_id"], ["model_id", "run"]])
+    def test_model_round_trip(self, replace_key):
+        """Test that both forms survive a dump and reload."""
+        data = deepcopy(valid_data)
+        data["replace_key"] = replace_key
+        contract = SubmissionContract.model_validate(data)
+        reloaded = SubmissionContract.model_validate(contract.model_dump(mode="json"))
+        assert reloaded.replace_key == replace_key
+        assert reloaded == contract
+
+    @pytest.mark.parametrize("replace_key", ["all", ["model_id"], ["model_id", "run"]])
+    def test_server_round_trip(self, replace_key):
+        """Test that both forms survive the server payload conversion."""
+        data = deepcopy(valid_data)
+        data["replace_key"] = replace_key
+        contract = SubmissionContract.model_validate(data)
+        payload = contract.to_server()
+        assert payload["replace_key"] == replace_key
+        assert SubmissionContract.from_server(payload) == contract
 
 
 class TestValidateReferences:

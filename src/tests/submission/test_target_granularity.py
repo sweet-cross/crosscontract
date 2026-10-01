@@ -74,6 +74,7 @@ def contract() -> SubmissionContract:
             "title": "Test Submission",
             "description": "A bundle whose target references a dimension.",
             "project_name": "project1",
+            "replace_key": "all",
             "tableschema": {
                 "fields": [
                     {

@@ -12,6 +12,7 @@ def contract() -> SubmissionContract:
         "title": "Test Submission",
         "description": "A submission contract carrying several targets.",
         "project_name": "project1",
+        "replace_key": "all",
         "tableschema": {
             "fields": [
                 {

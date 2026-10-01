@@ -7,7 +7,7 @@ and states how the extracted variables are validated.
 
 from typing import Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from crosscontract.contracts import ContractResolver, CrossContract
 
@@ -52,6 +52,17 @@ class SubmissionContract(CrossContract):
         description=(
             "Instructions for splitting the submission bundle into the datasets "
             "extracted from it."
+        ),
+    )
+
+    replace_key: list[str] | Literal["all"] = Field(
+        ...,
+        description=(
+            "The columns to identify which data are replaced by a new submission. "
+            "`all` to replace all data previously submitted under the submission "
+            "contract. Example: If replace_key is ['model_id'], and model A has "
+            "previously submitted data a new submission with model_id=modelA will "
+            "replace it."
         ),
     )
 
@@ -136,6 +147,18 @@ class SubmissionContract(CrossContract):
                 "their tableschema. They belong to the contracts the targets name"
             )
         return self
+
+    @field_validator("replace_key")
+    def _validate_replace_key(cls, v):
+        """Validate that the replace_key is not empty and does not
+        contain duplicate column names."""
+        if v == "all":
+            return v
+        if not v:
+            raise ValueError("replace_key must not be empty or None.")
+        if len(v) != len(set(v)):
+            raise ValueError("replace_key contains duplicate column names.")
+        return v
 
     def validate_references(
         self,
