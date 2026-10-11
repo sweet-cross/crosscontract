@@ -52,6 +52,10 @@ class TestExcelProcessor:
                 ]
             )
 
+    def test_duplicate_sheet_names_case_insensitive(self):
+        with pytest.raises(ValidationError, match="Duplicate sheet names.*costs"):
+            ExcelProcessor(sheets=[ExcelSheet(name="Costs"), ExcelSheet(name="costs")])
+
     def test_unique_sheet_names_accepted(self):
         processor = ExcelProcessor(sheets=[ExcelSheet(name="a"), ExcelSheet(name="b")])
         assert [s.name for s in processor.sheets] == ["a", "b"]

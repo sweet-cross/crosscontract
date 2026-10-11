@@ -104,7 +104,7 @@ class ExcelProcessor(BaseModel):
 
     @model_validator(mode="after")
     def _check_name_unique(self) -> Self:
-        """Check that each sheet name is unique in the sheets list.
+        """Check that each sheet name is unique in the sheets list, ignoring case.
 
         Returns:
             Self: The validated instance of ExcelProcessor.
@@ -112,7 +112,7 @@ class ExcelProcessor(BaseModel):
         Raises:
             ValueError: If a name is repeated in the sheets list.
         """
-        names = [sheet.name for sheet in self.sheets]
+        names = [sheet.name.lower() for sheet in self.sheets]
         duplicates = {name for name in names if names.count(name) > 1}
         if duplicates:
             raise ValueError(
