@@ -34,7 +34,11 @@ def _contract(*sheets: dict) -> SubmissionContract:
         "tableschema": {
             "fields": [
                 {"name": "region", "type": "string"},
-                {"name": "variable", "type": "string"},
+                {
+                    "name": "variable",
+                    "type": "string",
+                    "constraints": {"required": True},
+                },
                 {"name": "year", "type": "string"},
                 {"name": "value", "type": "number"},
             ]
@@ -83,7 +87,7 @@ def test_wide_sheet_melted():
     df = read_excel_bundle_bytes(_contract(WIDE_SHEET), _workbook(wide=WIDE))
     assert list(df.columns) == ["region", "variable", "year", "value"]
     assert len(df) == 4
-    assert df["year"].tolist() == [2020, 2020, 2021, 2021]
+    assert df["year"].tolist() == ["2020", "2020", "2021", "2021"]
     assert df["region"].tolist() == ["CH", "DE", "CH", "DE"]
     assert df["variable"].tolist() == ["gdp"] * 4
 
@@ -92,7 +96,7 @@ def test_wide_blank_cells_kept():
     df = read_excel_bundle_bytes(_contract(WIDE_SHEET), _workbook(wide=WIDE))
     assert df["value"].isna().sum() == 1
     row = df[df["value"].isna()].iloc[0]
-    assert (row["region"], row["year"]) == ("DE", 2020)
+    assert (row["region"], row["year"]) == ("DE", "2020")
 
 
 def test_unlisted_sheet_ignored():
