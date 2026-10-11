@@ -48,9 +48,9 @@ def read_excel_bundle_bytes(
     unchanged. In a wide sheet, the columns that are `tableschema` fields are kept
     as identifiers and every remaining column is melted into the `header_field` (the
     column header) and `value_field` (the cell) columns. Blank cells of a wide sheet
-    are kept as rows with a missing value.
-    The processed sheets are concatenated in the order they are listed. Header and
-    cell values are left as pandas reads them, and no values are validated.
+    are kept as rows with a missing value. The processed sheets are concatenated in
+    the order they are listed. Header and cell values are left as pandas reads them,
+    and no values are validated.
 
     Args:
         contract (SubmissionContract): The contract describing the bundle.
@@ -68,7 +68,7 @@ def read_excel_bundle_bytes(
     if contract.excel_processor is None:
         raise ValueError(f"Contract '{contract.name}' has no excel_processor.")
 
-    # Ensure at least one sheet is listed in the contract
+    # Ensure at least one listed sheet is in the workbook
     excel_file = pd.ExcelFile(BytesIO(data), engine="calamine")
     sheets = [
         sheet
