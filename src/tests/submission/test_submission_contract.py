@@ -161,7 +161,9 @@ class TestExcelProcessor:
 
     def test_server_round_trip_without_section(self):
         contract = SubmissionContract.model_validate(valid_data)
-        assert contract.to_server()["excel_processor"] is None
+        payload = contract.to_server()
+        assert payload["excel_processor"] is None
+        assert SubmissionContract.from_server(payload) == contract
 
 
 class TestReplaceKey:

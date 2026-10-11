@@ -43,8 +43,8 @@ class SubmissionContract(CrossContract):
             of the target contracts as they land after extraction, not of
             `tableschema`.
         excel_processor (ExcelProcessor | None): The sheets of an Excel bundle
-            and which of them are laid out wide. `None` if the submission is not
-            an Excel bundle.
+            and which of them are laid out wide. Required to deliver the bundle
+            as an Excel workbook; if `None`, only non-Excel bundles are accepted.
     """
 
     contract_type: Literal["Submission"] = Field(  # type: ignore[assignment]
@@ -80,7 +80,8 @@ class SubmissionContract(CrossContract):
         default=None,
         description=(
             "The sheets of an Excel bundle and which of them are laid out wide. "
-            "Omit it if the submission is not an Excel bundle."
+            "Required to deliver the bundle as an Excel workbook; without it, only "
+            "non-Excel bundles are accepted."
         ),
     )
 
