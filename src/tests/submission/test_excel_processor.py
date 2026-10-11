@@ -19,7 +19,47 @@ class TestWideLayout:
             WideLayout(header_field="year", value_field="year")
 
 
+class TestExcelSheet:
+    def test_long_sheet_without_description(self):
+        sheet = ExcelSheet(name="a")
+        assert sheet.description is None
+        assert sheet.wide is None
+
+    def test_long_sheet_with_description(self):
+        assert ExcelSheet(name="a", description="text").description == "text"
+
+    def test_wide_sheet(self):
+        sheet = ExcelSheet(
+            name="a", wide=WideLayout(header_field="year", value_field="value")
+        )
+        assert sheet.wide is not None
+
+    def test_empty_name_rejected(self):
+        with pytest.raises(ValidationError):
+            ExcelSheet(name="")
+
+
+class TestExtraKeys:
+    def test_wide_layout(self):
+        with pytest.raises(ValidationError, match="extra"):
+            WideLayout.model_validate(
+                {"header_field": "a", "value_field": "b", "other": 1}
+            )
+
+    def test_sheet(self):
+        with pytest.raises(ValidationError, match="extra"):
+            ExcelSheet.model_validate({"name": "a", "other": 1})
+
+    def test_processor(self):
+        with pytest.raises(ValidationError, match="extra"):
+            ExcelProcessor.model_validate({"sheets": [{"name": "a"}], "other": 1})
+
+
 class TestExcelProcessor:
+    def test_empty_sheets_rejected(self):
+        with pytest.raises(ValidationError):
+            ExcelProcessor(sheets=[])
+
     def test_valid_yaml_example(self):
         processor = ExcelProcessor.model_validate(
             {

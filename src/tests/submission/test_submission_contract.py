@@ -165,6 +165,18 @@ class TestExcelProcessor:
         assert payload["excel_processor"] is None
         assert SubmissionContract.from_server(payload) == contract
 
+    def test_server_round_trip_with_section(self):
+        contract = SubmissionContract.model_validate(
+            self._data(
+                {"name": "long"},
+                {
+                    "name": "wide",
+                    "wide": {"header_field": "variable", "value_field": "value"},
+                },
+            )
+        )
+        assert SubmissionContract.from_server(contract.to_server()) == contract
+
 
 class TestReplaceKey:
     """The columns identifying the slice a resubmission replaces.
@@ -487,6 +499,14 @@ class TestValidateReferencesReplaceKey:
 
 class TestRoundTrip:
     fn_yaml = Path(__file__).parent / "example_submission.yaml"
+
+    def test_example_excel_processor(self):
+        """Test that the example's long and wide sheets load."""
+        processor = SubmissionContract.from_file(self.fn_yaml).excel_processor
+        assert processor is not None
+        assert [s.name for s in processor.sheets] == ["results", "results_wide"]
+        assert processor.sheets[0].wide is None
+        assert processor.sheets[1].wide is not None
 
     def test_yaml_round_trip(self):
         """Test that a SubmissionContract can be serialized to YAML and then
