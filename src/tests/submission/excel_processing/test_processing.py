@@ -140,6 +140,12 @@ def test_header_named_like_header_field_is_melted():
     assert "year" in out["year"].tolist()
 
 
+def test_header_named_like_value_field_raises():
+    df = WIDE.assign(value=1)
+    with pytest.raises(ValueError, match="value_name"):
+        read_excel_bundle_bytes(_contract(WIDE_SHEET), _workbook(wide=df))
+
+
 def test_misspelled_id_column_becomes_value_var():
     df = WIDE.rename(columns={"region": "region "})
     out = read_excel_bundle_bytes(_contract(WIDE_SHEET), _workbook(wide=df))
