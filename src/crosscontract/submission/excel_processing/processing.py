@@ -43,14 +43,15 @@ def read_excel_bundle_bytes(
 
     The sheets listed in `contract.excel_processor` are read by exact name; listed
     sheets missing from the workbook are skipped and other sheets in the workbook
-    are ignored. In every sheet, rows that are entirely blank are dropped, and so are
-    columns with a blank header that hold no data. A long sheet is then taken
-    unchanged. In a wide sheet, the columns that are `tableschema` fields are kept
-    as identifiers and every remaining column is melted into the `header_field` (the
-    column header) and `value_field` (the cell) columns. Blank cells of a wide sheet
-    are kept as rows with a missing value. The processed sheets are concatenated in
-    the order they are listed. Header and cell values are left as pandas reads them,
-    and no values are validated.
+    are ignored. The first row of every sheet holds the column headers. In every
+    sheet, rows that are entirely blank are dropped, and so are columns with a blank
+    header that hold no data. A long sheet is then taken unchanged. In a wide sheet,
+    the columns that are `tableschema` fields are kept as identifiers and every
+    remaining column is melted into the `header_field` (the column header) and
+    `value_field` (the cell) columns. Blank cells of a wide sheet are kept as rows
+    with a missing value. The processed sheets are concatenated in the order they
+    are listed. Header and cell values are left as pandas reads them, and no values
+    are validated.
 
     Args:
         contract (SubmissionContract): The contract describing the bundle.
@@ -64,6 +65,8 @@ def read_excel_bundle_bytes(
         ValueError: If none of the listed sheets is in the workbook.
         ValueError: If a column with a blank header holds data.
         ValueError: If a wide sheet has a column named like its `value_field`.
+        python_calamine.CalamineError: If `data` cannot be read as an Excel
+            workbook.
     """
     if contract.excel_processor is None:
         raise ValueError(f"Contract '{contract.name}' has no excel_processor.")
@@ -96,8 +99,7 @@ def read_excel_bundle_bytes(
             id_vars = [
                 col
                 for col in df.columns
-                if col in field_names
-                and col not in (sheet.wide.header_field, sheet.wide.value_field)
+                if col in field_names and col != sheet.wide.header_field
             ]
             df = df.melt(
                 id_vars=id_vars,
