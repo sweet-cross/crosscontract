@@ -7,5 +7,5 @@
 set -euo pipefail
 
 uv venv .venv-lowest --python 3.11 --clear
-uv pip install --python .venv-lowest/bin/python --resolution lowest-direct -e . --group dev
+uv pip install --python .venv-lowest/bin/python --resolution lowest-direct -e . --group test
 .venv-lowest/bin/python -m pytest "$@"
