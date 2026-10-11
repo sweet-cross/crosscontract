@@ -113,6 +113,57 @@ class TestSubmissionContract:
             SubmissionContract.model_validate(invalid_data)
 
 
+class TestExcelProcessor:
+    @staticmethod
+    def _data(*sheets: dict) -> dict:
+        data = deepcopy(valid_data)
+        data["excel_processor"] = {"sheets": list(sheets)}
+        return data
+
+    def test_section_is_optional(self):
+        assert SubmissionContract.model_validate(valid_data).excel_processor is None
+
+    def test_wide_fields_in_tableschema(self):
+        contract = SubmissionContract.model_validate(
+            self._data(
+                {"name": "long"},
+                {
+                    "name": "wide",
+                    "wide": {"header_field": "variable", "value_field": "value"},
+                },
+            )
+        )
+        assert contract.excel_processor is not None
+        assert len(contract.excel_processor.sheets) == 2
+
+    def test_long_sheet_is_not_checked(self):
+        SubmissionContract.model_validate(self._data({"name": "long"}))
+
+    @pytest.mark.parametrize(
+        ("header_field", "value_field", "unknown"),
+        [
+            ("nope", "value", "nope"),
+            ("variable", "nope", "nope"),
+            ("nope_a", "nope_b", "nope_a, nope_b"),
+        ],
+    )
+    def test_unknown_wide_field_names_sheet_and_field(
+        self, header_field, value_field, unknown
+    ):
+        data = self._data(
+            {
+                "name": "costs",
+                "wide": {"header_field": header_field, "value_field": value_field},
+            }
+        )
+        with pytest.raises(ValueError, match=f"Sheet: costs: Wide fields {unknown}"):
+            SubmissionContract.model_validate(data)
+
+    def test_server_round_trip_without_section(self):
+        contract = SubmissionContract.model_validate(valid_data)
+        assert contract.to_server()["excel_processor"] is None
+
+
 class TestReplaceKey:
     """The columns identifying the slice a resubmission replaces.
 

@@ -11,6 +11,7 @@ from pydantic import Field, field_validator, model_validator
 
 from crosscontract.contracts import ContractResolver, CrossContract
 
+from .excel_processor import ExcelProcessor
 from .extraction import ExtractionInstructions
 
 
@@ -41,6 +42,9 @@ class SubmissionContract(CrossContract):
             everything previously submitted under this contract. Names columns
             of the target contracts as they land after extraction, not of
             `tableschema`.
+        excel_processor (ExcelProcessor | None): The sheets of an Excel bundle
+            and which of them are laid out wide. `None` if the submission is not
+            an Excel bundle.
     """
 
     contract_type: Literal["Submission"] = Field(  # type: ignore[assignment]
@@ -69,6 +73,14 @@ class SubmissionContract(CrossContract):
             "extraction, not of `tableschema`. Example: with `['model_id']`, a "
             "submission carrying `model_id=model_a` replaces the rows an earlier "
             "submission delivered under that value."
+        ),
+    )
+
+    excel_processor: ExcelProcessor | None = Field(
+        default=None,
+        description=(
+            "The sheets of an Excel bundle and which of them are laid out wide. "
+            "Omit it if the submission is not an Excel bundle."
         ),
     )
 
@@ -142,6 +154,32 @@ class SubmissionContract(CrossContract):
             if not_valid:
                 raise ValueError(
                     f"Target: {target.name}: Filter columns "
+                    f"{', '.join(sorted(not_valid))} do not exist in the tableschema."
+                )
+        return self
+
+    @model_validator(mode="after")
+    def _check_wide_fields(self) -> Self:
+        """Check that the fields of every wide sheet name fields in the tableschema.
+
+        Returns:
+            Self: The validated SubmissionContract instance.
+
+        Raises:
+            ValueError: If a wide sheet's `header_field` or `value_field` is absent
+                from the tableschema.
+        """
+        if self.excel_processor is None:
+            return self
+        field_set = set(self.tableschema.field_names)
+        for sheet in self.excel_processor.sheets:
+            if sheet.wide is None:
+                continue
+            used = {sheet.wide.header_field, sheet.wide.value_field}
+            not_valid = used - field_set
+            if not_valid:
+                raise ValueError(
+                    f"Sheet: {sheet.name}: Wide fields "
                     f"{', '.join(sorted(not_valid))} do not exist in the tableschema."
                 )
         return self
