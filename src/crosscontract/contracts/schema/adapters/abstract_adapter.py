@@ -25,5 +25,14 @@ class AbstractAdapter(ABC):
     def convert_schema(cls, schema: "TableSchema", *args, **kwargs) -> Any:
         """Convenience method to convert a TableSchema without needing to instantiate
         the adapter. Needs to be implemented by each adapter class to force
-        documentation of the expected arguments."""
+        documentation of the expected arguments.
+
+        Args:
+            schema (TableSchema): The schema to convert.
+            *args: Positional arguments passed on to the conversion.
+            **kwargs: Keyword arguments passed on to the conversion.
+
+        Returns:
+            Any: The schema in the adapter's target format.
+        """
         pass
