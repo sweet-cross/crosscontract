@@ -4,7 +4,6 @@ import pandas as pd
 import pytest
 import yaml
 from pydantic import ConfigDict
-from sqlalchemy import MetaData, Table
 
 from crosscontract.contracts import TableSchema
 from crosscontract.contracts.schema.fields import IntegerField, NumberField, StringField
@@ -191,46 +190,6 @@ class TestValidation:
                     "fields": field_data,
                 }
             )
-
-
-class TestToSaTable:
-    def test_to_sa_table(self):
-        contract = TableSchema.model_validate(
-            {
-                "primaryKey": ["id"],
-                "fields": field_data,
-            }
-        )
-
-        metadata = MetaData()
-        table = contract.to_sa_table(
-            table_name="test_table",
-            metadata=metadata,
-        )
-
-        assert isinstance(table, Table)
-        assert "id" in table.c
-        assert "name" in table.c
-        assert "ref_id" in table.c
-        assert table.name == "test_table"
-        assert table.primary_key.columns.keys() == ["_id"]
-
-    def test_to_sa_table_defaults(self):
-        contract = TableSchema.model_validate(
-            {
-                "primaryKey": ["id"],
-                "fields": field_data,
-            }
-        )
-
-        table = contract.to_sa_table()
-
-        assert isinstance(table, Table)
-        assert "id" in table.c
-        assert "name" in table.c
-        assert "ref_id" in table.c
-        assert table.name == "dct_contract_table"
-        assert table.primary_key.columns.keys() == ["_id"]
 
 
 class TestToPanderaSchema:

@@ -94,7 +94,7 @@ The public surface — `contracts/`, `crossclient/`, and `registry/` — is re-e
 - `ContractResolver` protocol: used to look up contracts by name during `validate_references()`.
 
 **`contracts/schema/`** — The schema classes:
-- `TableSchema`: base Frictionless-compatible schema with `fields`, `primaryKey`, `foreignKeys`, and optional `fieldDescriptors`. Supports `__getitem__` (by index or name) and provides conversion helpers: `to_pandera_schema()`, `to_pydantic_model()`, `to_sa_table()`, `validate_dataframe()`.
+- `TableSchema`: base Frictionless-compatible schema with `fields`, `primaryKey`, `foreignKeys`, and optional `fieldDescriptors`. Supports `__getitem__` (by index or name) and provides conversion helpers: `to_pandera_schema()`, `to_pydantic_model()`, `validate_dataframe()`.
 - Discriminated union via `table_type`: `TableSchema` ("General") | `DimensionSchema` ("Dimension") | `ValueVariableSchema` ("ValueVariable") | `FlexibleDimensionSchema` ("FlexibleDimension").
 - `BaseDimensionSchema` (abstract): enforces self-only foreign keys and a required primary key. Subclassed by `DimensionSchema` and `FlexibleDimensionSchema`.
 - `DimensionSchema`: rigid template (id, level, parent_id, label, description). Rejects any user-provided fields.
@@ -105,7 +105,6 @@ The public surface — `contracts/`, `crossclient/`, and `registry/` — is re-e
 **`contracts/schema/adapters/`** — Converts `TableSchema` to external formats:
 - `pandera_pandas/`: `PanderaAdapter` builds a `pandera.DataFrameSchema` in two halves — `create_base_schema()` for the columns, `_derive_checks()` for the checks the schema requires of its own data. `field_convertors.py` holds one converter class per field type behind the `get_field_converter` factory. Reached publicly through `TableSchema.to_pandera_schema()`; the adapter class itself is not re-exported from `contracts/schema/`.
 - `PydanticAdapter`: generates a dynamic Pydantic model class.
-- `SQLAlchemyPostgresAdapter`: generates SQLAlchemy `Table` columns.
 
 **`contracts/schema/validation/`** — Runs a schema against a DataFrame:
 - `checks/`: a check is a pydantic model holding what it needs, callable as `__call__(df) -> pd.Series`, rendering itself via `to_pandera() -> list[pa.Check]`. `base_checks.py` (`IsUnique`, `IsIn`, `IsNotIn`, `IsNotNull`, `IsSubsetOf`) names mechanics rather than meanings — what a rule means on a given schema is a `label` supplied at derivation. `reference_checks.py` (`IsValidPrimaryKey`) and `dimension_checks.py` (`IsValidCrossDimension`) are composites that unpack into one pandera check per sub-rule, so a report names the rule that broke.
