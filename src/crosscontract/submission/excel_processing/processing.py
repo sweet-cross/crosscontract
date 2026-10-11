@@ -8,6 +8,34 @@ if TYPE_CHECKING:
     from ..submission_contract import SubmissionContract
 
 
+def _clean_sheet(df: pd.DataFrame, sheet_name: str) -> pd.DataFrame:
+    """Drop the empty rows and the empty columns without a header from a sheet.
+
+    pandas names a column with a blank header `Unnamed: N`. Such a column is
+    dropped if it holds no data once the empty rows are gone.
+
+    Args:
+        df (pd.DataFrame): The sheet as pandas reads it.
+        sheet_name (str): The name of the sheet, used in the error message.
+
+    Returns:
+        pd.DataFrame: The sheet without empty rows and without columns that have a
+            blank header.
+
+    Raises:
+        ValueError: If a column with a blank header holds data.
+    """
+    df = df.dropna(how="all")
+    unnamed = [col for col in df.columns if str(col).startswith("Unnamed: ")]
+    with_data = [str(col) for col in unnamed if df[col].notna().any()]
+    if with_data:
+        raise ValueError(
+            f"Sheet '{sheet_name}': columns without a header hold data: "
+            f"{', '.join(with_data)}"
+        )
+    return df.drop(columns=unnamed)
+
+
 def read_excel_bundle_bytes(
     contract: "SubmissionContract", data: bytes
 ) -> pd.DataFrame:
@@ -15,13 +43,14 @@ def read_excel_bundle_bytes(
 
     The sheets listed in `contract.excel_processor` are read by exact name; listed
     sheets missing from the workbook are skipped and other sheets in the workbook
-    are ignored. A long sheet is taken unchanged. In a wide
-    sheet, the columns that are `tableschema` fields are kept as identifiers and
-    every remaining column is melted into the `header_field` (the column header)
-    and `value_field` (the cell) columns. Blank cells of a wide sheet are kept as
-    rows with a missing value. The processed sheets are concatenated in the order
-    they are listed. Header and cell values are left as pandas reads them, and no
-    values are validated.
+    are ignored. In every sheet, rows that are entirely blank are dropped, and so are
+    columns with a blank header that hold no data. A long sheet is then taken
+    unchanged. In a wide sheet, the columns that are `tableschema` fields are kept
+    as identifiers and every remaining column is melted into the `header_field` (the
+    column header) and `value_field` (the cell) columns. Blank cells of a wide sheet
+    are kept as rows with a missing value.
+    The processed sheets are concatenated in the order they are listed. Header and
+    cell values are left as pandas reads them, and no values are validated.
 
     Args:
         contract (SubmissionContract): The contract describing the bundle.
@@ -33,7 +62,7 @@ def read_excel_bundle_bytes(
     Raises:
         ValueError: If the contract has no `excel_processor`.
         ValueError: If none of the listed sheets is in the workbook.
-        ValueError: If the processed sheets contain no data.
+        ValueError: If a column with a blank header holds data.
         ValueError: If a wide sheet has a column named like its `value_field`.
     """
     if contract.excel_processor is None:
@@ -56,7 +85,7 @@ def read_excel_bundle_bytes(
     # extract the frames from each sheet
     frames = []
     for sheet in sheets:
-        df = workbook[sheet.name]
+        df = _clean_sheet(workbook[sheet.name], sheet.name)
         if sheet.wide is not None:
             # if wide layout melt the dataframe to long format
             id_vars = [
@@ -65,18 +94,13 @@ def read_excel_bundle_bytes(
                 if col in field_names
                 and col not in (sheet.wide.header_field, sheet.wide.value_field)
             ]
-            value_vars = [col for col in df.columns if col not in id_vars]
             df = df.melt(
                 id_vars=id_vars,
-                value_vars=value_vars,
                 var_name=sheet.wide.header_field,
                 value_name=sheet.wide.value_field,
             )
         frames.append(df)
-    bundle = pd.concat(frames, ignore_index=True)
-    if bundle.empty:
-        raise ValueError("The listed sheets of the workbook contain no data.")
-    return bundle
+    return pd.concat(frames, ignore_index=True)
 
 
 def read_excel_bundle(

@@ -1,4 +1,4 @@
-# WP3 — `read_excel_bundle`
+# WP3 — `read_excel_bundle_bytes` / `read_excel_bundle`
 
 ## Context
 **Part of issue:** [sweet-cross/crosscontract#112](https://github.com/sweet-cross/crosscontract/issues/112) — WP3
@@ -9,12 +9,22 @@ call it, so the logic lives only here. The reader does **not** validate values. 
 reshapes them; validation is a separate step elsewhere.
 
 ## Acceptance Criteria
-- [ ] `read_excel_bundle(contract: SubmissionContract, data: bytes) -> pd.DataFrame` is
-      a free function in `processing.py`. It is not a method on the spec models.
+- [ ] `read_excel_bundle_bytes(contract: SubmissionContract, data: bytes) -> pd.DataFrame`
+      is a free function in `processing.py`. It is not a method on the spec models.
+- [ ] `read_excel_bundle(contract, filename: str | Path)` reads the file and delegates to
+      `read_excel_bundle_bytes`.
 - [ ] The workbook is read with `pd.read_excel(BytesIO(data), sheet_name=None,
       engine="calamine")`.
 - [ ] Sheets in the workbook that `excel_processor.sheets` does not list are ignored.
-- [ ] A long sheet (no `wide`) is taken unchanged.
+      Listed sheets missing from the workbook are skipped, since providers may submit
+      only part of the sheets.
+- [ ] Each listed sheet is cleaned first by a small helper `_clean_sheet(df, sheet_name)`:
+  - rows that are entirely blank are dropped;
+  - then columns whose name starts with `"Unnamed: "` (a blank header) are dropped if
+    they hold no data;
+  - if such a column holds data, a `ValueError` names the sheet and the column.
+  Columns with a real header are kept even when empty.
+- [ ] A long sheet (no `wide`) is otherwise taken unchanged.
 - [ ] A wide sheet is melted with:
   - `id_vars` = the sheet's columns that are `tableschema` fields;
   - `value_vars` = every remaining column;
@@ -27,13 +37,15 @@ reshapes them; validation is a separate step elsewhere.
       they are listed (`ignore_index=True`).
 - [ ] Raises `ValueError` when:
   - the contract has no `excel_processor`;
-  - a listed sheet is missing from the workbook (the error names the sheet);
-  - a wide sheet already has a `header_field` or `value_field` column (the error names
-    the sheet and the column).
-- [ ] The function is exported from `crosscontract.submission` (`__init__.py` and
+  - none of the listed sheets is in the workbook;
+  - a column with a blank header holds data;
+  - a wide sheet has a column header equal to `value_field` (pandas' `melt` error).
+- [ ] A wide sheet's column header equal to `header_field` is a value of `header_field`:
+      it is excluded from `id_vars` and melted like any other header.
+- [ ] Both functions are exported from `crosscontract.submission` (`__init__.py` and
       `__all__`).
 - [ ] The Google-style docstring states the expected workbook layout (long vs wide,
-      unlisted sheets ignored, blanks kept) and every error in `Raises:`. It contains no
+      unlisted sheets ignored, empty rows and empty headerless columns dropped, blanks kept) and every error in `Raises:`. It contains no
       design rationale.
 
 ## Implementation Details

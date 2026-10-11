@@ -1,6 +1,7 @@
 from io import BytesIO
 from pathlib import Path
 
+import openpyxl
 import pandas as pd
 import pytest
 
@@ -10,6 +11,7 @@ from crosscontract.submission import (
     read_excel_bundle,
     read_excel_bundle_bytes,
 )
+from crosscontract.submission.excel_processing.processing import _clean_sheet
 
 LONG = pd.DataFrame(
     {"region": ["CH", "DE"], "variable": ["pop", "pop"], "value": [1.5, 2.5]}
@@ -131,12 +133,6 @@ def test_no_listed_sheet_in_workbook():
         read_excel_bundle_bytes(_contract(WIDE_SHEET), _workbook(long=LONG))
 
 
-def test_listed_sheets_empty():
-    empty = LONG.iloc[0:0]
-    with pytest.raises(ValueError, match="contain no data"):
-        read_excel_bundle_bytes(_contract(LONG_SHEET), _workbook(long=empty))
-
-
 def test_header_named_like_header_field_is_melted():
     df = WIDE.assign(year=1)
     out = read_excel_bundle_bytes(_contract(WIDE_SHEET), _workbook(wide=df))
@@ -162,3 +158,47 @@ def test_read_excel_bundle_from_file(tmp_path: Path):
 def test_read_excel_bundle_missing_file(tmp_path: Path):
     with pytest.raises(FileNotFoundError):
         read_excel_bundle(_contract(LONG_SHEET), tmp_path / "missing.xlsx")
+
+
+class TestCleanSheet:
+    def test_clean_sheet_unchanged(self):
+        pd.testing.assert_frame_equal(_clean_sheet(LONG, "s"), LONG)
+
+    def test_empty_rows_dropped(self):
+        df = pd.DataFrame({"region": ["CH", None, "DE"], "value": [1.0, None, None]})
+        out = _clean_sheet(df, "s")
+        pd.testing.assert_frame_equal(out, df.iloc[[0, 2]])
+
+    def test_empty_unnamed_columns_dropped(self):
+        df = LONG.assign(**{"Unnamed: 3": None, "Unnamed: 4": float("nan")})
+        pd.testing.assert_frame_equal(_clean_sheet(df, "s"), LONG)
+
+    def test_empty_named_column_kept(self):
+        df = LONG.assign(comment=None)
+        pd.testing.assert_frame_equal(_clean_sheet(df, "s"), df)
+
+    def test_unnamed_column_with_data_raises(self):
+        df = LONG.assign(**{"Unnamed: 3": ["x", None], "Unnamed: 4": None})
+        with pytest.raises(ValueError, match="Sheet 's'.*Unnamed: 3$"):
+            _clean_sheet(df, "s")
+
+    def test_matcher_requires_blank(self):
+        df = LONG.assign(**{"Unnamed:3": None})
+        pd.testing.assert_frame_equal(_clean_sheet(df, "s"), df)
+
+
+def test_wide_sheet_cleaned_before_melting():
+    workbook = openpyxl.Workbook()
+    ws = workbook.active
+    ws.title = "wide"
+    ws.append(["region", "variable", None, "2020"])
+    ws.append(["CH", "gdp", None, 1.0])
+    ws.append([None, None, None, None])
+    ws.append(["DE", "gdp", None, 2.0])
+    buffer = BytesIO()
+    workbook.save(buffer)
+
+    df = read_excel_bundle_bytes(_contract(WIDE_SHEET), buffer.getvalue())
+    assert list(df.columns) == ["region", "variable", "year", "value"]
+    assert df["region"].tolist() == ["CH", "DE"]
+    assert df["year"].tolist() == ["2020", "2020"]
