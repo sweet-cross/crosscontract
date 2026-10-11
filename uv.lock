@@ -464,7 +464,6 @@ version = "0.26.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
-    { name = "jsonschema" },
     { name = "pandas" },
     { name = "pandera", extra = ["pandas"] },
     { name = "pyarrow" },
@@ -506,7 +505,6 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "pandera", extras = ["pandas"], specifier = ">=0.33.1" },
     { name = "pyarrow", specifier = ">=22.0.0" },
