@@ -87,6 +87,11 @@ def read_excel_bundle_bytes(
     for sheet in sheets:
         df = _clean_sheet(workbook[sheet.name], sheet.name)
         if sheet.wide is not None:
+            if sheet.wide.value_field in df.columns:
+                raise ValueError(
+                    f"Sheet '{sheet.name}': column '{sheet.wide.value_field}' "
+                    "is named like the value_field."
+                )
             # if wide layout melt the dataframe to long format
             id_vars = [
                 col

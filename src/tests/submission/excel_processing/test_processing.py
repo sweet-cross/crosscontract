@@ -186,10 +186,21 @@ def test_header_named_like_header_field_is_melted():
 
 
 def test_header_named_like_value_field_raises():
-    """Test that a wide header equal to `value_field` raises pandas' melt error."""
+    """Test that a wide header equal to `value_field` raises, naming the
+    sheet."""
     df = WIDE.assign(value=1)
-    with pytest.raises(ValueError, match="value_name"):
+    with pytest.raises(ValueError, match="Sheet 'wide'.*'value'"):
         read_excel_bundle_bytes(_contract(WIDE_SHEET), _workbook(wide=df))
+
+
+def test_duplicate_wide_headers_renamed_by_pandas():
+    """Test that repeated headers of a wide sheet come back as pandas renames
+    them."""
+    wide = pd.DataFrame(
+        [["CH", "gdp", 1.0, 2.0]], columns=["region", "variable", "2020", "2020"]
+    )
+    df = read_excel_bundle_bytes(_contract(WIDE_SHEET), _workbook(wide=wide))
+    assert df["year"].tolist() == ["2020", "2020.1"]
 
 
 def test_misspelled_id_column_becomes_value_var():
