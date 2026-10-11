@@ -12,7 +12,6 @@ dependencies = [
     "pydantic[email]>=2.12.5",
     "python-calamine>=0.8.3",
     "pyyaml>=6.0.3",
-    "sqlalchemy>=2.0.45",
 ]
 
 [dependency-groups]
