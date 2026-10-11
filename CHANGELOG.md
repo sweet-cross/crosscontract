@@ -1,5 +1,177 @@
 # CHANGELOG
 
+## v0.27.0 (2026-10-11)
+
+### Features
+
+
+- **add an Excel reader that melts a workbook into the long submission bundle** ([`e629c49`](https://github.com/sweet-cross/crosscontract/commit/e629c498605f42726c5d2a6d269023f88985781c))
+
+  ## Summary #111 lets a `SubmissionContract` declare an Excel bundle's sheets and which of them are laid out wide (`excel_processor`). This branch adds the reader that carries that declaration out. It turns a workbook into the one long `pd.DataFrame` the contract's `tableschema` describes, so the client and `cross_back` go through the same conversion. The reader is a pure conversion: it reshapes, it does not validate values. Closes #112.
+
+  ## Changes
+  - **Restructure:** `submission/excel_processor.py` becomes the package `submission/excel_processing/`.
+  - `specs.py` holds `ExcelProcessor` / `ExcelSheet` / `WideLayout`, moved unchanged.
+    - `processing.py` holds the reader.
+    - `SubmissionContract` and the tests import from the new package.
+  - **`read_excel_bundle_bytes(contract, data: bytes)`:** the core, for `cross_back`, which receives uploads as bytes.
+    - Reads with pandas' `calamine` engine and parses the workbook once.
+  - Listed sheets are matched by exact name. A listed sheet missing from the workbook is skipped, because providers may submit only part of the sheets. Unlisted sheets are ignored.
+    - The first row of every sheet holds the column headers.
+    - Each sheet is cleaned first by `_clean_sheet`:
+      - rows that are entirely blank are dropped;
+  - columns with a blank header (`Unnamed: N`) are dropped if they hold no data, and raise if they do.
+    - A long sheet is then taken unchanged.
+    - A wide sheet is melted:
+  - `id_vars` = the sheet's columns that are `tableschema` fields, excluding `header_field`;
+  - every other column becomes a `header_field` value, and its cells become `value_field` values.
+  - Blank cells are kept as rows with a missing value, and headers are not converted.
+    - Sheets are concatenated in the order the contract lists them.
+    - Raises `ValueError` when:
+      - the contract has no `excel_processor`;
+      - none of the listed sheets is in the workbook;
+      - a column with a blank header holds data;
+  - a wide sheet has a header equal to `value_field` (checked before melting, so the error names the sheet).
+  - Raises `python_calamine.CalamineError` when the bytes cannot be read as an Excel workbook.
+  - **`read_excel_bundle(contract, filename)`:** a thin path wrapper for the client that reads the file and delegates to the bytes reader.
+  - Both readers are exported from `crosscontract.submission`.
+  - **Dependencies:**
+    - `python-calamine` is added as a **core** dependency.
+  - `openpyxl` is added to the `test` group only, to build test workbooks.
+  - **Docs and context:**
+    - CLAUDE.md describes `excel_processing/`.
+  - The task files for this issue are in `.ai-context/issues/excel-reader/`, and the finished #111 task files are removed.
+
+  ## Testing
+  - New `test_processing.py`. Workbooks are built in memory, and the tests cover:
+    - a long sheet passing through unchanged;
+  - a full-frame check of a wide melt, so each cell lands in the row of its id values and header, blanks included;
+    - int headers left as `int`;
+  - unlisted sheets ignored, missing sheets skipped, exact (case-sensitive) name matching;
+    - concatenation order and a fresh index;
+    - each error;
+  - a header equal to `header_field` being melted, not used as an id column;
+    - a misspelled id column becoming a header value;
+    - the path wrapper with `Path` and `str`, and a missing file.
+  - `_clean_sheet` is tested directly, plus an end-to-end wide workbook with a spacer column and an empty row.
+  - `test_specs.py`, the moved spec tests, now has docstrings.
+  - The test suite, mypy and ruff pass.
+
+  ## Notes for reviewer
+  - **This departs from the original issue in places.** The issue was updated to match:
+    - calamine is a core dependency, not an `openpyxl` extra;
+  - there is a path wrapper, and the bytes core is `read_excel_bundle_bytes`;
+    - missing listed sheets are skipped instead of rejected;
+    - a wide header equal to `header_field` is valid data, not an error.
+  - **The import path changed.** `crosscontract.submission.excel_processor` (released in 0.26.0) is gone. The spec models are now under `crosscontract.submission.excel_processing`. If `cross_back` already imports from the old path, it needs updating when it bumps.
+  - **Silent skips are possible.** Exact name matching combined with skipping missing sheets means a tab named `Costs` when the contract lists `costs` is skipped without an error. This is deliberate and covered by a test.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  ---------
+
+  Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+
+
+
+## v0.26.1 (2026-10-11)
+
+### Bug fixes
+
+
+- **declare pyyaml and drop ruff, pre-commit and jsonschema from runtime dependencies** ([`f6f1c33`](https://github.com/sweet-cross/crosscontract/commit/f6f1c33d4f881eeeede93c7ba9c50e033c922d11))
+
+  ## Summary `ruff` and `pre-commit` were listed as runtime dependencies, so every user install pulled in the dev tooling. This branch moves them to the `dev` group. That change exposed a hidden bug: `crosscontract._helpers._io` imports `yaml`, but `pyyaml` was never declared. Users only had it because `pre-commit` depends on it. `pyyaml` is now a runtime dependency. `jsonschema` is removed as well: nothing in `src/` has imported it since #68, yet every install pulled it in along with `attrs`, `referencing`, `rpds-py` and `jsonschema-specifications`. Anyone who relied on `crosscontract` to install `ruff`, `pre-commit` or `jsonschema` must now install them directly. CI also changes so that the test jobs install the package the way a user would, which means a missing runtime dependency fails the tests instead of being covered up.
+
+  ## Changes
+  - **Runtime dependencies**
+    - Removed `ruff`, `pre-commit` and `jsonschema`.
+    - Added `pyyaml>=6.0.3`.
+  - **Dependency groups**
+    - New `test` group: `pytest`, `respx`, `polyfactory`, `coverage`.
+  - `dev` includes `test` via `{include-group = "test"}` and now also holds `ruff` and `pre-commit`, so `uv sync --group dev` installs the same set as before.
+  - **CI test matrix** (`test_and_coverage.yml`)
+  - Each Python version gets a fresh venv and runs `uv pip install -e .
+  --group test`. This resolves from `pyproject.toml` instead of `uv.lock`, and installs no dev tooling that could supply a missing runtime dependency.
+  - Both `uv run` calls use `--no-sync`, so they don't sync the venv back to the lock.
+  - **Lowest-versions script** (`scripts/test_lowest_versions.sh`): installs `--group test` instead of `--group dev`, for the same reason.
+  - **`uv.lock`**: regenerated. `jsonschema` stays in the lock because the `dev` group's Jupyter packages depend on it.
+
+  ## Testing
+  - Locally, a fresh Python 3.11 venv with `uv pip install -e . --group test` installed 39 packages and ran the full suite: 1179 passed. The install resolved newer versions than the lock has (e.g. pandera 0.34.1, sqlalchemy 2.1.4, pyarrow 26), so it really did ignore the lock. This run predates the `jsonschema` removal.
+  - Not run: the updated CI workflow and `scripts/test_lowest_versions.sh`.
+
+  ## Notes for reviewer
+  - The `pre-commit` job still uses `uv sync`. It's now the only CI job that runs against `uv.lock`.
+  - `pythonpath = "src"` means tests import the source tree, not an installed wheel. CI now checks the declared dependencies, not what the built wheel contains.
+  - Follow-ups not done here:
+    - `numpy` is imported directly but only comes in through pandas.
+  - The header comment in `test_and_coverage.yml` still says "Python 3.12 and 3.13", but the matrix runs 3.11 to 3.15.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  ---------
+
+  Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+
+
+
+## v0.26.0 (2026-10-11)
+
+### Features
+
+
+- **add an excel_processor section to SubmissionContract** ([`a009abb`](https://github.com/sweet-cross/crosscontract/commit/a009abba7572c5fb690059c71677df5add838096))
+
+  ## Summary CROSS will accept Excel submission bundles in which a single workbook mixes long sheets with wide sheets (e.g. one column per year). The layout cannot be inferred from a Submission Contract's `tableschema`, so the contract now declares it: an optional `excel_processor` section lists the workbook's sheets by fixed name and marks each wide sheet with the field spread across its headers and the field held in its cells. This PR adds the declaration and its validation only. The reader that melts a workbook is #112.
+
+  Closes #111.
+
+  ## Changes
+  - **New models** in `submission/excel_processor.py`:
+    - `WideLayout(header_field, value_field)`: the two fields must differ.
+    - `ExcelSheet(name, description=None, wide=None)`:
+  - `name` is non-empty and not stripped, because it must match the workbook's sheet name exactly;
+      - a sheet without `wide` is long.
+    - `ExcelProcessor(sheets)`:
+      - at least one sheet;
+  - sheet names are unique case-insensitively, matching Excel, which cannot hold `Costs` and `costs` together.
+    - All three models reject unknown keys.
+  - **`SubmissionContract`:**
+    - new optional `excel_processor: ExcelProcessor | None = None`;
+  - new validator `_check_wide_fields`, which rejects a wide sheet whose `header_field` or `value_field` is not a `tableschema` field, naming the sheet and the unknown fields.
+  - **Backwards compatibility:** contracts without the section validate as before. `to_server()` is unchanged and now emits `excel_processor: null` for them, which is accepted because no contracts are stored server-side yet.
+  - **`CLAUDE.md`:** the `submission/` architecture section lists `excel_processor.py`.
+  - **Planning:** task files for the three work packages in `.ai-context/issues/excel-processor/`.
+
+  ## Testing
+  - New `test_excel_processor.py` covers:
+    - a valid example;
+    - long sheets with and without a description, and a wide sheet;
+  - rejected: equal header and value fields, an empty name, an empty `sheets` list, duplicate names (including names differing only in case), and unknown keys at each level.
+  - `test_submission_contract.py` covers:
+    - the section being optional;
+  - a wide sheet whose fields exist in the tableschema, alongside a long sheet;
+  - unknown header field, value field, or both, rejected with the sheet named;
+    - `from_server(to_server())` round trips with and without the section.
+  - `example_submission.yaml` now carries one long and one wide sheet, so the existing YAML round-trip test covers the section too. A new test checks that the example's sheets load.
+  - `ruff`, `mypy` and `pytest` pass.
+
+  ## Notes for reviewer
+  - The section's shape is the format `cross_back` and contract authors will write, so the naming and nesting are the part that is expensive to change later:
+  - `excel_processor` / `sheets` / `wide` / `header_field` / `value_field`;
+  - `wide` is its own model so the header and value fields are always declared together.
+  - Sheets are keyed by fixed name on purpose. Template sheet names become part of the contract.
+  - No reader, no `openpyxl` dependency and no docs here. The reader is #112, and the docs will be a separate issue covering the submission work as a whole.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  ---------
+
+  Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+
+
+
 ## v0.25.0 (2026-10-01)
 
 ### Features

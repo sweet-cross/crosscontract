@@ -1,32 +1,37 @@
 [project]
 name = "crosscontract"
-version = "0.25.0"
+version = "0.27.0"
 description = "Provides data contracts with frictionless schemas and client to interact with CROSS data platform.   "
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "httpx>=0.28.1",
-    "jsonschema>=4.26.0",
     "pandas>=2.3.3",
     "pandera[pandas]>=0.33.1",
-    "pre-commit>=4.5.1",
     "pyarrow>=22.0.0",
     "pydantic[email]>=2.12.5",
-    "ruff>=0.14.11",
+    "python-calamine>=0.8.3",
+    "pyyaml>=6.0.3",
     "sqlalchemy>=2.0.45",
 ]
 
 [dependency-groups]
-dev = [
+test = [
     "coverage>=7.13.1",
+    "openpyxl>=3.1.5",
+    "polyfactory>=3.2.0",
+    "pytest>=9.0.2",
+    "respx>=0.22.0",
+]
+dev = [
+    {include-group = "test"},
     "dotenv>=0.9.9",
     "jupyter>=1.1.1",
     "mypy>=1.19.1",
     "notebook>=7.5.1",
     "pandas-stubs>=3.0.5.260914",
-    "polyfactory>=3.2.0",
-    "pytest>=9.0.2",
-    "respx>=0.22.0",
+    "pre-commit>=4.5.1",
+    "ruff>=0.14.11",
     "types-pyyaml>=6.0.12.20250915",
 ]
 docs = [
