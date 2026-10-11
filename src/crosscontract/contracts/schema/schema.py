@@ -6,7 +6,6 @@ from typing import Annotated, Any, ClassVar, Literal, Self
 import pandas as pd
 import pandera.pandas as pa
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from sqlalchemy import MetaData, Table
 
 from ..._helpers import read_yaml_or_json_file
 from .adapters import PanderaAdapter
@@ -165,19 +164,6 @@ class TableSchema(BaseModel):
     def from_file(cls, file_path: str | Path) -> Self:
         data = read_yaml_or_json_file(file_path)
         return cls.model_validate(data)
-
-    def to_sa_table(
-        self, metadata: MetaData | None = None, table_name: str | None = None
-    ) -> Table:
-        from .adapters import SQLAlchemyPostgresAdapter
-
-        if metadata is None:
-            metadata = MetaData()
-        if table_name is None:
-            table_name = f"dct_{getattr(self, 'name', 'contract_table')}"
-        return SQLAlchemyPostgresAdapter.convert_schema(
-            self, metadata=metadata, table_name=table_name
-        )
 
     def to_pandera_schema(
         self,

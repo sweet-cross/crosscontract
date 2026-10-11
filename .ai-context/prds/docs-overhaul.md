@@ -80,7 +80,7 @@ Done when:
 2. The installation section says the package comes from PyPI (not "hosted directly on
    GitHub"), links the PyPI page, and fixes `uv pip crosscontract` → `uv pip install
    crosscontract`.
-3. The dependency list names pandas, pandera, pydantic, pyarrow, SQLAlchemy, and httpx,
+3. The dependency list names pandas, pandera, pydantic, pyarrow, and httpx,
    and describes httpx as synchronous only.
 4. "Quick Links" point to the rendered tutorial pages instead of raw `.ipynb` files on
    GitHub, and include a link to `CHANGELOG.md` on GitHub.

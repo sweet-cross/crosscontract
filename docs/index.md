@@ -71,7 +71,6 @@ The key libraries powering CrossContract are:
 
 *   **Pydantic**: For data validation and settings management.
 *   **Pandas**: For powerful data manipulation and analysis.
-*   **SQLAlchemy**: For database abstraction and interaction.
 *   **httpx**: For synchronous and asynchronous HTTP requests (CrossClient).
 
 ## Contributing
