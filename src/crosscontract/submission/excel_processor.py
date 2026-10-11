@@ -99,7 +99,10 @@ class ExcelProcessor(BaseModel):
     sheets: list[ExcelSheet] = Field(
         ...,
         min_length=1,
-        description="The sheets of the workbook, identified by their unique names.",
+        description=(
+            "The sheets of the workbook, identified by their names, which must be "
+            "unique ignoring case."
+        ),
     )
 
     @model_validator(mode="after")

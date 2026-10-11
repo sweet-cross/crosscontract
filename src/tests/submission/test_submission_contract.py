@@ -7,6 +7,7 @@ import yaml
 
 from crosscontract.contracts import BaseContract
 from crosscontract.submission import SubmissionContract
+from crosscontract.submission.excel_processor import WideLayout
 
 from .conftest import resolver_for, resolver_returning, target_contract
 
@@ -134,10 +135,9 @@ class TestExcelProcessor:
             )
         )
         assert contract.excel_processor is not None
-        assert len(contract.excel_processor.sheets) == 2
-
-    def test_long_sheet_is_not_checked(self):
-        SubmissionContract.model_validate(self._data({"name": "long"}))
+        assert contract.excel_processor.sheets[1].wide == WideLayout(
+            header_field="variable", value_field="value"
+        )
 
     @pytest.mark.parametrize(
         ("header_field", "value_field", "unknown"),
@@ -506,7 +506,9 @@ class TestRoundTrip:
         assert processor is not None
         assert [s.name for s in processor.sheets] == ["results", "results_wide"]
         assert processor.sheets[0].wide is None
-        assert processor.sheets[1].wide is not None
+        assert processor.sheets[1].wide == WideLayout(
+            header_field="timestamp", value_field="value"
+        )
 
     def test_yaml_round_trip(self):
         """Test that a SubmissionContract can be serialized to YAML and then

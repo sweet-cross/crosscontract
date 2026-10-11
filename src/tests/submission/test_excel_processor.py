@@ -32,7 +32,7 @@ class TestExcelSheet:
         sheet = ExcelSheet(
             name="a", wide=WideLayout(header_field="year", value_field="value")
         )
-        assert sheet.wide is not None
+        assert sheet.wide == WideLayout(header_field="year", value_field="value")
 
     def test_empty_name_rejected(self):
         with pytest.raises(ValidationError):
