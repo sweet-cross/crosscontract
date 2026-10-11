@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from crosscontract.submission.excel_processor import (
+from crosscontract.submission.excel_processing import (
     ExcelProcessor,
     ExcelSheet,
     WideLayout,

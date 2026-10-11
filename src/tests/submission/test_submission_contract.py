@@ -7,7 +7,7 @@ import yaml
 
 from crosscontract.contracts import BaseContract
 from crosscontract.submission import SubmissionContract
-from crosscontract.submission.excel_processor import WideLayout
+from crosscontract.submission.excel_processing import WideLayout
 
 from .conftest import resolver_for, resolver_returning, target_contract
 
