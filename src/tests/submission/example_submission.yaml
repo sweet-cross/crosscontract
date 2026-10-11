@@ -8,6 +8,7 @@
 #     KEEP_ORIGINAL sentinel, which has no serialized form of its own
 #   - a `replace_key` in its list form, which shares a field with the literal
 #     `all` form and so can lose its shape on a round trip
+#   - an `excel_processor` with one long and one wide sheet
 #
 # Not a realistic campaign file — see .ai-context/prds/cross2025_submission.yaml
 # for that. Keep this one minimal.
@@ -62,6 +63,17 @@ tableschema:
       type: number
       constraints:
         required: true
+
+excel_processor:
+  sheets:
+    # Long: used as is.
+    - name: results
+      description: One row per observation.
+    # Wide: one column per `timestamp`, the cells holding the `value`.
+    - name: results_wide
+      wide:
+        header_field: timestamp
+        value_field: value
 
 extraction:
   routing_column: variable

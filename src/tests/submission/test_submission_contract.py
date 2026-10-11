@@ -7,6 +7,7 @@ import yaml
 
 from crosscontract.contracts import BaseContract
 from crosscontract.submission import SubmissionContract
+from crosscontract.submission.excel_processor import WideLayout
 
 from .conftest import resolver_for, resolver_returning, target_contract
 
@@ -111,6 +112,70 @@ class TestSubmissionContract:
         ]
         with pytest.raises(ValueError, match="must not have foreign keys"):
             SubmissionContract.model_validate(invalid_data)
+
+
+class TestExcelProcessor:
+    @staticmethod
+    def _data(*sheets: dict) -> dict:
+        data = deepcopy(valid_data)
+        data["excel_processor"] = {"sheets": list(sheets)}
+        return data
+
+    def test_section_is_optional(self):
+        assert SubmissionContract.model_validate(valid_data).excel_processor is None
+
+    def test_wide_fields_in_tableschema(self):
+        contract = SubmissionContract.model_validate(
+            self._data(
+                {"name": "long"},
+                {
+                    "name": "wide",
+                    "wide": {"header_field": "variable", "value_field": "value"},
+                },
+            )
+        )
+        assert contract.excel_processor is not None
+        assert contract.excel_processor.sheets[1].wide == WideLayout(
+            header_field="variable", value_field="value"
+        )
+
+    @pytest.mark.parametrize(
+        ("header_field", "value_field", "unknown"),
+        [
+            ("nope", "value", "nope"),
+            ("variable", "nope", "nope"),
+            ("nope_a", "nope_b", "nope_a, nope_b"),
+        ],
+    )
+    def test_unknown_wide_field_names_sheet_and_field(
+        self, header_field, value_field, unknown
+    ):
+        data = self._data(
+            {
+                "name": "costs",
+                "wide": {"header_field": header_field, "value_field": value_field},
+            }
+        )
+        with pytest.raises(ValueError, match=f"Sheet: costs: Wide fields {unknown}"):
+            SubmissionContract.model_validate(data)
+
+    def test_server_round_trip_without_section(self):
+        contract = SubmissionContract.model_validate(valid_data)
+        payload = contract.to_server()
+        assert payload["excel_processor"] is None
+        assert SubmissionContract.from_server(payload) == contract
+
+    def test_server_round_trip_with_section(self):
+        contract = SubmissionContract.model_validate(
+            self._data(
+                {"name": "long"},
+                {
+                    "name": "wide",
+                    "wide": {"header_field": "variable", "value_field": "value"},
+                },
+            )
+        )
+        assert SubmissionContract.from_server(contract.to_server()) == contract
 
 
 class TestReplaceKey:
@@ -434,6 +499,16 @@ class TestValidateReferencesReplaceKey:
 
 class TestRoundTrip:
     fn_yaml = Path(__file__).parent / "example_submission.yaml"
+
+    def test_example_excel_processor(self):
+        """Test that the example's long and wide sheets load."""
+        processor = SubmissionContract.from_file(self.fn_yaml).excel_processor
+        assert processor is not None
+        assert [s.name for s in processor.sheets] == ["results", "results_wide"]
+        assert processor.sheets[0].wide is None
+        assert processor.sheets[1].wide == WideLayout(
+            header_field="timestamp", value_field="value"
+        )
 
     def test_yaml_round_trip(self):
         """Test that a SubmissionContract can be serialized to YAML and then
