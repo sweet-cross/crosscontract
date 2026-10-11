@@ -55,13 +55,18 @@ jobs:
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
 
+      # Resolve from pyproject.toml rather than uv.lock, as a user's install
+      # would, and install only the test group so dev tooling cannot supply
+      # a missing runtime dependency.
       - name: Install dependencies
-        run: uv sync
+        run: |
+          uv venv --python ${{ matrix.python-version }}
+          uv pip install -e . --group test
 
       - name: Run tests with coverage
         run: |
           set -o pipefail
-          uv run coverage run -m pytest | tee pytest.log
+          uv run --no-sync coverage run -m pytest | tee pytest.log
 
       - name: Generate Reports
         if: success() || failure()
@@ -73,7 +78,7 @@ jobs:
 
           echo "## Coverage Summary (Python ${{ matrix.python-version }})" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          uv run coverage report >> $GITHUB_STEP_SUMMARY
+          uv run --no-sync coverage report >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   test-lowest:

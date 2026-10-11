@@ -460,17 +460,15 @@ wheels = [
 
 [[package]]
 name = "crosscontract"
-version = "0.24.0"
+version = "0.26.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
-    { name = "jsonschema" },
     { name = "pandas" },
     { name = "pandera", extra = ["pandas"] },
-    { name = "pre-commit" },
     { name = "pyarrow" },
     { name = "pydantic", extra = ["email"] },
-    { name = "ruff" },
+    { name = "pyyaml" },
     { name = "sqlalchemy" },
 ]
 
@@ -483,8 +481,10 @@ dev = [
     { name = "notebook" },
     { name = "pandas-stubs" },
     { name = "polyfactory" },
+    { name = "pre-commit" },
     { name = "pytest" },
     { name = "respx" },
+    { name = "ruff" },
     { name = "types-pyyaml" },
 ]
 docs = [
@@ -495,17 +495,21 @@ docs = [
     { name = "mkdocstrings", extra = ["python"] },
     { name = "pymdown-extensions" },
 ]
+test = [
+    { name = "coverage" },
+    { name = "polyfactory" },
+    { name = "pytest" },
+    { name = "respx" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "pandera", extras = ["pandas"], specifier = ">=0.33.1" },
-    { name = "pre-commit", specifier = ">=4.5.1" },
     { name = "pyarrow", specifier = ">=22.0.0" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.12.5" },
-    { name = "ruff", specifier = ">=0.14.11" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "sqlalchemy", specifier = ">=2.0.45" },
 ]
 
@@ -518,8 +522,10 @@ dev = [
     { name = "notebook", specifier = ">=7.5.1" },
     { name = "pandas-stubs", specifier = ">=3.0.5.260914" },
     { name = "polyfactory", specifier = ">=3.2.0" },
+    { name = "pre-commit", specifier = ">=4.5.1" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "respx", specifier = ">=0.22.0" },
+    { name = "ruff", specifier = ">=0.14.11" },
     { name = "types-pyyaml", specifier = ">=6.0.12.20250915" },
 ]
 docs = [
@@ -529,6 +535,12 @@ docs = [
     { name = "mkdocs-material", specifier = ">=9.7.1" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=1.0.0" },
     { name = "pymdown-extensions", specifier = ">=10.20" },
+]
+test = [
+    { name = "coverage", specifier = ">=7.13.1" },
+    { name = "polyfactory", specifier = ">=3.2.0" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "respx", specifier = ">=0.22.0" },
 ]
 
 [[package]]
