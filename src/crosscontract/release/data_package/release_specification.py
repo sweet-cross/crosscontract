@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..._helpers import OptionalNonEmptyList
 from ..._standards.frictionless import Contributor, PackageMetaData, ResourceMetaData
-from ...contracts.contracts.base_contract import CONTRACT_NAME_PATTERN
+from ...constants import CONTRACT_NAME_PATTERN
 from ...transformations import FetchSpecMixin
 
 

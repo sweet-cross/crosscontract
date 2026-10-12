@@ -6,16 +6,9 @@ import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..._helpers import read_yaml_or_json_file
+from ...constants import CONTRACT_NAME_PATTERN
 from ..schema import DimensionSchema, TableSchema, ValueVariableSchema
 from .resolvers import ContractResolver
-
-# A deliberately strict subset of the Frictionless identifier pattern
-# (``^([-a-z0-9._/])+$``, see `FRICTIONLESS_NAME_PATTERN` in
-# `_standards.frictionless`): lowercase alphanumeric characters plus '.', '_', and
-# '-'. The '/' the standard permits is intentionally excluded. Because this is a
-# subset, any accepted name is also a valid Frictionless name, so contracts stay
-# release-compliant by construction.
-CONTRACT_NAME_PATTERN = r"^([-a-z0-9._])+$"
 
 
 class BaseMetaData(BaseModel):

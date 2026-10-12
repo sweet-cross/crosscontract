@@ -2,7 +2,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from crosscontract.contracts.contracts.base_contract import CONTRACT_NAME_PATTERN
+from crosscontract.constants import CONTRACT_NAME_PATTERN
 
 from .aggregation_spec import AggregationSpec
 
