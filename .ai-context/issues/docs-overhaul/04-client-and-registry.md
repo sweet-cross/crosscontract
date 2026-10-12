@@ -58,4 +58,10 @@ platform-access docs up to date.
   - `CrossDataVariable.get_data` in `registry/variables/data_variable.py`.
   - `ContractResource.validate_dataframe` in `crossclient/services/contract_resource.py`.
   - `crossclient/exceptions/exceptions.py`.
+- **Note — package architecture (added 2026-10-12).** Frame the client as the middle
+  layer: services and resources that wrap the endpoints (`client.contracts` →
+  `ContractResource`; later `client.submissions` → `SubmissionContractResource`, #121).
+  Frame `CrossRegistry` as the high-level wrapper for data consumers that is built on a
+  `CrossClient`, with `CrossSubmitter` as its provider-side counterpart (WP6). Use the
+  same three-layer wording as the landing page (WP2).
 - Dependencies: none. Branch off `dev`; PR title `docs: ...`.

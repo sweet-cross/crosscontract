@@ -70,6 +70,18 @@ have moved.
   *Submission and extraction* terms from `.ai-context/CONTEXT.md` (routing column,
   target, unclaimed rows, submission validation). Do not restate ADR rationale on the
   page.
+- **Note — package architecture (added 2026-10-12).** #120–#122 change the layout this
+  task documents:
+  - Specs: `SubmissionContract` and the extraction specs move to `contracts/submission/`,
+    and the Excel specs and reader move to `transformations/excel/` (#120). The public
+    import paths stay the same.
+  - Client layer: `client.submissions` → `SubmissionContractResource` for managing
+    submission contracts and following submissions (#121).
+  - High-level wrapper: `CrossSubmitter`, built on the client, validates and submits
+    (#122).
+
+  Present submission with the same three layers as the landing page (WP2) and the client
+  pages (WP4). Update the "Sources of truth" paths above once #120 has landed.
 - Dependencies:
   - After 05-release.md, which creates `docs/reference/transformations.md`. If WP5 has
     not landed, create that page here.

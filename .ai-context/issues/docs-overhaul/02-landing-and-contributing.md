@@ -43,5 +43,21 @@ setup. This task brings the entry pages up to date.
   list so that edit is a one-line addition.
 - No changelog page is created (out of scope per the PRD); the GitHub link is the
   replacement.
+- **Note — package architecture (added 2026-10-12).** Present the components as three
+  layers rather than a flat list:
+  - **Specs and offline logic**: `contracts/` (including the submission specs under
+    `contracts/submission/`) and `transformations/`. These run without a platform
+    connection.
+  - **Client services and resources**: `CrossClient` with `client.contracts`
+    (`ContractService` → `ContractResource`) and `client.submissions`
+    (`SubmissionService` → `SubmissionContractResource`). This layer talks to the
+    endpoints and is what managers and admins use.
+  - **High-level role wrappers**: `CrossRegistry` (data consumer) and `CrossSubmitter`
+    (data provider), each built on one `CrossClient`.
+
+  The client and submitter parts land with #120–#122. Describe only what exists on `dev`
+  when this task is done, and extend it in WP6 if submission isn't there yet. Keep the
+  component list a plain bullet list (see above); the layering can be a short paragraph
+  before it.
 - Dependencies: none. Can land before or after WP1, WP3, WP4, and WP5. Branch off `dev`;
   PR title `docs: ...`.
