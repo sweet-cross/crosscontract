@@ -11,9 +11,10 @@ to the CROSS platform and composes the others into a single validation of a
 delivered bundle.
 """
 
+from crosscontract.contracts.submission import SubmissionContract
+
 from .excel_processing import read_excel_bundle, read_excel_bundle_bytes
 from .exceptions import TargetValidationError, UnclaimedRowsError
-from .submission_contract import SubmissionContract
 from .submission_handler import SubmissionHandler
 from .submitter import CrossSubmitter
 

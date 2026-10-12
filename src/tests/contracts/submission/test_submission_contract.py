@@ -8,8 +8,11 @@ import yaml
 from crosscontract.contracts import BaseContract
 from crosscontract.submission import SubmissionContract
 from crosscontract.transformations.excel import WideLayout
-
-from .conftest import resolver_for, resolver_returning, target_contract
+from tests.submission.conftest import (
+    resolver_for,
+    resolver_returning,
+    target_contract,
+)
 
 valid_data = {
     "name": "submission1",
@@ -498,7 +501,7 @@ class TestValidateReferencesReplaceKey:
 
 
 class TestRoundTrip:
-    fn_yaml = Path(__file__).parent / "example_submission.yaml"
+    fn_yaml = Path(__file__).parents[2] / "submission" / "example_submission.yaml"
 
     def test_example_excel_processor(self):
         """Test that the example's long and wide sheets load."""

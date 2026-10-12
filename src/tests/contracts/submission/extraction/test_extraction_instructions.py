@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from crosscontract.submission.extraction import ExtractionInstructions, Target
+from crosscontract.contracts.submission import ExtractionInstructions, Target
 from crosscontract.transformations import DropColumns
 
 

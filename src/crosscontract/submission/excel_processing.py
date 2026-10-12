@@ -6,7 +6,7 @@ import pandas as pd
 from crosscontract.transformations.excel import read_excel_workbook_bytes
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .submission_contract import SubmissionContract
+    from crosscontract.contracts.submission import SubmissionContract
 
 
 def read_excel_bundle_bytes(
