@@ -10,8 +10,8 @@ from typing import Literal, Self
 from pydantic import Field, field_validator, model_validator
 
 from crosscontract.contracts import ContractResolver, CrossContract
+from crosscontract.transformations.excel import ExcelProcessor
 
-from .excel_processing import ExcelProcessor
 from .extraction import ExtractionInstructions
 
 
