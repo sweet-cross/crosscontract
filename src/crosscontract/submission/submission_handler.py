@@ -9,11 +9,10 @@ import pandas as pd
 
 from crosscontract.contracts import BaseContract, ContractResolver
 from crosscontract.contracts.schema import SchemaValidationError
-from crosscontract.submission.extraction import Target
+from crosscontract.contracts.submission import SubmissionContract, Target
 from crosscontract.transformations import BaseTransformation
 
 from .exceptions import TargetValidationError
-from .submission_contract import SubmissionContract
 
 
 class SubmissionHandler:
