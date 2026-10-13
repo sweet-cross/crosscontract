@@ -13,8 +13,9 @@ from crosscontract.submission import (
     SubmissionHandler,
     TargetValidationError,
 )
+from tests.conftest import resolver_for, resolver_returning, target_contract
 
-from .conftest import bundle, resolver_for, resolver_returning, target_contract
+from .conftest import bundle
 
 
 class TestValidateTarget:

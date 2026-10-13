@@ -57,8 +57,8 @@ have moved.
   - `docs/index.md`
   - `docs/reference/transformations.md`
 - Sources of truth:
-  - `submission/submission_contract.py`
-  - `submission/extraction/`
+  - `contracts/submission/submission_contract.py`
+  - `contracts/submission/extraction/`
   - `submission/submission_handler.py`
   - `submission/submitter.py`
   - `submission/exceptions.py`

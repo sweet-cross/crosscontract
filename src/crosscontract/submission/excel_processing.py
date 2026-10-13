@@ -1,17 +1,12 @@
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from crosscontract.contracts.submission import SubmissionContract
 from crosscontract.transformations.excel import read_excel_workbook_bytes
 
-if TYPE_CHECKING:  # pragma: no cover
-    from crosscontract.contracts.submission import SubmissionContract
 
-
-def read_excel_bundle_bytes(
-    contract: "SubmissionContract", data: bytes
-) -> pd.DataFrame:
+def read_excel_bundle_bytes(contract: SubmissionContract, data: bytes) -> pd.DataFrame:
     """Read an Excel workbook into the long bundle the contract describes.
 
     Reads the sheets listed in `contract.excel_processor` with
@@ -38,7 +33,7 @@ def read_excel_bundle_bytes(
 
 
 def read_excel_bundle(
-    contract: "SubmissionContract", filename: str | Path
+    contract: SubmissionContract, filename: str | Path
 ) -> pd.DataFrame:
     """Read an Excel file into the long bundle the contract describes.
 

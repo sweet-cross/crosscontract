@@ -1,14 +1,13 @@
-"""Submission contracts and the instructions for extracting variables from them.
+"""Executing submission contracts.
 
-The ingress mirror of `release/`: that package turns contracts into a published
-data package, this one describes a delivered bundle and how it is split back
-into per-variable contracts. Both own their spec models and the code that
-executes them, so the concept lives in one place.
+Reads a delivered bundle, splits it into the rows of each target, and validates
+those rows against the contracts the targets name. The submission contract and
+its extraction instructions are defined in `crosscontract.contracts.submission`;
+`SubmissionContract` is re-exported here.
 
-The contracts, the extraction instructions and the handler that carries them
-out all run offline. `CrossSubmitter` is the exception: it holds a connection
-to the CROSS platform and composes the others into a single validation of a
-delivered bundle.
+The readers and `SubmissionHandler` run offline. `CrossSubmitter` is the
+exception: it holds a connection to the CROSS platform and composes the others
+into a single validation of a delivered bundle.
 """
 
 from crosscontract.contracts.submission import SubmissionContract
