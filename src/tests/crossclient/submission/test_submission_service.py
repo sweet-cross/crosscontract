@@ -17,11 +17,8 @@ from crosscontract.crossclient.services.submission.submission_resource import (
 from crosscontract.crossclient.services.submission.submission_service import (
     SubmissionContractService,
 )
-from tests.crossclient.submission.conftest import (
-    entry_response,
-    metadata_response,
-    submission_response,
-)
+
+from .conftest import entry_response, metadata_response, submission_response
 
 SUBMISSION_URL = "https://api.example.com/api/v1/submission"
 CONTRACT_URL = f"{SUBMISSION_URL}/contract"

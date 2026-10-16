@@ -13,10 +13,8 @@ from crosscontract.crossclient.services.submission.schemas import (
 from crosscontract.crossclient.services.submission.submission_resource import (
     SubmissionContractResource,
 )
-from tests.crossclient.submission.conftest import (
-    entry_response,
-    submission_response,
-)
+
+from .conftest import entry_response, submission_response
 
 
 @pytest.fixture
@@ -142,6 +140,21 @@ class TestServiceDelegation:
         """delete() deletes the submission contract by name through the service."""
         resource.delete()
         service.delete.assert_called_once_with("submission3")
+
+    def test_refresh_name_mismatch(
+        self,
+        service: Mock,
+        contract: SubmissionContract,
+        resource: SubmissionContractResource,
+    ):
+        """refresh() raises if the platform returns a different submission contract."""
+        other = contract.model_copy(update={"name": "something_else"})
+        service.get.return_value = SubmissionContractResource.from_response(
+            service, entry_response(other)
+        )
+
+        with pytest.raises(ValueError, match="does not match resource name"):
+            resource.refresh()
 
     def test_refresh_replaces_state(self, service: Mock, contract: SubmissionContract):
         """refresh() re-fetches by name and replaces contract, project and flag."""
