@@ -1,5 +1,136 @@
 # CHANGELOG
 
+## v0.29.0 (2026-10-16)
+
+### Features
+
+
+- **add SubmissionContractService and SubmissionContractResource to CrossClient** ([`16eaa17`](https://github.com/sweet-cross/crosscontract/commit/16eaa17a980774db9309d55e05fe3a03f27f6531))
+
+  ## Summary Adds a client for the backend's `/api/v1/submission` endpoints, so submission contracts can be managed and submissions followed from Python without raw HTTP calls. `client.submissions` is a `SubmissionContractService`, built like `ContractService`. It returns `SubmissionContractResource` handles and `Submission` models. As a preparatory refactor, the contract client moves into `crossclient/services/contract/`, mirroring the new `crossclient/services/submission/`.
+
+  Closes #121.
+
+  ## Changes
+  - **`crossclient/services/submission/`** (new):
+    - `SubmissionContractService` and its endpoints:
+
+  | Method | Endpoint |
+      |---|---|
+      | `create(contract)` | `POST /submission/contract`, then `get` |
+      | `get(name)` | `GET /submission/contract/{name}` | | `overview(project_name)` | `GET /submission/contract?project_name=` → DataFrame |
+      | `delete(name)` | `DELETE /submission/contract/{name}` | | `set_allow_submissions(name, allow)` | `PUT /submission/contract/{name}/allow-submissions` |
+      | `get_submission(uuid)` | `GET /submission/{uuid}` → `Submission` | | `list_submissions(name)` | `GET /submission/contract/{name}/data` → `list[Submission]` |
+
+  All paths are under `/api/v1` and were checked against the deployed OpenAPI spec. The list endpoints send no `limit`, so one request returns every item. Every response goes through `raise_from_response`.
+  - `SubmissionContractResource`: a read-only handle holding `name`, `project_name`, `allow_submissions` and the parsed `SubmissionContract`. `title`, `description` and `tags` are read from the contract. Its methods are `set_allow_submissions`, `delete`, `refresh` and `submissions()`. It has no validate, submit or upload method.
+  - `schemas.py`: `SubmissionContractEntryPayload`, which parses the read response, and `Submission` with a `SubmissionState` literal, mirroring the server's `SubmissionResponse`.
+  - **Wiring:** `CrossClient.submissions`. `SubmissionContractService`, `SubmissionContractResource` and `Submission` are exported from `crossclient.services` and `crossclient`.
+  - **Refactor:** `contract_service.py`, `contract_resource.py` and `resolver.py` move to `crossclient/services/contract/`. The public import paths (`crossclient.services.X`, `crossclient.X`) are unchanged. Only the full module paths change, e.g. `crossclient.services.contract_service`. Their tests move from `tests/crossclient/contracts/` to `tests/crossclient/contract/`.
+  - **Docs:**
+    - `docs/reference/client.md` renders the three new classes.
+  - CLAUDE.md describes `services/contract/` and `services/submission/`, and the name-clash note now covers three packages named `submission` (specification, low-level client, high-level execution).
+  - **Housekeeping:** removes the completed `.ai-context/prds/validation-architecture.md` and repoints ADR 0005's link to it at ADR 0006.
+
+  ## Testing
+  - New `src/tests/crossclient/submission/`:
+  - **`test_schemas.py`**: parsing the payload and the `Submission` model, with every state and an unknown one.
+    - **`test_submission_resource.py`**, against a mocked service:
+      - `from_response` and read-only properties;
+  - each method forwarding to the service, including `refresh` replacing the state and raising on a name mismatch;
+  - `set_allow_submissions` leaving the flag unchanged when the service raises.
+    - **`test_submission_service.py`**, with respx:
+  - `create` sends a POST then a GET, the resource reflects the GET, and a failed POST skips the GET;
+      - `overview` sends `project_name` and no `limit`;
+      - the exact PUT body, and listing with an empty page;
+      - 404/403 mapping on `get` and `get_submission`;
+      - `client.submissions` is wired.
+    - **`conftest.py`** holds the shared server-response builders.
+  - The moved contract tests were repointed to the new module paths, including the two `patch(...)` targets.
+  - Full `uv run pytest`, `ruff check` and `mypy` pass.
+
+  ## Notes for reviewer
+  - **`create` makes two requests.** The POST response (`SubmissionContractMetaDataResponse`) carries no `contract`, so the resource is built from a follow-up `get`. If the POST succeeds and the GET fails, `create` raises although the contract exists.
+  - **No `get_list`.** The list endpoint returns metadata only, so `overview(project_name)` returns a DataFrame instead of resources. An `overview` of a project without submission contracts is an empty DataFrame with no columns.
+  - **`delete` raises on 404**, unlike `ContractService.delete`, which silences it.
+  - **PUT uses `client.request("PUT", ...)`.** `CrossClient` has no `put` helper.
+  - **Out of scope:**
+  - The upload (`POST /submission/contract/{name}/data`) and whether it is public or private move to the follow-up (#122).
+  - Downloading a submission's file needs a backend endpoint first: sweet-cross/cross_back#531, then #124 here.
+  - **New `src/tests/crossclient/__init__.py`.** Without it, pytest couldn't import the new shared `conftest.py` helpers. The test modules under `tests/crossclient/` are now named `tests.crossclient.…`.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  ---------
+
+  Co-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>
+
+
+### Refactoring
+
+
+- **separate submission specs from their execution** ([`176bb29`](https://github.com/sweet-cross/crosscontract/commit/176bb29a125b54936cc3adefabcaa33cb184bb47))
+
+  ## Summary Prepares the client-side submission work (#121, #122) by making the import graph run one way: `constants` ← `transformations` ← `contracts` ← `crossclient` ← `submission`. A `SubmissionService` in `crossclient/` has to parse a `SubmissionContract`. As long as the contract lives in `submission/`, which imports `crossclient` for `CrossSubmitter`, the two packages would import each other. This branch moves the declarative submission specs below the client and leaves only their execution in `submission/`. Closes #120. No behaviour changes. Every crosscontract import path that cross_back uses keeps working; the paths this branch removes are listed under "Public paths".
+
+  ## Changes
+  - **Constant:** `CONTRACT_NAME_PATTERN` moves from `contracts/contracts/base_contract.py` to a new, dependency-free `crosscontract/constants.py`. `base_contract.py`, `release_specification.py`, `fetch_spec.py` and `target.py` import it from there. This
+    removes the only import from `transformations/` into `contracts/`.
+  - **Excel specs and reader → `transformations/excel/`:**
+  - `specs.py` (`ExcelProcessor`, `ExcelSheet`, `WideLayout`) is moved unchanged.
+  - New core `read_excel_workbook_bytes(processor, field_names, data)` holds the former reader body and `_clean_sheet`. It takes a processor and field names instead of the contract.
+    - `submission/excel_processing/` is flattened into the module `submission/excel_processing.py`. It keeps `read_excel_bundle_bytes(contract, data)` and `read_excel_bundle(contract, filename)` with unchanged signatures. They raise on a
+      missing `excel_processor` (same message) and delegate to the core.
+  - **Submission contract and extraction specs → `contracts/submission/`:**
+    - `submission_contract.py` and `extraction/` are moved with history.
+  - The contract imports `CrossContract`/`ContractResolver` relatively (`from ..contracts`)
+      and `ExcelProcessor` from `crosscontract.transformations.excel`.
+    - New `contracts/submission/__init__.py` exports `SubmissionContract`, `ExtractionInstructions` and `Target`. `contracts/__init__.py` also exports
+      `SubmissionContract`.
+  - `submission/__init__.py`, `submitter.py`, `submission_handler.py` and `excel_processing.py` import from `crosscontract.contracts.submission`.
+  - **Public paths:**
+  - `SubmissionContract` is importable from `crosscontract`, `crosscontract.submission`
+      and now `crosscontract.contracts` (all the same class).
+    - Removed: `crosscontract.submission.extraction`, `crosscontract.submission.submission_contract`, the spec models under `crosscontract.submission.excel_processing`, and `CONTRACT_NAME_PATTERN` from `crosscontract.contracts.contracts.base_contract`. Only this repo's own code used them; I checked which crosscontract names cross_back imports, and none of these is among them.
+  - **Docs:**
+    - New ADR 0010 records the spec/execution split.
+  - ADR 0004 gets dated "Superseded" notes on its intro and its "`submission/` is
+      top-level" bullet.
+  - CLAUDE.md has new `contracts/submission/` and `transformations/excel/` entries. The `submission/` section now covers execution only, the import order is stated as a rule, `CONTRACT_NAME_PATTERN` points to `constants.py`, and a new bullet covers the two
+      `submission` packages.
+  - The `crosscontract.submission` package docstring now describes execution only.
+
+  ## Testing
+  - Tests are moved to mirror the new layout:
+  - `transformations/excel/test_specs.py` and `test_processing.py`: the melt and clean
+      behaviour now runs directly against the core reader.
+  - `submission/test_excel_processing.py`: the wrapper tests (exports, a long and a wide sheet through the wrapper, missing `excel_processor`, the file path reader).
+    - `contracts/submission/test_submission_contract.py` and `contracts/submission/extraction/test_extraction_instructions.py`, together with `example_submission.yaml`, which only the contract test loads. Both new folders get an
+      `__init__.py`, like `tests/contracts/schema/`.
+  - The fixtures and helpers both test folders share (`contract`, `contract_a`, `contract_c`,
+    `target_contract`, `resolver_returning`, `resolver_for`) move from `tests/submission/conftest.py` to the root `src/tests/conftest.py`. pytest only provides fixtures from conftests in the test's own folder or above, and this way neither test folder imports from the other. `bundle` and the `bad_contract_*` fixtures stay in
+    `tests/submission/conftest.py`, the only place that uses them.
+  - Full `uv run pytest`, `ruff check` and `mypy` pass.
+  - Import direction was checked by grepping each package's imports. Re-exports were checked by importing `SubmissionContract` from all three paths and comparing identity.
+
+  ## Notes for reviewer
+  - **ADR 0007 is deliberately not superseded,** although #120's text says so. `CrossSubmitter` stays in `submission/` and still imports `crossclient`, so 0007's placement still holds. It becomes partly outdated with #121/#122 (`client.submissions`).
+  - **There are now two packages named `submission`:** `crosscontract.contracts.submission` (specs) and `crosscontract.submission` (execution). This is accepted and documented in
+    ADR 0010 and CLAUDE.md.
+  - **The root `conftest.py` now holds a `contract` fixture** (a `SubmissionContract`). Test
+    modules that define their own `contract` fixture still override it.
+  - **`uv.lock`** only syncs the project's own version entry (0.26.1 → 0.28.0), a side
+    effect of `uv sync`. It is not a dependency change.
+  - **Out of scope:**
+    - Restructuring `release/` along the same lines.
+  - The CSV reader (#119), whose location in `transformations/` this branch prepares.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+
+
+
+
 ## v0.28.0 (2026-10-11)
 
 ### Refactoring
