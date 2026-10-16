@@ -7,18 +7,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class SubmissionContractService:
-    """
-    Entry point for operations on submission contracts.
-    """
+    """Entry point for operations on submission contracts and their submissions."""
 
     _api_version_prefix = "/api/v1"
 
     def __init__(self, client: "CrossClient"):
-        """Initialize the ContractService. The ContractService is responsible for
-        managing submission contracts on the CROSS platform.
-
-        It provides methods to create, retrieve, list, and delete submission
-        contracts.
+        """Initialize the service.
 
         Args:
             client (CrossClient): The CrossClient instance to use for API calls.

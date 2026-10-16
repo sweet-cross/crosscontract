@@ -10,10 +10,10 @@ SubmissionState = Literal[
 
 
 class SubmissionContractEntryPayload(BaseModel):
-    """Client-side mirror of the server's `SubmissionContractEntryResponse`.
+    """A submission contract as the CROSS platform returns it when read by name.
 
-    Centralizing the shape here gives us validation at the API boundary and a
-    single place to adjust if the server response evolves.
+    Carries the overview fields and, under `contract`, the stored submission
+    contract as a raw dict.
     """
 
     name: str
@@ -26,10 +26,13 @@ class SubmissionContractEntryPayload(BaseModel):
 
 
 class Submission(BaseModel):
-    """Metadata of a Submission: what was uploaded, by whom, and its state.
+    """A submission on the CROSS platform: what was uploaded, by whom, and its state.
 
-    Returned when a bundle is accepted for processing and when a Submission is
-    read back to follow its state. The stored files are not part of it.
+    Holds metadata only, not the uploaded file. `state` is `received` right
+    after the upload, `processing` while the platform works on it, and ends as
+    `current` (valid and stored), `rejected` (invalid, nothing stored) or
+    `failed` (a platform error, nothing stored). A `current` submission becomes
+    `superseded` once a newer submission replaces its data.
     """
 
     uuid: UUID = Field(..., description="The public identifier of the submission")

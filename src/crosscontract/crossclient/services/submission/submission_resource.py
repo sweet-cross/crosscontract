@@ -9,17 +9,29 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class SubmissionContractResource:
-    """A handle to a submission contract that exists on the CROSS platform."""
+    """A handle to a submission contract that exists on the CROSS platform.
+
+    Produced by the service's `create` and `get`; not constructed directly.
+    Its properties are read-only and change only through its methods.
+    """
 
     def __init__(
         self,
         service: "SubmissionContractService",
         payload: SubmissionContractEntryPayload,
     ):
-        """Initialise from a parsed server payload.
+        """Initialize from a parsed server payload.
 
-        Most callers should use :meth:`from_response` to parse a raw JSON dict;
-        this constructor takes a pre-validated payload to keep tests direct.
+        Use `from_response` to build a resource from a raw response dict.
+
+        Args:
+            service (SubmissionContractService): The service the resource
+                delegates its methods to.
+            payload (SubmissionContractEntryPayload): The parsed server response.
+
+        Raises:
+            pydantic.ValidationError: If `payload.contract` is not a valid
+                `SubmissionContract`.
         """
         self._service = service
         self._name = payload.name
@@ -36,36 +48,78 @@ class SubmissionContractResource:
         service: "SubmissionContractService",
         response_json: dict[str, Any],
     ) -> "SubmissionContractResource":
-        """Build a SubmissionContractResource from a raw server response dict."""
+        """Build a resource from a raw server response dict.
+
+        Args:
+            service (SubmissionContractService): The service the resource
+                delegates its methods to.
+            response_json (dict[str, Any]): The response body of a read of one
+                submission contract.
+
+        Returns:
+            SubmissionContractResource: The resource.
+
+        Raises:
+            pydantic.ValidationError: If the response or its `contract` is
+                malformed.
+        """
         payload = SubmissionContractEntryPayload.model_validate(response_json)
         return cls(service, payload)
 
     @property
     def name(self) -> str:
+        """
+        Returns:
+            str: The name of the submission contract.
+        """
         return self._name
 
     @property
     def project_name(self) -> str:
+        """
+        Returns:
+            str: The name of the project owning the submission contract.
+        """
         return self._project_name
 
     @property
     def title(self) -> str:
+        """
+        Returns:
+            str: The title of the submission contract.
+        """
         return self._title
 
     @property
     def description(self) -> str:
+        """
+        Returns:
+            str: The description of the submission contract.
+        """
         return self._description
 
     @property
     def tags(self) -> list[str]:
+        """
+        Returns:
+            list[str]: The tags of the submission contract.
+        """
         return self._tags
 
     @property
     def allow_submissions(self) -> bool:
+        """
+        Returns:
+            bool: Whether the owning project may currently upload submissions.
+        """
         return self._allow_submissions
 
     @property
     def contract(self) -> SubmissionContract:
+        """
+        Returns:
+            SubmissionContract: The stored submission contract.
+        """
         return self._contract
 
     def __setattr__(self, name, value):
@@ -91,22 +145,32 @@ class SubmissionContractResource:
         )
 
     def set_allow_submissions(self, allow: bool) -> None:
-        """Set the allow_submissions flag through the service and
-        update the local state.
+        """Open or close the submission contract for submissions.
+
+        Closing it stops new uploads; submissions already received are still
+        processed. Setting the value it already has changes nothing.
 
         Args:
-            allow (bool): The new value for the allow_submissions flag.
+            allow (bool): `True` to open the submission contract, `False` to
+                close it.
         """
         self._service.set_allow_submissions(self.name, allow)
         self._allow_submissions = allow
 
     def delete(self) -> None:
-        """Delete the submission contract through the service."""
+        """Delete the submission contract from the CROSS platform.
+
+        The data contracts its targets name are not affected.
+        """
         self._service.delete(self.name)
 
     def refresh(self) -> None:
-        """Re-fetch the submission contract from the service and update the
-        local state."""
+        """Re-fetch the submission contract and replace the local state.
+
+        Raises:
+            ValueError: If the CROSS platform returns a submission contract of a
+                different name.
+        """
         remote = self._service.get(self.name)
         if remote.name != self.name:
             raise ValueError(
@@ -121,6 +185,9 @@ class SubmissionContractResource:
         self._contract = SubmissionContract.from_server(remote.contract)
 
     def submissions(self) -> list[Submission]:
-        """Fetch the list of submissions for this submission contract from the
-        service."""
+        """Fetch every submission of this submission contract, oldest first.
+
+        Returns:
+            list[Submission]: The submissions.
+        """
         return self._service.list_submissions(self.name)
