@@ -22,7 +22,7 @@ from .conftest import entry_response, metadata_response, submission_response
 
 SUBMISSION_URL = "https://api.example.com/api/v1/submission"
 CONTRACT_URL = f"{SUBMISSION_URL}/contract"
-UUID = "8f2b7c1e-3a4d-4e5f-9a6b-7c8d9e0f1a2b"
+SUBMISSION_UUID = "8f2b7c1e-3a4d-4e5f-9a6b-7c8d9e0f1a2b"
 
 
 @pytest.fixture
@@ -157,14 +157,14 @@ class TestSubmissionEndpoints:
     @respx.mock
     def test_get_submission(self, service: SubmissionContractService):
         """get_submission() reads one submission by uuid."""
-        respx.get(f"{SUBMISSION_URL}/{UUID}").respond(
+        respx.get(f"{SUBMISSION_URL}/{SUBMISSION_UUID}").respond(
             200, json=submission_response("current")
         )
 
-        submission = service.get_submission(UUID)
+        submission = service.get_submission(SUBMISSION_UUID)
 
         assert isinstance(submission, Submission)
-        assert str(submission.uuid) == UUID
+        assert str(submission.uuid) == SUBMISSION_UUID
         assert submission.state == "current"
 
     @respx.mock
@@ -215,10 +215,12 @@ class TestErrors:
         self, service: SubmissionContractService, status: int, error: type
     ):
         """A failed read of a submission raises the mapped exception."""
-        respx.get(f"{SUBMISSION_URL}/{UUID}").respond(status, json={"detail": "nope"})
+        respx.get(f"{SUBMISSION_URL}/{SUBMISSION_UUID}").respond(
+            status, json={"detail": "nope"}
+        )
 
         with pytest.raises(error):
-            service.get_submission(UUID)
+            service.get_submission(SUBMISSION_UUID)
 
 
 def test_client_exposes_service(auth_client: CrossClient):

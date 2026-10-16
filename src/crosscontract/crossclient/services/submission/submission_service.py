@@ -31,6 +31,8 @@ class SubmissionContractService:
         """Create a submission contract on the CROSS platform.
 
         Every target of the contract must name an existing, active data contract.
+        If reading it back after the creation fails, the submission contract
+        already exists; fetch it with `get` instead of calling `create` again.
 
         Args:
             contract (SubmissionContract): The submission contract to create.
@@ -76,7 +78,8 @@ class SubmissionContractService:
         Returns:
             pd.DataFrame: One row per submission contract, with the columns
                 `name`, `project_name`, `title`, `description`, `tags`, and
-                `allow_submissions`.
+                `allow_submissions`. Empty and without columns if the project has
+                no submission contracts.
 
         Raises:
             CrossClientError: If the request fails, e.g. `ResourceNotFoundError`

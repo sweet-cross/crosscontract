@@ -161,6 +161,10 @@ class SubmissionContractResource:
         Args:
             allow (bool): `True` to open the submission contract, `False` to
                 close it.
+
+        Raises:
+            CrossClientError: If the request fails, e.g. `PermissionDeniedError`
+                if the caller is not a manager of the contract's project.
         """
         self._service.set_allow_submissions(self.name, allow)
         self._allow_submissions = allow
@@ -169,6 +173,10 @@ class SubmissionContractResource:
         """Delete the submission contract from the CROSS platform.
 
         The data contracts its targets name are not affected.
+
+        Raises:
+            CrossClientError: If the request fails, e.g. `ResourceNotFoundError`
+                if the submission contract no longer exists.
         """
         self._service.delete(self.name)
 
@@ -176,6 +184,8 @@ class SubmissionContractResource:
         """Reload the submission contract from the CROSS platform.
 
         Raises:
+            CrossClientError: If the request fails, e.g. `ResourceNotFoundError`
+                if the submission contract no longer exists.
             ValueError: If the CROSS platform returns a submission contract of a
                 different name.
         """
@@ -194,5 +204,9 @@ class SubmissionContractResource:
 
         Returns:
             list[Submission]: The submissions.
+
+        Raises:
+            CrossClientError: If the request fails, e.g. `ResourceNotFoundError`
+                if the submission contract no longer exists.
         """
         return self._service.list_submissions(self.name)
