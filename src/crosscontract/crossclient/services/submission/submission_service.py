@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING
 
-FilterValue = str | int | float | bool
-
 if TYPE_CHECKING:  # pragma: no cover
     from ...crossclient import CrossClient
 

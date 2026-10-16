@@ -88,6 +88,9 @@ class TestFromResponse:
         )
         assert resource.name == "submission3"
         assert resource.project_name == "project1"
+        assert resource.title == "Test Submission"
+        assert resource.description == contract.description
+        assert resource.tags == contract.tags
         assert resource.allow_submissions is False
         assert isinstance(resource.contract, SubmissionContract)
         assert resource.contract == contract
@@ -120,6 +123,9 @@ class TestPublicSurface:
             ("name", "other"),
             ("contract", None),
             ("project_name", "other"),
+            ("title", "other"),
+            ("description", "other"),
+            ("tags", ["other"]),
             ("allow_submissions", False),
         ],
     )
@@ -188,10 +194,10 @@ class TestServiceDelegation:
     def test_submissions(self, service: Mock, resource: SubmissionContractResource):
         """submissions() returns what the service lists for this contract."""
         submissions = [Submission.model_validate(_submission_dict())]
-        service.get_submissions.return_value = submissions
+        service.list_submissions.return_value = submissions
 
         assert resource.submissions() == submissions
-        service.get_submissions.assert_called_once_with("submission3")
+        service.list_submissions.assert_called_once_with("submission3")
 
 
 class TestSubmission:

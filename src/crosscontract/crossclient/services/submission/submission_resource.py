@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any
 
-from crosscontract import SubmissionContract
+from crosscontract.contracts.submission import SubmissionContract
 
 from .schemas import Submission, SubmissionContractEntryPayload
 
@@ -13,6 +13,17 @@ class SubmissionContractResource:
 
     Produced by the service's `create` and `get`; not constructed directly.
     Its properties are read-only and change only through its methods.
+
+    Attributes:
+        name (str): The name of the submission contract.
+        project_name (str): The name of the project owning the submission
+            contract.
+        title (str): The title of the submission contract.
+        description (str): The description of the submission contract.
+        tags (list[str]): The tags of the submission contract.
+        allow_submissions (bool): Whether the owning project may currently
+            upload submissions.
+        contract (SubmissionContract): The stored submission contract.
     """
 
     def __init__(
@@ -36,11 +47,8 @@ class SubmissionContractResource:
         self._service = service
         self._name = payload.name
         self._project_name = payload.project_name
-        self._title = payload.title
-        self._description = payload.description
-        self._tags = payload.tags
         self._allow_submissions = payload.allow_submissions
-        self._contract = SubmissionContract.from_server(payload.contract)
+        self._contract = SubmissionContract.model_validate(payload.contract)
 
     @classmethod
     def from_response(
@@ -88,7 +96,7 @@ class SubmissionContractResource:
         Returns:
             str: The title of the submission contract.
         """
-        return self._title
+        return self._contract.title
 
     @property
     def description(self) -> str:
@@ -96,7 +104,7 @@ class SubmissionContractResource:
         Returns:
             str: The description of the submission contract.
         """
-        return self._description
+        return self._contract.description
 
     @property
     def tags(self) -> list[str]:
@@ -104,7 +112,7 @@ class SubmissionContractResource:
         Returns:
             list[str]: The tags of the submission contract.
         """
-        return self._tags
+        return self._contract.tags
 
     @property
     def allow_submissions(self) -> bool:
@@ -165,7 +173,7 @@ class SubmissionContractResource:
         self._service.delete(self.name)
 
     def refresh(self) -> None:
-        """Re-fetch the submission contract and replace the local state.
+        """Reload the submission contract from the CROSS platform.
 
         Raises:
             ValueError: If the CROSS platform returns a submission contract of a
@@ -178,11 +186,8 @@ class SubmissionContractResource:
                 f"resource name '{self.name}'."
             )
         self._project_name = remote.project_name
-        self._title = remote.title
-        self._description = remote.description
-        self._tags = remote.tags
         self._allow_submissions = remote.allow_submissions
-        self._contract = SubmissionContract.from_server(remote.contract)
+        self._contract = remote.contract
 
     def submissions(self) -> list[Submission]:
         """Fetch every submission of this submission contract, oldest first.
