@@ -1,4 +1,4 @@
-# WP2 — `SubmissionService` and wiring into `CrossClient`
+# WP2 — `SubmissionContractService` and wiring into `CrossClient`
 
 ## Context
 **Part of PRD:** none — GitHub issue #121, as refined in the planning session of 2026-10-16
@@ -10,32 +10,35 @@ scope). It produces the `SubmissionContractResource` from WP1 and is exposed as
 `client.submissions`.
 
 ## Acceptance Criteria
-- [ ] `SubmissionService(client)` with these methods, all checking responses via
+- [ ] `SubmissionContractService(client)` with these methods, all checking responses via
       `raise_from_response`:
 
   | Method | Endpoint | Returns |
   |---|---|---|
-  | `create(contract: SubmissionContract)` | `POST /submission/contract`, then `GET /submission/contract/{name}` | `SubmissionContractResource` built from the GET response |
-  | `get(name)` | `GET /submission/contract/{name}` | `SubmissionContractResource` |
-  | `overview(project_name)` | `GET /submission/contract?project_name=…` | `pd.DataFrame` of the page's `items` |
-  | `delete(name)` | `DELETE /submission/contract/{name}` | `None` |
-  | `set_allow_submissions(name, allow)` | `PUT /submission/contract/{name}/allow-submissions` with body `{"allow_submissions": allow}` | `None` |
-  | `get_submission(uuid)` | `GET /submission/{uuid}` | `Submission` |
-  | `get_submissions(name)` | `GET /submission/contract/{name}/data` | `list[Submission]` from the page's `items` |
+  | `create(contract: SubmissionContract)` | `POST /api/v1/submission/contract`, then `GET /api/v1/submission/contract/{name}` | `SubmissionContractResource` built from the GET response |
+  | `get(name)` | `GET /api/v1/submission/contract/{name}` | `SubmissionContractResource` |
+  | `overview(project_name)` | `GET /api/v1/submission/contract?project_name=…` | `pd.DataFrame` of the page's `items` |
+  | `delete(name)` | `DELETE /api/v1/submission/contract/{name}` | `None` |
+  | `set_allow_submissions(name, allow)` | `PUT /api/v1/submission/contract/{name}/allow-submissions` with body `{"allow_submissions": allow}` | `None` |
+  | `get_submission(uuid)` | `GET /api/v1/submission/{uuid}` | `Submission` |
+  | `list_submissions(name)` | `GET /api/v1/submission/contract/{name}/data` | `list[Submission]` from the page's `items` |
 
-- [ ] `overview` and `get_submissions` send no `limit` (the server then returns every
+  No path carries a trailing slash. Verified against `cross_back` and the deployed
+  OpenAPI spec (`https://backend.sweet-cross.ch/api/v1/openapi.json`) on 2026-10-16.
+
+- [ ] `overview` and `list_submissions` send no `limit` (the server then returns every
       remaining item) and read `items` from the `Page` envelope.
-- [ ] `CrossClient` exposes `self.submissions: SubmissionService`.
-- [ ] `SubmissionService`, `SubmissionContractResource`, and `Submission` are exported from
+- [ ] `CrossClient` exposes `self.submissions: SubmissionContractService`.
+- [ ] `SubmissionContractService`, `SubmissionContractResource`, and `Submission` are exported from
       `crossclient/services/__init__.py` and `crossclient/__init__.py`.
 - [ ] Mocked-HTTP tests (respx, pattern of
       `src/tests/crossclient/contracts/test_contracts_service.py`) cover:
   - `create` issues the POST and then the GET, and the resource reflects the GET body.
   - `overview` sends `project_name` and no `limit`; DataFrame columns match the metadata.
-  - `get_submission` / `get_submissions` return `Submission` objects with the right `state`.
+  - `get_submission` / `list_submissions` return `Submission` objects with the right `state`.
   - `set_allow_submissions` sends exactly `{"allow_submissions": <bool>}`.
   - A 404 and a 403 raise the mapped client exceptions.
-  - `client.submissions` is a `SubmissionService`.
+  - `client.submissions` is a `SubmissionContractService`.
 
 ## Implementation Details
 - New files:
@@ -47,9 +50,10 @@ scope). It produces the `SubmissionContractResource` from WP1 and is exposed as
   - `src/crosscontract/crossclient/__init__.py`
   - `src/crosscontract/crossclient/crossclient.py` — add `self.submissions` next to
     `self.contracts` (line ~54).
-  - `src/tests/crossclient/conftest.py` — a `submission_service` fixture if useful.
-- Route base: `f"{client._base_url}/api/v1/submission/"`, mirroring `ContractService._route`.
-- `create` sends `contract.model_dump(mode="json")` as the body; the POST response is a
+- Route base: `f"{client._base_url}/api/v1/submission"` — **no** trailing slash, unlike
+  `ContractService._route`; endpoints append `/contract`, `/contract/{name}`, `/{uuid}`, ….
+- `CrossClient` has no `put` helper; send the PUT via `self._client.request("PUT", …)`.
+- `create` sends `contract.to_server()` as the body; the POST response is a
   `SubmissionContractMetaDataResponse` without `contract`, which is why the GET follows.
 - Server routes to mirror: `cross_back/backend/app/api/routes/submission_contract.py` and
   `cross_back/backend/app/api/routes/submission.py`; paging envelope in
