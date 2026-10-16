@@ -26,15 +26,15 @@ to is WP2; here it is only referenced and is mocked in tests.
   `contract` into a `SubmissionContract`.
 - [X] Read-only properties: `name`, `contract`, `project_name`, `allow_submissions`. Setting
   one raises `AttributeError`, as on `ContractResource`.
-- [ ] Methods, each delegating to the service:
+- [X] Methods, each delegating to the service:
   - `set_allow_submissions(allow: bool) -> None` — calls the service, then updates the local
     flag.
   - `delete() -> None`.
   - `refresh() -> None` — re-`get`s and replaces contract, `project_name`, and
     `allow_submissions`.
   - `submissions() -> list[Submission]` — the submissions of this submission contract.
-- [ ] The resource has no validate, submit, or upload method.
-- [ ] Tests against a mocked service (pattern of
+- [X] The resource has no validate, submit, or upload method.
+- [X] Tests against a mocked service (pattern of
   `src/tests/crossclient/contracts/test_contract_resource.py`) cover: parsing a realistic
   response dict, read-only properties, `set_allow_submissions` updating the flag,
   `refresh` replacing state, and `delete` / `submissions()` delegating.

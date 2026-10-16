@@ -13,57 +13,29 @@ from crosscontract.crossclient.services.submission.schemas import (
 from crosscontract.crossclient.services.submission.submission_resource import (
     SubmissionContractResource,
 )
-
-
-def _response_dict(
-    contract: SubmissionContract,
-    allow_submissions: bool = True,
-    project_name: str | None = None,
-) -> dict:
-    """Build a server-style `SubmissionContractEntryResponse` dict."""
-    return {
-        "name": contract.name,
-        "project_name": project_name or contract.project_name,
-        "title": contract.title,
-        "description": contract.description,
-        "tags": list(contract.tags or []),
-        "allow_submissions": allow_submissions,
-        "contract": contract.model_dump(mode="json"),
-    }
-
-
-def _submission_dict(state: str = "received") -> dict:
-    """Build a server-style `SubmissionResponse` dict."""
-    return {
-        "uuid": "8f2b7c1e-3a4d-4e5f-9a6b-7c8d9e0f1a2b",
-        "submission_contract_name": "submission3",
-        "project_name": "project1",
-        "submitted_by": "alice",
-        "original_filename": "bundle.parquet",
-        "size": 1024,
-        "hash": "ab" * 32,
-        "state": state,
-        "created_at": "2026-10-16T12:00:00Z",
-    }
+from tests.crossclient.submission.conftest import (
+    entry_response,
+    submission_response,
+)
 
 
 @pytest.fixture
 def service() -> Mock:
-    """A stand-in for the `SubmissionService` the resource delegates to."""
+    """A stand-in for the `SubmissionContractService` the resource delegates to."""
     return Mock()
 
 
 @pytest.fixture
 def resource(service: Mock, contract: SubmissionContract) -> SubmissionContractResource:
     """A resource built from the shared `SubmissionContract` fixture."""
-    return SubmissionContractResource.from_response(service, _response_dict(contract))
+    return SubmissionContractResource.from_response(service, entry_response(contract))
 
 
 class TestPayload:
     def test_parses_entry_response(self, contract: SubmissionContract):
         """The payload carries every field of a `SubmissionContractEntryResponse`."""
         payload = SubmissionContractEntryPayload.model_validate(
-            _response_dict(contract, allow_submissions=False)
+            entry_response(contract, allow_submissions=False)
         )
         assert payload.name == "submission3"
         assert payload.project_name == "project1"
@@ -74,7 +46,7 @@ class TestPayload:
 
     def test_missing_contract_is_rejected(self, contract: SubmissionContract):
         """A metadata-only response, as `create` and `overview` return, is rejected."""
-        response = _response_dict(contract)
+        response = entry_response(contract)
         del response["contract"]
         with pytest.raises(PydanticValidationError):
             SubmissionContractEntryPayload.model_validate(response)
@@ -84,7 +56,7 @@ class TestFromResponse:
     def test_builds_resource(self, service: Mock, contract: SubmissionContract):
         """from_response populates every property and parses the contract."""
         resource = SubmissionContractResource.from_response(
-            service, _response_dict(contract, allow_submissions=False)
+            service, entry_response(contract, allow_submissions=False)
         )
         assert resource.name == "submission3"
         assert resource.project_name == "project1"
@@ -104,7 +76,7 @@ class TestFromResponse:
 
     def test_invalid_contract(self, service: Mock, contract: SubmissionContract):
         """A `contract` that is not a valid `SubmissionContract` is rejected."""
-        response = _response_dict(contract)
+        response = entry_response(contract)
         del response["contract"]["extraction"]
         with pytest.raises(PydanticValidationError):
             SubmissionContractResource.from_response(service, response)
@@ -151,7 +123,7 @@ class TestServiceDelegation:
     ):
         """The service is called with the name and the value, which is then kept."""
         resource = SubmissionContractResource.from_response(
-            service, _response_dict(contract, allow_submissions=not allow)
+            service, entry_response(contract, allow_submissions=not allow)
         )
         resource.set_allow_submissions(allow)
         service.set_allow_submissions.assert_called_once_with("submission3", allow)
@@ -174,12 +146,12 @@ class TestServiceDelegation:
     def test_refresh_replaces_state(self, service: Mock, contract: SubmissionContract):
         """refresh() re-fetches by name and replaces contract, project and flag."""
         resource = SubmissionContractResource.from_response(
-            service, _response_dict(contract, allow_submissions=True)
+            service, entry_response(contract, allow_submissions=True)
         )
         updated_contract = contract.model_copy(update={"title": "New title"})
         service.get.return_value = SubmissionContractResource.from_response(
             service,
-            _response_dict(
+            entry_response(
                 updated_contract, allow_submissions=False, project_name="project2"
             ),
         )
@@ -193,7 +165,7 @@ class TestServiceDelegation:
 
     def test_submissions(self, service: Mock, resource: SubmissionContractResource):
         """submissions() returns what the service lists for this contract."""
-        submissions = [Submission.model_validate(_submission_dict())]
+        submissions = [Submission.model_validate(submission_response())]
         service.list_submissions.return_value = submissions
 
         assert resource.submissions() == submissions
@@ -203,7 +175,7 @@ class TestServiceDelegation:
 class TestSubmission:
     def test_parses_submission_response(self):
         """A `SubmissionResponse` dict parses into typed fields."""
-        submission = Submission.model_validate(_submission_dict())
+        submission = Submission.model_validate(submission_response())
         assert submission.uuid == UUID("8f2b7c1e-3a4d-4e5f-9a6b-7c8d9e0f1a2b")
         assert submission.submission_contract_name == "submission3"
         assert submission.project_name == "project1"
@@ -220,9 +192,9 @@ class TestSubmission:
     )
     def test_accepts_every_state(self, state: str):
         """Every state the server reports is accepted."""
-        assert Submission.model_validate(_submission_dict(state)).state == state
+        assert Submission.model_validate(submission_response(state)).state == state
 
     def test_rejects_unknown_state(self):
         """A state outside `SubmissionState` is rejected."""
         with pytest.raises(PydanticValidationError):
-            Submission.model_validate(_submission_dict("pending"))
+            Submission.model_validate(submission_response("pending"))
