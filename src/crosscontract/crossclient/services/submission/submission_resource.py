@@ -76,7 +76,8 @@ class SubmissionContractResource:
 
     @property
     def name(self) -> str:
-        """
+        """Return the name of the submission contract.
+
         Returns:
             str: The name of the submission contract.
         """
