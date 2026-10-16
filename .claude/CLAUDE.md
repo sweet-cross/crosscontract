@@ -129,6 +129,7 @@ A pydantic mirror of the upstream Frictionless standard, distinct from the stric
 ### `crossclient/` — HTTP client for the CROSS platform
 
 - `CrossClient`: synchronous `httpx.Client` wrapper. Authenticates on construction (JWT Bearer token), re-authenticates automatically on 401. Exposes `client.contracts` as a `ContractService` and `client.submissions` as a `SubmissionContractService`. Use as a context manager or call `close()` explicitly.
+- `services/contract/` holds `ContractService`, `ContractResource` and `CrossContractResolver`; `services/submission/` the submission counterparts below. Both are re-exported from `crossclient.services` and `crossclient`.
 - `ContractService`: CRUD operations on contracts (`create`, `get`, `get_list`, `delete`, `change_status`). Also manages data upload (`_add_data`) and retrieval (`_get_data` — uses parquet format).
 - `ContractResource`: per-contract handle returned by the service. Wraps the `CrossContract` instance and `status`. Exposes `add_data(df)` (validates against schema before upload) and `get_data()`.
 - `services/submission/` — the `/api/v1/submission` endpoints:

@@ -7,7 +7,7 @@ from crosscontract import CrossContract
 from crosscontract.contracts.schema import SchemaValidationError
 from crosscontract.contracts.schema.subschemas import BaseDimensionSchema
 
-from ..exceptions import ValidationError
+from ...exceptions import ValidationError
 from .resolver import CrossContractResolver
 
 if TYPE_CHECKING:  # pragma: no cover
