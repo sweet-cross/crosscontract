@@ -3,7 +3,7 @@ from typing import Any
 
 import httpx
 
-from .services import ContractService
+from .services import ContractService, SubmissionContractService
 
 DEFAULT_URL = "https://backend.sweet-cross.ch"
 
@@ -52,6 +52,9 @@ class CrossClient:
 
         # ---- include services ----
         self.contracts: ContractService = ContractService(client=self)
+        self.submissions: SubmissionContractService = SubmissionContractService(
+            client=self
+        )
 
         # authenticate upon initialization
         self.authenticate()

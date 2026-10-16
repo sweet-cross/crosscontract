@@ -12,8 +12,10 @@ from crosscontract.crossclient.exceptions import (
     ResourceNotFoundError,
     ServerError,
 )
-from crosscontract.crossclient.services.contract_resource import ContractResource
-from crosscontract.crossclient.services.contract_service import ContractService
+from crosscontract.crossclient.services.contract.contract_resource import (
+    ContractResource,
+)
+from crosscontract.crossclient.services.contract.contract_service import ContractService
 
 CONTRACTS_URL = "https://api.example.com/api/v1/contract/"
 
@@ -276,7 +278,8 @@ class TestDelete:
         respx.delete(delete_url).respond(404)
 
         with patch(
-            "crosscontract.crossclient.services.contract_service.raise_from_response",
+            "crosscontract.crossclient.services.contract.contract_service."
+            "raise_from_response",
             side_effect=ResourceNotFoundError,
         ) as mock_raise:
             service.delete(contract_name)
@@ -291,7 +294,8 @@ class TestDelete:
         respx.delete(delete_url).respond(404)
 
         with patch(
-            "crosscontract.crossclient.services.contract_service.raise_from_response",
+            "crosscontract.crossclient.services.contract.contract_service."
+            "raise_from_response",
             side_effect=ServerError,
         ) as mock_raise:
             with pytest.raises(ServerError):

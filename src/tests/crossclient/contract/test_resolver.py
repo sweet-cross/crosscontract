@@ -11,7 +11,7 @@ from crosscontract.crossclient.exceptions.exceptions import (
     ResourceNotFoundError,
     ServerError,
 )
-from crosscontract.crossclient.services.contract_service import ContractService
+from crosscontract.crossclient.services.contract.contract_service import ContractService
 
 
 def _contract(name: str = "region") -> CrossContract:

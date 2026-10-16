@@ -128,9 +128,14 @@ A pydantic mirror of the upstream Frictionless standard, distinct from the stric
 
 ### `crossclient/` — HTTP client for the CROSS platform
 
-- `CrossClient`: synchronous `httpx.Client` wrapper. Authenticates on construction (JWT Bearer token), re-authenticates automatically on 401. Exposes `client.contracts` as a `ContractService`. Use as a context manager or call `close()` explicitly.
+- `CrossClient`: synchronous `httpx.Client` wrapper. Authenticates on construction (JWT Bearer token), re-authenticates automatically on 401. Exposes `client.contracts` as a `ContractService` and `client.submissions` as a `SubmissionContractService`. Use as a context manager or call `close()` explicitly.
+- `services/contract/` holds `ContractService`, `ContractResource` and `CrossContractResolver`; `services/submission/` the submission counterparts below. Both are re-exported from `crossclient.services` and `crossclient`.
 - `ContractService`: CRUD operations on contracts (`create`, `get`, `get_list`, `delete`, `change_status`). Also manages data upload (`_add_data`) and retrieval (`_get_data` — uses parquet format).
 - `ContractResource`: per-contract handle returned by the service. Wraps the `CrossContract` instance and `status`. Exposes `add_data(df)` (validates against schema before upload) and `get_data()`.
+- `services/submission/` — the `/api/v1/submission` endpoints:
+  - `SubmissionContractService`: `create` (POSTs, then re-`get`s, because the POST response carries no contract), `get`, `overview(project_name)` (DataFrame of the project's submission contracts), `delete`, `set_allow_submissions`, `get_submission(uuid)`, `list_submissions(name)`. List endpoints are paged on the server; the service sends no `limit`, so one request returns every item. No upload yet.
+  - `SubmissionContractResource`: per-submission-contract handle holding the `SubmissionContract`, `project_name` and `allow_submissions` (`title`/`description`/`tags` read through to the contract). Exposes `set_allow_submissions`, `delete`, `refresh`, `submissions()`. It neither validates nor submits bundles — that is `CrossSubmitter`'s job.
+  - `schemas.py`: `SubmissionContractEntryPayload` (the parsed read response) and `Submission` with its `SubmissionState` literal, mirroring the server's `SubmissionResponse`.
 
 ### `registry/` — High-level data access layer
 
@@ -171,7 +176,7 @@ Not re-exported from the top-level package. `_pydantic.py` holds reusable pydant
 - **Discriminated unions**: `contract_type` on `CrossContract` selects the schema's `table_type` via the `CONTRACT_TYPE_TO_TABLE_TYPE` table in `contracts/contracts/cross_contract.py`. The mapping is **not** the identity: `Submission` resolves to the `General` table type, because a submission bundle needs its own contract type but not its own schema. The two vocabularies are deliberately separate so several contract types can share one schema — never assume the two strings are equal, and never add an empty schema class just to give a contract type a discriminator target. The `_inject_table_type` validator bridges them automatically.
 - **Adapters are stateless class methods**: call `Adapter.convert_schema(schema, ...)` directly; the adapter pattern exists for extensibility but doesn't require instantiation in practice.
 - **Two `name` patterns, deliberately distinct**: `CONTRACT_NAME_PATTERN` (in the dependency-free `constants.py`, so every package can import it) is the strict contract/field identifier — no `/`; `FRICTIONLESS_NAME_PATTERN` (in `_standards/frictionless/metadata.py`) is the looser standard resource/package identifier that permits `/`. The contract pattern is a subset, so any contract name is also a valid Frictionless name.
-- **Two packages named `submission`**: `crosscontract.contracts.submission` holds the declarative specs (`SubmissionContract`, `ExtractionInstructions`, `Target`); `crosscontract.submission` holds their execution (`SubmissionHandler`, `CrossSubmitter`, the contract-taking readers). Name the full path when referring to either.
+- **Three packages named `submission`**: `crosscontract.contracts.submission` holds the declarative specs (`SubmissionContract`, `ExtractionInstructions`, `Target`); `crosscontract.crossclient.services.submission` is the low-level HTTP client for them (`SubmissionContractService`, `SubmissionContractResource`, `Submission`); `crosscontract.submission` holds their execution, the high-level layer (`SubmissionHandler`, `CrossSubmitter`, the contract-taking readers). Name the full path when referring to any of them.
 - **Tests live in `src/tests/`**, mirroring the `src/crosscontract/` structure. `pythonpath = "src"` in `pyproject.toml` means imports use `from crosscontract import ...` without editable install, though the package should be installed via `uv sync`.
 
 ## Docstring convention

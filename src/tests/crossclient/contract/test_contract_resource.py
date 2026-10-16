@@ -9,8 +9,10 @@ from crosscontract import CrossContract
 from crosscontract.contracts.schema import SchemaValidationError, TableSchema
 from crosscontract.crossclient import CrossContractResolver
 from crosscontract.crossclient.exceptions.exceptions import ValidationError
-from crosscontract.crossclient.services.contract_resource import ContractResource
-from crosscontract.crossclient.services.contract_service import ContractService
+from crosscontract.crossclient.services.contract.contract_resource import (
+    ContractResource,
+)
+from crosscontract.crossclient.services.contract.contract_service import ContractService
 
 CONTRACTS_URL = "https://api.example.com/api/v1/contract/"
 

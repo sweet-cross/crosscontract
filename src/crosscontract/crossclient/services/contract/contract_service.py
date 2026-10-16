@@ -6,13 +6,13 @@ import pandas as pd
 from crosscontract import CrossContract
 from crosscontract.contracts.contracts.cross_contract import ContractType
 
-from ..exceptions import ResourceNotFoundError, raise_from_response
+from ...exceptions import ResourceNotFoundError, raise_from_response
 from .contract_resource import ContractResource, ContractStatus
 
 FilterValue = str | int | float | bool
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ..crossclient import CrossClient
+    from ...crossclient import CrossClient
 
 
 class ContractService:
