@@ -11,11 +11,8 @@ into a single validation of a delivered bundle.
 """
 
 from crosscontract.contracts.submission import SubmissionContract
-from crosscontract.crossclient.exceptions import (
-    TargetValidationError,
-    UnclaimedRowsError,
-)
-from crosscontract.crossclient.services.submission import (
+from crosscontract.exceptions import TargetValidationError, UnclaimedRowsError
+from crosscontract.handlers import (
     SubmissionHandler,
     read_excel_bundle,
     read_excel_bundle_bytes,

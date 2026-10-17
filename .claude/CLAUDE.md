@@ -130,6 +130,7 @@ A pydantic mirror of the upstream Frictionless standard, distinct from the stric
 
 - `CrossClient`: synchronous `httpx.Client` wrapper. Authenticates on construction (JWT Bearer token), re-authenticates automatically on 401. Exposes `client.contracts` as a `ContractService` and `client.submissions` as a `SubmissionContractService`. Use as a context manager or call `close()` explicitly.
 - `services/contract/` holds `ContractService`, `ContractResource` and `CrossContractResolver`; `services/submission/` the submission counterparts below. Both are re-exported from `crossclient.services` and `crossclient`.
+- `crossclient/exceptions/` holds only the `CrossClientError` family and `raise_from_response`; the submission exceptions live in `exceptions/`.
 - `ContractService`: CRUD operations on contracts (`create`, `get`, `get_list`, `delete`, `change_status`). Also manages data upload (`_add_data`) and retrieval (`_get_data` — uses parquet format).
 - `ContractResource`: per-contract handle returned by the service. Wraps the `CrossContract` instance and `status`. Exposes `add_data(df)` (validates against schema before upload) and `get_data()`.
 - `services/submission/` — the `/api/v1/submission` endpoints:
@@ -157,15 +158,19 @@ A stateless adapter that turns CROSS contracts into a Frictionless Data Package 
 - `specs.py` — `ExcelProcessor` / `ExcelSheet` / `WideLayout`: the optional declaration of an Excel bundle's sheets and which of them are laid out wide. Reached through `SubmissionContract.excel_processor`.
 - `processing.py` — `read_excel_workbook_bytes(processor, field_names, data)`: turns a workbook given as bytes into one long frame. A wide sheet keeps the columns in `field_names` as identifiers and melts the rest. It takes no contract; the contract-taking wrappers live in `submission/`.
 
+### `handlers/` and `exceptions/` — Offline submission execution
+
+`handlers/submission/` holds `SubmissionHandler` and the Excel bundle readers (described under `submission/` below); `exceptions/` holds `TargetValidationError` and `UnclaimedRowsError`. Both are re-exported from `crosscontract.submission`.
+
 ### `submission/` — Executing submission contracts
 
 Runs what the specs in `contracts/submission/` and `transformations/excel/` declare: reading a delivered bundle — one wide file carrying many variables — splitting it back into per-variable contracts, and validating the result. The ingress mirror of `release/`. `SubmissionContract` is re-exported here, so `from crosscontract.submission import SubmissionContract` keeps working.
 
-- `excel_processing.py` (lives in `crossclient/services/submission/`, re-exported here) — `read_excel_bundle_bytes(contract, data)` and `read_excel_bundle(contract, filename)`: check that the contract has an `excel_processor`, then delegate to `read_excel_workbook_bytes` with its sheets and `tableschema` field names. These are the readers `cross_back` imports.
-- `submission_handler.py` (lives in `crossclient/services/submission/`, re-exported here) — `SubmissionHandler`: the executor that applies a contract's extraction instructions to a delivered bundle. Extraction is `extract_target_data` / `transform_target_data` / `get_target_data` per target, plus `unclaimed_rows` for the bundle rows no target claims. Validation is `validate_target` (one target's extracted rows against the contract it names) and `validate_targets` (every target, or a named selection, collecting each failure into a `TargetValidationError` instead of stopping at the first). Target contracts arrive from the caller or through a `ContractResolver`; the handler never constructs one.
-- `TargetValidationError` and `UnclaimedRowsError` (live in `crossclient/exceptions/`, re-exported here) — `TargetValidationError`: the aggregate raised by `validate_targets`, holding one `SchemaValidationError` per failing target keyed by target name. `UnclaimedRowsError`: raised when a bundle holds rows no target claims, carrying those rows.
+- `excel_processing.py` (lives in `handlers/submission/`, re-exported here) — `read_excel_bundle_bytes(contract, data)` and `read_excel_bundle(contract, filename)`: check that the contract has an `excel_processor`, then delegate to `read_excel_workbook_bytes` with its sheets and `tableschema` field names. These are the readers `cross_back` imports.
+- `submission_handler.py` (lives in `handlers/submission/`, re-exported here) — `SubmissionHandler`: the executor that applies a contract's extraction instructions to a delivered bundle. Extraction is `extract_target_data` / `transform_target_data` / `get_target_data` per target, plus `unclaimed_rows` for the bundle rows no target claims. Validation is `validate_target` (one target's extracted rows against the contract it names) and `validate_targets` (every target, or a named selection, collecting each failure into a `TargetValidationError` instead of stopping at the first). Target contracts arrive from the caller or through a `ContractResolver`; the handler never constructs one.
+- `TargetValidationError` and `UnclaimedRowsError` (live in `exceptions/`, re-exported here) — `TargetValidationError`: the aggregate raised by `validate_targets`, holding one `SchemaValidationError` per failing target keyed by target name. `UnclaimedRowsError`: raised when a bundle holds rows no target claims, carrying those rows.
 
-The import graph runs one way — `constants` ← `transformations` ← `contracts` ← `crossclient` ← `submission` — which is why the specs live below the client and only their execution here (ADR 0010). Never import `submission/` from `contracts/`, `transformations/` or `crossclient/`.
+The import graph runs one way — `constants` ← `transformations` ← `contracts` ← `handlers` ← `crossclient` ← `submission` — which is why the specs live below the client and only their execution here (ADR 0010). `handlers/` and `exceptions/` sit below `crossclient/` so the handler can raise the submission exceptions without importing the client. Never import `submission/` from `contracts/`, `transformations/`, `handlers/`, `exceptions/` or `crossclient/`, and never import `crossclient/` from `handlers/` or `exceptions/`.
 
 ### `_helpers/` — Internal, dependency-free helpers
 

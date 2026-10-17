@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from crosscontract.contracts.submission import SubmissionContract
-from crosscontract.crossclient.services.submission import SubmissionHandler
+from crosscontract.handlers.submission import SubmissionHandler
 
 
 @pytest.fixture(scope="class")

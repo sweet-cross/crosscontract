@@ -72,7 +72,7 @@ class TestPublicSurface:
         assert "CrossSubmitter" in crosscontract.submission.__all__
 
     def test_reexports_handler_and_readers(self):
-        import crosscontract.crossclient.services.submission as service
+        import crosscontract.handlers.submission as service
         import crosscontract.submission as submission
 
         assert submission.SubmissionHandler is service.SubmissionHandler

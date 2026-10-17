@@ -4,9 +4,9 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import crosscontract.crossclient.services.submission as submission
+import crosscontract.handlers.submission as submission
 from crosscontract.contracts.submission import SubmissionContract
-from crosscontract.crossclient.services.submission import (
+from crosscontract.handlers.submission import (
     read_excel_bundle,
     read_excel_bundle_bytes,
 )
