@@ -1,5 +1,9 @@
 # Submission specs live in contracts/, their execution in submission/
 
+> **Superseded in part 2026-10-17** by [ADR 0011](./0011-submission-execution-lives-in-handlers-transport-in-crossclient.md): `SubmissionHandler`, the Excel bundle
+> readers and the submission exceptions now live in `handlers/submission/` and
+> `exceptions/`; `submission/` holds only `CrossSubmitter` plus re-exports.
+
 The declarative parts of a **Submission contract** live below the client: the contract and
 its extraction specs (`SubmissionContract`, `ExtractionInstructions`, `Target`) in
 `contracts/submission/`, and the Excel declaration together with the reader that carries

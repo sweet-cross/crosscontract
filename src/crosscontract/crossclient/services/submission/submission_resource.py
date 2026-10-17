@@ -1,7 +1,13 @@
+from datetime import UTC, datetime
+from io import BytesIO
 from typing import TYPE_CHECKING, Any
 
-from crosscontract.contracts.submission import SubmissionContract
+import pandas as pd
 
+from crosscontract.contracts.submission import SubmissionContract
+from crosscontract.handlers.submission import SubmissionHandler
+
+from ..contract import CrossContractResolver
 from .schemas import Submission, SubmissionContractEntryPayload
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -13,6 +19,8 @@ class SubmissionContractResource:
 
     Produced by the service's `create` and `get`; not constructed directly.
     Its properties are read-only and change only through its methods.
+    `validate_submission` checks a delivered bundle against the stored
+    submission contract.
 
     Attributes:
         name (str): The name of the submission contract.
@@ -211,3 +219,119 @@ class SubmissionContractResource:
                 if the submission contract no longer exists.
         """
         return self._service.list_submissions(self.name)
+
+    def validate_submission(
+        self,
+        df: pd.DataFrame,
+        check_existing_primary_key: bool = False,
+        check_existing_foreign_key: bool = True,
+        check_dimension_granularity: bool = True,
+        lazy: bool = True,
+    ) -> dict[str, pd.DataFrame]:
+        """Validate a delivered bundle against this submission contract.
+
+        Runs `SubmissionHandler.validate_submission` on the stored contract,
+        reading the target contracts and their stored values from the CROSS
+        platform. The steps stop at the first failure; see that method for what
+        each check covers. By default the stored primary keys are not checked,
+        because a submission replaces the rows stored under its `replace_key`.
+        Validation here is advisory: the platform validates a submission again
+        on ingest and can still reject it.
+
+        Args:
+            df (pd.DataFrame): The bundle as delivered.
+            check_existing_primary_key (bool): If True, also check each target's
+                primary key against the values already stored for the contract
+                it names, including the rows this submission would replace.
+                Defaults to False.
+            check_existing_foreign_key (bool): If True, also check each target's
+                foreign keys against the values already stored for the contracts
+                they reference. Defaults to True.
+            check_dimension_granularity (bool): If True, also check that no
+                ValueVariable target reports a dimension member alongside one of
+                its descendants. Defaults to True.
+            lazy (bool): If True, collect all of a step's validation errors and
+                raise them together. If False, raise the first error
+                encountered. Defaults to True.
+
+        Returns:
+            dict[str, pd.DataFrame]: The validated, coerced target data, keyed
+                by target name.
+
+        Raises:
+            SchemaValidationError: The bundle does not satisfy the submission
+                contract's own schema.
+            UnclaimedRowsError: The bundle holds rows no target claims.
+            TargetValidationError: At least one target's data failed, holding
+                one entry per failing target.
+            ValueError: A target names a contract that cannot be read.
+            KeyError: A column named by a target's `filters` is absent from the
+                bundle.
+            CrossClientError: A read from the CROSS platform failed.
+        """
+        resolver = CrossContractResolver(self._service._client.contracts)
+        return SubmissionHandler(self.contract, df).validate_submission(
+            resolver=resolver,
+            check_existing_primary_key=check_existing_primary_key,
+            check_existing_foreign_key=check_existing_foreign_key,
+            check_dimension_granularity=check_dimension_granularity,
+            lazy=lazy,
+        )
+
+    def submit(
+        self, df: pd.DataFrame, filename: str | None = None, validate: bool = True
+    ) -> Submission:
+        """Validate a delivered bundle, then upload it under this submission contract.
+
+        The bundle is uploaded as a parquet file, exactly as handed in. With
+        `validate=True` it is first checked by `validate_submission` with its
+        defaults, and nothing is uploaded if any check fails. To validate with
+        other settings, call `validate_submission` with the flags you need and
+        then `submit(df, validate=False)`.
+
+        Validation here is advisory: the CROSS platform validates the
+        submission again on ingest and can still reject it. Processing on the
+        platform is asynchronous; follow the returned submission's state with
+        `SubmissionContractService.get_submission`.
+
+        Args:
+            df (pd.DataFrame): The bundle as delivered.
+            filename (str | None, optional): The stem of the uploaded file;
+                `.parquet` is appended. Defaults to `None`, which names the file
+                after the submission contract and the UTC time of the upload,
+                e.g. `my_contract_20261017124301.parquet`.
+            validate (bool, optional): Whether to validate the bundle before
+                uploading it. Defaults to `True`.
+
+        Returns:
+            Submission: The created submission, in state `received`.
+
+        Raises:
+            SchemaValidationError: The bundle does not satisfy the submission
+                contract's own schema. Only with `validate=True`.
+            UnclaimedRowsError: The bundle holds rows no target claims. Only
+                with `validate=True`.
+            TargetValidationError: At least one target's data failed. Only with
+                `validate=True`.
+            ValueError: A target names a contract that cannot be read. Only
+                with `validate=True`.
+            KeyError: A column named by a target's `filters` is absent from the
+                bundle. Only with `validate=True`.
+            pyarrow.ArrowException: The bundle cannot be written as parquet,
+                e.g. `ArrowTypeError` or `ArrowInvalid` for a column mixing
+                strings and integers. Can occur even when validation passes;
+                cast the column to one type before submitting.
+            CrossClientError: A request to the CROSS platform failed, e.g.
+                `PermissionDeniedError` if the caller may not submit to the
+                contract's project.
+        """
+        if filename is None:
+            filename = f"{self.name}_{datetime.now(tz=UTC):%Y%m%d%H%M%S}"
+        if validate:
+            self.validate_submission(df)
+        buffer = BytesIO()
+        df.to_parquet(buffer, index=False)
+        buffer.seek(0)
+        return self._service._upload_submission(
+            self.name, buffer, f"{filename}.parquet"
+        )

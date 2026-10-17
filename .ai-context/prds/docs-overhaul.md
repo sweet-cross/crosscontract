@@ -186,6 +186,25 @@ Start only once the submission feature is settled. That means at least:
 `CrossSubmitter.submit` no longer being a stub, and the extraction format no longer
 changing between PRs.
 
+> **Note (added 2026-10-17).** #122 implements `CrossSubmitter.submit`, so the first
+> precondition is met; the submission docs page is still missing. #122 removed the
+> deprecated TODO.md entry for that page, so this WP is now its only record. #122 also
+> changes what this WP documents (ADR 0011):
+>
+> - `SubmissionHandler` and the Excel readers live in `handlers/submission/`, the two
+>   exceptions in `exceptions/`; `crosscontract.submission` holds `CrossSubmitter` plus
+>   re-exports.
+> - Offline, `SubmissionHandler(contract, df).validate_submission(resolver)` runs the
+>   full submission validation. On the platform, `client.submissions.get(name)` returns a
+>   `SubmissionContractResource` with `validate_submission(df)` and `submit(df)`, and
+>   `CrossSubmitter.validate_submission` / `submit` take the submission contract's name.
+> - `check_existing_primary_key` defaults to `False`; client-side validation stays
+>   advisory.
+> - `Submission`, the return value of `submit`, is exported and belongs in the reference.
+>
+> The "Sources of truth" paths in `issues/docs-overhaul/06-submission.md` are stale
+> accordingly.
+
 Done when:
 
 1. A new top-level "Submission" section exists (`docs/submission/index.md`), written for

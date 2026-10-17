@@ -118,3 +118,12 @@ class TestUnclaimedRowsError:
     def test_to_pandas_returns_dataframe(self, error, unclaimed_rows):
         df = error.to_pandas()
         pd.testing.assert_frame_equal(df, unclaimed_rows)
+
+
+def test_exported_from_exceptions_package():
+    import crosscontract.exceptions as exceptions
+
+    assert exceptions.TargetValidationError is TargetValidationError
+    assert exceptions.UnclaimedRowsError is UnclaimedRowsError
+    assert "TargetValidationError" in exceptions.__all__
+    assert "UnclaimedRowsError" in exceptions.__all__

@@ -1,5 +1,9 @@
+import inspect
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import Mock
 
+import pandas as pd
 import pytest
 from polyfactory.factories.pydantic_factory import ModelFactory
 
@@ -184,3 +188,65 @@ def resolver_for(**contracts: BaseContract | None) -> Mock:
     resolver = Mock(spec=ContractResolver)
     resolver.resolve.side_effect = lambda name: contracts[name]
     return resolver
+
+
+def bundle(*rows: tuple[str, str, int, float]) -> pd.DataFrame:
+    """Build a submission frame according to the submission contract's schema.
+
+    Args:
+        *rows (tuple[str, str, int, float]): One tuple per row, holding
+            `variable`, `country`, `year` and `value`.
+
+    Returns:
+        pd.DataFrame: The frame, with `year` as a nullable integer column.
+    """
+    return pd.DataFrame(
+        list(rows), columns=["variable", "country", "year", "value"]
+    ).astype({"year": "Int64"})
+
+
+@pytest.fixture
+def bad_contract_a() -> BaseContract:
+    """Return a `contract_a` whose `region` the target's rows cannot satisfy."""
+    return target_contract(
+        "contract_a",
+        [
+            {"name": "region", "type": "integer"},
+            {"name": "year", "type": "integer"},
+            {"name": "value", "type": "number"},
+        ],
+    )
+
+
+@pytest.fixture
+def bad_contract_c() -> BaseContract:
+    """Return a `contract_c` whose `country` the target's rows cannot satisfy."""
+    return target_contract(
+        "contract_c",
+        [
+            {"name": "country", "type": "integer"},
+            {"name": "period", "type": "integer"},
+            {"name": "value", "type": "number"},
+        ],
+    )
+
+
+def bound_arguments(method: Callable, call: Any) -> dict:
+    """Bind a mock's recorded call to a method's parameters, defaults applied.
+
+    Lets an assertion name each argument regardless of whether the caller
+    passed it by position or by keyword.
+
+    Args:
+        method (Callable): The plain function from the class, e.g.
+            `SubmissionContractResource.submit`.
+        call (Any): The recorded `call_args` of a mock, without `self`.
+
+    Returns:
+        dict: The arguments by parameter name, `self` excluded.
+    """
+    bound = inspect.signature(method).bind(None, *call.args, **call.kwargs)
+    bound.apply_defaults()
+    arguments = dict(bound.arguments)
+    del arguments["self"]
+    return arguments

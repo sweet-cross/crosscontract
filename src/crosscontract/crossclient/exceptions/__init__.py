@@ -20,5 +20,4 @@ __all__ = [
     "ServerError",
     "raise_from_response",
     "UnprocessableEntityError",
-    "raise_from_response",
 ]

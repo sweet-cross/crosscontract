@@ -2,7 +2,7 @@
 
 ADR 0007 claims a bundle is split into targets and each target then validates as
 an ordinary variable. These tests hold that claim to account for the granularity
-check: nothing in `submission/` knows what a hierarchy is, and a target still
+check: nothing in `handlers/` knows what a hierarchy is, and a target still
 gets checked.
 """
 
@@ -13,8 +13,9 @@ import pytest
 
 from crosscontract.contracts import ContractResolver, CrossContract
 from crosscontract.contracts.schema import SchemaValidationError
-from crosscontract.submission import SubmissionContract, SubmissionHandler
-from crosscontract.submission.exceptions import TargetValidationError
+from crosscontract.contracts.submission import SubmissionContract
+from crosscontract.exceptions import TargetValidationError
+from crosscontract.handlers.submission import SubmissionHandler
 
 DIMENSION_DATA = pd.DataFrame(
     {
@@ -138,7 +139,7 @@ class TestValidateTargetInheritsTheCheck:
                 check_dimension_granularity=True,
             )
 
-    def test_the_dimension_is_read_through_the_submitter_s_resolver(
+    def test_the_dimension_is_read_through_the_same_resolver(
         self, contract: SubmissionContract, resolver: Mock
     ):
         """The hierarchy is fetched live, through the same resolver that supplies
@@ -152,8 +153,8 @@ class TestValidateTargetInheritsTheCheck:
     def test_the_flag_is_off_by_default_on_the_handler(
         self, contract: SubmissionContract, resolver: Mock
     ):
-        """`SubmissionHandler` keeps the library default; it is
-        `CrossSubmitter.validate_submission` that turns the check on."""
+        """`validate_target` keeps the library default; it is
+        `SubmissionHandler.validate_submission` that turns the check on."""
         handler = SubmissionHandler(
             contract, _bundle([("ch", 2030, 100.0), ("ch_ag", 2030, 30.0)])
         )

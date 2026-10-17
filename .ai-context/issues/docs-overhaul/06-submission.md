@@ -19,8 +19,9 @@ have moved.
 - [ ] The `extraction` block: routing column, transformation profiles, and targets.
 - [ ] Offline checking with `SubmissionHandler`: target extraction,
       `validate_target`/`validate_targets`, and `unclaimed_rows`.
-- [ ] Platform checking with `CrossSubmitter.validate_submission`, plus submitting if
-      `submit` is implemented by then.
+- [ ] Platform checking and submitting with `CrossSubmitter.validate_submission(name, df)`
+      and `submit(name, df)`, and the `SubmissionContractResource` methods underneath
+      (`client.submissions.get(name)`).
 - [ ] The errors a provider meets: `TargetValidationError` and `UnclaimedRowsError`.
 - [ ] A complete, runnable example: a small submission contract as YAML plus a bundle
       DataFrame.
@@ -59,9 +60,11 @@ have moved.
 - Sources of truth:
   - `contracts/submission/submission_contract.py`
   - `contracts/submission/extraction/`
-  - `submission/submission_handler.py`
+  - `handlers/submission/submission_handler.py`
+  - `handlers/submission/excel_processing.py`
+  - `crossclient/services/submission/` (`SubmissionContractResource`, `Submission`)
   - `submission/submitter.py`
-  - `submission/exceptions.py`
+  - `exceptions/submission_exceptions.py`
   - `transformations/transformation/`
   - `.ai-context/prds/cross2025_submission.yaml`, as a real-world example to draw from
     (simplify it; don't publish it verbatim).
@@ -81,7 +84,14 @@ have moved.
     (#122).
 
   Present submission with the same three layers as the landing page (WP2) and the client
-  pages (WP4). Update the "Sources of truth" paths above once #120 has landed.
+  pages (WP4).
+- **Note — #122 landed (added 2026-10-17).** `CrossSubmitter.submit` is implemented, so
+  the precondition is met. Per ADR 0011: `SubmissionHandler` and the readers moved to
+  `handlers/submission/`, the exceptions to `exceptions/`; the full validation is
+  `SubmissionHandler.validate_submission(resolver)`; the resource validates and submits;
+  `CrossSubmitter` takes a submission contract's name; `check_existing_primary_key`
+  defaults to `False`. The reference page should also render `Submission`. The "Sources
+  of truth" paths above are updated.
 - Dependencies:
   - After 05-release.md, which creates `docs/reference/transformations.md`. If WP5 has
     not landed, create that page here.

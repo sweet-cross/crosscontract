@@ -10,26 +10,28 @@ import pandas as pd
 from crosscontract.contracts import BaseContract, ContractResolver
 from crosscontract.contracts.schema import SchemaValidationError
 from crosscontract.contracts.submission import SubmissionContract, Target
+from crosscontract.exceptions import TargetValidationError, UnclaimedRowsError
 from crosscontract.transformations import BaseTransformation
-
-from .exceptions import TargetValidationError
 
 
 class SubmissionHandler:
     """Apply a submission contract's extraction instructions to a bundle.
 
-    The handler's scope is targets and nothing else. For one target,
-    `extract_target_data` selects the rows it claims, `transform_target_data`
-    applies its transformation profile and then its own transformations,
-    `get_target_data` composes the two, and `validate_target` checks the result
-    against the contract that target names. `validate_targets` answers for every
-    target, or for a named selection of them, and across targets it collects
-    every failure rather than stopping at the first.
+    For one target, `extract_target_data` selects the rows it claims,
+    `transform_target_data` applies its transformation profile and then its own
+    transformations, `get_target_data` composes the two, and `validate_target`
+    checks the result against the contract that target names. `validate_targets`
+    answers for every target, or for a named selection of them, and across
+    targets it collects every failure rather than stopping at the first.
+    `unclaimed_rows` returns the bundle rows no target claims.
+
+    `validate_submission` runs the full check of a delivered bundle: the bundle
+    itself, its unclaimed rows, and every target, stopping at the first step
+    that fails.
 
     A target's contract arrives from the caller, either handed over directly or
     through a `ContractResolver`; the handler never constructs one. With a
     contract in hand it loads and runs with no platform connection.
-    `CrossSubmitter` runs this against contracts fetched from the platform.
 
     Attributes:
         contract (SubmissionContract): The contract describing the bundle and how
@@ -347,3 +349,106 @@ class SubmissionHandler:
         if errors:
             raise TargetValidationError(errors)
         return validated_data
+
+    def validate_submission(
+        self,
+        resolver: ContractResolver,
+        check_existing_primary_key: bool = False,
+        check_existing_foreign_key: bool = True,
+        check_dimension_granularity: bool = True,
+        lazy: bool = True,
+    ) -> dict[str, pd.DataFrame]:
+        """Validate a delivered bundle and everything extracted from it.
+
+        Runs three steps in order, stopping at the first failure:
+
+        1. the bundle against the submission contract's own `tableschema`,
+        2. the bundle for rows that no target claims,
+        3. each target's extracted data against the contract it names.
+
+        Step 3 reads the contracts the targets name, and the values already
+        stored under them, through `resolver`.
+
+        By default the stored primary keys are not checked, because a
+        submission replaces the rows stored under its `replace_key`. Duplicated
+        or missing key values within a target's rows are caught either way;
+        collisions with rows stored by other submissions are not.
+
+        Targets are extracted from the bundle as delivered, not from the coerced
+        frame of step 1.
+
+        Validation here is advisory: the CROSS platform validates a submission
+        again on ingest and can still reject it.
+
+        Args:
+            resolver (ContractResolver): Supplier of the target contracts and of
+                the values already stored under them.
+            check_existing_primary_key (bool): If True, also check each target's
+                primary key against the values already stored for the contract
+                it names, including the rows this submission would replace.
+                Applies to step 3 only. Each target's rows are checked for
+                duplicated or missing key values either way. Defaults to False.
+            check_existing_foreign_key (bool): If True, also check each target's
+                foreign keys against the values already stored for the contracts
+                they reference. Applies to step 3 only. A False value suppresses
+                the foreign-key check entirely, self-references included.
+                Defaults to True.
+            check_dimension_granularity (bool): If True, also check that no group
+                of otherwise-identical rows reports a member of a hierarchical
+                dimension alongside one of its descendants, which would count
+                that member twice when the data is summed. Only a ValueVariable
+                is checked, and only its references to a `Dimension`. Applies to
+                step 3 only. Defaults to True.
+            lazy (bool): If True, collect all of a step's validation errors and
+                raise them together. If False, raise the first error
+                encountered; the report may then lack the offending key values.
+                Defaults to True.
+
+        Returns:
+            dict[str, pd.DataFrame]: Step 3's result — the validated, coerced
+                target data, keyed by target name. Empty frames are legitimate:
+                a target that claims no rows is not an error.
+
+        Raises:
+            SchemaValidationError: Step 1. The bundle does not satisfy the
+                submission contract's own schema. No target is attempted.
+            UnclaimedRowsError: Step 2. The bundle holds rows no target claims,
+                which extraction would silently drop. Carries the rows. No
+                target is attempted.
+            TargetValidationError: Step 3. At least one target's data failed,
+                holding one entry per failing target. Every target is attempted
+                first, and the frames of those that passed are discarded along
+                with the failures.
+            ValueError: Step 3. A target names a contract the resolver cannot
+                supply, or the granularity check meets a referenced dimension
+                the resolver cannot supply. Raised as is, not collected into a
+                `TargetValidationError`.
+            KeyError: A column named by a target's `filters` is absent from the
+                bundle and its field is not `required`.
+            CrossClientError: With a resolver that reads from the CROSS
+                platform, a read failed. A contract or its stored data being
+                unreadable surfaces here rather than as a validation failure.
+        """
+        # validate the full bundle
+        _ = self.contract.validate_data(
+            self.bundle,
+            resolver=resolver,
+            check_existing_primary_key=check_existing_primary_key,
+            check_existing_foreign_key=check_existing_foreign_key,
+            check_dimension_granularity=check_dimension_granularity,
+            lazy=lazy,
+        )
+
+        # check whether there are unclaimed rows
+        unclaimed_rows = self.unclaimed_rows()
+        if not unclaimed_rows.empty:
+            raise UnclaimedRowsError(unclaimed_rows)
+
+        # validate each target
+        return self.validate_targets(
+            resolver=resolver,
+            check_existing_primary_key=check_existing_primary_key,
+            check_existing_foreign_key=check_existing_foreign_key,
+            check_dimension_granularity=check_dimension_granularity,
+            lazy=lazy,
+        )

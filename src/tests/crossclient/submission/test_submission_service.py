@@ -1,5 +1,10 @@
+import io
 import json
+from email.message import EmailMessage
+from email.parser import BytesParser
+from email.policy import default
 
+import httpx
 import pandas as pd
 import pytest
 import respx
@@ -7,6 +12,7 @@ import respx
 from crosscontract.contracts.submission import SubmissionContract
 from crosscontract.crossclient import CrossClient
 from crosscontract.crossclient.exceptions import (
+    ConflictError,
     PermissionDeniedError,
     ResourceNotFoundError,
 )
@@ -189,6 +195,77 @@ class TestSubmissionEndpoints:
         respx.get(f"{CONTRACT_URL}/submission3/data").respond(200, json=page([]))
 
         assert service.list_submissions("submission3") == []
+
+
+def uploaded_parts(request: httpx.Request) -> list[EmailMessage]:
+    """Split a multipart request body into its parts.
+
+    Args:
+        request (httpx.Request): The recorded request.
+
+    Returns:
+        list[EmailMessage]: One message per multipart part.
+    """
+    header = b"Content-Type: " + request.headers["content-type"].encode()
+    message = BytesParser(policy=default).parsebytes(
+        header + b"\r\n\r\n" + request.content
+    )
+    return list(message.iter_parts())
+
+
+class TestUploadSubmission:
+    @pytest.mark.parametrize(
+        "file",
+        [b"PAR1 bundle bytes", io.BytesIO(b"PAR1 bundle bytes")],
+        ids=["bytes", "binary_io"],
+    )
+    @respx.mock
+    def test_posts_the_file_unchanged(self, service: SubmissionContractService, file):
+        """_upload_submission() posts one file part carrying the given name and
+        bytes."""
+        route = respx.post(f"{CONTRACT_URL}/submission3/data").respond(
+            201, json=submission_response()
+        )
+
+        service._upload_submission("submission3", file, "bundle.parquet")
+
+        (part,) = uploaded_parts(route.calls.last.request)
+        assert part.get_filename() == "bundle.parquet"
+        assert part.get_payload(decode=True) == b"PAR1 bundle bytes"
+
+    @respx.mock
+    def test_returns_the_received_submission(self, service: SubmissionContractService):
+        respx.post(f"{CONTRACT_URL}/submission3/data").respond(
+            201, json=submission_response("received")
+        )
+
+        submission = service._upload_submission(
+            "submission3", b"PAR1", "bundle.parquet"
+        )
+
+        assert isinstance(submission, Submission)
+        assert submission.state == "received"
+
+    @pytest.mark.parametrize(
+        "status, error",
+        [
+            (404, ResourceNotFoundError),
+            (403, PermissionDeniedError),
+            (409, ConflictError),
+        ],
+    )
+    @respx.mock
+    def test_failed_upload_raises_mapped_error(
+        self, service: SubmissionContractService, status: int, error: type
+    ):
+        """A rejected upload, e.g. an unsupported file extension, raises the
+        mapped exception."""
+        respx.post(f"{CONTRACT_URL}/submission3/data").respond(
+            status, json={"detail": "nope"}
+        )
+
+        with pytest.raises(error):
+            service._upload_submission("submission3", b"PAR1", "bundle.parquet")
 
 
 class TestErrors:

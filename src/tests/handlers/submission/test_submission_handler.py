@@ -1,7 +1,9 @@
 import pandas as pd
 import pytest
 
-from crosscontract.submission import SubmissionContract, SubmissionHandler
+from crosscontract.contracts.submission import SubmissionContract
+from crosscontract.handlers.submission import SubmissionHandler
+from tests.conftest import bundle
 
 
 @pytest.fixture(scope="class")
@@ -91,22 +93,6 @@ def contract() -> SubmissionContract:
         },
     }
     return SubmissionContract.model_validate(coverage_data)
-
-
-def bundle(*rows: tuple[str, str, int, float]) -> pd.DataFrame:
-    """Build a submission frame according to the submission contract's schema.
-
-    Args:
-        *rows (tuple[str, str, int, float]): One tuple per row, holding
-            `variable`, `country`, `year` and `value`.
-
-    Returns:
-        pd.DataFrame: The frame, with `year` as a nullable integer column so the
-            string-form matching is exercised against a typed column.
-    """
-    return pd.DataFrame(
-        list(rows), columns=["variable", "country", "year", "value"]
-    ).astype({"year": "Int64"})
 
 
 def claimed_bundle() -> pd.DataFrame:
