@@ -5,14 +5,19 @@ import pandas as pd
 import pytest
 from pydantic import ValidationError as PydanticValidationError
 
+from crosscontract.contracts.schema import SchemaValidationError
 from crosscontract.contracts.submission import SubmissionContract
 from crosscontract.crossclient.services import CrossContractResolver
 from crosscontract.crossclient.services.submission.schemas import Submission
 from crosscontract.crossclient.services.submission.submission_resource import (
     SubmissionContractResource,
 )
+from crosscontract.crossclient.services.submission.submission_service import (
+    SubmissionContractService,
+)
+from crosscontract.exceptions import TargetValidationError, UnclaimedRowsError
 from crosscontract.handlers.submission import SubmissionHandler
-from tests.conftest import bundle
+from tests.conftest import bound_arguments, bundle
 
 from .conftest import entry_response, submission_response
 
@@ -226,3 +231,117 @@ class TestValidateSubmission:
         assert arguments["check_existing_foreign_key"] is False
         assert arguments["check_dimension_granularity"] is False
         assert arguments["lazy"] is False
+
+
+class TestSubmit:
+    """`submit` validates through the resource, then uploads the delivered bundle."""
+
+    @pytest.fixture
+    def df(self) -> pd.DataFrame:
+        return bundle(("a", "CH", 2020, 1.0))
+
+    @pytest.fixture
+    def validate(self, df):
+        """Replace validation with one that passes, returning a coerced frame
+        that differs from the bundle."""
+        coerced = {"t_a": df.assign(year=df["year"].astype("float64"))}
+        with patch.object(
+            SubmissionContractResource, "validate_submission", return_value=coerced
+        ) as validate:
+            yield validate
+
+    @staticmethod
+    def uploaded(service: Mock) -> dict:
+        return bound_arguments(
+            SubmissionContractService._submit_data, service._submit_data.call_args
+        )
+
+    def test_validates_before_uploading(self, resource, service, df, validate):
+        order = []
+        validate.side_effect = lambda *args, **kwargs: order.append("validate")
+        service._submit_data.side_effect = lambda *args, **kwargs: order.append(
+            "upload"
+        )
+
+        resource.submit(df)
+
+        assert order == ["validate", "upload"]
+
+    def test_uploads_the_delivered_bundle_under_its_name(
+        self, resource, service, df, validate
+    ):
+        """The frame as handed in is uploaded, never the coerced one validation
+        returns."""
+        resource.submit(df)
+
+        uploaded = self.uploaded(service)
+        assert uploaded["name"] == resource.name
+        frames = [v for v in uploaded.values() if isinstance(v, pd.DataFrame)]
+        assert len(frames) == 1
+        assert frames[0] is df
+
+    def test_returns_the_submission(self, resource, service, df, validate):
+        assert resource.submit(df) is service._submit_data.return_value
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            SchemaValidationError("bundle failed"),
+            UnclaimedRowsError(pd.DataFrame({"variable": ["b"]})),
+            TargetValidationError({}),
+            ValueError("unresolvable target contract"),
+        ],
+        ids=["bundle", "unclaimed_rows", "targets", "references"],
+    )
+    def test_no_upload_when_validation_fails(
+        self, resource, service, df, validate, error
+    ):
+        validate.side_effect = error
+
+        with pytest.raises(type(error)):
+            resource.submit(df)
+
+        service._submit_data.assert_not_called()
+
+    def test_default_flags_reach_validation(self, resource, df, validate):
+        resource.submit(df)
+
+        arguments = bound_arguments(
+            SubmissionContractResource.validate_submission, validate.call_args
+        )
+        assert arguments["df"] is df
+        assert arguments["check_existing_primary_key"] is True
+        assert arguments["check_existing_foreign_key"] is True
+        assert arguments["check_dimension_granularity"] is True
+        assert arguments["lazy"] is True
+
+    def test_explicit_flags_reach_validation(self, resource, df, validate):
+        resource.submit(
+            df,
+            check_existing_primary_key=False,
+            check_existing_foreign_key=False,
+            check_dimension_granularity=False,
+            lazy=False,
+        )
+
+        arguments = bound_arguments(
+            SubmissionContractResource.validate_submission, validate.call_args
+        )
+        assert arguments["check_existing_primary_key"] is False
+        assert arguments["check_existing_foreign_key"] is False
+        assert arguments["check_dimension_granularity"] is False
+        assert arguments["lazy"] is False
+
+
+class TestSubmitWithoutValidation:
+    """Only applies if `submit` keeps the `validate` opt-out; delete otherwise."""
+
+    def test_validate_false_skips_validation_and_uploads(self, resource, service):
+        df = bundle(("a", "CH", 2020, 1.0))
+        with patch.object(
+            SubmissionContractResource, "validate_submission"
+        ) as validate:
+            resource.submit(df, validate=False)
+
+        validate.assert_not_called()
+        service._submit_data.assert_called_once()

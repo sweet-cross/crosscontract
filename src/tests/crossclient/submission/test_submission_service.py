@@ -1,5 +1,10 @@
+import io
 import json
+from email.message import EmailMessage
+from email.parser import BytesParser
+from email.policy import default
 
+import httpx
 import pandas as pd
 import pytest
 import respx
@@ -7,6 +12,7 @@ import respx
 from crosscontract.contracts.submission import SubmissionContract
 from crosscontract.crossclient import CrossClient
 from crosscontract.crossclient.exceptions import (
+    ConflictError,
     PermissionDeniedError,
     ResourceNotFoundError,
 )
@@ -17,6 +23,7 @@ from crosscontract.crossclient.services.submission.submission_resource import (
 from crosscontract.crossclient.services.submission.submission_service import (
     SubmissionContractService,
 )
+from tests.conftest import bundle
 
 from .conftest import entry_response, metadata_response, submission_response
 
@@ -189,6 +196,72 @@ class TestSubmissionEndpoints:
         respx.get(f"{CONTRACT_URL}/submission3/data").respond(200, json=page([]))
 
         assert service.list_submissions("submission3") == []
+
+
+def uploaded_parts(request: httpx.Request) -> list[EmailMessage]:
+    """Split a multipart request body into its parts.
+
+    Args:
+        request (httpx.Request): The recorded request.
+
+    Returns:
+        list[EmailMessage]: One message per multipart part.
+    """
+    header = b"Content-Type: " + request.headers["content-type"].encode()
+    message = BytesParser(policy=default).parsebytes(
+        header + b"\r\n\r\n" + request.content
+    )
+    return list(message.iter_parts())
+
+
+class TestSubmitData:
+    @respx.mock
+    def test_posts_the_bundle_as_parquet(self, service: SubmissionContractService):
+        """_submit_data() posts the frame as one parquet file, round-tripping its
+        dtypes."""
+        route = respx.post(f"{CONTRACT_URL}/submission3/data").respond(
+            201, json=submission_response()
+        )
+        df = bundle(("a", "CH", 2020, 1.0), ("c", "DE", 2030, 4.0))
+
+        service._submit_data("submission3", df)
+
+        (part,) = uploaded_parts(route.calls.last.request)
+        assert part.get_content_type() == "application/vnd.apache.parquet"
+        assert part.get_filename().endswith(".parquet")
+        uploaded = pd.read_parquet(io.BytesIO(part.get_payload(decode=True)))
+        pd.testing.assert_frame_equal(uploaded, df)
+
+    @respx.mock
+    def test_returns_the_received_submission(self, service: SubmissionContractService):
+        respx.post(f"{CONTRACT_URL}/submission3/data").respond(
+            201, json=submission_response("received")
+        )
+
+        submission = service._submit_data("submission3", bundle(("a", "CH", 2020, 1.0)))
+
+        assert isinstance(submission, Submission)
+        assert submission.state == "received"
+
+    @pytest.mark.parametrize(
+        "status, error",
+        [
+            (404, ResourceNotFoundError),
+            (403, PermissionDeniedError),
+            (409, ConflictError),
+        ],
+    )
+    @respx.mock
+    def test_failed_upload_raises_mapped_error(
+        self, service: SubmissionContractService, status: int, error: type
+    ):
+        """A rejected upload raises the mapped exception."""
+        respx.post(f"{CONTRACT_URL}/submission3/data").respond(
+            status, json={"detail": "nope"}
+        )
+
+        with pytest.raises(error):
+            service._submit_data("submission3", bundle(("a", "CH", 2020, 1.0)))
 
 
 class TestErrors:

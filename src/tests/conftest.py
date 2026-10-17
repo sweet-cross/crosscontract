@@ -1,3 +1,6 @@
+import inspect
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import Mock
 
 import pandas as pd
@@ -226,3 +229,24 @@ def bad_contract_c() -> BaseContract:
             {"name": "value", "type": "number"},
         ],
     )
+
+
+def bound_arguments(method: Callable, call: Any) -> dict:
+    """Bind a mock's recorded call to a method's parameters, defaults applied.
+
+    Lets an assertion name each argument regardless of whether the caller
+    passed it by position or by keyword.
+
+    Args:
+        method (Callable): The plain function from the class, e.g.
+            `SubmissionContractResource.submit`.
+        call (Any): The recorded `call_args` of a mock, without `self`.
+
+    Returns:
+        dict: The arguments by parameter name, `self` excluded.
+    """
+    bound = inspect.signature(method).bind(None, *call.args, **call.kwargs)
+    bound.apply_defaults()
+    arguments = dict(bound.arguments)
+    del arguments["self"]
+    return arguments

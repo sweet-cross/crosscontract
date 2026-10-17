@@ -7,7 +7,7 @@ from crosscontract.crossclient.services import (
     SubmissionContractResource,
     SubmissionContractService,
 )
-from tests.conftest import bundle
+from tests.conftest import bound_arguments, bundle
 
 USERNAME = "testuser"
 PASSWORD = "secretpassword"
@@ -75,10 +75,60 @@ class TestPublicSurface:
 
 
 class TestSubmit:
-    def test_submit_is_an_honest_stub(self, client):
-        submitter = CrossSubmitter(client=client)
-        with pytest.raises(NotImplementedError):
-            submitter.submit()
+    """The submitter fetches the submission contract by name and passes through."""
+
+    @pytest.fixture
+    def resource(self):
+        return create_autospec(SubmissionContractResource, instance=True)
+
+    @pytest.fixture
+    def get(self, resource):
+        with patch.object(
+            SubmissionContractService, "get", return_value=resource
+        ) as get:
+            yield get
+
+    def test_fetches_by_name_and_returns_the_submission(self, client, resource, get):
+        df = bundle(("a", "CH", 2020, 1.0))
+
+        result = CrossSubmitter(client=client).submit("submission3", df)
+
+        get.assert_called_once_with("submission3")
+        arguments = bound_arguments(
+            SubmissionContractResource.submit, resource.submit.call_args
+        )
+        assert arguments["df"] is df
+        assert result is resource.submit.return_value
+
+    def test_default_flags_are_forwarded(self, client, resource, get):
+        df = bundle(("a", "CH", 2020, 1.0))
+        CrossSubmitter(client=client).submit("submission3", df)
+
+        arguments = bound_arguments(
+            SubmissionContractResource.submit, resource.submit.call_args
+        )
+        assert arguments["check_existing_primary_key"] is True
+        assert arguments["check_existing_foreign_key"] is True
+        assert arguments["check_dimension_granularity"] is True
+        assert arguments["lazy"] is True
+
+    def test_explicit_flags_are_forwarded(self, client, resource, get):
+        CrossSubmitter(client=client).submit(
+            "submission3",
+            bundle(("a", "CH", 2020, 1.0)),
+            check_existing_primary_key=False,
+            check_existing_foreign_key=False,
+            check_dimension_granularity=False,
+            lazy=False,
+        )
+
+        arguments = bound_arguments(
+            SubmissionContractResource.submit, resource.submit.call_args
+        )
+        assert arguments["check_existing_primary_key"] is False
+        assert arguments["check_existing_foreign_key"] is False
+        assert arguments["check_dimension_granularity"] is False
+        assert arguments["lazy"] is False
 
 
 class TestValidateSubmission:

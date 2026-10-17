@@ -147,7 +147,6 @@ class CrossSubmitter:
                 under `name`. A contract or its stored data being unreadable
                 surfaces here rather than as a validation failure.
         """
-        # check every target's contract before touching the bundle
         return self._client.submissions.get(name).validate_submission(
             df=df,
             check_existing_primary_key=check_existing_primary_key,
