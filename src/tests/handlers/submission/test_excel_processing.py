@@ -89,7 +89,7 @@ WIDE_SHEET = {"name": "wide", "wide": {"header_field": "year", "value_field": "v
 
 
 def test_exported():
-    """Test that both readers are exported from the service package."""
+    """Test that both readers are exported from the handlers package."""
     assert submission.read_excel_bundle is read_excel_bundle
     assert submission.read_excel_bundle_bytes is read_excel_bundle_bytes
     assert "read_excel_bundle" in submission.__all__
