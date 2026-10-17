@@ -10,24 +10,30 @@ The recorded decisions and the architecture description must follow.
 
 ## Acceptance Criteria
 - [ ] A new ADR `.ai-context/adrs/0011-…md` records:
-  - the layering `constants ← transformations ← contracts ← handlers ← crossclient ← submission`;
-  - `handlers/` executes specs (here: `handlers/submission/` with `SubmissionHandler`, the
-    Excel bundle readers and `validate_submission`), depends only on `contracts` and
-    `transformations`, and reaches the platform only through the `ContractResolver`
-    protocol;
+  - the layering `constants ← transformations ← contracts ← exceptions ← handlers ← crossclient ← submission`
+    (interim; #126 makes `exceptions/` a dependency-free base);
+  - `handlers/` executes specs (here: `handlers/submission/` with `SubmissionHandler` and
+    the Excel bundle readers), depends only on `contracts`, `transformations` and
+    `exceptions`, and reaches the platform only through the `ContractResolver` protocol;
+  - `SubmissionHandler.validate_submission` runs the full submission validation and owns
+    its policy (a failed bundle stops the run, unclaimed rows raise); it is a method so the
+    handler stays the one public element for executing a submission;
   - `crossclient/` is transport: the resource validates and submits by delegating to
     `handlers/`;
   - `CrossSubmitter` is the high-level object for the platform, takes names only, and
     passes through; validating a local contract goes through
-    `handlers.submission.validate_submission` directly;
+    `SubmissionHandler(contract, df).validate_submission(resolver)` directly;
   - top-level `exceptions/` is the target home for all exception classes; for now it holds
     only the submission exceptions (the rest follows in a separate issue).
 - [ ] It supersedes ADR 0007's "the submitter sequences the steps and owns the policy"
       consequence, and ADR 0010's placement of the handler, the readers and the
       exceptions in `submission/`. Both old ADRs get a one-line pointer to 0011.
-- [ ] `.ai-context/CONTEXT.md`: **Submitter**, **Submission handler**, **Submission
-      validation** (the caller that sets the policy is now `validate_submission`) and
-      related entries reflect the new placement.
+- [ ] `.ai-context/CONTEXT.md`: the **Submission handler** entry is redefined — it applies
+      extraction instructions to a bundle *and* runs the full **Submission validation**,
+      owning its policy (drop "targets and nothing else" and "never acts on" unclaimed
+      rows). The policy moves out of the **Submitter** entry, which becomes a name-based
+      pass-through. **Submission validation** and **Unclaimed rows** name the handler as
+      the caller that sets the policy.
 - [ ] `.claude/CLAUDE.md` architecture section: new `handlers/` and `exceptions/`
       sections; `crossclient/services/submission/` validates and submits (remove "It
       neither validates nor submits bundles" and "No upload yet"); `submission/` holds only
