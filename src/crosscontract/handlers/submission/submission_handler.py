@@ -17,18 +17,21 @@ from crosscontract.transformations import BaseTransformation
 class SubmissionHandler:
     """Apply a submission contract's extraction instructions to a bundle.
 
-    The handler's scope is targets and nothing else. For one target,
-    `extract_target_data` selects the rows it claims, `transform_target_data`
-    applies its transformation profile and then its own transformations,
-    `get_target_data` composes the two, and `validate_target` checks the result
-    against the contract that target names. `validate_targets` answers for every
-    target, or for a named selection of them, and across targets it collects
-    every failure rather than stopping at the first.
+    For one target, `extract_target_data` selects the rows it claims,
+    `transform_target_data` applies its transformation profile and then its own
+    transformations, `get_target_data` composes the two, and `validate_target`
+    checks the result against the contract that target names. `validate_targets`
+    answers for every target, or for a named selection of them, and across
+    targets it collects every failure rather than stopping at the first.
+    `unclaimed_rows` returns the bundle rows no target claims.
+
+    `validate_submission` runs the full check of a delivered bundle: the target
+    contracts, the bundle itself, its unclaimed rows, and every target, stopping
+    at the first step that fails.
 
     A target's contract arrives from the caller, either handed over directly or
     through a `ContractResolver`; the handler never constructs one. With a
     contract in hand it loads and runs with no platform connection.
-    `CrossSubmitter` runs this against contracts fetched from the platform.
 
     Attributes:
         contract (SubmissionContract): The contract describing the bundle and how
@@ -365,19 +368,21 @@ class SubmissionHandler:
         2. the bundle for rows that no target claims,
         3. each target's extracted data against the contract it names.
 
-        The contract check and step 3 reach the platform through this
-        submitter's resolver, so the contracts a target names and the values
-        already stored under them are read live. Step 1 does not: a submission
-        contract declares no keys, so it has nothing to look up.
+        The contract check and step 3 read the contracts a target names, and
+        the values already stored under them, through `resolver`. Step 1 does
+        not: a submission contract declares no keys, so it has nothing to look
+        up. Unlike on `validate_targets`, every check is on by default.
 
         Extraction runs on the bundle exactly as delivered: the coerced frame
         step 1 returns is discarded, because target filters match a column's
         string form and a coerced value can change which target claims a row.
 
+        Validation here is advisory: the CROSS platform validates a submission
+        again on ingest and can still reject it.
+
         Args:
-            contract (SubmissionContract): The contract describing the bundle
-                and how it is split into targets.
-            df (pd.DataFrame): The bundle as delivered.
+            resolver (ContractResolver): Supplier of the target contracts and of
+                the values already stored under them.
             check_existing_primary_key (bool): If True, also check each target's
                 primary key against the values already stored for the contract
                 it names. Applies to step 3 only — a submission contract
@@ -429,10 +434,9 @@ class SubmissionHandler:
                 bundle. Step 1 only enforces the presence of columns whose field
                 is `required`, so an optional filter column can be missing by
                 the time step 2 reads it.
-            CrossClientError: A read against the platform failed. Both key
-                checks reach the platform through this submitter's resolver, so
-                a contract or its stored data being unreadable surfaces here
-                rather than as a validation failure.
+            CrossClientError: With a resolver that reads from the CROSS
+                platform, a read failed. A contract or its stored data being
+                unreadable surfaces here rather than as a validation failure.
         """
         # check every target's contract before touching the bundle
         self.contract.validate_references(resolver)

@@ -1,7 +1,11 @@
 from typing import TYPE_CHECKING, Any
 
-from crosscontract.contracts.submission import SubmissionContract
+import pandas as pd
 
+from crosscontract.contracts.submission import SubmissionContract
+from crosscontract.handlers.submission import SubmissionHandler
+
+from .. import CrossContractResolver
 from .schemas import Submission, SubmissionContractEntryPayload
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -211,3 +215,44 @@ class SubmissionContractResource:
                 if the submission contract no longer exists.
         """
         return self._service.list_submissions(self.name)
+
+    def validate_submission(
+        self,
+        df: pd.DataFrame,
+        check_existing_primary_key: bool = True,
+        check_existing_foreign_key: bool = True,
+        check_dimension_granularity: bool = True,
+        lazy: bool = True,
+    ) -> dict[str, pd.DataFrame]:
+        """Validate a submission against the submission contract.
+
+        Args:
+            df (pd.DataFrame): The submission data.
+            check_existing_primary_key (bool): `True` to check for existing primary
+                keys.
+            check_existing_foreign_key (bool): `True` to check for existing foreign
+                keys.
+            check_dimension_granularity (bool): `True` to check dimension granularity.
+            lazy (bool): `True` to perform lazy validation.
+
+        Raises:
+            CrossClientError: If the validation request fails.
+
+        Returns:
+            dict[str, pd.DataFrame]: The validation results.
+        """
+        resolver = CrossContractResolver(self._service._client.contracts)
+        SubmissionHandler(self.contract, df).validate_submission(
+            resolver=resolver,
+            check_existing_primary_key=check_existing_primary_key,
+            check_existing_foreign_key=check_existing_foreign_key,
+            check_dimension_granularity=check_dimension_granularity,
+            lazy=lazy,
+        )
+        return SubmissionHandler(self.contract, df).validate_submission(
+            resolver=resolver,
+            check_existing_primary_key=check_existing_primary_key,
+            check_existing_foreign_key=check_existing_foreign_key,
+            check_dimension_granularity=check_dimension_granularity,
+            lazy=lazy,
+        )
