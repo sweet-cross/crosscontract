@@ -6,9 +6,7 @@ import pandera.pandas as pa
 import pytest
 
 from crosscontract.contracts.schema import TableSchema
-from crosscontract.contracts.schema.exceptions.validation_error import (
-    SchemaValidationError,
-)
+from crosscontract.exceptions import SchemaValidationError
 
 
 class MockSchemaErrors(pa.errors.SchemaErrors):
@@ -685,3 +683,16 @@ class TestExtractCols:
     def test_extract_cols_no_match(self):
         """Test _extract_cols when regex finds no brackets."""
         assert SchemaValidationError._extract_cols("no_brackets_here") == []
+
+
+def test_exported_from_all_paths():
+    import crosscontract
+    import crosscontract.contracts
+    import crosscontract.contracts.schema
+    import crosscontract.exceptions as exceptions
+
+    assert exceptions.SchemaValidationError is SchemaValidationError
+    assert crosscontract.SchemaValidationError is SchemaValidationError
+    assert crosscontract.contracts.SchemaValidationError is SchemaValidationError
+    assert crosscontract.contracts.schema.SchemaValidationError is SchemaValidationError
+    assert "SchemaValidationError" in exceptions.__all__

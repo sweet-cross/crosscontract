@@ -7,15 +7,15 @@ import respx
 from polyfactory.factories.pydantic_factory import ModelFactory
 
 from crosscontract import CrossContract
-from crosscontract.crossclient.exceptions import (
-    ConflictError,
-    ResourceNotFoundError,
-    ServerError,
-)
 from crosscontract.crossclient.services.contract.contract_resource import (
     ContractResource,
 )
 from crosscontract.crossclient.services.contract.contract_service import ContractService
+from crosscontract.exceptions import (
+    ConflictError,
+    ResourceNotFoundError,
+    ServerError,
+)
 
 CONTRACTS_URL = "https://api.example.com/api/v1/contract/"
 

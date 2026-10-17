@@ -3,8 +3,8 @@ from unittest.mock import Mock
 import pytest
 from httpx import Response
 
-from crosscontract.crossclient.exceptions.exception_factory import raise_from_response
-from crosscontract.crossclient.exceptions.exceptions import (
+from crosscontract.crossclient.exception_factory import raise_from_response
+from crosscontract.exceptions import (
     AuthenticationError,
     ConflictError,
     CrossClientError,

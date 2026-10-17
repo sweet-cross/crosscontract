@@ -162,7 +162,7 @@ Done when:
      target ids, and `{"level": ..., "keep": [...]}`); `use_titles`; `columns`.
    - Inspecting a variable's `dimensions`.
    - The tutorial stays the worked example; the overview links to it.
-3. **`reference/client.md`** adds the `crosscontract.crossclient.exceptions` classes the
+3. **`reference/client.md`** adds the `crosscontract.exceptions` client classes the
    tutorial relies on: `CrossClientError`, `ValidationError`, `ConflictError`,
    `PermissionDeniedError`, `ResourceNotFoundError`, `AuthenticationError`.
 

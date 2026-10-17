@@ -37,6 +37,19 @@ top-level package. For now `exceptions/` holds only the submission exceptions an
 above `contracts/`, because `TargetValidationError` holds `SchemaValidationError`s; issue
 #126 moves every exception class there and makes it a dependency-free base.
 
+> **Amended 2026-10-17** (#126). `exceptions/` now holds every exception class:
+> `SchemaValidationError`, the submission exceptions and the `CrossClientError` family. It
+> imports nothing from the rest of the package, so the import graph runs
+> `constants, exceptions ← transformations ← contracts ← handlers ← crossclient ← submission`.
+> It is not free of dependencies: `SchemaValidationError` carries the pandera report
+> parser, so `exceptions/` depends on pandas and pandera. That parser reads, through
+> `CHECK_COLUMNS_PATTERN`, the message format the checks in
+> `contracts/schema/validation/checks/` write (`Columns '<cols>' in check '<label>' …`), so
+> the format is shared across the two layers and changes in both together.
+> `raise_from_response` stays in `crossclient/`, now as `crossclient/exception_factory.py`;
+> `crossclient/exceptions/` and `contracts/schema/exceptions/` are gone, and so are their
+> import paths.
+
 ## The full validation is a method on the handler
 
 `SubmissionHandler.validate_submission(resolver, ...)` runs the whole **Submission

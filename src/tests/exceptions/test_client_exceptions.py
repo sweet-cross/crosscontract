@@ -1,6 +1,6 @@
 import pytest
 
-from crosscontract.crossclient.exceptions import ValidationError
+from crosscontract.exceptions import ValidationError
 
 
 @pytest.fixture

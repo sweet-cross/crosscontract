@@ -1,7 +1,7 @@
 import pandas as pd
 import pandera.pandas as pa
 
-from ..exceptions import SchemaValidationError
+from crosscontract.exceptions import SchemaValidationError
 
 
 def validate_dataframe(

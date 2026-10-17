@@ -2,7 +2,8 @@ import pandas as pd
 import pytest
 
 from crosscontract import TargetValidationError, UnclaimedRowsError
-from crosscontract.contracts.schema import SchemaValidationError, TableSchema
+from crosscontract.contracts.schema import TableSchema
+from crosscontract.exceptions import SchemaValidationError
 
 
 def _schema_error(values: list) -> SchemaValidationError:

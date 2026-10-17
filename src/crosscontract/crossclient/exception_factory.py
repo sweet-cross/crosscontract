@@ -1,6 +1,6 @@
 from httpx import Response
 
-from .exceptions import (
+from crosscontract.exceptions import (
     AuthenticationError,
     ConflictError,
     CrossClientError,

@@ -91,7 +91,7 @@ one screen)
     in `contracts/schema/schema.py`, for flag semantics.
   - `contracts/schema/field_descriptors/descriptors.py`, for the descriptor fields.
   - `contracts/schema/fields/*.py`, for the constraints.
-  - `SchemaValidationError` in `contracts/schema/exceptions/validation_error.py` on `dev`,
+  - `SchemaValidationError` in `exceptions/schema_exceptions.py` on `dev`,
     for `max_errors`.
 - Use the terms defined in `.ai-context/CONTEXT.md`: resolver, existing values, opt-in key
   checks. Do not restate ADR rationale on the pages (ADRs 0001, 0005, 0006, 0008, 0009).

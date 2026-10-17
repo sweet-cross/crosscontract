@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from crosscontract.contracts.schema import SchemaValidationError
+from .schema_exceptions import SchemaValidationError
 
 
 class TargetValidationError(Exception):
