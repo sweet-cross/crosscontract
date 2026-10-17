@@ -1,7 +1,7 @@
-# WP4 — Upload: `_submit_data`, `SubmissionContractResource.submit`, `CrossSubmitter.submit`
+# WP5 — Upload: `_submit_data`, `SubmissionContractResource.submit`, `CrossSubmitter.submit`
 
 ## Context
-**Part of:** GitHub issue #122 (`CrossSubmitter.submit`) — WP4 of 5.
+**Part of:** GitHub issue #122 (`CrossSubmitter.submit`) — WP5 of 6.
 
 The actual feature of #122: submit a bundle that has been validated locally, so errors
 surface before upload rather than as a rejected submission.
@@ -25,7 +25,9 @@ surface before upload rather than as a rejected submission.
 
 ## Implementation Details
 - Files: `src/crosscontract/crossclient/services/submission/submission_service.py`,
-  `.../submission_resource.py`, `src/crosscontract/submission/submitter.py`.
+  `.../submission_resource.py`, `src/crosscontract/submission/submitter.py`. The
+  resource's `submit` calls its own `validate_submission`, which delegates to
+  `handlers/submission/`.
 - Look at `ContractService._add_data` / `_get_data` in
   `src/crosscontract/crossclient/services/contract/contract_service.py` for how files and
   parquet are handled today; match it.
@@ -36,4 +38,4 @@ surface before upload rather than as a rejected submission.
     API before adding a parameter.
 - `submit` passes through the same check flags as `validate_submission`.
 - Out of scope: `submit_file` (#119), waiting for processing to finish.
-- Dependencies: after `03-validate-submission-on-resource.md`.
+- Dependencies: after `04-validate-submission-on-resource.md`.
