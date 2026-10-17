@@ -1,9 +1,6 @@
 import pandas as pd
 import pytest
 
-from crosscontract.contracts.schema.exceptions.validation_error import (
-    SchemaValidationError,
-)
 from crosscontract.contracts.schema.fields import IntegerField, StringField
 from crosscontract.contracts.schema.reference.foreign_key import (
     ForeignKey,
@@ -11,6 +8,7 @@ from crosscontract.contracts.schema.reference.foreign_key import (
 )
 from crosscontract.contracts.schema.reference.primary_key import PrimaryKey
 from crosscontract.contracts.schema.schema import TableSchema
+from crosscontract.exceptions import SchemaValidationError
 
 # these test TableSchema.validate_dataframe, which forwards the existing values
 # to the derivation and hands the resulting pandera schema to the runner. The
