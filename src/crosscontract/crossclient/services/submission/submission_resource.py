@@ -1,3 +1,6 @@
+from datetime import UTC, datetime
+from io import BytesIO
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
@@ -273,3 +276,36 @@ class SubmissionContractResource:
             check_dimension_granularity=check_dimension_granularity,
             lazy=lazy,
         )
+
+    def submit(
+        self, df: pd.DataFrame, filename: str | None = None, validate: bool = True
+    ) -> Submission:
+        """Submit a bundle of data under the current submission contract.
+
+        Args:
+            df (pd.DataFrame): The bundle as delivered.
+            filename (str, optional): The name of the file to be used for the
+                submission. Should not contain the file ending.
+                If not provided will be the name of the contract together with
+                a timestamp.
+            validate (bool, optional): Whether to validate the submission before
+                uploading. Defaults to True.
+
+        Returns:
+            Submission: The created submission.
+
+        Raises:
+            CrossClientError: If the request fails, e.g. `PermissionDeniedError`
+                if the caller is not a manager of the contract's project.
+        """
+        filename = (
+            f"{Path(filename).stem}.parquet"
+            if filename is not None
+            else f"{self.contract.name}_{datetime.now(tz=UTC).strftime('%Y%m%d%H%M%S')}"
+        )
+        if validate:
+            self.validate_submission(df)
+        buffer = BytesIO()
+        df.to_parquet(buffer, index=False)
+        buffer.seek(0)
+        return self._service._upload_submission(self.contract.name, buffer, filename)

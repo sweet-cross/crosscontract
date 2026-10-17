@@ -1,3 +1,4 @@
+from io import BytesIO
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -161,3 +162,32 @@ class SubmissionContractService:
         response = self._client.get(f"{self._route}/contract/{name}/data")
         raise_from_response(response)
         return [Submission.model_validate(item) for item in response.json()["items"]]
+
+    def _upload_submission(
+        self, name: str, file: bytes | BytesIO, filename: str | None = None
+    ) -> Submission:
+        """Submit a bundle of data under the given submission contract.
+
+        Args:
+            name (str): The name of the submission contract.
+            file (bytes | BytesIO): The data to submit.
+            filename (str, optional): The name of the file to be used for the
+                submission. Should not contain the file ending.
+                If not provided will be the name of the contract together with
+                a timestamp.
+
+        Returns:
+            Submission: The created submission.
+
+        Raises:
+            CrossClientError: If the request fails, e.g. `PermissionDeniedError`
+                if the caller is not a manager of the contract's project.
+        """
+        if isinstance(file, BytesIO):
+            file.seek(0)
+        response = self._client.post(
+            f"{self._route}/contract/{name}/data",
+            files={"file": (filename, file)},
+        )
+        raise_from_response(response)
+        return Submission.model_validate(response.json())

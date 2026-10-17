@@ -23,7 +23,6 @@ from crosscontract.crossclient.services.submission.submission_resource import (
 from crosscontract.crossclient.services.submission.submission_service import (
     SubmissionContractService,
 )
-from tests.conftest import bundle
 
 from .conftest import entry_response, metadata_response, submission_response
 
@@ -214,23 +213,25 @@ def uploaded_parts(request: httpx.Request) -> list[EmailMessage]:
     return list(message.iter_parts())
 
 
-class TestSubmitData:
+class TestUploadSubmission:
+    @pytest.mark.parametrize(
+        "file",
+        [b"PAR1 bundle bytes", io.BytesIO(b"PAR1 bundle bytes")],
+        ids=["bytes", "binary_io"],
+    )
     @respx.mock
-    def test_posts_the_bundle_as_parquet(self, service: SubmissionContractService):
-        """_submit_data() posts the frame as one parquet file, round-tripping its
-        dtypes."""
+    def test_posts_the_file_unchanged(self, service: SubmissionContractService, file):
+        """_upload_submission() posts one file part carrying the given name and
+        bytes."""
         route = respx.post(f"{CONTRACT_URL}/submission3/data").respond(
             201, json=submission_response()
         )
-        df = bundle(("a", "CH", 2020, 1.0), ("c", "DE", 2030, 4.0))
 
-        service._submit_data("submission3", df)
+        service._upload_submission("submission3", file, "bundle.parquet")
 
         (part,) = uploaded_parts(route.calls.last.request)
-        assert part.get_content_type() == "application/vnd.apache.parquet"
-        assert part.get_filename().endswith(".parquet")
-        uploaded = pd.read_parquet(io.BytesIO(part.get_payload(decode=True)))
-        pd.testing.assert_frame_equal(uploaded, df)
+        assert part.get_filename() == "bundle.parquet"
+        assert part.get_payload(decode=True) == b"PAR1 bundle bytes"
 
     @respx.mock
     def test_returns_the_received_submission(self, service: SubmissionContractService):
@@ -238,7 +239,9 @@ class TestSubmitData:
             201, json=submission_response("received")
         )
 
-        submission = service._submit_data("submission3", bundle(("a", "CH", 2020, 1.0)))
+        submission = service._upload_submission(
+            "submission3", b"PAR1", "bundle.parquet"
+        )
 
         assert isinstance(submission, Submission)
         assert submission.state == "received"
@@ -255,13 +258,14 @@ class TestSubmitData:
     def test_failed_upload_raises_mapped_error(
         self, service: SubmissionContractService, status: int, error: type
     ):
-        """A rejected upload raises the mapped exception."""
+        """A rejected upload, e.g. an unsupported file extension, raises the
+        mapped exception."""
         respx.post(f"{CONTRACT_URL}/submission3/data").respond(
             status, json={"detail": "nope"}
         )
 
         with pytest.raises(error):
-            service._submit_data("submission3", bundle(("a", "CH", 2020, 1.0)))
+            service._upload_submission("submission3", b"PAR1", "bundle.parquet")
 
 
 class TestErrors:

@@ -1,4 +1,5 @@
 import inspect
+import io
 from unittest.mock import Mock, patch
 
 import pandas as pd
@@ -253,13 +254,14 @@ class TestSubmit:
     @staticmethod
     def uploaded(service: Mock) -> dict:
         return bound_arguments(
-            SubmissionContractService._submit_data, service._submit_data.call_args
+            SubmissionContractService._upload_submission,
+            service._upload_submission.call_args,
         )
 
     def test_validates_before_uploading(self, resource, service, df, validate):
         order = []
         validate.side_effect = lambda *args, **kwargs: order.append("validate")
-        service._submit_data.side_effect = lambda *args, **kwargs: order.append(
+        service._upload_submission.side_effect = lambda *args, **kwargs: order.append(
             "upload"
         )
 
@@ -267,21 +269,21 @@ class TestSubmit:
 
         assert order == ["validate", "upload"]
 
-    def test_uploads_the_delivered_bundle_under_its_name(
+    def test_uploads_the_delivered_bundle_as_parquet(
         self, resource, service, df, validate
     ):
-        """The frame as handed in is uploaded, never the coerced one validation
-        returns."""
+        """The frame as handed in is uploaded, dtypes intact, never the coerced
+        one validation returns."""
         resource.submit(df)
 
         uploaded = self.uploaded(service)
         assert uploaded["name"] == resource.name
-        frames = [v for v in uploaded.values() if isinstance(v, pd.DataFrame)]
-        assert len(frames) == 1
-        assert frames[0] is df
+        file = uploaded["file"]
+        content = file if isinstance(file, bytes) else file.read()
+        pd.testing.assert_frame_equal(pd.read_parquet(io.BytesIO(content)), df)
 
     def test_returns_the_submission(self, resource, service, df, validate):
-        assert resource.submit(df) is service._submit_data.return_value
+        assert resource.submit(df) is service._upload_submission.return_value
 
     @pytest.mark.parametrize(
         "error",
@@ -301,9 +303,11 @@ class TestSubmit:
         with pytest.raises(type(error)):
             resource.submit(df)
 
-        service._submit_data.assert_not_called()
+        service._upload_submission.assert_not_called()
 
-    def test_default_flags_reach_validation(self, resource, df, validate):
+    def test_validation_runs_with_every_check_on(self, resource, df, validate):
+        """`submit` passes only the bundle, so `validate_submission`'s defaults
+        apply."""
         resource.submit(df)
 
         arguments = bound_arguments(
@@ -315,33 +319,22 @@ class TestSubmit:
         assert arguments["check_dimension_granularity"] is True
         assert arguments["lazy"] is True
 
-    def test_explicit_flags_reach_validation(self, resource, df, validate):
-        resource.submit(
-            df,
-            check_existing_primary_key=False,
-            check_existing_foreign_key=False,
-            check_dimension_granularity=False,
-            lazy=False,
-        )
-
-        arguments = bound_arguments(
-            SubmissionContractResource.validate_submission, validate.call_args
-        )
-        assert arguments["check_existing_primary_key"] is False
-        assert arguments["check_existing_foreign_key"] is False
-        assert arguments["check_dimension_granularity"] is False
-        assert arguments["lazy"] is False
-
-
-class TestSubmitWithoutValidation:
-    """Only applies if `submit` keeps the `validate` opt-out; delete otherwise."""
-
-    def test_validate_false_skips_validation_and_uploads(self, resource, service):
-        df = bundle(("a", "CH", 2020, 1.0))
-        with patch.object(
-            SubmissionContractResource, "validate_submission"
-        ) as validate:
-            resource.submit(df, validate=False)
+    def test_validate_false_skips_validation_and_uploads(
+        self, resource, service, df, validate
+    ):
+        resource.submit(df, validate=False)
 
         validate.assert_not_called()
-        service._submit_data.assert_called_once()
+        service._upload_submission.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "filename, expected",
+        [(None, "submission3.parquet"), ("my_bundle", "my_bundle.parquet")],
+        ids=["default", "given_stem"],
+    )
+    def test_filename_is_the_stem_plus_parquet(
+        self, resource, service, df, validate, filename, expected
+    ):
+        resource.submit(df, filename=filename)
+
+        assert self.uploaded(service)["filename"] == expected
