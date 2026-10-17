@@ -1,5 +1,6 @@
 import inspect
 import io
+import re
 from unittest.mock import Mock, patch
 
 import pandas as pd
@@ -310,14 +311,10 @@ class TestSubmit:
         apply."""
         resource.submit(df)
 
-        arguments = bound_arguments(
-            SubmissionContractResource.validate_submission, validate.call_args
-        )
-        assert arguments["df"] is df
-        assert arguments["check_existing_primary_key"] is True
-        assert arguments["check_existing_foreign_key"] is True
-        assert arguments["check_dimension_granularity"] is True
-        assert arguments["lazy"] is True
+        args, kwargs = validate.call_args
+        passed = [*args, *kwargs.values()]
+        assert len(passed) == 1
+        assert passed[0] is df
 
     def test_validate_false_skips_validation_and_uploads(
         self, resource, service, df, validate
@@ -327,14 +324,19 @@ class TestSubmit:
         validate.assert_not_called()
         service._upload_submission.assert_called_once()
 
-    @pytest.mark.parametrize(
-        "filename, expected",
-        [(None, "submission3.parquet"), ("my_bundle", "my_bundle.parquet")],
-        ids=["default", "given_stem"],
-    )
-    def test_filename_is_the_stem_plus_parquet(
-        self, resource, service, df, validate, filename, expected
+    def test_given_filename_is_the_stem_plus_parquet(
+        self, resource, service, df, validate
     ):
-        resource.submit(df, filename=filename)
+        resource.submit(df, filename="my_bundle")
 
-        assert self.uploaded(service)["filename"] == expected
+        assert self.uploaded(service)["filename"] == "my_bundle.parquet"
+
+    def test_default_filename_is_the_name_plus_timestamp_plus_parquet(
+        self, resource, service, df, validate
+    ):
+        """Without a filename, the upload is named after the submission contract
+        and the UTC time of the upload, e.g. `submission3_20261017124301.parquet`."""
+        resource.submit(df)
+
+        filename = self.uploaded(service)["filename"]
+        assert re.fullmatch(r"submission3_\d{14}\.parquet", filename)

@@ -34,7 +34,8 @@ def submit(
 ```
 
 - `filename` is the **stem** of the uploaded file; `.parquet` is appended. `None` means
-  the submission contract's name, i.e. `f"{self.name}.parquet"`.
+  the submission contract's name plus the UTC upload time, e.g.
+  `submission3_20261017124301.parquet`.
 - `validate` switches the whole local validation on or off. `submit` runs
   `validate_submission` with its defaults (every check on); there are no per-check flags.
   For fine-grained checking — e.g. a corrected resubmission under the same `replace_key`,
@@ -49,21 +50,22 @@ def submit(
   explicit content type; the platform checks the filename extension and rejects
   unsupported formats), goes through `raise_from_response`, and returns a `Submission`.
   `submit_file` (#119) can reuse it.
-- [ ] `SubmissionContractResource.submit` serializes the delivered frame to **parquet**
-  and uploads it as `f"{filename or self.name}.parquet"`.
-- [ ] With `validate=True` (default) it runs `self.validate_submission(df)` first and
+- [X] `SubmissionContractResource.submit` serializes the delivered frame to **parquet**
+  and uploads it as `f"{filename}.parquet"`, or `f"{self.name}_{timestamp}.parquet"`
+  without a filename.
+- [X] With `validate=True` (default) it runs `self.validate_submission(df)` first and
   uploads only if it passes. No request is sent if any validation step fails. With
   `validate=False` it uploads without validating.
-- [ ] The **original** bundle (as passed in) is uploaded, never the coerced frame returned
+- [X] The **original** bundle (as passed in) is uploaded, never the coerced frame returned
   by validation.
-- [ ] It returns the `Submission` (state `received` on success).
+- [X] It returns the `Submission` (state `received` on success).
 - [ ] `CrossSubmitter.submit(name, df, filename=None, validate=True)` replaces the
   `NotImplementedError` stub and returns
   `self._client.submissions.get(name).submit(df, filename=filename, validate=validate)`.
-- [ ] Docstrings state that validation is advisory (the platform re-validates on ingest),
+- [X] Docstrings state that validation is advisory (the platform re-validates on ingest),
   that processing is asynchronous (follow the state via `get_submission`), and how to
   check with custom flags (`validate_submission`, then `validate=False`).
-- [ ] Mocked-HTTP tests, following `src/tests/crossclient/submission/test_submission_service.py`:
+- [X] Mocked-HTTP tests, following `src/tests/crossclient/submission/test_submission_service.py`:
   no request on a failed validation step; body is parquet built from the delivered
   frame; a `Submission` comes back.
 

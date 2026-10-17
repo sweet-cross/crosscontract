@@ -1,6 +1,5 @@
 from datetime import UTC, datetime
 from io import BytesIO
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
@@ -280,28 +279,52 @@ class SubmissionContractResource:
     def submit(
         self, df: pd.DataFrame, filename: str | None = None, validate: bool = True
     ) -> Submission:
-        """Submit a bundle of data under the current submission contract.
+        """Validate a delivered bundle, then upload it under this submission contract.
+
+        The bundle is uploaded as a parquet file, exactly as handed in. With
+        `validate=True` it is first checked by `validate_submission` with every
+        check on, and nothing is uploaded if any check fails. To validate with
+        other settings, e.g. without the stored primary keys for a corrected
+        resubmission, call `validate_submission` with the flags you need and
+        then `submit(df, validate=False)`.
+
+        Validation here is advisory: the CROSS platform validates the
+        submission again on ingest and can still reject it. Processing on the
+        platform is asynchronous; follow the returned submission's state with
+        `SubmissionContractService.get_submission`.
 
         Args:
             df (pd.DataFrame): The bundle as delivered.
-            filename (str, optional): The name of the file to be used for the
-                submission. Should not contain the file ending.
-                If not provided will be the name of the contract together with
-                a timestamp.
-            validate (bool, optional): Whether to validate the submission before
-                uploading. Defaults to True.
+            filename (str | None, optional): The stem of the uploaded file;
+                `.parquet` is appended. Defaults to `None`, which names the file
+                after the submission contract and the UTC time of the upload,
+                e.g. `my_contract_20261017124301.parquet`.
+            validate (bool, optional): Whether to validate the bundle before
+                uploading it. Defaults to `True`.
 
         Returns:
-            Submission: The created submission.
+            Submission: The created submission, in state `received`.
 
         Raises:
-            CrossClientError: If the request fails, e.g. `PermissionDeniedError`
-                if the caller is not a manager of the contract's project.
+            SchemaValidationError: The bundle does not satisfy the submission
+                contract's own schema. Only with `validate=True`.
+            UnclaimedRowsError: The bundle holds rows no target claims. Only
+                with `validate=True`.
+            TargetValidationError: At least one target's data failed. Only with
+                `validate=True`.
+            ValueError: A target names a contract that cannot be read or that
+                does not declare every `replace_key` column. Only with
+                `validate=True`.
+            CrossClientError: A request to the CROSS platform failed, e.g.
+                `PermissionDeniedError` if the caller may not submit to the
+                contract's project.
         """
         filename = (
-            f"{Path(filename).stem}.parquet"
+            f"{filename}.parquet"
             if filename is not None
-            else f"{self.contract.name}_{datetime.now(tz=UTC).strftime('%Y%m%d%H%M%S')}"
+            else (
+                f"{self.contract.name}_{datetime.now(tz=UTC).strftime('%Y%m%d%H%M%S')}.parquet"
+            )
         )
         if validate:
             self.validate_submission(df)

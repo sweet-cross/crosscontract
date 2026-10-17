@@ -1,5 +1,4 @@
-from io import BytesIO
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, BinaryIO
 from uuid import UUID
 
 import pandas as pd
@@ -164,27 +163,31 @@ class SubmissionContractService:
         return [Submission.model_validate(item) for item in response.json()["items"]]
 
     def _upload_submission(
-        self, name: str, file: bytes | BytesIO, filename: str | None = None
+        self, name: str, file: bytes | BinaryIO, filename: str
     ) -> Submission:
-        """Submit a bundle of data under the given submission contract.
+        """Upload a bundle file under the given submission contract, unvalidated.
+
+        The file is sent unchanged. The CROSS platform reads its format from
+        the extension of `filename` and rejects formats it does not support.
+        Use `SubmissionContractResource.submit` to validate a bundle before it
+        is uploaded.
 
         Args:
             name (str): The name of the submission contract.
-            file (bytes | BytesIO): The data to submit.
-            filename (str, optional): The name of the file to be used for the
-                submission. Should not contain the file ending.
-                If not provided will be the name of the contract together with
-                a timestamp.
+            file (bytes | BinaryIO): The content of the bundle file, as bytes or
+                as a binary file object positioned at its start.
+            filename (str): The name of the uploaded file,
+                including its extension, e.g. `bundle.parquet`.
 
         Returns:
-            Submission: The created submission.
+            Submission: The created submission, in state `received`.
 
         Raises:
             CrossClientError: If the request fails, e.g. `PermissionDeniedError`
-                if the caller is not a manager of the contract's project.
+                if the caller may not submit to the contract's project, or
+                `ResourceNotFoundError` if no submission contract of that name
+                exists.
         """
-        if isinstance(file, BytesIO):
-            file.seek(0)
         response = self._client.post(
             f"{self._route}/contract/{name}/data",
             files={"file": (filename, file)},
