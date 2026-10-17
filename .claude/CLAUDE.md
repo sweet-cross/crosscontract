@@ -130,7 +130,7 @@ A pydantic mirror of the upstream Frictionless standard, distinct from the stric
 
 - `CrossClient`: synchronous `httpx.Client` wrapper. Authenticates on construction (JWT Bearer token), re-authenticates automatically on 401. Exposes `client.contracts` as a `ContractService` and `client.submissions` as a `SubmissionContractService`. Use as a context manager or call `close()` explicitly.
 - `services/contract/` holds `ContractService`, `ContractResource` and `CrossContractResolver`; `services/submission/` the submission counterparts below. Both are re-exported from `crossclient.services` and `crossclient`.
-- `crossclient/exceptions/` holds only the `CrossClientError` family and `raise_from_response`; the submission exceptions live in `exceptions/`.
+- `exception_factory.py` holds `raise_from_response`, which turns an error response into the matching `CrossClientError`. The exception classes themselves live in `exceptions/`.
 - `ContractService`: CRUD operations on contracts (`create`, `get`, `get_list`, `delete`, `change_status`). Also manages data upload (`_add_data`) and retrieval (`_get_data` — uses parquet format).
 - `ContractResource`: per-contract handle returned by the service. Wraps the `CrossContract` instance and `status`. Exposes `add_data(df)` (validates against schema before upload) and `get_data()`.
 - `services/submission/` — the `/api/v1/submission` endpoints:
@@ -167,13 +167,17 @@ Runs what the specs in `contracts/submission/` and `transformations/excel/` decl
 
 ### `exceptions/` — Package-wide exceptions
 
-Holds `TargetValidationError` (the aggregate raised by `validate_targets`, holding one `SchemaValidationError` per failing target keyed by target name) and `UnclaimedRowsError` (raised when a bundle holds rows no target claims, carrying those rows). Intended home of every exception class; issue #126 moves the rest here.
+Holds every exception class of the package, all exported from `crosscontract.exceptions`. It imports nothing from the rest of the package (only pandas and pandera), so any layer can raise or catch them.
+
+- `schema_exceptions.py` — `SchemaValidationError`, raised by `validate_dataframe`. It parses pandera's failure report into rows (`errors`, `to_list`, `to_pandas`). Its `CHECK_COLUMNS_PATTERN` reads the message format the checks in `contracts/schema/validation/checks/` write (`Columns '<cols>' in check '<label>' …`); change both together.
+- `submission_exceptions.py` — `TargetValidationError` (the aggregate raised by `validate_targets`, holding one `SchemaValidationError` per failing target keyed by target name) and `UnclaimedRowsError` (raised when a bundle holds rows no target claims, carrying those rows).
+- `client_exceptions.py` — the `CrossClientError` family (`ValidationError`, `RequestValidationError`, `UnprocessableEntityError`, `AuthenticationError`, `PermissionDeniedError`, `ResourceNotFoundError`, `ServerError`, `ConflictError`), raised by `raise_from_response` in `crossclient/`.
 
 ### `submission/` — High-level provider layer
 
 Holds `CrossSubmitter`: the data provider's entry point, constructed like `CrossRegistry`. Its methods take the name of a submission contract stored on the platform and pass through to `client.submissions.get(name)`: `validate_submission(name, df, ...)` and `submit(name, df, filename=None, validate=True)`. A local `SubmissionContract` is validated with `SubmissionHandler(contract, df).validate_submission(resolver)` directly. Re-exports `SubmissionContract`, `SubmissionHandler`, the readers, both exceptions and `Submission`, so package-level imports from `crosscontract.submission` keep working; its old submodules (`submission_handler`, `excel_processing`, `exceptions`) are gone.
 
-The import graph runs one way — `constants` ← `transformations` ← `contracts` ← `exceptions` ← `handlers` ← `crossclient` ← `submission`. The specs live in `contracts/`, their execution in `handlers/`, the transport in `crossclient/`, and `submission/` holds only the high-level `CrossSubmitter` plus re-exports. For now `exceptions/` sits above `contracts/`, because `TargetValidationError` holds `SchemaValidationError`s; issue #126 moves every exception class there and makes it a dependency-free base. Never import `submission/` from any other package, never import `crossclient/` from `handlers/` or `exceptions/`, and never import `exceptions/` from `contracts/` or `transformations/`.
+The import graph runs one way — `constants`, `exceptions` ← `transformations` ← `contracts` ← `handlers` ← `crossclient` ← `submission`. The specs live in `contracts/`, their execution in `handlers/`, the transport in `crossclient/`, and `submission/` holds only the high-level `CrossSubmitter` plus re-exports. `exceptions/`, like `constants`, is a base: it imports nothing from the rest of the package. Never import `submission/` from any other package, never import `crossclient/` from `handlers/`, and never import any other package from `exceptions/`.
 
 ### `_helpers/` — Internal, dependency-free helpers
 

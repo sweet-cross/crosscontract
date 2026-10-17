@@ -5,8 +5,9 @@ import pandas as pd
 
 from crosscontract import CrossContract
 from crosscontract.contracts.contracts.cross_contract import ContractType
+from crosscontract.exceptions import ResourceNotFoundError
 
-from ...exceptions import ResourceNotFoundError, raise_from_response
+from ...exception_factory import raise_from_response
 from .contract_resource import ContractResource, ContractStatus
 
 FilterValue = str | int | float | bool

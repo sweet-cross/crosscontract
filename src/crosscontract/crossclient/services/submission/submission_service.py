@@ -5,7 +5,7 @@ import pandas as pd
 
 from crosscontract.contracts.submission import SubmissionContract
 
-from ...exceptions import raise_from_response
+from ...exception_factory import raise_from_response
 from .schemas import Submission
 from .submission_resource import SubmissionContractResource
 

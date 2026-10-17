@@ -58,13 +58,3 @@ class TestValidationError:
     def test_to_pandas_malformed_validation_errors(self):
         ve = ValidationError(validation_errors="not a list")
         assert not ve.to_pandas()
-
-
-def test_crossclient_exceptions_reexport_same_classes():
-    import crosscontract.crossclient.exceptions as client_exceptions
-    import crosscontract.exceptions as exceptions
-
-    for name in client_exceptions.__all__:
-        if name == "raise_from_response":
-            continue
-        assert getattr(client_exceptions, name) is getattr(exceptions, name)
