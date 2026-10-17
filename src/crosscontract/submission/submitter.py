@@ -6,9 +6,10 @@ from crosscontract.crossclient import CrossClient
 class CrossSubmitter:
     """The data provider's entry point to the CROSS platform.
 
-    The write-side counterpart of `CrossRegistry`, constructed the same way and
-    building its own contract resolver so a submission can be validated against
-    the contracts it names.
+    The write-side counterpart of `CrossRegistry`, constructed the same way.
+    Every method takes the name of a submission contract stored on the
+    platform. To validate a local `SubmissionContract`, use
+    `SubmissionHandler(contract, df).validate_submission(resolver)`.
 
     Validation performed here is advisory: it sees only what the calling user
     may read, and the platform re-validates on ingest.
@@ -66,9 +67,10 @@ class CrossSubmitter:
         check_dimension_granularity: bool = True,
         lazy: bool = True,
     ) -> dict[str, pd.DataFrame]:
-        """Validate a delivered bundle and everything extracted from it.
+        """Validate a delivered bundle against a stored submission contract.
 
-        First checks every target's contract — that it resolves, and that it
+        Fetches the submission contract by `name`, then first checks every target's
+        contract — that it resolves, and that it
         declares the submission contract's `replace_key` — then runs three steps
         in order, stopping at the first failure:
 
@@ -76,18 +78,18 @@ class CrossSubmitter:
         2. the bundle for rows that no target claims,
         3. each target's extracted data against the contract it names.
 
-        The contract check and step 3 reach the platform through this
-        submitter's resolver, so the contracts a target names and the values
-        already stored under them are read live. Step 1 does not: a submission
-        contract declares no keys, so it has nothing to look up.
+        The contract check and step 3 read the contracts a target names, and
+        the values already stored under them, live from the platform. Step 1
+        does not: a submission contract declares no keys, so it has nothing to
+        look up.
 
         Extraction runs on the bundle exactly as delivered: the coerced frame
         step 1 returns is discarded, because target filters match a column's
         string form and a coerced value can change which target claims a row.
 
         Args:
-            name (str): The name of the submission contract describing the bundle
-                and how it is split into targets.
+            name (str): The name of the stored submission contract describing
+                the bundle and how it is split into targets.
             df (pd.DataFrame): The bundle as delivered.
             check_existing_primary_key (bool): If True, also check each target's
                 primary key against the values already stored for the contract
@@ -140,10 +142,10 @@ class CrossSubmitter:
                 bundle. Step 1 only enforces the presence of columns whose field
                 is `required`, so an optional filter column can be missing by
                 the time step 2 reads it.
-            CrossClientError: A read against the platform failed. Both key
-                checks reach the platform through this submitter's resolver, so
-                a contract or its stored data being unreadable surfaces here
-                rather than as a validation failure.
+            CrossClientError: A read against the platform failed, e.g.
+                `ResourceNotFoundError` if no submission contract is stored
+                under `name`. A contract or its stored data being unreadable
+                surfaces here rather than as a validation failure.
         """
         # check every target's contract before touching the bundle
         return self._client.submissions.get(name).validate_submission(

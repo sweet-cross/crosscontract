@@ -17,6 +17,8 @@ class SubmissionContractResource:
 
     Produced by the service's `create` and `get`; not constructed directly.
     Its properties are read-only and change only through its methods.
+    `validate_submission` checks a delivered bundle against the stored
+    submission contract.
 
     Attributes:
         name (str): The name of the submission contract.
@@ -224,22 +226,44 @@ class SubmissionContractResource:
         check_dimension_granularity: bool = True,
         lazy: bool = True,
     ) -> dict[str, pd.DataFrame]:
-        """Validate a submission against the submission contract.
+        """Validate a delivered bundle against this submission contract.
+
+        Runs `SubmissionHandler.validate_submission` on the stored contract,
+        reading the target contracts and their stored values from the CROSS
+        platform. The steps stop at the first failure; see that method for what
+        each check covers. Validation here is advisory: the platform validates
+        a submission again on ingest and can still reject it.
 
         Args:
-            df (pd.DataFrame): The submission data.
-            check_existing_primary_key (bool): `True` to check for existing primary
-                keys.
-            check_existing_foreign_key (bool): `True` to check for existing foreign
-                keys.
-            check_dimension_granularity (bool): `True` to check dimension granularity.
-            lazy (bool): `True` to perform lazy validation.
-
-        Raises:
-            CrossClientError: If the validation request fails.
+            df (pd.DataFrame): The bundle as delivered.
+            check_existing_primary_key (bool): If True, also check each target's
+                primary key against the values already stored for the contract
+                it names. Defaults to True.
+            check_existing_foreign_key (bool): If True, also check each target's
+                foreign keys against the values already stored for the contracts
+                they reference. Defaults to True.
+            check_dimension_granularity (bool): If True, also check that no
+                ValueVariable target reports a dimension member alongside one of
+                its descendants. Defaults to True.
+            lazy (bool): If True, collect all of a step's validation errors and
+                raise them together. If False, raise the first error
+                encountered. Defaults to True.
 
         Returns:
-            dict[str, pd.DataFrame]: The validation results.
+            dict[str, pd.DataFrame]: The validated, coerced target data, keyed
+                by target name.
+
+        Raises:
+            SchemaValidationError: The bundle does not satisfy the submission
+                contract's own schema.
+            UnclaimedRowsError: The bundle holds rows no target claims.
+            TargetValidationError: At least one target's data failed, holding
+                one entry per failing target.
+            ValueError: A target names a contract that cannot be read or that
+                does not declare every `replace_key` column.
+            KeyError: A column named by a target's `filters` is absent from the
+                bundle.
+            CrossClientError: A read from the CROSS platform failed.
         """
         resolver = CrossContractResolver(self._service._client.contracts)
         SubmissionHandler(self.contract, df).validate_submission(
