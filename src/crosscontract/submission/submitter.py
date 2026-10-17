@@ -55,22 +55,48 @@ class CrossSubmitter:
         filename: str | None = None,
         validate: bool = True,
     ) -> Submission:
-        """Submit a delivered bundle to the CROSS platform.
+        """Validate a delivered bundle, then submit it to the CROSS platform.
+
+        Fetches the submission contract by `name` and uploads the bundle as a
+        parquet file, exactly as handed in. With `validate=True` the bundle is
+        first checked as by `validate_submission` with every check on, and
+        nothing is uploaded if any check fails. To validate with other
+        settings, e.g. without the stored primary keys for a corrected
+        resubmission, call `validate_submission` with the flags you need and
+        then `submit(name, df, validate=False)`.
+
+        Validation here is advisory: the platform validates the submission
+        again on ingest and can still reject it. Processing on the platform is
+        asynchronous; follow the returned submission's state with
+        `client.submissions.get_submission(submission.uuid)`.
 
         Args:
-            name (str): The name of the submission contract.
-            df (pd.DataFrame): The bundle to submit.
-            filename (str | None, optional): The name of the uploaded file,
-                including its extension, e.g. `bundle.parquet`. Defaults to `None`.
+            name (str): The name of the stored submission contract.
+            df (pd.DataFrame): The bundle as delivered.
+            filename (str | None, optional): The stem of the uploaded file;
+                `.parquet` is appended. Defaults to `None`, which names the file
+                after the submission contract and the UTC time of the upload,
+                e.g. `my_contract_20261017124301.parquet`.
             validate (bool, optional): Whether to validate the bundle before
-                submission. Defaults to `True`.
+                uploading it. Defaults to `True`.
 
         Returns:
             Submission: The created submission, in state `received`.
 
         Raises:
-            NotImplementedError: Always. The CROSS platform does not yet expose
-                a submission endpoint.
+            SchemaValidationError: The bundle does not satisfy the submission
+                contract's own schema. Only with `validate=True`.
+            UnclaimedRowsError: The bundle holds rows no target claims. Only
+                with `validate=True`.
+            TargetValidationError: At least one target's data failed. Only with
+                `validate=True`.
+            ValueError: A target names a contract that cannot be read or that
+                does not declare every `replace_key` column. Only with
+                `validate=True`.
+            CrossClientError: A request to the platform failed, e.g.
+                `ResourceNotFoundError` if no submission contract is stored
+                under `name`, or `PermissionDeniedError` if the caller may not
+                submit to the contract's project.
         """
         return self._client.submissions.get(name).submit(
             df, filename=filename, validate=validate

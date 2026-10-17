@@ -5,6 +5,7 @@ from .crossclient import CrossClient
 from .registry import CrossRegistry
 from .submission import (
     CrossSubmitter,
+    Submission,
     SubmissionContract,
     SubmissionHandler,
     TargetValidationError,
@@ -21,6 +22,7 @@ __all__ = [
     "SchemaValidationError",
     "CrossRegistry",
     "CrossSubmitter",
+    "Submission",
     "SubmissionContract",
     "SubmissionHandler",
     "TargetValidationError",

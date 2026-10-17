@@ -11,6 +11,7 @@ into a single validation of a delivered bundle.
 """
 
 from crosscontract.contracts.submission import SubmissionContract
+from crosscontract.crossclient import Submission
 from crosscontract.exceptions import TargetValidationError, UnclaimedRowsError
 from crosscontract.handlers import (
     SubmissionHandler,
@@ -22,6 +23,7 @@ from .submitter import CrossSubmitter
 
 __all__ = [
     "CrossSubmitter",
+    "Submission",
     "SubmissionContract",
     "SubmissionHandler",
     "TargetValidationError",
