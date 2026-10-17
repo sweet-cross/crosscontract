@@ -1,6 +1,7 @@
 import pandas as pd
 
 from crosscontract.crossclient import CrossClient
+from crosscontract.crossclient.services.submission.schemas import Submission
 
 
 class CrossSubmitter:
@@ -47,15 +48,32 @@ class CrossSubmitter:
 
         self._client = client
 
-    def submit(self):
+    def submit(
+        self,
+        name: str,
+        df: pd.DataFrame,
+        filename: str | None = None,
+        validate: bool = True,
+    ) -> Submission:
         """Submit a delivered bundle to the CROSS platform.
+
+        Args:
+            name (str): The name of the submission contract.
+            df (pd.DataFrame): The bundle to submit.
+            filename (str | None, optional): The name of the uploaded file,
+                including its extension, e.g. `bundle.parquet`. Defaults to `None`.
+            validate (bool, optional): Whether to validate the bundle before
+                submission. Defaults to `True`.
+
+        Returns:
+            Submission: The created submission, in state `received`.
 
         Raises:
             NotImplementedError: Always. The CROSS platform does not yet expose
                 a submission endpoint.
         """
-        raise NotImplementedError(
-            "The CROSS platform does not yet expose a submission endpoint."
+        return self._client.submissions.get(name).submit(
+            df, filename=filename, validate=validate
         )
 
     def validate_submission(
