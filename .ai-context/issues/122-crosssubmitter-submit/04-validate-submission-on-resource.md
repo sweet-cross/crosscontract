@@ -25,16 +25,16 @@ own schema stops the run, and unclaimed rows raise `UnclaimedRowsError`.
   as delivered, never on the coerced frame step 1 returns.
 - [X] The docstring states plainly that the key-check defaults are `True` here, unlike
   `validate_targets`, because a resolver is required.
-- [ ] `SubmissionContractResource.validate_submission(df, ...)` (same flags and defaults)
+- [X] `SubmissionContractResource.validate_submission(df, ...)` (same flags and defaults)
   returns `SubmissionHandler(self.contract, df).validate_submission(CrossContractResolver(...), ...)`.
 - [ ] `CrossSubmitter.validate_submission(name, df, ...)` takes the submission contract's
   **name** and returns `self._client.submissions.get(name).validate_submission(...)`.
   This is a deliberate breaking change of the submitter's signature (previously a
   `SubmissionContract`).
-- [ ] The full docstring (Google style, Args/Returns/Raises, validation is advisory) lives
+- [X] The full docstring (Google style, Args/Returns/Raises, validation is advisory) lives
   on the handler method. The resource and submitter methods have their own short
   docstrings with the same Args/Returns/Raises.
-- [ ] Tests: the sequence is tested on the handler with a mocked `ContractResolver`, no HTTP
+- [X] Tests: the sequence is tested on the handler with a mocked `ContractResolver`, no HTTP
   (move the current validation tests from `src/tests/submission/test_submitter.py` to
   `src/tests/handlers/submission/`). Resource and submitter tests only check that they
   delegate with the right contract and resolver.

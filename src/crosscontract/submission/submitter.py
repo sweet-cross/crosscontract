@@ -1,9 +1,6 @@
 import pandas as pd
 
-from crosscontract.contracts.submission import SubmissionContract
-from crosscontract.crossclient import CrossClient, CrossContractResolver
-from crosscontract.exceptions import UnclaimedRowsError
-from crosscontract.handlers import SubmissionHandler
+from crosscontract.crossclient import CrossClient
 
 
 class CrossSubmitter:
@@ -48,7 +45,6 @@ class CrossSubmitter:
             client = CrossClient(username=username, password=password)
 
         self._client = client
-        self._resolver = CrossContractResolver(client.contracts)
 
     def submit(self):
         """Submit a delivered bundle to the CROSS platform.
@@ -63,7 +59,7 @@ class CrossSubmitter:
 
     def validate_submission(
         self,
-        contract: SubmissionContract,
+        name: str,
         df: pd.DataFrame,
         check_existing_primary_key: bool = True,
         check_existing_foreign_key: bool = True,
@@ -90,7 +86,7 @@ class CrossSubmitter:
         string form and a coerced value can change which target claims a row.
 
         Args:
-            contract (SubmissionContract): The contract describing the bundle
+            name (str): The name of the submission contract describing the bundle
                 and how it is split into targets.
             df (pd.DataFrame): The bundle as delivered.
             check_existing_primary_key (bool): If True, also check each target's
@@ -150,28 +146,8 @@ class CrossSubmitter:
                 rather than as a validation failure.
         """
         # check every target's contract before touching the bundle
-        contract.validate_references(self._resolver)
-
-        # validate the full bundle
-        _ = contract.validate_data(
-            df,
-            resolver=self._resolver,
-            check_existing_primary_key=check_existing_primary_key,
-            check_existing_foreign_key=check_existing_foreign_key,
-            check_dimension_granularity=check_dimension_granularity,
-            lazy=lazy,
-        )
-
-        handler = SubmissionHandler(contract, df)
-
-        # check whether there are unclaimed rows
-        unclaimed_rows = handler.unclaimed_rows()
-        if not unclaimed_rows.empty:
-            raise UnclaimedRowsError(unclaimed_rows)
-
-        # validate each target
-        return handler.validate_targets(
-            resolver=self._resolver,
+        return self._client.submissions.get(name).validate_submission(
+            df=df,
             check_existing_primary_key=check_existing_primary_key,
             check_existing_foreign_key=check_existing_foreign_key,
             check_dimension_granularity=check_dimension_granularity,
