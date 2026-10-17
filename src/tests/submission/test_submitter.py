@@ -143,7 +143,7 @@ class TestValidateSubmission:
         get.assert_called_once_with("submission3")
         resource.validate_submission.assert_called_once_with(
             df,
-            check_existing_primary_key=True,
+            check_existing_primary_key=False,
             check_existing_foreign_key=True,
             check_dimension_granularity=True,
             lazy=True,
@@ -155,14 +155,14 @@ class TestValidateSubmission:
         CrossSubmitter(client=client).validate_submission(
             "submission3",
             df,
-            check_existing_primary_key=False,
+            check_existing_primary_key=True,
             check_existing_foreign_key=False,
             check_dimension_granularity=False,
             lazy=False,
         )
         resource.validate_submission.assert_called_once_with(
             df,
-            check_existing_primary_key=False,
+            check_existing_primary_key=True,
             check_existing_foreign_key=False,
             check_dimension_granularity=False,
             lazy=False,

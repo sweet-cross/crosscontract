@@ -71,18 +71,16 @@ class TestValidateSubmissionSequence:
             SubmissionHandler(contract, full_bundle).validate_submission(resolver)
         assert set(exc_info.value.errors) == {"t_a"}
 
-    def test_an_unresolvable_target_contract_stops_before_the_bundle(
+    def test_an_unresolvable_target_contract_is_not_collected(
         self, contract, contract_a, full_bundle
     ):
-        """A wiring error propagates before step 1 rather than joining the
-        collection."""
+        """A wiring error in step 3 propagates as is rather than joining the
+        collection of target failures."""
         resolver = resolver_for(contract_a=contract_a, contract_c=None)
-        with patch.object(SubmissionContract, "validate_data") as validate_data:
-            with pytest.raises(ValueError) as exc_info:
-                SubmissionHandler(contract, full_bundle).validate_submission(resolver)
+        with pytest.raises(ValueError) as exc_info:
+            SubmissionHandler(contract, full_bundle).validate_submission(resolver)
         assert not isinstance(exc_info.value, TargetValidationError)
         assert "t_year" in str(exc_info.value)
-        validate_data.assert_not_called()
 
 
 class TestFlagForwarding:
@@ -100,12 +98,12 @@ class TestFlagForwarding:
             yield validate_data, validate_targets
 
     def test_defaults_reach_both_steps(self, contract, full_bundle, resolver, steps):
-        """The key checks default to `True` here, unlike on `validate_targets`."""
+        """Only the stored primary keys are left unchecked by default."""
         validate_data, validate_targets = steps
         SubmissionHandler(contract, full_bundle).validate_submission(resolver)
         expected = {
             "resolver": resolver,
-            "check_existing_primary_key": True,
+            "check_existing_primary_key": False,
             "check_existing_foreign_key": True,
             "check_dimension_granularity": True,
             "lazy": True,
@@ -119,14 +117,14 @@ class TestFlagForwarding:
         validate_data, validate_targets = steps
         SubmissionHandler(contract, full_bundle).validate_submission(
             resolver,
-            check_existing_primary_key=False,
+            check_existing_primary_key=True,
             check_existing_foreign_key=False,
             check_dimension_granularity=False,
             lazy=False,
         )
         expected = {
             "resolver": resolver,
-            "check_existing_primary_key": False,
+            "check_existing_primary_key": True,
             "check_existing_foreign_key": False,
             "check_dimension_granularity": False,
             "lazy": False,

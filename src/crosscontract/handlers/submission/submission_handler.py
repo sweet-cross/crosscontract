@@ -25,9 +25,9 @@ class SubmissionHandler:
     targets it collects every failure rather than stopping at the first.
     `unclaimed_rows` returns the bundle rows no target claims.
 
-    `validate_submission` runs the full check of a delivered bundle: the target
-    contracts, the bundle itself, its unclaimed rows, and every target, stopping
-    at the first step that fails.
+    `validate_submission` runs the full check of a delivered bundle: the bundle
+    itself, its unclaimed rows, and every target, stopping at the first step
+    that fails.
 
     A target's contract arrives from the caller, either handed over directly or
     through a `ContractResolver`; the handler never constructs one. With a
@@ -353,25 +353,27 @@ class SubmissionHandler:
     def validate_submission(
         self,
         resolver: ContractResolver,
-        check_existing_primary_key: bool = True,
+        check_existing_primary_key: bool = False,
         check_existing_foreign_key: bool = True,
         check_dimension_granularity: bool = True,
         lazy: bool = True,
     ) -> dict[str, pd.DataFrame]:
         """Validate a delivered bundle and everything extracted from it.
 
-        First checks every target's contract — that it resolves, and that it
-        declares the submission contract's `replace_key` — then runs three steps
-        in order, stopping at the first failure:
+        Runs three steps in order, stopping at the first failure:
 
         1. the bundle against the submission contract's own `tableschema`,
         2. the bundle for rows that no target claims,
         3. each target's extracted data against the contract it names.
 
-        The contract check and step 3 read the contracts a target names, and
-        the values already stored under them, through `resolver`. Step 1 does
-        not: a submission contract declares no keys, so it has nothing to look
-        up. Unlike on `validate_targets`, every check is on by default.
+        Step 3 reads the contracts the targets name, and the values already
+        stored under them, through `resolver`. Step 1 does not: a submission
+        contract declares no keys, so it has nothing to look up.
+
+        By default the stored primary keys are not checked, because a
+        submission replaces the rows stored under its `replace_key`. Duplicated
+        or missing key values within a target's rows are caught either way;
+        collisions with rows stored by other submissions are not.
 
         Extraction runs on the bundle exactly as delivered: the coerced frame
         step 1 returns is discarded, because target filters match a column's
@@ -385,10 +387,11 @@ class SubmissionHandler:
                 the values already stored under them.
             check_existing_primary_key (bool): If True, also check each target's
                 primary key against the values already stored for the contract
-                it names. Applies to step 3 only — a submission contract
-                declares no primary key, so step 1 has none to check. Each
-                target's rows are checked for duplicated or missing key values
-                either way. Defaults to True.
+                it names, including the rows this submission would replace.
+                Applies to step 3 only — a submission contract declares no
+                primary key, so step 1 has none to check. Each target's rows are
+                checked for duplicated or missing key values either way.
+                Defaults to False.
             check_existing_foreign_key (bool): If True, also check each target's
                 foreign keys against the values already stored for the contracts
                 they reference. Applies to step 3 only — a submission contract
@@ -425,11 +428,10 @@ class SubmissionHandler:
                 holding one entry per failing target. Every target is attempted
                 first, and the frames of those that passed are discarded along
                 with the failures.
-            ValueError: One or more targets name a contract the resolver cannot
-                supply, or name one that does not declare every `replace_key`
-                column. Raised before step 1 and listing every such target.
-                Also raised in step 3 when the granularity check meets a
-                referenced dimension the resolver cannot supply.
+            ValueError: Step 3. A target names a contract the resolver cannot
+                supply, or the granularity check meets a referenced dimension
+                the resolver cannot supply. Raised as is, not collected into a
+                `TargetValidationError`.
             KeyError: A column named by a target's `filters` is absent from the
                 bundle. Step 1 only enforces the presence of columns whose field
                 is `required`, so an optional filter column can be missing by
@@ -438,9 +440,6 @@ class SubmissionHandler:
                 platform, a read failed. A contract or its stored data being
                 unreadable surfaces here rather than as a validation failure.
         """
-        # check every target's contract before touching the bundle
-        self.contract.validate_references(resolver)
-
         # validate the full bundle
         _ = self.contract.validate_data(
             self.bundle,

@@ -212,10 +212,10 @@ class TestValidateSubmission:
     def test_returns_the_handlers_result(self, resource, df, validate):
         assert resource.validate_submission(df) == validate.return_value
 
-    def test_default_flags_are_true(self, resource, df, validate):
+    def test_default_flags(self, resource, df, validate):
         resource.validate_submission(df)
         arguments = self.arguments(validate)
-        assert arguments["check_existing_primary_key"] is True
+        assert arguments["check_existing_primary_key"] is False
         assert arguments["check_existing_foreign_key"] is True
         assert arguments["check_dimension_granularity"] is True
         assert arguments["lazy"] is True
@@ -223,13 +223,13 @@ class TestValidateSubmission:
     def test_explicit_flags_are_forwarded(self, resource, df, validate):
         resource.validate_submission(
             df,
-            check_existing_primary_key=False,
+            check_existing_primary_key=True,
             check_existing_foreign_key=False,
             check_dimension_granularity=False,
             lazy=False,
         )
         arguments = self.arguments(validate)
-        assert arguments["check_existing_primary_key"] is False
+        assert arguments["check_existing_primary_key"] is True
         assert arguments["check_existing_foreign_key"] is False
         assert arguments["check_dimension_granularity"] is False
         assert arguments["lazy"] is False
@@ -306,7 +306,7 @@ class TestSubmit:
 
         service._upload_submission.assert_not_called()
 
-    def test_validation_runs_with_every_check_on(self, resource, df, validate):
+    def test_validation_runs_with_its_defaults(self, resource, df, validate):
         """`submit` passes only the bundle, so `validate_submission`'s defaults
         apply."""
         resource.submit(df)

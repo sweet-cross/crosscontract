@@ -24,10 +24,23 @@ The recorded decisions and the architecture description must follow.
     passes through; validating a local contract goes through
     `SubmissionHandler(contract, df).validate_submission(resolver)` directly;
   - top-level `exceptions/` is the target home for all exception classes; for now it holds
-    only the submission exceptions (the rest follows in a separate issue).
+    only the submission exceptions (the rest follows in a separate issue);
+  - `validate_submission` defaults `check_existing_primary_key` to `False` (the other
+    checks stay on), matching cross_back's pipeline: the stored keys still include the
+    rows a resubmission replaces under its `replace_key`. Duplicate or missing keys within
+    a target are still caught; collisions with rows of other submissions are not;
+  - `validate_submission` no longer runs `validate_references` first: an unresolvable
+    target contract surfaces in step 3 as a `ValueError`, as in cross_back, and the
+    `replace_key` declaration is enforced by the platform when the submission contract is
+    created;
+  - `submit(df, filename=None, validate=True)` takes no per-check flags; custom checks go
+    through `validate_submission`, then `submit(..., validate=False)`.
 - [ ] It supersedes ADR 0007's "the submitter sequences the steps and owns the policy"
-      consequence, and ADR 0010's placement of the handler, the readers and the
-      exceptions in `submission/`. Both old ADRs get a one-line pointer to 0011.
+      consequence and its `True` default for `check_existing_primary_key`, and ADR 0010's
+      placement of the handler, the readers and the exceptions in `submission/`. ADR
+      0007's claim that a `False` `check_existing_primary_key` suppresses primary-key
+      uniqueness entirely is corrected: uniqueness within the data is always checked.
+      Both old ADRs get a one-line pointer to 0011.
 - [ ] `.ai-context/CONTEXT.md`: the **Submission handler** entry is redefined — it applies
       extraction instructions to a bundle *and* runs the full **Submission validation**,
       owning its policy (drop "targets and nothing else" and "never acts on" unclaimed

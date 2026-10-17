@@ -59,11 +59,10 @@ class CrossSubmitter:
 
         Fetches the submission contract by `name` and uploads the bundle as a
         parquet file, exactly as handed in. With `validate=True` the bundle is
-        first checked as by `validate_submission` with every check on, and
+        first checked as by `validate_submission` with its defaults, and
         nothing is uploaded if any check fails. To validate with other
-        settings, e.g. without the stored primary keys for a corrected
-        resubmission, call `validate_submission` with the flags you need and
-        then `submit(name, df, validate=False)`.
+        settings, call `validate_submission` with the flags you need and then
+        `submit(name, df, validate=False)`.
 
         Validation here is advisory: the platform validates the submission
         again on ingest and can still reject it. Processing on the platform is
@@ -90,9 +89,8 @@ class CrossSubmitter:
                 with `validate=True`.
             TargetValidationError: At least one target's data failed. Only with
                 `validate=True`.
-            ValueError: A target names a contract that cannot be read or that
-                does not declare every `replace_key` column. Only with
-                `validate=True`.
+            ValueError: A target names a contract that cannot be read. Only
+                with `validate=True`.
             CrossClientError: A request to the platform failed, e.g.
                 `ResourceNotFoundError` if no submission contract is stored
                 under `name`, or `PermissionDeniedError` if the caller may not
@@ -106,26 +104,28 @@ class CrossSubmitter:
         self,
         name: str,
         df: pd.DataFrame,
-        check_existing_primary_key: bool = True,
+        check_existing_primary_key: bool = False,
         check_existing_foreign_key: bool = True,
         check_dimension_granularity: bool = True,
         lazy: bool = True,
     ) -> dict[str, pd.DataFrame]:
         """Validate a delivered bundle against a stored submission contract.
 
-        Fetches the submission contract by `name`, then first checks every target's
-        contract — that it resolves, and that it
-        declares the submission contract's `replace_key` — then runs three steps
-        in order, stopping at the first failure:
+        Fetches the submission contract by `name`, then runs three steps in
+        order, stopping at the first failure:
 
         1. the bundle against the submission contract's own `tableschema`,
         2. the bundle for rows that no target claims,
         3. each target's extracted data against the contract it names.
 
-        The contract check and step 3 read the contracts a target names, and
-        the values already stored under them, live from the platform. Step 1
-        does not: a submission contract declares no keys, so it has nothing to
-        look up.
+        Step 3 reads the contracts the targets name, and the values already
+        stored under them, live from the platform. Step 1 does not: a
+        submission contract declares no keys, so it has nothing to look up.
+
+        By default the stored primary keys are not checked, because a
+        submission replaces the rows stored under its `replace_key`. Duplicated
+        or missing key values within a target's rows are caught either way;
+        collisions with rows stored by other submissions are not.
 
         Extraction runs on the bundle exactly as delivered: the coerced frame
         step 1 returns is discarded, because target filters match a column's
@@ -137,10 +137,11 @@ class CrossSubmitter:
             df (pd.DataFrame): The bundle as delivered.
             check_existing_primary_key (bool): If True, also check each target's
                 primary key against the values already stored for the contract
-                it names. Applies to step 3 only — a submission contract
-                declares no primary key, so step 1 has none to check. Each
-                target's rows are checked for duplicated or missing key values
-                either way. Defaults to True.
+                it names, including the rows this submission would replace.
+                Applies to step 3 only — a submission contract declares no
+                primary key, so step 1 has none to check. Each target's rows are
+                checked for duplicated or missing key values either way.
+                Defaults to False.
             check_existing_foreign_key (bool): If True, also check each target's
                 foreign keys against the values already stored for the contracts
                 they reference. Applies to step 3 only — a submission contract
@@ -177,11 +178,9 @@ class CrossSubmitter:
                 holding one entry per failing target. Every target is attempted
                 first, and the frames of those that passed are discarded along
                 with the failures.
-            ValueError: One or more targets name a contract the resolver cannot
-                supply, or name one that does not declare every `replace_key`
-                column. Raised before step 1 and listing every such target.
-                Also raised in step 3 when the granularity check meets a
-                referenced dimension the resolver cannot supply.
+            ValueError: Step 3. A target names a contract that cannot be read,
+                or the granularity check meets a referenced dimension that
+                cannot be read.
             KeyError: A column named by a target's `filters` is absent from the
                 bundle. Step 1 only enforces the presence of columns whose field
                 is `required`, so an optional filter column can be missing by

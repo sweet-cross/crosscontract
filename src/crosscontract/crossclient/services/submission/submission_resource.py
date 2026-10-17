@@ -223,7 +223,7 @@ class SubmissionContractResource:
     def validate_submission(
         self,
         df: pd.DataFrame,
-        check_existing_primary_key: bool = True,
+        check_existing_primary_key: bool = False,
         check_existing_foreign_key: bool = True,
         check_dimension_granularity: bool = True,
         lazy: bool = True,
@@ -233,14 +233,17 @@ class SubmissionContractResource:
         Runs `SubmissionHandler.validate_submission` on the stored contract,
         reading the target contracts and their stored values from the CROSS
         platform. The steps stop at the first failure; see that method for what
-        each check covers. Validation here is advisory: the platform validates
-        a submission again on ingest and can still reject it.
+        each check covers. By default the stored primary keys are not checked,
+        because a submission replaces the rows stored under its `replace_key`.
+        Validation here is advisory: the platform validates a submission again
+        on ingest and can still reject it.
 
         Args:
             df (pd.DataFrame): The bundle as delivered.
             check_existing_primary_key (bool): If True, also check each target's
                 primary key against the values already stored for the contract
-                it names. Defaults to True.
+                it names, including the rows this submission would replace.
+                Defaults to False.
             check_existing_foreign_key (bool): If True, also check each target's
                 foreign keys against the values already stored for the contracts
                 they reference. Defaults to True.
@@ -261,8 +264,7 @@ class SubmissionContractResource:
             UnclaimedRowsError: The bundle holds rows no target claims.
             TargetValidationError: At least one target's data failed, holding
                 one entry per failing target.
-            ValueError: A target names a contract that cannot be read or that
-                does not declare every `replace_key` column.
+            ValueError: A target names a contract that cannot be read.
             KeyError: A column named by a target's `filters` is absent from the
                 bundle.
             CrossClientError: A read from the CROSS platform failed.
@@ -282,10 +284,9 @@ class SubmissionContractResource:
         """Validate a delivered bundle, then upload it under this submission contract.
 
         The bundle is uploaded as a parquet file, exactly as handed in. With
-        `validate=True` it is first checked by `validate_submission` with every
-        check on, and nothing is uploaded if any check fails. To validate with
-        other settings, e.g. without the stored primary keys for a corrected
-        resubmission, call `validate_submission` with the flags you need and
+        `validate=True` it is first checked by `validate_submission` with its
+        defaults, and nothing is uploaded if any check fails. To validate with
+        other settings, call `validate_submission` with the flags you need and
         then `submit(df, validate=False)`.
 
         Validation here is advisory: the CROSS platform validates the
@@ -312,9 +313,8 @@ class SubmissionContractResource:
                 with `validate=True`.
             TargetValidationError: At least one target's data failed. Only with
                 `validate=True`.
-            ValueError: A target names a contract that cannot be read or that
-                does not declare every `replace_key` column. Only with
-                `validate=True`.
+            ValueError: A target names a contract that cannot be read. Only
+                with `validate=True`.
             CrossClientError: A request to the CROSS platform failed, e.g.
                 `PermissionDeniedError` if the caller may not submit to the
                 contract's project.
