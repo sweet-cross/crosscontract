@@ -2,8 +2,8 @@ import pandas as pd
 
 from crosscontract.contracts.submission import SubmissionContract
 from crosscontract.crossclient import CrossClient, CrossContractResolver
+from crosscontract.crossclient.exceptions import UnclaimedRowsError
 
-from .exceptions import UnclaimedRowsError
 from .submission_handler import SubmissionHandler
 
 

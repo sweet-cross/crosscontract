@@ -9,6 +9,7 @@ from .exceptions import (
     UnprocessableEntityError,
     ValidationError,
 )
+from .submission_exceptions import TargetValidationError, UnclaimedRowsError
 
 __all__ = [
     "CrossClientError",
@@ -21,4 +22,6 @@ __all__ = [
     "raise_from_response",
     "UnprocessableEntityError",
     "raise_from_response",
+    "TargetValidationError",
+    "UnclaimedRowsError",
 ]
