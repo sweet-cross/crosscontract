@@ -6,12 +6,12 @@ import pytest
 from crosscontract import CrossContract
 from crosscontract.contracts import ContractResolver
 from crosscontract.crossclient import CrossContractResolver
-from crosscontract.crossclient.exceptions.exceptions import (
+from crosscontract.crossclient.services.contract.contract_service import ContractService
+from crosscontract.exceptions import (
     PermissionDeniedError,
     ResourceNotFoundError,
     ServerError,
 )
-from crosscontract.crossclient.services.contract.contract_service import ContractService
 
 
 def _contract(name: str = "region") -> CrossContract:
