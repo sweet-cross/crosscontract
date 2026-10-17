@@ -5,7 +5,7 @@ import pandas as pd
 from crosscontract.contracts.submission import SubmissionContract
 from crosscontract.handlers.submission import SubmissionHandler
 
-from .. import CrossContractResolver
+from ..contract import CrossContractResolver
 from .schemas import Submission, SubmissionContractEntryPayload
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -266,13 +266,6 @@ class SubmissionContractResource:
             CrossClientError: A read from the CROSS platform failed.
         """
         resolver = CrossContractResolver(self._service._client.contracts)
-        SubmissionHandler(self.contract, df).validate_submission(
-            resolver=resolver,
-            check_existing_primary_key=check_existing_primary_key,
-            check_existing_foreign_key=check_existing_foreign_key,
-            check_dimension_granularity=check_dimension_granularity,
-            lazy=lazy,
-        )
         return SubmissionHandler(self.contract, df).validate_submission(
             resolver=resolver,
             check_existing_primary_key=check_existing_primary_key,
