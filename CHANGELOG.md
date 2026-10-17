@@ -1,5 +1,53 @@
 # CHANGELOG
 
+## v0.31.0 (2026-10-17)
+
+### Refactoring
+
+
+- **bundle every exception class in crosscontract.exceptions** ([`b7a44fa`](https://github.com/sweet-cross/crosscontract/commit/b7a44fa01ee81abedab0acfaf929f1d28df25ffb))
+
+  ## Summary Every exception class now lives in the top-level `crosscontract.exceptions` package. Before this change, `SchemaValidationError` was in `contracts/schema/exceptions/` and the `CrossClientError` family in `crossclient/exceptions/`, so `exceptions/` had to import from `contracts/` and sat in the middle of the import graph. Now `exceptions/` imports nothing from the rest of the package and is a base layer next to `constants`, so any layer can raise or catch any exception. `raise_from_response` stays in `crossclient/`, since it is transport. The classes are moved unchanged. Closes #126.
+
+  ## Changes
+  - **`SchemaValidationError`** moved unchanged, together with its pandera report parser and `CHECK_COLUMNS_PATTERN`, from `contracts/schema/exceptions/validation_error.py` to `exceptions/schema_exceptions.py`. `contracts/schema/exceptions/` is deleted. `contracts/schema/__init__.py` and `validate_dataframe.py` import the class from `crosscontract.exceptions`.
+  - **The `CrossClientError` family** moved unchanged from `crossclient/exceptions/exceptions.py` to `exceptions/client_exceptions.py`. The family is `CrossClientError`, `ValidationError`, `RequestValidationError`, `UnprocessableEntityError`, `AuthenticationError`, `PermissionDeniedError`, `ResourceNotFoundError`, `ServerError` and `ConflictError`.
+  - **`raise_from_response`** moved from `crossclient/exceptions/exception_factory.py` to `crossclient/exception_factory.py`. With the classes gone, the `crossclient/exceptions/` subpackage held only the factory plus re-exports, so it is deleted.
+  - **`crosscontract.exceptions`** now exports all twelve classes. `submission_exceptions.py` imports `SchemaValidationError` relatively, so the package imports nothing from the rest of `crosscontract`.
+  - **Internal imports** in `crossclient/services/` take the classes from `crosscontract.exceptions` and `raise_from_response` from `crossclient.exception_factory`. `contract_resource.py` and `handlers/submission/submission_handler.py` also take `SchemaValidationError` from `crosscontract.exceptions` now, so each file imports its exceptions from one place.
+  - **Tests** follow the move:
+  - `test_validation_error.py` → `tests/exceptions/test_schema_exceptions.py`.
+    - `test_exceptions.py` → `tests/exceptions/test_client_exceptions.py`.
+    - `test_exception_factory.py` → `tests/crossclient/`.
+  - Deep imports in the remaining tests now use `crosscontract.exceptions`, and so does the `SchemaValidationError` import in `test_submission_exceptions.py` and `test_contract_resource.py`.
+  - **Docs:**
+  - The API reference points at `crosscontract.exceptions.schema_exceptions`.
+  - The client tutorial (`notebooks/client_tutorial.ipynb`) imports `ConflictError`, `PermissionDeniedError` and `ValidationError` from `crosscontract.exceptions`. Only the two import lines changed; the outputs were not re-run.
+  - In CLAUDE.md, the `exceptions/` section lists all three modules, the `crossclient/` section describes `exception_factory.py`, and the import graph is `constants, exceptions ← transformations ← contracts ← handlers ← crossclient ← submission`.
+    - ADR 0011 gets an amendment recording the new layering.
+  - The docs-overhaul plan (`.ai-context/prds/docs-overhaul.md`, issues `03-contracts.md` and `04-client-and-registry.md`) points at the new module paths.
+
+  ## Testing
+  - Existing tests are moved and pointed at the new paths. No behaviour changed, so no new behaviour tests.
+  - Added `test_exported_from_all_paths` in `test_schema_exceptions.py`. It checks that `crosscontract`, `crosscontract.contracts`, `crosscontract.contracts.schema` and `crosscontract.exceptions` all expose the same `SchemaValidationError` object.
+  - Added `test_imports_nothing_from_the_rest_of_the_package` in `tests/exceptions/test_exceptions_package.py`. It parses every module in `exceptions/` and fails on any import of `crosscontract` and on any relative import that reaches outside the package.
+  - The full suite passed after each of the two moves. It has not been re-run since the factory move, so the docs commit (`31ced9f`), the import consolidation and the new layering test are untested. `mkdocs build` has not been run.
+
+  ## Notes for reviewer
+  - **Breaking: removed import paths.** Code that imported from `crosscontract.crossclient.exceptions`, `crosscontract.crossclient.exceptions.exceptions`, `crosscontract.crossclient.exceptions.exception_factory` or `crosscontract.contracts.schema.exceptions` must switch to `crosscontract.exceptions`, or to `crosscontract.crossclient.exception_factory` for `raise_from_response`. These paths keep working: `crosscontract`, `crosscontract.contracts`, `crosscontract.contracts.schema` (for `SchemaValidationError`) and `crosscontract.submission` (for the submission exceptions). Below 1.0 this bumps the minor version.
+  - **Dropping `crosscontract.crossclient.exceptions` departs from #126's acceptance criteria**, which listed that path as kept. No downstream repo uses it. Its only use in this repo, the client tutorial, is switched over here. cross_back only uses the deep `contracts.schema.exceptions` path, which sweet-cross/cross_back#532 switches to `crosscontract.exceptions`. That issue is blocked by this release.
+  - **`exceptions/` is a base layer, but it does depend on pandas and pandera.** `SchemaValidationError` carries the pandera report parser. That parser's `CHECK_COLUMNS_PATTERN` reads the message format that the checks in `contracts/schema/validation/checks/` write (`Columns '<cols>' in check '<label>' …`), so the format is now shared across two layers. CLAUDE.md and ADR 0011 say to change both together.
+  - **Possible name confusion:** `crosscontract.exceptions.ValidationError` (the client's 422 error) now sits next to `SchemaValidationError` and `TargetValidationError`, and shares its name with pydantic's `ValidationError`. It is not renamed here.
+  - **Docs reference:** only the existing `SchemaValidationError` entry was repointed. The client and submission exceptions still have no reference entry.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  ---------
+
+  Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+
+
+
 ## v0.30.0 (2026-10-17)
 
 ### Features
