@@ -71,16 +71,13 @@ path — creating contracts, changing status, and submitting data go through it.
 
 **Submitter**:
 The provider-facing access layer, and the mirror of the **Registry** on the write side:
-hand it a **Submission contract** and a delivered bundle and it runs the whole
-**Submission validation** against contracts fetched from the platform, and (later)
-submits the result. It performs no validation of its own — it asks the **Submission
-contract** for the bundle step, wires a **Submission handler** to a **Contract resolver**
-for the target step, and supplies the policy joining them: a bundle that fails its own
-**Schema**, and **Unclaimed rows** that no **Target** takes, each stop the run before the
-next step. Like the **Registry** it stands *on* a **Client** and holds its own
-**Contract resolver**; unlike the **Submission handler** it is connected by definition —
-that is what distinguishes it from every other `Submission*` term, all of which run
-offline.
+name a **Submission contract** stored on the platform and hand it a delivered bundle,
+and it runs the whole **Submission validation** or submits the bundle. It does neither
+itself: it fetches the submission contract through the **Client** and passes through,
+and the **Client** in turn runs the **Submission handler** against a **Contract
+resolver** that reads from the platform. Like the **Registry** it stands *on* a
+**Client**; unlike the **Submission handler** it is connected by definition — that is
+what distinguishes it from every other `Submission*` term, all of which run offline.
 _Avoid_: submission client (the word **Client** names the layer beneath it), uploader,
 ingest client
 
@@ -387,8 +384,8 @@ unions), variable column
 The rows of a submitted bundle that no **Target**'s filters match, and which extraction
 would therefore silently drop. A property of the **bundle**, not of any one **Target** —
 so it is asked for on its own and is no part of the target step of a **Submission
-validation**. Reported by the **Submission handler** and never acted on
-by it — whether an unclaimed row is an error or a warning is the caller's policy. Filters
+validation**. The **Submission handler** reports them on their own, and its full
+**Submission validation** treats them as an error that stops the run. Filters
 are matched against the column's string form, which can only under-match, so a filter
 that fails to match surfaces here rather than passing unnoticed. Rows claimed by *more*
 than one target are legal and a separate question; they have no term yet.
@@ -396,14 +393,15 @@ _Avoid_: leftover, unpacked, orphan rows, unrouted, uncovered
 
 **Submission handler**:
 The executor that applies a **Submission contract**'s **Extraction instructions** to a
-delivered bundle. Its scope is **Targets and nothing else**: for one target, select the
-rows it claims, apply its **Transformation profile** and then its own
-**Transformations**, and check the result against the **Contract** it names. It answers
-for one target or for every target, and across targets it collects every failure rather
-than stopping at the first — the same posture the row-level checks take within one
-dataset. It reports **Unclaimed rows** and never acts on them. It obtains a target's
-**Contract** from the caller, either handed over directly or through a **Contract
-resolver**, and never reaches for one itself.
+delivered bundle. For one target, it selects the rows the target claims, applies its
+**Transformation profile** and then its own **Transformations**, and checks the result
+against the **Contract** it names. It answers for one target or for every target, and
+across targets it collects every failure rather than stopping at the first — the same
+posture the row-level checks take within one dataset. It reports **Unclaimed rows**. It
+also runs the full **Submission validation** and owns its policy: a bundle that fails its
+own **Schema**, and **Unclaimed rows**, each stop the run before the next step. It
+obtains a target's **Contract** from the caller, either handed over directly or through a
+**Contract resolver**, and never reaches for one itself, so it runs offline.
 _Avoid_: extractor, processor, pipeline
 
 **Submission validation**:
@@ -412,10 +410,11 @@ The two-step check of a delivered bundle: first the bundle as a whole against th
 **Contract** it names. The first step is an ordinary **Data validation** of the
 **Submission contract** against the bundle, so it needs nothing new — the contract
 already answers it, and answers it without reaching the platform, since a bundle schema
-declares no keys to look up; the second is the **Submission handler**'s. The steps are
-sequential
-but not welded, and *whether a failed bundle stops the run* is the caller's policy. The
-**Submitter** is the caller that makes it, and it stops.
+declares no keys to look up; the second is the **Submission handler**'s. Between them,
+the bundle's **Unclaimed rows** are checked. The **Submission handler** runs all three
+and stops at the first that fails. By default it does not compare the targets' primary
+keys with the **Existing values**, because a submission replaces the rows stored under
+its `replace_key`; keys duplicated or missing within the data are caught either way.
 _Avoid_: bundle validation for the whole (it names only the first step — which is the
 right name for that step alone), submission check
 
@@ -492,7 +491,8 @@ right name for that step alone), submission check
   rather than the contract reports them.
 - A **Submission validation** is two **Data validations** at different grains: the bundle
   against the **Submission contract**, then each **Target**'s extracted rows against the
-  **Contract** that target names. The handler owns the second grain only.
+  **Contract** that target names. The handler runs the second grain itself and asks the
+  **Submission contract** for the first.
 
 ## Example dialogue
 

@@ -1,13 +1,13 @@
-"""Executing submission contracts.
+"""Validating and submitting delivered bundles on the CROSS platform.
 
-Reads a delivered bundle, splits it into the rows of each target, and validates
-those rows against the contracts the targets name. The submission contract and
-its extraction instructions are defined in `crosscontract.contracts.submission`;
-`SubmissionContract` is re-exported here.
+`CrossSubmitter` is the data provider's entry point: name a submission contract
+stored on the platform, and it validates a delivered bundle against it or
+submits the bundle. `Submission` is what a submission returns.
 
-The readers and `SubmissionHandler` run offline. `CrossSubmitter` is the
-exception: it holds a connection to the CROSS platform and composes the others
-into a single validation of a delivered bundle.
+Everything needed to work offline is re-exported here as well:
+`SubmissionContract`, `SubmissionHandler` (validate a bundle against a local
+contract with `SubmissionHandler(contract, df).validate_submission(resolver)`),
+the Excel bundle readers, and the exceptions a validation raises.
 """
 
 from crosscontract.contracts.submission import SubmissionContract

@@ -1,5 +1,10 @@
 # The Submitter is the provider-side mirror of the Registry
 
+> **Superseded in part 2026-10-17** by [ADR 0011](./0011-submission-execution-lives-in-handlers-transport-in-crossclient.md): the **Submission handler** now runs the
+> whole **Submission validation** and owns its policy, `CrossSubmitter` passes through
+> by name, and `check_existing_primary_key` defaults to `False`. A `False` value does not
+> suppress primary-key uniqueness within the data, contrary to the last bullet below.
+
 `CrossSubmitter` is the **Data provider**'s entry point to the CROSS platform, the mirror
 of `CrossRegistry` on the write side: constructed from credentials (or a `CrossClient`),
 it builds its own `CrossContractResolver` and turns a **Submission contract** plus a
