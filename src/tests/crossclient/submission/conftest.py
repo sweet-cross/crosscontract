@@ -1,5 +1,3 @@
-import pandas as pd
-
 from crosscontract.contracts.submission import SubmissionContract
 
 
@@ -44,18 +42,3 @@ def submission_response(state: str = "received") -> dict:
         "state": state,
         "created_at": "2026-10-16T12:00:00Z",
     }
-
-
-def bundle(*rows: tuple[str, str, int, float]) -> pd.DataFrame:
-    """Build a submission frame according to the submission contract's schema.
-
-    Args:
-        *rows (tuple[str, str, int, float]): One tuple per row, holding
-            `variable`, `country`, `year` and `value`.
-
-    Returns:
-        pd.DataFrame: The frame, with `year` as a nullable integer column.
-    """
-    return pd.DataFrame(
-        list(rows), columns=["variable", "country", "year", "value"]
-    ).astype({"year": "Int64"})

@@ -1,5 +1,6 @@
 from unittest.mock import Mock
 
+import pandas as pd
 import pytest
 from polyfactory.factories.pydantic_factory import ModelFactory
 
@@ -184,6 +185,21 @@ def resolver_for(**contracts: BaseContract | None) -> Mock:
     resolver = Mock(spec=ContractResolver)
     resolver.resolve.side_effect = lambda name: contracts[name]
     return resolver
+
+
+def bundle(*rows: tuple[str, str, int, float]) -> pd.DataFrame:
+    """Build a submission frame according to the submission contract's schema.
+
+    Args:
+        *rows (tuple[str, str, int, float]): One tuple per row, holding
+            `variable`, `country`, `year` and `value`.
+
+    Returns:
+        pd.DataFrame: The frame, with `year` as a nullable integer column.
+    """
+    return pd.DataFrame(
+        list(rows), columns=["variable", "country", "year", "value"]
+    ).astype({"year": "Int64"})
 
 
 @pytest.fixture

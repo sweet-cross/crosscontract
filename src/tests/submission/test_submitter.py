@@ -11,8 +11,7 @@ from crosscontract.submission import (
     SubmissionHandler,
     TargetValidationError,
 )
-from tests.conftest import resolver_for
-from tests.crossclient.submission.conftest import bundle
+from tests.conftest import bundle, resolver_for
 
 USERNAME = "testuser"
 PASSWORD = "secretpassword"
@@ -71,6 +70,17 @@ class TestPublicSurface:
 
         assert "CrossSubmitter" in crosscontract.__all__
         assert "CrossSubmitter" in crosscontract.submission.__all__
+
+    def test_reexports_handler_and_readers(self):
+        import crosscontract.crossclient.services.submission as service
+        import crosscontract.submission as submission
+
+        assert submission.SubmissionHandler is service.SubmissionHandler
+        assert submission.read_excel_bundle is service.read_excel_bundle
+        assert submission.read_excel_bundle_bytes is service.read_excel_bundle_bytes
+        assert "SubmissionHandler" in submission.__all__
+        assert "read_excel_bundle" in submission.__all__
+        assert "read_excel_bundle_bytes" in submission.__all__
 
 
 class TestSubmit:
