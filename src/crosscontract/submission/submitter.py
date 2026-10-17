@@ -1,7 +1,6 @@
 import pandas as pd
 
-from crosscontract.crossclient import CrossClient
-from crosscontract.crossclient.services.submission.schemas import Submission
+from crosscontract.crossclient import CrossClient, Submission
 
 
 class CrossSubmitter:
@@ -10,7 +9,9 @@ class CrossSubmitter:
     The write-side counterpart of `CrossRegistry`, constructed the same way.
     Every method takes the name of a submission contract stored on the
     platform. To validate a local `SubmissionContract`, use
-    `SubmissionHandler(contract, df).validate_submission(resolver)`.
+    `SubmissionHandler(contract, df).validate_submission(resolver)`; before
+    creating it on the platform, `contract.validate_references(resolver)` also
+    checks that every target's contract declares the `replace_key` columns.
 
     Validation performed here is advisory: it sees only what the calling user
     may read, and the platform re-validates on ingest.
@@ -91,6 +92,12 @@ class CrossSubmitter:
                 `validate=True`.
             ValueError: A target names a contract that cannot be read. Only
                 with `validate=True`.
+            KeyError: A column named by a target's `filters` is absent from the
+                bundle. Only with `validate=True`.
+            pyarrow.ArrowException: The bundle cannot be written as parquet,
+                e.g. `ArrowTypeError` or `ArrowInvalid` for a column mixing
+                strings and integers. Can occur even when validation passes;
+                cast the column to one type before submitting.
             CrossClientError: A request to the platform failed, e.g.
                 `ResourceNotFoundError` if no submission contract is stored
                 under `name`, or `PermissionDeniedError` if the caller may not
@@ -111,84 +118,46 @@ class CrossSubmitter:
     ) -> dict[str, pd.DataFrame]:
         """Validate a delivered bundle against a stored submission contract.
 
-        Fetches the submission contract by `name`, then runs three steps in
-        order, stopping at the first failure:
-
-        1. the bundle against the submission contract's own `tableschema`,
-        2. the bundle for rows that no target claims,
-        3. each target's extracted data against the contract it names.
-
-        Step 3 reads the contracts the targets name, and the values already
-        stored under them, live from the platform. Step 1 does not: a
-        submission contract declares no keys, so it has nothing to look up.
-
+        Fetches the submission contract by `name` and runs
+        `SubmissionHandler.validate_submission` on it, reading the target
+        contracts and their stored values from the CROSS platform. The steps
+        stop at the first failure; see that method for what each check covers.
         By default the stored primary keys are not checked, because a
-        submission replaces the rows stored under its `replace_key`. Duplicated
-        or missing key values within a target's rows are caught either way;
-        collisions with rows stored by other submissions are not.
-
-        Extraction runs on the bundle exactly as delivered: the coerced frame
-        step 1 returns is discarded, because target filters match a column's
-        string form and a coerced value can change which target claims a row.
+        submission replaces the rows stored under its `replace_key`.
 
         Args:
-            name (str): The name of the stored submission contract describing
-                the bundle and how it is split into targets.
+            name (str): The name of the stored submission contract.
             df (pd.DataFrame): The bundle as delivered.
             check_existing_primary_key (bool): If True, also check each target's
                 primary key against the values already stored for the contract
                 it names, including the rows this submission would replace.
-                Applies to step 3 only — a submission contract declares no
-                primary key, so step 1 has none to check. Each target's rows are
-                checked for duplicated or missing key values either way.
                 Defaults to False.
             check_existing_foreign_key (bool): If True, also check each target's
                 foreign keys against the values already stored for the contracts
-                they reference. Applies to step 3 only — a submission contract
-                declares no foreign keys. A False value suppresses the
-                foreign-key check entirely, self-references included. Defaults to
-                True.
-            check_dimension_granularity (bool): If True, also check that no group
-                of otherwise-identical rows reports a member of a hierarchical
-                dimension alongside one of its descendants, which would count
-                that member twice when the data is summed. Only a ValueVariable
-                is checked, and only its references to a `Dimension`; a
-                `FlexibleDimension` is flat and has nothing to check. Applies to
-                step 3 only — a submission contract is not a ValueVariable.
-                Defaults to True.
+                they reference. Defaults to True.
+            check_dimension_granularity (bool): If True, also check that no
+                ValueVariable target reports a dimension member alongside one of
+                its descendants. Defaults to True.
             lazy (bool): If True, collect all of a step's validation errors and
                 raise them together. If False, raise the first error
-                encountered. Note that a non-lazy failure yields a degraded
-                report: pandera does not attach the validated frame to the
-                error, so the offending key values cannot be recovered from it.
-                Defaults to True.
+                encountered. Defaults to True.
 
         Returns:
-            dict[str, pd.DataFrame]: Step 3's result — the validated, coerced
-                target data, keyed by target name. Empty frames are legitimate:
-                a target that claims no rows is not an error.
+            dict[str, pd.DataFrame]: The validated, coerced target data, keyed
+                by target name.
 
         Raises:
-            SchemaValidationError: Step 1. The bundle does not satisfy the
-                submission contract's own schema. No target is attempted.
-            UnclaimedRowsError: Step 2. The bundle holds rows no target claims,
-                which extraction would silently drop. Carries the rows. No
-                target is attempted.
-            TargetValidationError: Step 3. At least one target's data failed,
-                holding one entry per failing target. Every target is attempted
-                first, and the frames of those that passed are discarded along
-                with the failures.
-            ValueError: Step 3. A target names a contract that cannot be read,
-                or the granularity check meets a referenced dimension that
-                cannot be read.
+            SchemaValidationError: The bundle does not satisfy the submission
+                contract's own schema.
+            UnclaimedRowsError: The bundle holds rows no target claims.
+            TargetValidationError: At least one target's data failed, holding
+                one entry per failing target.
+            ValueError: A target names a contract that cannot be read.
             KeyError: A column named by a target's `filters` is absent from the
-                bundle. Step 1 only enforces the presence of columns whose field
-                is `required`, so an optional filter column can be missing by
-                the time step 2 reads it.
-            CrossClientError: A read against the platform failed, e.g.
+                bundle.
+            CrossClientError: A read from the CROSS platform failed, e.g.
                 `ResourceNotFoundError` if no submission contract is stored
-                under `name`. A contract or its stored data being unreadable
-                surfaces here rather than as a validation failure.
+                under `name`.
         """
         return self._client.submissions.get(name).validate_submission(
             df=df,

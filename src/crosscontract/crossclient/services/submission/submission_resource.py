@@ -315,20 +315,23 @@ class SubmissionContractResource:
                 `validate=True`.
             ValueError: A target names a contract that cannot be read. Only
                 with `validate=True`.
+            KeyError: A column named by a target's `filters` is absent from the
+                bundle. Only with `validate=True`.
+            pyarrow.ArrowException: The bundle cannot be written as parquet,
+                e.g. `ArrowTypeError` or `ArrowInvalid` for a column mixing
+                strings and integers. Can occur even when validation passes;
+                cast the column to one type before submitting.
             CrossClientError: A request to the CROSS platform failed, e.g.
                 `PermissionDeniedError` if the caller may not submit to the
                 contract's project.
         """
-        filename = (
-            f"{filename}.parquet"
-            if filename is not None
-            else (
-                f"{self.contract.name}_{datetime.now(tz=UTC).strftime('%Y%m%d%H%M%S')}.parquet"
-            )
-        )
+        if filename is None:
+            filename = f"{self.contract.name}_{datetime.now(tz=UTC):%Y%m%d%H%M%S}"
         if validate:
             self.validate_submission(df)
         buffer = BytesIO()
         df.to_parquet(buffer, index=False)
         buffer.seek(0)
-        return self._service._upload_submission(self.contract.name, buffer, filename)
+        return self._service._upload_submission(
+            self.contract.name, buffer, f"{filename}.parquet"
+        )

@@ -23,7 +23,7 @@ def resolver(contract_a, contract_c) -> Mock:
 
 
 class TestValidateSubmissionSequence:
-    """The order of the reference check and the three steps, which is the feature.
+    """The order of the three steps, which is the feature.
 
     Each failure asserts that the later steps were never reached, not merely
     that the right exception surfaced.

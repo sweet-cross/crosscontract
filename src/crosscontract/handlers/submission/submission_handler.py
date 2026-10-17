@@ -367,17 +367,15 @@ class SubmissionHandler:
         3. each target's extracted data against the contract it names.
 
         Step 3 reads the contracts the targets name, and the values already
-        stored under them, through `resolver`. Step 1 does not: a submission
-        contract declares no keys, so it has nothing to look up.
+        stored under them, through `resolver`.
 
         By default the stored primary keys are not checked, because a
         submission replaces the rows stored under its `replace_key`. Duplicated
         or missing key values within a target's rows are caught either way;
         collisions with rows stored by other submissions are not.
 
-        Extraction runs on the bundle exactly as delivered: the coerced frame
-        step 1 returns is discarded, because target filters match a column's
-        string form and a coerced value can change which target claims a row.
+        Targets are extracted from the bundle as delivered, not from the coerced
+        frame of step 1.
 
         Validation here is advisory: the CROSS platform validates a submission
         again on ingest and can still reject it.
@@ -388,29 +386,22 @@ class SubmissionHandler:
             check_existing_primary_key (bool): If True, also check each target's
                 primary key against the values already stored for the contract
                 it names, including the rows this submission would replace.
-                Applies to step 3 only — a submission contract declares no
-                primary key, so step 1 has none to check. Each target's rows are
-                checked for duplicated or missing key values either way.
-                Defaults to False.
+                Applies to step 3 only. Each target's rows are checked for
+                duplicated or missing key values either way. Defaults to False.
             check_existing_foreign_key (bool): If True, also check each target's
                 foreign keys against the values already stored for the contracts
-                they reference. Applies to step 3 only — a submission contract
-                declares no foreign keys. A False value suppresses the
-                foreign-key check entirely, self-references included. Defaults to
-                True.
+                they reference. Applies to step 3 only. A False value suppresses
+                the foreign-key check entirely, self-references included.
+                Defaults to True.
             check_dimension_granularity (bool): If True, also check that no group
                 of otherwise-identical rows reports a member of a hierarchical
                 dimension alongside one of its descendants, which would count
                 that member twice when the data is summed. Only a ValueVariable
-                is checked, and only its references to a `Dimension`; a
-                `FlexibleDimension` is flat and has nothing to check. Applies to
-                step 3 only — a submission contract is not a ValueVariable.
-                Defaults to True.
+                is checked, and only its references to a `Dimension`. Applies to
+                step 3 only. Defaults to True.
             lazy (bool): If True, collect all of a step's validation errors and
                 raise them together. If False, raise the first error
-                encountered. Note that a non-lazy failure yields a degraded
-                report: pandera does not attach the validated frame to the
-                error, so the offending key values cannot be recovered from it.
+                encountered; the report may then lack the offending key values.
                 Defaults to True.
 
         Returns:
@@ -433,9 +424,7 @@ class SubmissionHandler:
                 the resolver cannot supply. Raised as is, not collected into a
                 `TargetValidationError`.
             KeyError: A column named by a target's `filters` is absent from the
-                bundle. Step 1 only enforces the presence of columns whose field
-                is `required`, so an optional filter column can be missing by
-                the time step 2 reads it.
+                bundle and its field is not `required`.
             CrossClientError: With a resolver that reads from the CROSS
                 platform, a read failed. A contract or its stored data being
                 unreadable surfaces here rather than as a validation failure.
