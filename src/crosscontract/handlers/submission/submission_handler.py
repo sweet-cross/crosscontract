@@ -8,9 +8,12 @@ describes how a bundle splits into per-variable datasets, and a
 import pandas as pd
 
 from crosscontract.contracts import BaseContract, ContractResolver
-from crosscontract.contracts.schema import SchemaValidationError
 from crosscontract.contracts.submission import SubmissionContract, Target
-from crosscontract.exceptions import TargetValidationError, UnclaimedRowsError
+from crosscontract.exceptions import (
+    SchemaValidationError,
+    TargetValidationError,
+    UnclaimedRowsError,
+)
 from crosscontract.transformations import BaseTransformation
 
 
