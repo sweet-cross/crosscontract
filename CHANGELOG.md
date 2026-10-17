@@ -1,5 +1,81 @@
 # CHANGELOG
 
+## v0.30.0 (2026-10-17)
+
+### Features
+
+
+- **add CrossSubmitter.submit and move submission execution to handlers/** ([`2058ca9`](https://github.com/sweet-cross/crosscontract/commit/2058ca906e93a6a383bdf6283d63401cdce72fa7))
+
+  ## Summary Implements #122: a data provider can now submit a delivered bundle to the CROSS platform, validated locally first so errors surface before upload rather than as a rejected submission. On the way, submission execution moves out of `crosscontract.submission` into a new offline `handlers/` package, the low-level `SubmissionContractResource` takes over validating and uploading (as `ContractResource` does for contracts), and `CrossSubmitter` becomes a thin, name-based pass-through. Validation defaults now match cross_back's ingest pipeline.
+
+  ## Changes
+  - **New layering** (ADR 0011): `constants ← transformations ← contracts ← exceptions ←
+    handlers ← crossclient ← submission`.
+  - `handlers/submission/` (new): `SubmissionHandler` and the Excel bundle readers `read_excel_bundle(_bytes)`, moved from `submission/`. Depends only on `contracts`, `transformations` and `exceptions`; reaches the platform only through the
+      `ContractResolver` protocol.
+  - `exceptions/` (new top-level): `TargetValidationError` and `UnclaimedRowsError`, moved from `submission/exceptions.py`. Interim: the remaining exceptions follow in #126.
+  - `crossclient/` keeps transport only. `crosscontract.submission` holds `CrossSubmitter`
+      plus re-exports.
+  - **Full validation on the handler**: `SubmissionHandler.validate_submission(resolver, ...)`
+    runs the bundle against its own `tableschema`, then unclaimed rows (`UnclaimedRowsError`), then every target, stopping at the first failure. Extraction runs
+    on the bundle as delivered, not the coerced frame.
+  - `check_existing_primary_key` now defaults to `False` (other checks stay on), as in cross_back: the stored keys still include the rows a resubmission replaces under its
+      `replace_key`. Duplicates within a target are still caught.
+  - The `validate_references` pre-check is dropped; an unresolvable target contract surfaces in the target step as an uncollected `ValueError`. The platform enforces the
+      `replace_key` declaration when the submission contract is created.
+  - **Resource** (`SubmissionContractResource`):
+  - `validate_submission(df, ...)` runs the handler on the stored contract with a
+      `CrossContractResolver`.
+  - `submit(df, filename=None, validate=True) -> Submission` validates with the defaults, then serializes the bundle as delivered to parquet and uploads it. `filename` is a stem (`.parquet` appended); the default is the contract name plus a UTC timestamp.
+  - **Service**: private `SubmissionContractService._upload_submission(name, file, filename)` posts a file (`bytes | BinaryIO`) unchanged to `POST /submission/contract/{name}/data`; the platform reads the format from the filename extension. Reusable by `submit_file`
+    (#119).
+  - **Submitter** (`CrossSubmitter`): `submit(name, df, filename=None, validate=True)` replaces the `NotImplementedError` stub; `validate_submission(name, df, ...)` now takes a submission contract's **name** (breaking) and passes through. The submitter no longer
+    holds its own resolver.
+  - **Public surface**: `Submission` is now exported from `crosscontract` and `crosscontract.submission`. Package-level imports from `crosscontract` and `crosscontract.submission` still work through re-exports; the old module paths are
+    gone (see Notes for reviewer).
+  - **Docs and decisions**: new ADR 0011; ADRs 0007 and 0010 marked superseded in part; CONTEXT.md entries (Submitter, Submission handler, Submission validation, Unclaimed rows) and the CLAUDE.md architecture section rewritten; the deprecated TODO.md entry for the submission docs page removed. The docs page is still tracked by WP6 of the docs-overhaul PRD, which now carries a note on what this PR changes, and its task
+    `06-submission.md` has updated sources of truth.
+
+  ## Testing
+  - Moved the handler, reader, granularity and target-validation tests to `src/tests/handlers/submission/` and the exception tests to `src/tests/exceptions/`,
+    unchanged apart from imports.
+  - New `test_validate_submission.py`: step order and short-circuiting, per-target collection, uncollected wiring errors, flag forwarding and defaults, extraction on the
+    raw bundle — all against a mocked `ContractResolver`, no HTTP.
+  - Resource tests: `validate_submission` delegation (stored contract, client resolver, flags); `submit` ordering, no upload on any validation failure, `validate=False`, parquet round-trip of the delivered frame (dtypes intact, never the coerced one),
+    filename stem and timestamped default.
+  - Service tests (respx): one file part with filename and bytes unchanged (bytes and `BytesIO`), `Submission` returned, 404/403/409 mapped to client errors.
+  - Submitter tests: fetch by name and pass-through for both methods.
+  - Public-surface tests for `crosscontract.exceptions`, `crosscontract.handlers` and the
+    re-exports from `crosscontract.submission`.
+  - New shared helper `bound_arguments` in `src/tests/conftest.py` binds a mock's recorded call to the real signature, so assertions don't depend on positional vs keyword use.
+
+  ## Notes for reviewer
+  - **Breaking**: `CrossSubmitter.validate_submission` takes a name instead of a
+    `SubmissionContract`. A local contract is now validated with
+    `SubmissionHandler(contract, df).validate_submission(resolver)`. With
+    `major_on_zero = false`, the `!` in the title yields a minor bump.
+  - **Breaking**: the modules `crosscontract.submission.submission_handler`, `crosscontract.submission.excel_processing` and `crosscontract.submission.exceptions` are removed. Import from `crosscontract.submission` (or `crosscontract`) instead, or from the new homes `crosscontract.handlers.submission` and `crosscontract.exceptions`.
+  - **Behaviour change**: `check_existing_primary_key` defaults to `False` on all `validate_submission` methods. Collisions with rows stored by *other* submissions are
+    no longer caught locally.
+  - `submit` has no per-check flags by design; custom checks go through
+    `validate_submission`, then `submit(..., validate=False)`.
+  - `SubmissionHandler` now owns policy (it raises on unclaimed rows in `validate_submission`); `unclaimed_rows()` and `validate_targets()` still only report.
+  - Four packages are now named `submission` (`contracts`, `handlers`,
+    `crossclient.services`, top-level); see CLAUDE.md.
+  - cross_back imports `SubmissionHandler`, the readers and the exceptions through `crosscontract` / `crosscontract.submission`, which still re-export them.
+  - Out of scope: `submit_file` (#119), waiting for processing to finish, moving the remaining exceptions (#126), merging `CrossSubmitter` into `CrossRegistry`.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  ---------
+
+  Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+
+  Co-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>
+
+
+
 ## v0.29.0 (2026-10-16)
 
 ### Features
