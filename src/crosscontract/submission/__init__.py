@@ -15,9 +15,12 @@ from crosscontract.crossclient.exceptions import (
     TargetValidationError,
     UnclaimedRowsError,
 )
+from crosscontract.crossclient.services.submission import (
+    SubmissionHandler,
+    read_excel_bundle,
+    read_excel_bundle_bytes,
+)
 
-from .excel_processing import read_excel_bundle, read_excel_bundle_bytes
-from .submission_handler import SubmissionHandler
 from .submitter import CrossSubmitter
 
 __all__ = [

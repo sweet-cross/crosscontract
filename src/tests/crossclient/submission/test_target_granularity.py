@@ -13,11 +13,9 @@ import pytest
 
 from crosscontract.contracts import ContractResolver, CrossContract
 from crosscontract.contracts.schema import SchemaValidationError
-from crosscontract.submission import (
-    SubmissionContract,
-    SubmissionHandler,
-    TargetValidationError,
-)
+from crosscontract.contracts.submission import SubmissionContract
+from crosscontract.crossclient.exceptions import TargetValidationError
+from crosscontract.crossclient.services.submission import SubmissionHandler
 
 DIMENSION_DATA = pd.DataFrame(
     {

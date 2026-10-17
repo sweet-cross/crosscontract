@@ -8,11 +8,9 @@ from crosscontract.contracts import (
     ContractResolver,
     SchemaValidationError,
 )
-from crosscontract.submission import (
-    SubmissionContract,
-    SubmissionHandler,
-    TargetValidationError,
-)
+from crosscontract.contracts.submission import SubmissionContract
+from crosscontract.crossclient.exceptions import TargetValidationError
+from crosscontract.crossclient.services.submission import SubmissionHandler
 from tests.conftest import resolver_for, resolver_returning, target_contract
 
 from .conftest import bundle

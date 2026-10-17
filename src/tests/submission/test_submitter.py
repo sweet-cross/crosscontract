@@ -12,8 +12,7 @@ from crosscontract.submission import (
     TargetValidationError,
 )
 from tests.conftest import resolver_for
-
-from .conftest import bundle
+from tests.crossclient.submission.conftest import bundle
 
 USERNAME = "testuser"
 PASSWORD = "secretpassword"

@@ -4,9 +4,9 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import crosscontract.submission as submission
-from crosscontract.submission import (
-    SubmissionContract,
+import crosscontract.crossclient.services.submission as submission
+from crosscontract.contracts.submission import SubmissionContract
+from crosscontract.crossclient.services.submission import (
     read_excel_bundle,
     read_excel_bundle_bytes,
 )
@@ -89,7 +89,7 @@ WIDE_SHEET = {"name": "wide", "wide": {"header_field": "year", "value_field": "v
 
 
 def test_exported():
-    """Test that both readers are exported from `crosscontract.submission`."""
+    """Test that both readers are exported from `crosscontract.crossclient.services.submission`."""
     assert submission.read_excel_bundle is read_excel_bundle
     assert submission.read_excel_bundle_bytes is read_excel_bundle_bytes
     assert "read_excel_bundle" in submission.__all__
