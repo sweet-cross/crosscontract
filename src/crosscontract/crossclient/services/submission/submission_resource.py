@@ -326,12 +326,12 @@ class SubmissionContractResource:
                 contract's project.
         """
         if filename is None:
-            filename = f"{self.contract.name}_{datetime.now(tz=UTC):%Y%m%d%H%M%S}"
+            filename = f"{self.name}_{datetime.now(tz=UTC):%Y%m%d%H%M%S}"
         if validate:
             self.validate_submission(df)
         buffer = BytesIO()
         df.to_parquet(buffer, index=False)
         buffer.seek(0)
         return self._service._upload_submission(
-            self.contract.name, buffer, f"{filename}.parquet"
+            self.name, buffer, f"{filename}.parquet"
         )
