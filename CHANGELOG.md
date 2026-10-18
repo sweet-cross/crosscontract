@@ -1,5 +1,61 @@
 # CHANGELOG
 
+## v0.32.0 (2026-10-18)
+
+### Refactoring
+
+
+- **move release specs into contracts/release** ([`1d707f0`](https://github.com/sweet-cross/crosscontract/commit/1d707f0a3db2aa33b7e197738c2aa0b555dab9d3))
+
+  ## Summary This moves the release specs (`CrossDataPackageReleaseSpec`, `CrossDataResourceReleaseSpec`, `DataInstructions`) from `release/data_package/` into the declarative layer at `contracts/release/`. cross_back can then parse, validate and store release specs without importing the client-side release execution, which depends on `CrossRegistry` and therefore on `crossclient`. It follows the pattern #120 set for the submission specs. The release execution stays in `release/data_package/` and keeps running against the registry. Closes #127.
+
+  ## Changes
+  - **Spec moved unchanged.** `release/data_package/release_specification.py` is renamed to `contracts/release/release_specification.py` with no content change (a 100% rename; the relative imports resolve to the same targets). The old module is deleted, with no shim.
+  - **Exports:**
+    - `crosscontract.contracts.release` exports all three classes.
+  - `crosscontract.contracts` and the top-level `crosscontract` now export both specs.
+      `DataInstructions` is not exported there.
+  - `crosscontract.release` and `crosscontract.release.data_package` still re-export both
+      specs and `create_data_package`.
+  - **Execution imports.** `create_data_package.py`, `_resolve_resource.py` and `_resolve_package.py` now import the specs from `...contracts.release`. They don't
+    change otherwise.
+  - **Tests:**
+  - `test_release_specification.py` moves to `src/tests/contracts/release/`.
+  - `conftest.py` and `test_create_data_package.py` in `src/tests/release/data_package/`
+      import from the new location.
+  - A new `TestExports` class in `test_release_specification.py` checks that both specs are the same class at every package that exports them, and that `DataInstructions` is exported from `crosscontract.contracts.release` but not from `crosscontract.contracts`.
+  - **Docs:**
+  - The `DataInstructions` entry in `docs/reference/release.md` points at
+      `crosscontract.contracts.release`.
+  - New ADR 0012 records that `contracts/` is now the declarative layer, and why the
+      execution does not move yet.
+  - The **Release spec** entry in CONTEXT.md notes that the spec is declarative and can be
+      parsed without the platform.
+  - The CLAUDE.md architecture section gets a new `contracts/release/` entry, a renamed `contracts/` heading, and an updated `release/data_package/` section and import-graph sentence. A new "Two packages named `release`" note under Key design patterns tells `crosscontract.contracts.release` (the specs) apart from `crosscontract.release` (the
+      adapter).
+  - The module docstrings of `_standards/frictionless/metadata.py` and `descriptors.py`
+      now point at `crosscontract.contracts.release` instead of
+      `crosscontract.release.data_package`.
+  - The open docs-overhaul WP5 task lists `contracts/release/release_specification.py` as
+      its source of truth.
+
+  ## Testing The existing spec tests moved along with the module, and the release tests import the specs from the new location. The full test suite, the linters and mypy passed locally after the code move. They have not been rerun since. The later commits change documentation and add the `TestExports` class, which has not been run yet; only the pre-commit hooks (ruff import checks and formatting) passed on them. `mkdocs build` has not been run either, so the new `DataInstructions` path in `docs/reference/release.md` is unchecked.
+
+  ## Notes for reviewer
+  - **Breaking change.** The import path `crosscontract.release.data_package.release_specification` is gone, which is why the title is `refactor!:`. Because the version is below 1.0, this bumps the minor version. Every package-level import path still works. `DataInstructions` was importable only from the removed module, so import it from `crosscontract.contracts.release` now.
+  - **No new dependency direction.** Nothing under `contracts/` imports `crossclient`, `registry` or `release`. The moved module imports only `_helpers`, `_standards`, `constants` and `transformations`, which `contracts/` was already allowed to import.
+  - **Deferred.** Moving release execution to `handlers/release/` needs two refactors first: running it against a `ContractResolver` instead of `CrossRegistry`, and moving the data shaping (filters, dimension aggregation, labels) out of `registry/variables/`. ADR 0012
+    records this. It is a separate issue.
+  - **CONTEXT.md.** The new sentence describes the spec in domain terms rather than naming `contracts/release/`, because the glossary contains no module paths anywhere.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  ---------
+
+  Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+
+
+
 ## v0.31.0 (2026-10-17)
 
 ### Refactoring
