@@ -2,12 +2,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from crosscontract.registry.variables import CrossBaseDimension
-from crosscontract.registry.variables.data_variable import CrossDataVariable
-from crosscontract.release.data_package.release_specification import (
+from crosscontract.contracts.release import (
     CrossDataPackageReleaseSpec,
     CrossDataResourceReleaseSpec,
 )
+from crosscontract.registry.variables import CrossBaseDimension
+from crosscontract.registry.variables.data_variable import CrossDataVariable
 
 
 @pytest.fixture

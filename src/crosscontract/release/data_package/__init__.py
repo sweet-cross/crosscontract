@@ -1,8 +1,8 @@
-from .create_data_package import create_data_package
-from .release_specification import (
+from ...contracts.release import (
     CrossDataPackageReleaseSpec,
     CrossDataResourceReleaseSpec,
 )
+from .create_data_package import create_data_package
 
 __all__ = [
     "CrossDataResourceReleaseSpec",

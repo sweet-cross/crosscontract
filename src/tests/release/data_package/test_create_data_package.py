@@ -6,10 +6,10 @@ import pandas as pd
 import yaml
 
 from crosscontract._standards.frictionless import DataPackage
-from crosscontract.release.data_package.create_data_package import create_data_package
-from crosscontract.release.data_package.release_specification import (
+from crosscontract.contracts.release import (
     CrossDataPackageReleaseSpec,
 )
+from crosscontract.release.data_package.create_data_package import create_data_package
 
 MODULE = "crosscontract.release.data_package.create_data_package"
 

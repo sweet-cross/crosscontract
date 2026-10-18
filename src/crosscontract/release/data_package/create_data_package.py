@@ -1,10 +1,10 @@
 from pathlib import Path
 
 from ..._helpers import read_yaml_or_json_file
+from ...contracts.release import CrossDataPackageReleaseSpec
 from ...registry import CrossRegistry
 from ._resolve_package import save_data_package
 from ._resolve_resource import resolve_resources
-from .release_specification import CrossDataPackageReleaseSpec
 
 
 def create_data_package(

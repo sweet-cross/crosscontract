@@ -10,4 +10,4 @@
 
 ::: crosscontract.release.CrossDataResourceReleaseSpec
 
-::: crosscontract.release.data_package.release_specification.DataInstructions
+::: crosscontract.contracts.release.DataInstructions

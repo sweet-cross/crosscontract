@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from crosscontract.release.data_package.release_specification import (
+from crosscontract.contracts.release import (
     CrossDataPackageReleaseSpec,
 )
 
@@ -36,3 +36,24 @@ class TestUniqueResourceNames:
             }
         )
         assert [r.name for r in spec.resources] == ["contract_a", "contract_b"]
+
+
+class TestExports:
+    def test_specs_reexported(self):
+        import crosscontract
+        import crosscontract.contracts as contracts
+        import crosscontract.contracts.release as specs
+        import crosscontract.release as release
+        import crosscontract.release.data_package as data_package
+
+        for name in ("CrossDataPackageReleaseSpec", "CrossDataResourceReleaseSpec"):
+            for package in (crosscontract, contracts, release, data_package):
+                assert getattr(package, name) is getattr(specs, name)
+                assert name in package.__all__
+
+    def test_data_instructions_exported_only_from_contracts_release(self):
+        import crosscontract.contracts as contracts
+        import crosscontract.contracts.release as specs
+
+        assert "DataInstructions" in specs.__all__
+        assert "DataInstructions" not in contracts.__all__

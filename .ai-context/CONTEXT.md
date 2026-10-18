@@ -305,7 +305,8 @@ _Avoid_: export, dump, builder (when meaning the whole adapter)
 The **Build spec** for a release — a **CrossDataPackageReleaseSpec** (authored package metadata) plus a
 list of **CrossDataResourceReleaseSpec** (per-resource metadata overrides, the chosen `format`, and the
 **fetch** instructions). Names the resources to pull and how; the **Release adapter**
-consumes it.
+consumes it. Declarative like the **Submission contract**: it lives with the **Contracts**
+and can be parsed and validated without the platform.
 _Avoid_: release specification, descriptor (the spec is the recipe, not the output)
 
 **Frictionless descriptor** (the permissive mirror):

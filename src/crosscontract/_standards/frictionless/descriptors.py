@@ -13,7 +13,7 @@ metadata plus a file binding; a package is its descriptive metadata plus a
 
 This mirrors the *upstream* standard, not the stricter CROSS models in
 `crosscontract.contracts.contracts.metadata_models` (`extra="forbid"`) or the
-CROSS-opinionated `crosscontract.release.data_package`. Every model sets
+CROSS-opinionated `crosscontract.contracts.release`. Every model sets
 `extra="allow"` so the standard's extensibility rides through losslessly. Wiring
 this layer to the CROSS models is left for later.
 """
