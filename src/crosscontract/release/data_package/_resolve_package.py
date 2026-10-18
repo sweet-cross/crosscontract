@@ -10,7 +10,7 @@ from ..._standards.frictionless import (
     DataPackage,
     DataResource,
 )
-from .release_specification import CrossDataPackageReleaseSpec
+from ...contracts.release import CrossDataPackageReleaseSpec
 
 
 def save_data_package(

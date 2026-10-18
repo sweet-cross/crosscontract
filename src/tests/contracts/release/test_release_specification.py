@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from crosscontract.release.data_package.release_specification import (
+from crosscontract.contracts.release import (
     CrossDataPackageReleaseSpec,
 )
 

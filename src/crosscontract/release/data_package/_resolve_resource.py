@@ -8,17 +8,17 @@ from ..._standards.frictionless import (
     FileMetaData,
     TableSchema,
 )
+from ...contracts.release import (
+    CrossDataPackageReleaseSpec,
+    CrossDataResourceReleaseSpec,
+    DataInstructions,
+)
 from ...registry import CrossRegistry
 from ...registry.variables import (
     CrossBaseVariable,
     CrossDataVariable,
 )
 from ...transformations import FetchSpecMixin
-from .release_specification import (
-    CrossDataPackageReleaseSpec,
-    CrossDataResourceReleaseSpec,
-    DataInstructions,
-)
 
 # Non-hierarchical dimensions whose rows must be reduced to only those referenced
 # by the released data, mapped to their (explicitly known) key columns. This guards
