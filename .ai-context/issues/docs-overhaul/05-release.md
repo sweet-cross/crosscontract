@@ -33,7 +33,7 @@ documents the fetch models, and re-checks the page against the code.
   and add it to the API Reference nav. WP6 adds the column transformations to this same
   page, so title it for transformations as a whole, not only fetch.
 - Sources of truth:
-  - `release/data_package/release_specification.py`
+  - `contracts/release/release_specification.py`
   - `release/data_package/_resolve_resource.py`
   - `transformations/fetch/fetch_spec.py`
   - `transformations/fetch/aggregation_spec.py`

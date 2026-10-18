@@ -13,7 +13,7 @@ this module factors the standard's metadata into small, composable models that
 - `FileMetaData` — the *physical* data binding (`path`, `data`, `format`,
   `mediatype`, `encoding`, `bytes`, `hash`), kept orthogonal to the descriptive
   metadata so a resource can mix the two in (`DataResource(ResourceMetaData,
-  FileMetaData)`), echoing the layering in `crosscontract.release.data_package`.
+  FileMetaData)`), echoing the layering in `crosscontract.contracts.release`.
 
 Everything here stays *permissive* (`extra="allow"`) and faithful to the upstream
 Frictionless JSON Schemas, with no CROSS-specific domain logic.
