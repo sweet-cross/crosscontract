@@ -83,7 +83,7 @@ with enough context to act on it cold).
 
 ## Architecture
 
-The public surface — `contracts/`, `crossclient/`, and `registry/` — is re-exported from `crosscontract/__init__.py`. `_standards/` is an internal module (not re-exported) holding faithful models of the upstream Frictionless standard.
+The public surface — `contracts/`, `crossclient/`, and `services/` — is re-exported from `crosscontract/__init__.py`. `_standards/` is an internal module (not re-exported) holding faithful models of the upstream Frictionless standard.
 
 ### `contracts/` — The declarative layer: contracts and the specs that name them
 
@@ -140,21 +140,6 @@ A pydantic mirror of the upstream Frictionless standard, distinct from the stric
   - `SubmissionContractResource`: per-submission-contract handle holding the `SubmissionContract`, `project_name` and `allow_submissions` (`title`/`description`/`tags` read through to the contract). Exposes `set_allow_submissions`, `delete`, `refresh`, `submissions()`, `validate_submission(df, ...)` (runs `SubmissionHandler.validate_submission` on the stored contract with a `CrossContractResolver`) and `submit(df, filename=None, validate=True)` (validates with the defaults, then uploads the bundle as delivered as parquet; `filename` is a stem, defaulting to the contract name plus a UTC timestamp).
   - `schemas.py`: `SubmissionContractEntryPayload` (the parsed read response) and `Submission` with its `SubmissionState` literal, mirroring the server's `SubmissionResponse`.
 
-### `registry/` — High-level data access layer
-
-- `CrossRegistry`: wraps a `CrossClient`. Lazy-loads variables by name via `add_variable()` / `get_variable()`. Supports attribute access (`registry.my_variable`) and item access (`registry["my_variable"]`). Automatically resolves foreign key relationships by fetching referenced dimension contracts.
-- `CrossDataVariable`: holds a fetched `ContractResource` and its resolved `CrossDimension` objects. Main entry point is `get_data()`, which supports filtering, dimension aggregation (by level, target ID list, or custom mapping), title relabeling (`use_titles=True`), and column selection.
-- `CrossDimension`: dimension-specific variable. Exposes `label_map`, `ancestor_maps` (precomputed per-level), and `get_ancestor_map_by_ids()` for aggregation.
-
-### `release/data_package/` — Contract → Frictionless Data Package adapter
-
-A stateless adapter that turns CROSS contracts into a Frictionless Data Package (a zip on disk). It assembles the permissive `_standards.frictionless` `DataResource` / `DataPackage` models directly — there are no bespoke descriptor classes (see ADR 0003).
-
-- The spec models come from `contracts/release/`; `release/` and `release/data_package/` re-export both specs.
-- `create_data_package.py` — `create_data_package(registry, release_spec, fn_out)`: the slim orchestrator. Loads the spec from a YAML/JSON path (or accepts an instance), then delegates.
-- `_resolve_resource.py` — `fetch_data` (fetch via the registry's trusted path), `build_data_resource` (overlay contract metadata with the spec field-by-field, embed the contract `schema`, derive `path`/`profile` from `format`), and `resolve_resources` (the per-resource loop: empty data is warned-and-skipped; an all-empty release raises).
-- `_resolve_package.py` — `save_data_package`: writes each resource's data file plus `datapackage.json` and `datapackage.yaml` into the output zip.
-
 ### `transformations/excel/` — Excel bundle declaration and reader
 
 - `specs.py` — `ExcelProcessor` / `ExcelSheet` / `WideLayout`: the optional declaration of an Excel bundle's sheets and which of them are laid out wide. Reached through `SubmissionContract.excel_processor`.
@@ -162,7 +147,7 @@ A stateless adapter that turns CROSS contracts into a Frictionless Data Package 
 
 ### `handlers/` — Offline execution of specs (see ADR 0011)
 
-Runs what the specs in `contracts/submission/` and `transformations/excel/` declare: reading a delivered bundle — one wide file carrying many variables — splitting it back into per-variable contracts, and validating the result. The ingress mirror of `release/`. Depends only on `contracts`, `transformations` and `exceptions`, and reaches the platform only through the `ContractResolver` protocol.
+Runs what the specs in `contracts/submission/` and `transformations/excel/` declare: reading a delivered bundle — one wide file carrying many variables — splitting it back into per-variable contracts, and validating the result. The ingress mirror of `services/package_creator/`. Depends only on `contracts`, `transformations` and `exceptions`, and reaches the platform only through the `ContractResolver` protocol.
 
 - `submission/excel_processing.py` — `read_excel_bundle_bytes(contract, data)` and `read_excel_bundle(contract, filename)`: check that the contract has an `excel_processor`, then delegate to `read_excel_workbook_bytes` with its sheets and `tableschema` field names. These are the readers `cross_back` imports.
 - `submission/submission_handler.py` — `SubmissionHandler`: the executor that applies a contract's extraction instructions to a delivered bundle. Extraction is `extract_target_data` / `transform_target_data` / `get_target_data` per target, plus `unclaimed_rows` for the bundle rows no target claims. Validation is `validate_target` (one target's extracted rows against the contract it names) and `validate_targets` (every target, or a named selection, collecting each failure into a `TargetValidationError` instead of stopping at the first). `validate_submission(resolver, ...)` runs the full submission validation — the bundle against its own `tableschema`, then unclaimed rows (`UnclaimedRowsError`), then every target — stopping at the first step that fails. It defaults `check_existing_primary_key` to `False`, because a submission replaces the rows stored under its `replace_key`; the other checks default to on. Target contracts arrive from the caller or through a `ContractResolver`; the handler never constructs one.
@@ -175,11 +160,23 @@ Holds every exception class of the package, all exported from `crosscontract.exc
 - `submission_exceptions.py` — `TargetValidationError` (the aggregate raised by `validate_targets`, holding one `SchemaValidationError` per failing target keyed by target name) and `UnclaimedRowsError` (raised when a bundle holds rows no target claims, carrying those rows).
 - `client_exceptions.py` — the `CrossClientError` family (`ValidationError`, `RequestValidationError`, `UnprocessableEntityError`, `AuthenticationError`, `PermissionDeniedError`, `ResourceNotFoundError`, `ServerError`, `ConflictError`), raised by `raise_from_response` in `crossclient/`.
 
-### `submission/` — High-level provider layer
+### `services/` — High-level layer over the CROSS platform
 
-Holds `CrossSubmitter`: the data provider's entry point, constructed like `CrossRegistry`. Its methods take the name of a submission contract stored on the platform and pass through to `client.submissions.get(name)`: `validate_submission(name, df, ...)` and `submit(name, df, filename=None, validate=True)`. A local `SubmissionContract` is validated with `SubmissionHandler(contract, df).validate_submission(resolver)` directly. Re-exports `SubmissionContract`, `SubmissionHandler`, the readers, both exceptions and `Submission`, so package-level imports from `crosscontract.submission` keep working; its old submodules (`submission_handler`, `excel_processing`, `exceptions`) are gone.
+One subpackage per job a user does on the platform, each standing on a `CrossClient` (the package creator through a `CrossReader`): reading data, submitting it, and building a data package. `services/__init__.py` exports `CrossReader`, `CrossRegistry`, `CrossSubmitter` and `create_data_package`; the root re-exports the three classes but not `create_data_package`. Each subpackage exports only its own names.
 
-The import graph runs one way — `constants`, `exceptions` ← `transformations` ← `contracts` ← `handlers` ← `crossclient` ← `submission`. The specs live in `contracts/`, their execution in `handlers/` (submission) or `release/` (release, still on the registry), the transport in `crossclient/`, and `submission/` holds only the high-level `CrossSubmitter` plus re-exports. `exceptions/`, like `constants`, is a base: it imports nothing from the rest of the package. Never import `submission/` from any other package, never import `crossclient/` from `handlers/`, and never import any other package from `exceptions/`.
+**`services/reader/`** — the data consumer's entry point:
+- `CrossReader` (`reader.py`): wraps a `CrossClient`. Lazy-loads variables by name via `add_variable()` / `get_variable()`. Supports attribute access (`reader.my_variable`) and item access (`reader["my_variable"]`). Automatically resolves foreign key relationships by fetching referenced dimension contracts.
+- `CrossRegistry(CrossReader)`: the former name, kept as a plain subclass. Code inside the package uses `CrossReader` only.
+- `variables/` — `CrossDataVariable`: holds a fetched `ContractResource` and its resolved `CrossDimension` objects. Main entry point is `get_data()`, which supports filtering, dimension aggregation (by level, target ID list, or custom mapping), title relabeling (`use_titles=True`), and column selection. `CrossDimension`: dimension-specific variable. Exposes `label_map`, `ancestor_maps` (precomputed per-level), and `get_ancestor_map_by_ids()` for aggregation.
+
+**`services/submitter/`** — `CrossSubmitter`: the data provider's entry point, constructed like `CrossReader`. Its methods take the name of a submission contract stored on the platform and pass through to `client.submissions.get(name)`: `validate_submission(name, df, ...)` and `submit(name, df, filename=None, validate=True)`. A local `SubmissionContract` is validated with `SubmissionHandler(contract, df).validate_submission(resolver)` directly.
+
+**`services/package_creator/`** — Contract → Frictionless Data Package adapter. A stateless adapter that turns CROSS contracts into a Frictionless Data Package (a zip on disk). It assembles the permissive `_standards.frictionless` `DataResource` / `DataPackage` models directly — there are no bespoke descriptor classes (see ADR 0003). The spec models come from `contracts/release/`.
+- `create_data_package.py` — `create_data_package(registry, release_spec, fn_out)`: the slim orchestrator. `registry` is a `CrossReader`. Loads the spec from a YAML/JSON path (or accepts an instance), then delegates.
+- `_resolve_resource.py` — `fetch_data` (fetch via the reader's trusted path), `build_data_resource` (overlay contract metadata with the spec field-by-field, embed the contract `schema`, derive `path`/`profile` from `format`), and `resolve_resources` (the per-resource loop: empty data is warned-and-skipped; an all-empty release raises).
+- `_resolve_package.py` — `save_data_package`: writes each resource's data file plus `datapackage.json` and `datapackage.yaml` into the output zip.
+
+The import graph runs one way — `constants`, `exceptions` ← `transformations` ← `contracts` ← `handlers` ← `crossclient` ← `services`. The specs live in `contracts/`, their execution in `handlers/` (submission) or `services/package_creator/` (release, which fetches through the reader), the transport in `crossclient/`, and `services/` holds the high-level entry points. Inside `services/`, `package_creator/` imports `reader/`. `exceptions/`, like `constants`, is a base: it imports nothing from the rest of the package. Never import `services/` from any other package (only the root `__init__.py` re-exports it), never import `crossclient/` from `handlers/`, and never import any other package from `exceptions/`.
 
 ### `_helpers/` — Internal, dependency-free helpers
 
@@ -190,8 +187,8 @@ Not re-exported from the top-level package. `_pydantic.py` holds reusable pydant
 - **Discriminated unions**: `contract_type` on `CrossContract` selects the schema's `table_type` via the `CONTRACT_TYPE_TO_TABLE_TYPE` table in `contracts/contracts/cross_contract.py`. The mapping is **not** the identity: `Submission` resolves to the `General` table type, because a submission bundle needs its own contract type but not its own schema. The two vocabularies are deliberately separate so several contract types can share one schema — never assume the two strings are equal, and never add an empty schema class just to give a contract type a discriminator target. The `_inject_table_type` validator bridges them automatically.
 - **Adapters are stateless class methods**: call `Adapter.convert_schema(schema, ...)` directly; the adapter pattern exists for extensibility but doesn't require instantiation in practice.
 - **Two `name` patterns, deliberately distinct**: `CONTRACT_NAME_PATTERN` (in the dependency-free `constants.py`, so every package can import it) is the strict contract/field identifier — no `/`; `FRICTIONLESS_NAME_PATTERN` (in `_standards/frictionless/metadata.py`) is the looser standard resource/package identifier that permits `/`. The contract pattern is a subset, so any contract name is also a valid Frictionless name.
-- **Four packages named `submission`**: `crosscontract.contracts.submission` holds the declarative specs (`SubmissionContract`, `ExtractionInstructions`, `Target`); `crosscontract.handlers.submission` their offline execution (`SubmissionHandler`, the contract-taking readers); `crosscontract.crossclient.services.submission` the HTTP transport (`SubmissionContractService`, `SubmissionContractResource`, `Submission`); `crosscontract.submission` the high-level `CrossSubmitter` plus re-exports. Name the full path when referring to any of them.
-- **Two packages named `release`**: `crosscontract.contracts.release` holds the declarative specs (`CrossDataPackageReleaseSpec`, `CrossDataResourceReleaseSpec`, `DataInstructions`); `crosscontract.release` the adapter that builds a Data Package from them (`create_data_package`) plus re-exports of both specs. Name the full path when referring to either.
+- **Three packages named `submission`**: `crosscontract.contracts.submission` holds the declarative specs (`SubmissionContract`, `ExtractionInstructions`, `Target`); `crosscontract.handlers.submission` their offline execution (`SubmissionHandler`, the contract-taking readers); `crosscontract.crossclient.services.submission` the HTTP transport (`SubmissionContractService`, `SubmissionContractResource`, `Submission`). The high-level `CrossSubmitter` lives in `crosscontract.services.submitter`. Name the full path when referring to any of them.
+- **Two packages named `services`**: `crosscontract.crossclient.services` is the transport (`ContractService`, `SubmissionContractService` and their resources, reached as `client.contracts` / `client.submissions`); `crosscontract.services` is the high-level layer (`CrossReader`, `CrossSubmitter`, `create_data_package`). Name the full path when referring to either.
 - **Tests live in `src/tests/`**, mirroring the `src/crosscontract/` structure. `pythonpath = "src"` in `pyproject.toml` means imports use `from crosscontract import ...` without editable install, though the package should be installed via `uv sync`.
 
 ## Docstring convention

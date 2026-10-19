@@ -2,12 +2,12 @@
 
 ## Building a data package
 
-::: crosscontract.release.create_data_package
+::: crosscontract.services.package_creator.create_data_package
 
 ## Release specification
 
-::: crosscontract.release.CrossDataPackageReleaseSpec
+::: crosscontract.contracts.release.CrossDataPackageReleaseSpec
 
-::: crosscontract.release.CrossDataResourceReleaseSpec
+::: crosscontract.contracts.release.CrossDataResourceReleaseSpec
 
 ::: crosscontract.contracts.release.DataInstructions
