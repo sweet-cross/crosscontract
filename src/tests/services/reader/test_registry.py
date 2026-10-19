@@ -11,6 +11,7 @@ from crosscontract.services.reader import (
     CrossDataVariable,
     CrossDimension,
     CrossFlexibleDimension,
+    CrossReader,
     CrossRegistry,
 )
 
@@ -176,6 +177,9 @@ class TestInit:
     def test_with_client(self, mock_client):
         reg = CrossRegistry(client=mock_client)
         assert reg._client is mock_client
+
+    def test_registry_is_a_reader(self, mock_client):
+        assert isinstance(CrossRegistry(client=mock_client), CrossReader)
 
     def test_missing_credentials_raises(self):
         with pytest.raises(ValueError, match="username and password"):

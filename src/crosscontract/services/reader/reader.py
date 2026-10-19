@@ -63,7 +63,7 @@ class CrossReader:
     def __getitem__(self, name: str) -> CrossDataVariable | CrossBaseDimension:
         """
         Magic method to allow dictionary-style access.
-        Usage: registry["my_variable_name"]
+        Usage: reader["my_variable_name"]
         """
         return self.get_variable(name)
 
@@ -113,12 +113,12 @@ class CrossReader:
         filters: dict[str, Any] | None = None,
         overwrite: bool = False,
     ) -> CrossDataVariable | CrossBaseDimension:
-        """Add a variable to the registry by fetching it from the CROSS platform.
+        """Add a variable to the reader by fetching it from the CROSS platform.
 
         Args:
             name (str): The name of the data contract. It is also used as name
                 attribute name under which the variable will be accessible in the
-                registry.
+                reader.
             filters (dict[str, Any] | None): Additional filters to apply when
                 fetching data (optional). **Deprecated:** see
                 `CrossDataVariable.__init__`. Will be removed in a future
@@ -139,7 +139,7 @@ class CrossReader:
                 )
             if not overwrite:
                 raise ValueError(
-                    f"Variable '{name}' already exists in the registry. "
+                    f"Variable '{name}' already exists in the reader. "
                     "Set overwrite=True to replace it."
                 )
 
@@ -151,7 +151,7 @@ class CrossReader:
                     "The 'filters' argument is deprecated and will be removed "
                     "in a future release; it is ignored for dimension contract "
                     f"'{name}'. Filter at read time instead: "
-                    f"registry['{name}'].get_data(filters={{'col': [values]}}).",
+                    f"reader['{name}'].get_data(filters={{'col': [values]}}).",
                     FutureWarning,
                     stacklevel=2,
                 )
@@ -195,7 +195,7 @@ class CrossReader:
                 # Chain the exception using 'from e' so the user can see
                 # IF it was a network/auth error from the client!
                 raise KeyError(
-                    f"Could not load variable '{name}' into registry. "
+                    f"Could not load variable '{name}' into the reader. "
                     f"Original error: {str(e)}"
                 ) from e
 
