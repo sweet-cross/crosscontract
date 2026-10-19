@@ -8,6 +8,7 @@ The import paths in the docs and the architecture notes still name `registry/`, 
 ## Acceptance Criteria
 - [ ] `docs/reference/registry.md` and `docs/reference/release.md` point at `crosscontract.services.reader…` / `crosscontract.services.package_creator…`; the reference page lists `CrossReader`. The release specs are referenced from `crosscontract.contracts.release`.
 - [ ] `docs/release/index.md` imports `create_data_package` from `crosscontract.services` and uses `CrossReader`; `docs/registry/index.md` and `docs/notebooks/registry_tutorial.ipynb` use `CrossReader`.
+- [ ] The offline-validation guidance from the removed `crosscontract/submission/__init__.py` docstring survives in the user docs: validate a bundle against a local `SubmissionContract` with `SubmissionHandler(contract, df).validate_submission(resolver)`, and use the Excel readers from `crosscontract.handlers`. There is no submission docs page yet; `docs/client/index.md` (which already covers submitting) is the nearest home.
 - [ ] `mkdocs.yml` navigation entry `CrossRegistry: reference/registry.md` is renamed to `CrossReader`.
 - [ ] `.claude/CLAUDE.md`:
   - the architecture section describes `services/` with `reader/`, `submitter/`, `package_creator/`;

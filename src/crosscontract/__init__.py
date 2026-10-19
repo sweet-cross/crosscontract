@@ -24,6 +24,7 @@ __all__ = [
     "TableSchema",
     "BaseContract",
     "SchemaValidationError",
+    "CrossReader",
     "CrossRegistry",
     "CrossSubmitter",
     "Submission",
@@ -31,5 +32,4 @@ __all__ = [
     "SubmissionHandler",
     "TargetValidationError",
     "UnclaimedRowsError",
-    "CrossReader",
 ]
