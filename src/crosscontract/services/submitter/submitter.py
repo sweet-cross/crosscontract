@@ -6,7 +6,7 @@ from crosscontract.crossclient import CrossClient, Submission
 class CrossSubmitter:
     """The data provider's entry point to the CROSS platform.
 
-    The write-side counterpart of `CrossRegistry`, constructed the same way.
+    The write-side counterpart of `CrossReader`, constructed the same way.
     Every method takes the name of a submission contract stored on the
     platform. To validate a local `SubmissionContract`, use
     `SubmissionHandler(contract, df).validate_submission(resolver)`; before

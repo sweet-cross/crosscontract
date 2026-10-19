@@ -3,8 +3,8 @@ from typing import Any
 
 import pandas as pd
 
-from crosscontract import CrossClient
 from crosscontract.contracts.contracts.cross_contract import ContractType
+from crosscontract.crossclient import CrossClient
 
 from .variables import (
     CrossBaseDimension,
@@ -14,8 +14,8 @@ from .variables import (
 )
 
 
-class CrossRegistry:
-    """A data registry to interact with the CROSS data platform."""
+class CrossReader:
+    """A reader to access data on the CROSS data platform."""
 
     def __init__(
         self,
@@ -23,7 +23,7 @@ class CrossRegistry:
         password: str | None = None,
         client: CrossClient | None = None,
     ):
-        """Initialize the CrossRegistry with either a CrossClient instance or
+        """Initialize the CrossReader with either a CrossClient instance or
         username/password.
 
         Args:
@@ -63,7 +63,7 @@ class CrossRegistry:
     def __getitem__(self, name: str) -> CrossDataVariable | CrossBaseDimension:
         """
         Magic method to allow dictionary-style access.
-        Usage: registry["my_variable_name"]
+        Usage: reader["my_variable_name"]
         """
         return self.get_variable(name)
 
@@ -113,12 +113,12 @@ class CrossRegistry:
         filters: dict[str, Any] | None = None,
         overwrite: bool = False,
     ) -> CrossDataVariable | CrossBaseDimension:
-        """Add a variable to the registry by fetching it from the CROSS platform.
+        """Add a variable to the reader by fetching it from the CROSS platform.
 
         Args:
             name (str): The name of the data contract. It is also used as name
                 attribute name under which the variable will be accessible in the
-                registry.
+                reader.
             filters (dict[str, Any] | None): Additional filters to apply when
                 fetching data (optional). **Deprecated:** see
                 `CrossDataVariable.__init__`. Will be removed in a future
@@ -139,7 +139,7 @@ class CrossRegistry:
                 )
             if not overwrite:
                 raise ValueError(
-                    f"Variable '{name}' already exists in the registry. "
+                    f"Variable '{name}' already exists in the reader. "
                     "Set overwrite=True to replace it."
                 )
 
@@ -151,7 +151,7 @@ class CrossRegistry:
                     "The 'filters' argument is deprecated and will be removed "
                     "in a future release; it is ignored for dimension contract "
                     f"'{name}'. Filter at read time instead: "
-                    f"registry['{name}'].get_data(filters={{'col': [values]}}).",
+                    f"reader['{name}'].get_data(filters={{'col': [values]}}).",
                     FutureWarning,
                     stacklevel=2,
                 )
@@ -180,7 +180,7 @@ class CrossRegistry:
             target = self._variables[ref_name]
             # Composite-FK dimensions are loaded but not auto-attached:
             # add_dimension keys by single column name. Users can still reach
-            # them via registry[ref_name].
+            # them via reader[ref_name].
             if isinstance(target, CrossBaseDimension) and len(fk.fields) == 1:
                 var.add_dimension(target)
         return var
@@ -195,8 +195,12 @@ class CrossRegistry:
                 # Chain the exception using 'from e' so the user can see
                 # IF it was a network/auth error from the client!
                 raise KeyError(
-                    f"Could not load variable '{name}' into registry. "
+                    f"Could not load variable '{name}' into the reader. "
                     f"Original error: {str(e)}"
                 ) from e
 
         return self._variables[name]
+
+
+class CrossRegistry(CrossReader):
+    """The former name of `CrossReader`. Use `CrossReader` in new code."""

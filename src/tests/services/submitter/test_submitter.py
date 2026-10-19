@@ -52,26 +52,16 @@ class TestConstruction:
 class TestPublicSurface:
     def test_exported_from_both_paths(self):
         """The module-level import already covers the top-level path."""
-        from crosscontract.submission import CrossSubmitter as FromSubmission
+        from crosscontract.services.submitter import CrossSubmitter as FromSubmitter
 
-        assert FromSubmission is CrossSubmitter
+        assert FromSubmitter is CrossSubmitter
 
     def test_listed_in_all(self):
         import crosscontract
+        import crosscontract.services.submitter
 
         assert "CrossSubmitter" in crosscontract.__all__
-        assert "CrossSubmitter" in crosscontract.submission.__all__
-
-    def test_reexports_handler_and_readers(self):
-        import crosscontract.handlers.submission as service
-        import crosscontract.submission as submission
-
-        assert submission.SubmissionHandler is service.SubmissionHandler
-        assert submission.read_excel_bundle is service.read_excel_bundle
-        assert submission.read_excel_bundle_bytes is service.read_excel_bundle_bytes
-        assert "SubmissionHandler" in submission.__all__
-        assert "read_excel_bundle" in submission.__all__
-        assert "read_excel_bundle_bytes" in submission.__all__
+        assert "CrossSubmitter" in crosscontract.services.submitter.__all__
 
 
 class TestSubmit:

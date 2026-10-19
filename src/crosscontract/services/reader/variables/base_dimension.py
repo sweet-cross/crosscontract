@@ -8,13 +8,13 @@ from .base_variable import CrossBaseVariable
 
 
 class CrossBaseDimension(CrossBaseVariable, ABC):
-    """Abstract registry-side base for dimension wrappers.
+    """Abstract reader-side base for dimension wrappers.
 
-    Mirrors the schema-side ``BaseDimensionSchema`` hierarchy: any contract
-    whose tableschema is a dimension schema (rigid ``DimensionSchema`` or
-    ``FlexibleDimensionSchema``) wraps to a subclass of this class. Provides
-    the common ``label_map`` accessor that both flavors support, since both
-    schemas mandate a ``label`` field and a primary key.
+    Mirrors the schema-side `BaseDimensionSchema` hierarchy: any contract
+    whose tableschema is a dimension schema (rigid `DimensionSchema` or
+    `FlexibleDimensionSchema`) wraps to a subclass of this class. Provides
+    the common `label_map` accessor that both flavors support, since both
+    schemas mandate a `label` field and a primary key.
     """
 
     def __init__(self, contract_resource: ContractResource):

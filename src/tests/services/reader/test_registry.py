@@ -7,10 +7,11 @@ import pytest
 
 from crosscontract.contracts import CrossContract
 from crosscontract.contracts.schema.subschemas import BaseDimensionSchema
-from crosscontract.registry import (
+from crosscontract.services.reader import (
     CrossDataVariable,
     CrossDimension,
     CrossFlexibleDimension,
+    CrossReader,
     CrossRegistry,
 )
 
@@ -177,6 +178,9 @@ class TestInit:
         reg = CrossRegistry(client=mock_client)
         assert reg._client is mock_client
 
+    def test_registry_is_a_reader(self, mock_client):
+        assert isinstance(CrossRegistry(client=mock_client), CrossReader)
+
     def test_missing_credentials_raises(self):
         with pytest.raises(ValueError, match="username and password"):
             CrossRegistry()
@@ -186,7 +190,7 @@ class TestInit:
             CrossRegistry(username="user")
 
     def test_with_username_password(self):
-        with patch("crosscontract.registry.registry.CrossClient") as mock_cls:
+        with patch("crosscontract.services.reader.reader.CrossClient") as mock_cls:
             reg = CrossRegistry(username="user", password="pass")
             mock_cls.assert_called_once_with(username="user", password="pass")
             assert reg._client is mock_cls.return_value

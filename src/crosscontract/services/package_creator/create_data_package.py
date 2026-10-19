@@ -2,13 +2,13 @@ from pathlib import Path
 
 from ..._helpers import read_yaml_or_json_file
 from ...contracts.release import CrossDataPackageReleaseSpec
-from ...registry import CrossRegistry
+from ..reader import CrossReader
 from ._resolve_package import save_data_package
 from ._resolve_resource import resolve_resources
 
 
 def create_data_package(
-    registry: CrossRegistry,
+    registry: CrossReader,
     release_spec: Path | CrossDataPackageReleaseSpec | str,
     fn_out: Path | str,
     resolve_references: bool = True,
@@ -17,8 +17,7 @@ def create_data_package(
     file.
 
     Args:
-        registry (CrossRegistry): The registry to use for validating contract
-            references.
+        registry (CrossReader): The reader to fetch the data from.
         release_spec (Path | CrossDataPackageReleaseSpec | str): The release
             specification as a `CrossDataPackageReleaseSpec` instance or a path
             to a YAML/JSON file containing the release specification.

@@ -5,7 +5,7 @@ import warnings
 import pandas as pd
 import pytest
 
-from crosscontract.registry import (
+from crosscontract.services.reader import (
     CrossDataVariable,
     CrossDimension,
     CrossFlexibleDimension,

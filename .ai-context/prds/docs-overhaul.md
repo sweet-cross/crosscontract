@@ -4,6 +4,21 @@ Status: **draft**. Written 2026-09-25 from a page-by-page audit of `docs/`, `mkd
 the tutorial notebooks, and `CONTRIBUTING.md` against the code on `main` (v0.23.0) and
 `dev` (v0.24.0).
 
+> **Note (added 2026-10-19).** #128 moves the high-level layer into
+> `crosscontract.services` and renames the Registry to the **Reader** (ADR 0013). Where
+> this PRD and `issues/docs-overhaul/` say otherwise:
+>
+> - `CrossRegistry` is now `CrossReader`, in `crosscontract.services.reader`;
+>   `CrossRegistry` remains as a subclass. The nav, `docs/index.md` and
+>   `registry/index.md` already say `CrossReader`; the file names still say `registry`.
+> - `crosscontract.submission` is gone. `CrossSubmitter` lives in
+>   `crosscontract.services.submitter`; the names it re-exported (see the WP6 note) come
+>   from the root or their home packages.
+> - `crosscontract.release` is gone. `create_data_package` comes from
+>   `crosscontract.services`, the release specs from `crosscontract.contracts.release`.
+> - `docs/client/index.md` has a section on validating a bundle against a local
+>   `SubmissionContract`.
+
 ## 1. Overview
 
 The documentation site at <https://sweet-cross.github.io/crosscontract/> has fallen
@@ -267,8 +282,10 @@ Done when:
   `main` by itself.
 - **Mkdocstrings targets that move.** Reference pages address modules by dotted path. A
   rename in `src/` breaks the build. Prefer the public re-export (e.g.
-  `crosscontract.release.create_data_package`) over the private module path where one
-  exists.
+  `crosscontract.services.reader.CrossReader`) over the private module path where one
+  exists. A function that shares its module's name, like `create_data_package`, is the
+  exception: mkdocstrings resolves the re-export to the module, so address the function
+  by its full path.
 - **Duplicate autodoc.** Rendering a module *and* a class re-exported from it on the same
   page duplicates headings and anchors. Each object is rendered once per page.
 

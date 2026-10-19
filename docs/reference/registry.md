@@ -1,14 +1,16 @@
-# API Reference: CrossRegistry
+# API Reference: CrossReader
 
-::: crosscontract.registry.CrossRegistry
+::: crosscontract.services.reader.CrossReader
+
+::: crosscontract.services.reader.CrossRegistry
 
 
-::: crosscontract.registry.variables.base_variable.CrossBaseVariable
+::: crosscontract.services.reader.variables.base_variable.CrossBaseVariable
 
-::: crosscontract.registry.variables.data_variable.CrossDataVariable
+::: crosscontract.services.reader.variables.data_variable.CrossDataVariable
 
-::: crosscontract.registry.variables.base_dimension.CrossBaseDimension
+::: crosscontract.services.reader.variables.base_dimension.CrossBaseDimension
 
-::: crosscontract.registry.variables.dimension.CrossDimension
+::: crosscontract.services.reader.variables.dimension.CrossDimension
 
-::: crosscontract.registry.variables.flexible_dimension.CrossFlexibleDimension
+::: crosscontract.services.reader.variables.flexible_dimension.CrossFlexibleDimension

@@ -6,8 +6,7 @@ import pandas as pd
 import pytest
 
 from crosscontract._standards.frictionless import DataResource
-from crosscontract.registry.variables.data_variable import CrossDataVariable
-from crosscontract.release.data_package._resolve_resource import (
+from crosscontract.services.package_creator._resolve_resource import (
     _drop_dangling_foreign_keys,
     _filter_pruned_dimensions,
     build_data_resource,
@@ -15,6 +14,7 @@ from crosscontract.release.data_package._resolve_resource import (
     fetch_data,
     resolve_resources,
 )
+from crosscontract.services.reader.variables.data_variable import CrossDataVariable
 from crosscontract.transformations import FetchSpecMixin
 
 

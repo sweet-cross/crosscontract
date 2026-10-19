@@ -76,7 +76,7 @@ nav:
       - Contract Types: contracts/contract_types.md
       - Metadata: contracts/metadata.md
       - Schema: contracts/schema.md
-  - CrossRegistry:
+  - CrossReader:
       - Overview: registry/index.md
       - Tutorial: notebooks/registry_tutorial.ipynb
       - Releasing data: release/index.md
@@ -85,7 +85,7 @@ nav:
       - Tutorial: notebooks/client_tutorial.ipynb
   - API Reference:
       - CrossContract: reference/contracts.md
-      - CrossRegistry: reference/registry.md
+      - CrossReader: reference/registry.md
       - CrossClient: reference/client.md
       - Release: reference/release.md
   - Contributing: contributing.md

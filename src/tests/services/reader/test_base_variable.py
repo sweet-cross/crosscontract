@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from crosscontract.registry import CrossBaseVariable
+from crosscontract.services.reader import CrossBaseVariable
 
 
 class ConcreteVariable(CrossBaseVariable):

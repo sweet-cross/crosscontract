@@ -1,4 +1,4 @@
-from .registry import CrossRegistry
+from .reader import CrossReader, CrossRegistry
 from .variables import (
     CrossBaseDimension,
     CrossBaseVariable,
@@ -13,5 +13,6 @@ __all__ = [
     "CrossDataVariable",
     "CrossDimension",
     "CrossFlexibleDimension",
+    "CrossReader",
     "CrossRegistry",
 ]
