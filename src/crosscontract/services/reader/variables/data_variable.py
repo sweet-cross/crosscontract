@@ -3,7 +3,7 @@ from typing import Any, Self
 
 import pandas as pd
 
-from crosscontract import CrossClient
+from crosscontract.crossclient import CrossClient
 from crosscontract.crossclient.services import ContractResource
 
 from .base_dimension import CrossBaseDimension

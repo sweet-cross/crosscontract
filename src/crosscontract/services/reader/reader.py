@@ -3,8 +3,8 @@ from typing import Any
 
 import pandas as pd
 
-from crosscontract import CrossClient
 from crosscontract.contracts.contracts.cross_contract import ContractType
+from crosscontract.crossclient import CrossClient
 
 from .variables import (
     CrossBaseDimension,
@@ -14,8 +14,8 @@ from .variables import (
 )
 
 
-class CrossRegistry:
-    """A data registry to interact with the CROSS data platform."""
+class CrossReader:
+    """A reader to access data on the CROSS data platform."""
 
     def __init__(
         self,
@@ -23,7 +23,7 @@ class CrossRegistry:
         password: str | None = None,
         client: CrossClient | None = None,
     ):
-        """Initialize the CrossRegistry with either a CrossClient instance or
+        """Initialize the CrossReader with either a CrossClient instance or
         username/password.
 
         Args:
@@ -200,3 +200,7 @@ class CrossRegistry:
                 ) from e
 
         return self._variables[name]
+
+
+class CrossRegistry(CrossReader):
+    """The former name of `CrossReader`."""

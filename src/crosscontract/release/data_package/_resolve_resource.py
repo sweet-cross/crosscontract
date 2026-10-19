@@ -13,8 +13,8 @@ from ...contracts.release import (
     CrossDataResourceReleaseSpec,
     DataInstructions,
 )
-from ...registry import CrossRegistry
-from ...registry.variables import (
+from ...services.reader import CrossRegistry
+from ...services.reader.variables import (
     CrossBaseVariable,
     CrossDataVariable,
 )

@@ -9,7 +9,7 @@ from .contracts import (
     TableSchema,
 )
 from .crossclient import CrossClient
-from .registry import CrossRegistry
+from .services.reader import CrossRegistry
 from .submission import (
     CrossSubmitter,
     Submission,

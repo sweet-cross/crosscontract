@@ -3,9 +3,9 @@ from typing import Self
 
 import pandas as pd
 
-from crosscontract import CrossClient
 from crosscontract.contracts.schema.fields.base import BaseField
 from crosscontract.contracts.schema.reference import ForeignKeys
+from crosscontract.crossclient import CrossClient
 from crosscontract.crossclient.services import ContractResource
 
 

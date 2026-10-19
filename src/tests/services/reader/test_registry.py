@@ -7,7 +7,7 @@ import pytest
 
 from crosscontract.contracts import CrossContract
 from crosscontract.contracts.schema.subschemas import BaseDimensionSchema
-from crosscontract.registry import (
+from crosscontract.services.reader import (
     CrossDataVariable,
     CrossDimension,
     CrossFlexibleDimension,
@@ -186,7 +186,7 @@ class TestInit:
             CrossRegistry(username="user")
 
     def test_with_username_password(self):
-        with patch("crosscontract.registry.registry.CrossClient") as mock_cls:
+        with patch("crosscontract.services.reader.reader.CrossClient") as mock_cls:
             reg = CrossRegistry(username="user", password="pass")
             mock_cls.assert_called_once_with(username="user", password="pass")
             assert reg._client is mock_cls.return_value

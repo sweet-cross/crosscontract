@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from crosscontract.registry import CrossDimension, CrossFlexibleDimension
+from crosscontract.services.reader import CrossDimension, CrossFlexibleDimension
 
 # ---------------------------------------------------------------------------
 # Test contract & data
