@@ -8,16 +8,11 @@ from .contracts import (
     SchemaValidationError,
     TableSchema,
 )
-from .crossclient import CrossClient
-from .services.reader import CrossRegistry
-from .submission import (
-    CrossSubmitter,
-    Submission,
-    SubmissionContract,
-    SubmissionHandler,
-    TargetValidationError,
-    UnclaimedRowsError,
-)
+from .contracts.submission import SubmissionContract
+from .crossclient import CrossClient, Submission
+from .exceptions import TargetValidationError, UnclaimedRowsError
+from .handlers import SubmissionHandler
+from .services import CrossReader, CrossRegistry, CrossSubmitter
 
 __version__ = "0.32.0"
 
@@ -36,4 +31,5 @@ __all__ = [
     "SubmissionHandler",
     "TargetValidationError",
     "UnclaimedRowsError",
+    "CrossReader",
 ]

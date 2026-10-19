@@ -88,11 +88,9 @@ class TestTargetValidationError:
         )
 
     def test_exported_from_both_paths(self):
-        from crosscontract.submission import (
-            TargetValidationError as FromSubmission,
-        )
+        from crosscontract import TargetValidationError as FromRoot
 
-        assert FromSubmission is TargetValidationError
+        assert FromRoot is TargetValidationError
 
 
 class TestUnclaimedRowsError:
