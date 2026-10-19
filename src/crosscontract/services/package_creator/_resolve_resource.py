@@ -13,12 +13,12 @@ from ...contracts.release import (
     CrossDataResourceReleaseSpec,
     DataInstructions,
 )
-from ...services.reader import CrossRegistry
-from ...services.reader.variables import (
+from ...transformations import FetchSpecMixin
+from ..reader import CrossReader
+from ..reader.variables import (
     CrossBaseVariable,
     CrossDataVariable,
 )
-from ...transformations import FetchSpecMixin
 
 # Non-hierarchical dimensions whose rows must be reduced to only those referenced
 # by the released data, mapped to their (explicitly known) key columns. This guards
@@ -32,14 +32,14 @@ PRUNE_DIMENSIONS: dict[str, list[str]] = {
 
 
 def fetch_data(
-    registry: CrossRegistry,
+    registry: CrossReader,
     fetch_spec: FetchSpecMixin,
 ) -> tuple[CrossBaseVariable, pd.DataFrame]:
     """Given a resource release specification, fetch the data according to the
     instructions in the spec.
 
     Args:
-        registry (CrossRegistry): The registry to use for validating contract
+        registry (CrossReader): The registry to use for validating contract
             references.
         fetch_spec (FetchSpecMixin): The fetch specification for the data resource,
             including the instructions for fetching its data.
@@ -124,7 +124,7 @@ def build_data_resource(
 
 
 def collect_referenced_resources(
-    registry: CrossRegistry, variables: list[CrossBaseVariable]
+    registry: CrossReader, variables: list[CrossBaseVariable]
 ) -> dict[str, CrossBaseVariable]:
     """Collect the resources referenced by the given variables, deduplicated by name.
 
@@ -143,7 +143,7 @@ def collect_referenced_resources(
     keep the package self-contained.
 
     Args:
-        registry (CrossRegistry): The registry used to resolve referenced contracts.
+        registry (CrossReader): The registry used to resolve referenced contracts.
         variables (list[CrossBaseVariable]): The (included) variables whose foreign
             keys are scanned.
 
@@ -164,14 +164,14 @@ def collect_referenced_resources(
 
 
 def resolve_resources(
-    registry: CrossRegistry,
+    registry: CrossReader,
     release_spec: CrossDataPackageReleaseSpec,
     resolve_references: bool = True,
 ) -> dict[str, dict[str, Any]]:
     """Resolve the data for each resource according to the release specification.
 
     Args:
-        registry (CrossRegistry): The registry to use for validating contract
+        registry (CrossReader): The registry to use for validating contract
             references.
         release_spec (CrossDataPackageReleaseSpec): The release specification for
             the data package, including the metadata and data fetching instructions

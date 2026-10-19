@@ -43,11 +43,9 @@ class TestExports:
         import crosscontract
         import crosscontract.contracts as contracts
         import crosscontract.contracts.release as specs
-        import crosscontract.release as release
-        import crosscontract.release.data_package as data_package
 
         for name in ("CrossDataPackageReleaseSpec", "CrossDataResourceReleaseSpec"):
-            for package in (crosscontract, contracts, release, data_package):
+            for package in (crosscontract, contracts):
                 assert getattr(package, name) is getattr(specs, name)
                 assert name in package.__all__
 

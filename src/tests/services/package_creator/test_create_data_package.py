@@ -9,9 +9,11 @@ from crosscontract._standards.frictionless import DataPackage
 from crosscontract.contracts.release import (
     CrossDataPackageReleaseSpec,
 )
-from crosscontract.release.data_package.create_data_package import create_data_package
+from crosscontract.services.package_creator.create_data_package import (
+    create_data_package,
+)
 
-MODULE = "crosscontract.release.data_package.create_data_package"
+MODULE = "crosscontract.services.package_creator.create_data_package"
 
 _SPEC_DICT = {
     "name": "test-package",

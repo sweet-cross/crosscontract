@@ -7,8 +7,8 @@ import pytest
 import yaml
 
 from crosscontract._standards.frictionless import DataPackage
-from crosscontract.release.data_package._resolve_package import save_data_package
-from crosscontract.release.data_package._resolve_resource import build_data_resource
+from crosscontract.services.package_creator._resolve_package import save_data_package
+from crosscontract.services.package_creator._resolve_resource import build_data_resource
 
 
 @pytest.fixture
