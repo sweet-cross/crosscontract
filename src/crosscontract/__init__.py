@@ -14,7 +14,7 @@ from .exceptions import TargetValidationError, UnclaimedRowsError
 from .handlers import SubmissionHandler
 from .services import CrossReader, CrossRegistry, CrossSubmitter
 
-__version__ = "0.32.0"
+__version__ = "0.33.0"
 
 __all__ = [
     "CrossClient",
