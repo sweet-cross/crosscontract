@@ -17,8 +17,7 @@ def create_data_package(
     file.
 
     Args:
-        registry (CrossReader): The registry to use for validating contract
-            references.
+        registry (CrossReader): The reader to fetch the data from.
         release_spec (Path | CrossDataPackageReleaseSpec | str): The release
             specification as a `CrossDataPackageReleaseSpec` instance or a path
             to a YAML/JSON file containing the release specification.

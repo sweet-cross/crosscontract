@@ -2,7 +2,7 @@
 
 ## Building a data package
 
-::: crosscontract.services.package_creator.create_data_package
+::: crosscontract.services.package_creator.create_data_package.create_data_package
 
 ## Release specification
 

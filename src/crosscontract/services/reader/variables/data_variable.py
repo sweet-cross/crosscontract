@@ -84,13 +84,12 @@ class CrossDataVariable(CrossBaseVariable):
         return self._dimensions.copy()
 
     def add_dimension(self, item: CrossBaseDimension):
-        """Add a dimension variable to the registry, keyed by the referring
+        """Add a dimension variable to this variable, keyed by the referring
         foreign key column name(s).
 
         Args:
             item (CrossBaseDimension): The dimension variable to add. Either a
-                hierarchical ``CrossDimension`` or a ``CrossFlexibleDimension``.
-
+                hierarchical `CrossDimension` or a `CrossFlexibleDimension`.
         """
         if item in self._dimensions.values():
             return

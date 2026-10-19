@@ -39,8 +39,7 @@ def fetch_data(
     instructions in the spec.
 
     Args:
-        registry (CrossReader): The registry to use for validating contract
-            references.
+        registry (CrossReader): The reader to fetch the data from.
         fetch_spec (FetchSpecMixin): The fetch specification for the data resource,
             including the instructions for fetching its data.
 
@@ -129,7 +128,7 @@ def collect_referenced_resources(
     """Collect the resources referenced by the given variables, deduplicated by name.
 
     Walks each variable's foreign keys and resolves every referenced contract via
-    the registry. Keying by contract name means a resource referenced by several
+    the reader. Keying by contract name means a resource referenced by several
     variables is collected only once.
 
     Under the platform's star schema these references are always dimensions, but
@@ -143,7 +142,7 @@ def collect_referenced_resources(
     keep the package self-contained.
 
     Args:
-        registry (CrossReader): The registry used to resolve referenced contracts.
+        registry (CrossReader): The reader used to resolve referenced contracts.
         variables (list[CrossBaseVariable]): The (included) variables whose foreign
             keys are scanned.
 
@@ -171,8 +170,7 @@ def resolve_resources(
     """Resolve the data for each resource according to the release specification.
 
     Args:
-        registry (CrossReader): The registry to use for validating contract
-            references.
+        registry (CrossReader): The reader to fetch the data from.
         release_spec (CrossDataPackageReleaseSpec): The release specification for
             the data package, including the metadata and data fetching instructions
             for each resource.

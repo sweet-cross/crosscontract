@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 
 from crosscontract import CrossClient, CrossRegistry
-from crosscontract.release import create_data_package
+from crosscontract.services import create_data_package
 
 
 def get_client(environment: str = "local", allow_prod: bool = False) -> CrossClient:

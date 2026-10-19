@@ -68,8 +68,7 @@ _Avoid_: Registry (the former name; `CrossRegistry` remains as a subclass of `Cr
 
 **Client**:
 The lower-level access layer to the **CROSS platform**, and currently the *only* write
-path — creating contracts, changing status, and submitting data go through it. (The
-**Reader** may gain write paths later; for now both are needed.)
+path — creating contracts, changing status, and submitting data go through it.
 
 **Submitter**:
 The provider-facing access layer, and the mirror of the **Reader** on the write side:

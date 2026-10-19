@@ -180,7 +180,7 @@ class CrossReader:
             target = self._variables[ref_name]
             # Composite-FK dimensions are loaded but not auto-attached:
             # add_dimension keys by single column name. Users can still reach
-            # them via registry[ref_name].
+            # them via reader[ref_name].
             if isinstance(target, CrossBaseDimension) and len(fk.fields) == 1:
                 var.add_dimension(target)
         return var
@@ -203,4 +203,4 @@ class CrossReader:
 
 
 class CrossRegistry(CrossReader):
-    """The former name of `CrossReader`."""
+    """The former name of `CrossReader`. Use `CrossReader` in new code."""
