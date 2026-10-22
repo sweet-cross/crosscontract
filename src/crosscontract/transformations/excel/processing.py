@@ -1,6 +1,9 @@
 from io import BytesIO
 
 import pandas as pd
+from python_calamine import CalamineError
+
+from crosscontract.exceptions import FileReadError
 
 from .specs import ExcelProcessor
 
@@ -20,13 +23,13 @@ def _clean_sheet(df: pd.DataFrame, sheet_name: str) -> pd.DataFrame:
             blank header.
 
     Raises:
-        ValueError: If a column with a blank header holds data.
+        FileReadError: If a column with a blank header holds data.
     """
     df = df.dropna(how="all")
     unnamed = [col for col in df.columns if str(col).startswith("Unnamed: ")]
     with_data = [str(col) for col in unnamed if df[col].notna().any()]
     if with_data:
-        raise ValueError(
+        raise FileReadError(
             f"Sheet '{sheet_name}': columns without a header hold data: "
             f"{', '.join(with_data)}"
         )
@@ -59,22 +62,27 @@ def read_excel_workbook_bytes(
         pd.DataFrame: The long frame.
 
     Raises:
-        ValueError: If none of the listed sheets is in the workbook.
-        ValueError: If a column with a blank header holds data.
-        ValueError: If a wide sheet has a column named like its `value_field`.
-        python_calamine.CalamineError: If `data` cannot be read as an Excel
-            workbook.
+        FileReadError: If `data` cannot be read as an Excel workbook.
+        FileReadError: If none of the listed sheets is in the workbook.
+        FileReadError: If a column with a blank header holds data.
+        FileReadError: If a wide sheet has a column named like its `value_field`.
     """
-    # Ensure at least one listed sheet is in the workbook
-    excel_file = pd.ExcelFile(BytesIO(data), engine="calamine")
-    sheets = [
-        sheet for sheet in processor.sheets if sheet.name in excel_file.sheet_names
-    ]
-    if not sheets:
-        raise ValueError("None of the listed sheets was found in the workbook.")
+    try:
+        excel_file = pd.ExcelFile(BytesIO(data), engine="calamine")
 
-    # load the data
-    workbook = pd.read_excel(excel_file, sheet_name=[sheet.name for sheet in sheets])
+        # Ensure at least one listed sheet is in the workbook
+        sheets = [
+            sheet for sheet in processor.sheets if sheet.name in excel_file.sheet_names
+        ]
+        if not sheets:
+            raise FileReadError("None of the listed sheets was found in the workbook.")
+
+        # load the data
+        workbook = pd.read_excel(
+            excel_file, sheet_name=[sheet.name for sheet in sheets]
+        )
+    except CalamineError as e:
+        raise FileReadError(f"Could not read the Excel workbook: {e}") from e
 
     # extract the frames from each sheet
     frames = []
@@ -82,7 +90,7 @@ def read_excel_workbook_bytes(
         df = _clean_sheet(workbook[sheet.name], sheet.name)
         if sheet.wide is not None:
             if sheet.wide.value_field in df.columns:
-                raise ValueError(
+                raise FileReadError(
                     f"Sheet '{sheet.name}': column '{sheet.wide.value_field}' "
                     "is named like the value_field."
                 )

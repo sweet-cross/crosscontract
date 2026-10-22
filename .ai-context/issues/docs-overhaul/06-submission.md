@@ -92,6 +92,19 @@ have moved.
   `CrossSubmitter` takes a submission contract's name; `check_existing_primary_key`
   defaults to `False`. The reference page should also render `Submission`. The "Sources
   of truth" paths above are updated.
+- **Note — #119 (added 2026-10-22).** #119 adds file-based submission and leaves its
+  docs to this task:
+  - `CrossSubmitter.submit_file(name, path)` reads a `.csv`, `.parquet` or Excel
+    (`.xls/.xlsx/.xlsm/.ods`) file into the bundle and delegates to `submit`. Excel goes
+    through `read_excel_bundle` with the contract's `excel_processor`.
+  - The CSV and parquet readers live in `handlers/readers/` (bytes core plus path
+    wrapper). The CSV reader keeps values such as the country code `"NA"` as strings and
+    reads only an explicit NA list as missing; the page should say so.
+  - `FileReadError` (`exceptions/reader_exceptions.py`) is raised by every reader, the
+    Excel readers included, for a file that cannot be read. Add it to the errors a
+    provider meets and to the reference page.
+  - Re-read `handlers/` and `services/submitter/` on `dev` when replanning, because
+    #119's final shape is decided in its PR.
 - Dependencies:
   - After 05-release.md, which creates `docs/reference/transformations.md`. If WP5 has
     not landed, create that page here.

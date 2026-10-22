@@ -30,6 +30,7 @@ dev = [
     "notebook>=7.5.1",
     "pandas-stubs>=3.0.5.260914",
     "pre-commit>=4.5.1",
+    "pyarrow-stubs>=20.0.0.20260819",
     "ruff>=0.14.11",
     "types-pyyaml>=6.0.12.20250915",
 ]
