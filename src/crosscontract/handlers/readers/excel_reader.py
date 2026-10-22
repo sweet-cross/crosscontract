@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 from python_calamine import CalamineError
 
-from crosscontract.contracts.readers import ExcelProcessor
+from crosscontract.contracts.readers import ExcelProcessor, ExcelSheet
 from crosscontract.contracts.submission import SubmissionContract
 from crosscontract.exceptions import FileReadError
 
@@ -40,15 +40,16 @@ def _clean_sheet(df: pd.DataFrame, sheet_name: str) -> pd.DataFrame:
 
 
 def read_excel_workbook_bytes(
-    processor: ExcelProcessor, field_names: set[str], data: bytes
+    processor: ExcelProcessor | None, field_names: set[str], data: bytes
 ) -> pd.DataFrame:
     """Read an Excel workbook into one long frame, as the processor describes.
 
-    The sheets listed in `processor` are read by exact name; listed sheets missing
-    from the workbook are skipped and other sheets in the workbook are ignored. The
-    first row of every sheet holds the column headers. In every sheet, rows that are
-    entirely blank are dropped, and so are columns with a blank header that hold no
-    data. A long sheet is then taken unchanged. In a wide sheet, the columns named
+    If `processor` is `None`, the first sheet of the workbook is read as one long
+    sheet and all other sheets are ignored. Otherwise the sheets listed in
+    `processor` are read by exact name; listed sheets missing from the workbook are
+    skipped and other sheets in the workbook are ignored. The first row of every
+    sheet holds the column headers. In every sheet, rows that are entirely blank are
+    dropped, and so are columns with a blank header that hold no data. A long sheet is then taken unchanged. In a wide sheet, the columns named
     in `field_names` are kept as identifiers and every remaining column is melted
     into the `header_field` (the column header) and `value_field` (the cell)
     columns. Blank cells of a wide sheet are kept as rows with a missing value. The
@@ -57,7 +58,8 @@ def read_excel_workbook_bytes(
     a string. No values are validated.
 
     Args:
-        processor (ExcelProcessor): The sheets of the workbook and their layout.
+        processor (ExcelProcessor | None): The sheets of the workbook and their
+            layout, or `None` to read the first sheet as a long sheet.
         field_names (set[str]): The names of the fields a wide sheet may carry as
             identifier columns.
         data (bytes): The content of the Excel workbook.
@@ -74,12 +76,20 @@ def read_excel_workbook_bytes(
     try:
         excel_file = pd.ExcelFile(BytesIO(data), engine="calamine")
 
-        # Ensure at least one listed sheet is in the workbook
-        sheets = [
-            sheet for sheet in processor.sheets if sheet.name in excel_file.sheet_names
-        ]
-        if not sheets:
-            raise FileReadError("None of the listed sheets was found in the workbook.")
+        if processor is None:
+            # Default: the first sheet, as one long sheet
+            sheets = [ExcelSheet(name=excel_file.sheet_names[0])]
+        else:
+            # Ensure at least one listed sheet is in the workbook
+            sheets = [
+                sheet
+                for sheet in processor.sheets
+                if sheet.name in excel_file.sheet_names
+            ]
+            if not sheets:
+                raise FileReadError(
+                    "None of the listed sheets was found in the workbook."
+                )
 
         # load the data
         workbook = pd.read_excel(
@@ -120,7 +130,8 @@ def read_excel_bundle_bytes(contract: SubmissionContract, data: bytes) -> pd.Dat
     """Read an Excel workbook into the long bundle the contract describes.
 
     Reads the sheets listed in `contract.excel_processor` with
-    `read_excel_workbook_bytes`, which describes the expected workbook layout. The
+    `read_excel_workbook_bytes`, which describes the expected workbook layout; a
+    contract without one has its first sheet read as a long sheet. The
     `tableschema` fields are the columns a wide sheet keeps as identifiers.
 
     Args:
@@ -131,13 +142,10 @@ def read_excel_bundle_bytes(contract: SubmissionContract, data: bytes) -> pd.Dat
         pd.DataFrame: The long bundle.
 
     Raises:
-        ValueError: If the contract has no `excel_processor`.
         FileReadError: If `data` cannot be read as an Excel workbook, none of the
             listed sheets is in it, a column with a blank header holds data, or a
             wide sheet has a column named like its `value_field`.
     """
-    if contract.excel_processor is None:
-        raise ValueError(f"Contract '{contract.name}' has no excel_processor.")
     field_names = {field.name for field in contract.tableschema.fields}
     return read_excel_workbook_bytes(contract.excel_processor, field_names, data)
 
@@ -158,7 +166,6 @@ def read_excel_bundle(
 
     Raises:
         FileNotFoundError: If the file does not exist.
-        ValueError: If the contract has no `excel_processor`.
         FileReadError: If the file cannot be read as an Excel workbook, none of the
             listed sheets is in it, a column with a blank header holds data, or a
             wide sheet has a column named like its `value_field`.

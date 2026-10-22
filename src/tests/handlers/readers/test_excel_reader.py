@@ -272,3 +272,26 @@ def test_blank_rows_and_blank_header_column_dropped():
     out = _read(buffer.getvalue(), LONG_SHEET)
     assert list(out.columns) == ["region", "variable", "value"]
     assert out["region"].tolist() == ["CH", "DE"]
+
+
+def test_no_processor_reads_first_sheet_long():
+    """Test that without a processor the first sheet is read as a long sheet and
+    the second sheet is ignored."""
+    out = read_excel_workbook_bytes(None, FIELDS, _workbook(first=LONG, second=WIDE))
+    pd.testing.assert_frame_equal(out, LONG)
+
+
+def test_no_processor_cleans_blank_rows_and_header_columns():
+    """Test that the default path drops blank rows and blank-header columns."""
+    workbook = openpyxl.Workbook()
+    ws = workbook.active
+    ws.append(["region", "variable", None, "value"])
+    ws.append(["CH", "pop", None, 1.0])
+    ws.append([None, None, None, None])
+    ws.append(["DE", "NA", None, 2.0])
+    buffer = BytesIO()
+    workbook.save(buffer)
+
+    out = read_excel_workbook_bytes(None, FIELDS, buffer.getvalue())
+    assert list(out.columns) == ["region", "variable", "value"]
+    assert out["variable"].tolist() == ["pop", "NA"]

@@ -108,10 +108,11 @@ def test_wide_sheet_melted():
     pd.testing.assert_frame_equal(df, expected)
 
 
-def test_no_excel_processor():
-    """Test that a contract without `excel_processor` raises."""
-    with pytest.raises(ValueError, match="has no excel_processor"):
-        read_excel_bundle_bytes(_contract(), _workbook(long=LONG))
+def test_no_excel_processor_reads_first_sheet_long():
+    """Test that a contract without `excel_processor` reads the first sheet as a
+    long sheet and ignores the others."""
+    df = read_excel_bundle_bytes(_contract(), _workbook(first=LONG, second=WIDE))
+    pd.testing.assert_frame_equal(df, LONG)
 
 
 def test_read_excel_bundle_from_file(tmp_path: Path):
