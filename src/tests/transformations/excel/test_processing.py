@@ -5,11 +5,9 @@ import openpyxl
 import pandas as pd
 import pytest
 
+from crosscontract.contracts.readers import ExcelProcessor
 from crosscontract.exceptions import FileReadError
-from crosscontract.transformations.excel import (
-    ExcelProcessor,
-    read_excel_workbook_bytes,
-)
+from crosscontract.transformations.excel import read_excel_workbook_bytes
 from crosscontract.transformations.excel.processing import _clean_sheet
 
 LONG = pd.DataFrame(

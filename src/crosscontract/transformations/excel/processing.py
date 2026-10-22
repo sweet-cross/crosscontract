@@ -3,9 +3,8 @@ from io import BytesIO
 import pandas as pd
 from python_calamine import CalamineError
 
+from crosscontract.contracts.readers import ExcelProcessor
 from crosscontract.exceptions import FileReadError
-
-from .specs import ExcelProcessor
 
 
 def _clean_sheet(df: pd.DataFrame, sheet_name: str) -> pd.DataFrame:
