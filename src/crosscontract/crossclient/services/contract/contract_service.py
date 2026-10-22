@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from crosscontract import CrossContract
+from crosscontract.contracts import CrossContract
 from crosscontract.contracts.contracts.cross_contract import ContractType
 from crosscontract.exceptions import ResourceNotFoundError
 

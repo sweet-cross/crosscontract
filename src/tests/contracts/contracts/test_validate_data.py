@@ -1,8 +1,9 @@
 import pandas as pd
 import pytest
 
-from crosscontract.contracts import BaseContract, CrossContract, SchemaValidationError
+from crosscontract.contracts import BaseContract, CrossContract
 from crosscontract.contracts.contracts.resolvers import ContractResolver
+from crosscontract.exceptions import SchemaValidationError
 
 
 class RecordingResolver:

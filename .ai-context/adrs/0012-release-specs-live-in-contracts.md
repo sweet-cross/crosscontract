@@ -37,5 +37,9 @@ server-side data packages.
   `crosscontract.release.data_package`, and now also from `crosscontract.contracts` and the
   top-level `crosscontract`. `DataInstructions` is exported only from
   `crosscontract.contracts.release`.
+
+  > **Amended 2026-10-22.** The root `crosscontract` no longer re-exports the release
+  > specs; they are importable from `crosscontract.contracts` and
+  > `crosscontract.contracts.release`.
 - **`release/` still imports `registry/`.** Only the spec became independent of the client;
   building a **Data Package** still needs a live **Registry**.

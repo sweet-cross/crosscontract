@@ -93,8 +93,9 @@ example one you are still drafting, bind the contract and the bundle in a
 split into are read from the platform through a `CrossContractResolver`:
 
 ```python
-from crosscontract import CrossClient, SubmissionContract, SubmissionHandler
+from crosscontract import CrossClient, SubmissionContract
 from crosscontract.crossclient import CrossContractResolver
+from crosscontract.handlers import SubmissionHandler
 
 client = CrossClient(username="me", password="secret")
 contract = SubmissionContract.from_file("my_submission_contract.yaml")
