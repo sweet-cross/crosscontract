@@ -1,5 +1,66 @@
 # CHANGELOG
 
+## v0.34.0 (2026-10-22)
+
+### Features
+
+
+- **submit a bundle from a csv, parquet or Excel file** ([`940ed47`](https://github.com/sweet-cross/crosscontract/commit/940ed4778727873c35388617712a58cfe63d0540))
+
+  ## Summary Adds `CrossSubmitter.submit_file(name, path)`, which reads a `.csv`, `.parquet` or Excel file into the bundle and hands it to `submit`. Reading has to match cross_back exactly, so cross_back's CSV and parquet readers move into crosscontract (`handlers/readers/`) for both sides to share. This matters most for CSV: cross_back keeps values such as the country code `"NA"` as strings, while plain `pd.read_csv` would turn them into NaN. The readers also take over the error translation: every reader raises one new exception, `FileReadError`, for a file it cannot read, so cross_back only has to map that one type to its HTTP `ValidationError` (sweet-cross/cross_back#532).
+
+  Closes #119.
+
+  ## Changes
+  - **`FileReadError`** (`exceptions/reader_exceptions.py`, exported from `crosscontract.exceptions`): a plain `Exception` whose message is the user-facing text.
+  - **CSV and parquet readers** (`handlers/readers/`, re-exported from `crosscontract.handlers`): `read_csv_file_bytes` / `read_csv_file` and `read_parquet_file_bytes` / `read_parquet_file`, each a bytes core plus a path wrapper.
+  - CSV uses cross_back's `read_csv` settings unchanged: strict UTF-8, `keep_default_na=False` with the private 17-token NA list, and `on_bad_lines="error"`.
+  - Only errors that mean a bad file become `FileReadError`, with cross_back's current messages:
+      - CSV: `UnicodeDecodeError`, `ParserError`, `EmptyDataError`
+  - parquet: `ArrowException` (which covers `ArrowInvalid` and e.g. `ArrowNotImplementedError` for an unsupported codec) and `OSError`. A corrupted footer or page raises a plain `OSError`, and the bytes core reads from memory, so an `OSError` there can only come from the content.
+  - An empty CSV cell is kept as an empty string, as in cross_back, so a single empty cell turns a numeric column into strings. The docstring says so.
+  - Every other exception, and `FileNotFoundError` from the path wrappers, propagates unchanged.
+  - **Excel readers raise `FileReadError`** (breaking): `read_excel_workbook_bytes` raises it, with the messages unchanged, instead of `ValueError` for its three layout errors (no listed sheet found, a blank-header column holding data, a column named like `value_field`). It also translates `CalamineError` from opening the workbook and from parsing its sheets. The `ValueError` for a contract without `excel_processor` in `read_excel_bundle(_bytes)` stays, and the `Raises:` sections are updated.
+  - **`CrossSubmitter.submit_file(name, path, filename=None, validate=True)`**: picks the reader by extension, case-insensitively.
+    - `.csv` and `.parquet` use the readers above.
+  - `.xls/.xlsx/.xlsm/.ods` go through `read_excel_bundle` with the submission contract fetched by `name`.
+  - Any other extension raises `ValueError` before anything is fetched or read. So does an Excel file for a contract without `excel_processor`, which the `Raises:` section lists.
+  - It delegates to `submit` and doesn't validate or upload anything itself.
+  - **Dev dependency:** `pyarrow-stubs`, because `parquet_reader.py` imports pyarrow and mypy needs its types.
+  - **Docs:**
+  - CLAUDE.md now describes `handlers/readers/`, `reader_exceptions.py`, the Excel readers' errors and `submit_file`.
+  - The user docs are left to the docs overhaul: a note is added to `.ai-context/issues/docs-overhaul/06-submission.md`.
+
+  ## Testing
+  - `src/tests/handlers/readers/test_readers.py` (new) covers:
+  - CSV: a valid file, `"NA"` kept as a string, an empty cell kept as an empty string, each NA token (from a hard-coded copy of the list) becoming missing, invalid UTF-8, a bad line, empty input, the path wrapper, a missing file
+  - parquet: round-trip, invalid and empty input, a corrupted footer, the path wrapper, a missing file
+  - `src/tests/transformations/excel/test_processing.py`: the layout-error tests now expect `FileReadError`. New tests cover bytes that aren't a workbook and a workbook whose sheet XML is broken.
+  - `src/tests/services/submitter/test_submitter.py`, new `TestSubmitFile`:
+  - each extension, including mixed case, reaches its reader, and the frame goes to `submit` with `filename` and `validate` passed through
+    - Excel is read with the fetched contract
+    - an unsupported extension raises before anything is fetched
+    - a read failure uploads nothing
+  - a real CSV on disk reaches `submit` with `"NA"` kept as a string and numbers parsed
+  - Export tests for `FileReadError` and the readers.
+  - Tests and lint weren't run in the authoring session. Running mypy is what showed the need for `pyarrow-stubs`.
+
+  ## Notes for reviewer
+  - **Breaking change:** callers that caught `ValueError` or `python_calamine.CalamineError` from the Excel readers now get `FileReadError`. cross_back is pinned to 0.28.0 and moves in #532, whose comments already describe how.
+  - **Excel messages in cross_back:** after #532 they lose cross_back's "Could not read the Excel bundle: " prefix. A workbook that can't be read now says "Could not read the Excel workbook: …". The encoding, CSV and parquet messages are unchanged.
+  - **One `try` in `read_excel_workbook_bytes`:** a single `try … except CalamineError` wraps opening the workbook, the sheet check and `pd.read_excel`. The "None of the listed sheets" `FileReadError` is raised inside it and passes through, because it isn't a `CalamineError`.
+  - **Two GETs for Excel in `submit_file`:** one to read the workbook, one inside `submit`. This was accepted on purpose because the payload is small.
+  - **`pyarrow-stubs` version:** it resolved to 20.0.0 while the project requires `pyarrow>=22`. That's enough for what this PR uses.
+  - **Deferred to #134, a follow-up `refactor!` that ships in the same release, before cross_back migrates:**
+  - The Excel specs move to `contracts/readers/`, and the Excel reading, `read_excel_bundle(_bytes)` included, moves to `handlers/readers/`.
+  - A contract without `excel_processor` falls back to pandas' default, the first sheet read as a long sheet. That also removes the `ValueError` that `submit_file` currently lets through for such a contract.
+    - Excel NA handling is made to match CSV.
+  - **Out of scope:** deriving the NA list from `missingValues`, and sharing the extension dispatch with cross_back.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+
+
 ## v0.33.0 (2026-10-19)
 
 ### Refactoring
