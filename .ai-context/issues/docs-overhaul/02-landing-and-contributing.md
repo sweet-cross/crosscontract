@@ -43,8 +43,26 @@ setup. This task brings the entry pages up to date.
   list so that edit is a one-line addition.
 - No changelog page is created (out of scope per the PRD); the GitHub link is the
   replacement.
-- **Note — package architecture (added 2026-10-12).** Present the components as three
-  layers rather than a flat list:
+- **Note — package layout (added 2026-10-22, #137).** Supersedes the 2026-10-12 note
+  below. Present the package by role:
+
+  - **`contracts/`: specs.** Declarative, authored as YAML: the contracts and their
+    schemas, and the specs for submission, release, reading (`readers/`) and fetching
+    (`fetching/`).
+  - **`handlers/`: execution based on specs.** Runs specs offline: the file readers and
+    the `SubmissionHandler`.
+  - **`crossclient/`: low-level API access.** `CrossClient` and its per-endpoint services
+    and resources.
+  - **`services/`: high-level API interaction.** The role entry points `CrossReader`,
+    `CrossSubmitter` and `create_data_package`, built on a `CrossClient`.
+  - **`transformations/`: self-running DataFrame operations.** Each is a spec that runs
+    itself (`apply`), schema-agnostic. Specs in `contracts/` compose them, and
+    `handlers/` runs them.
+
+  Keep the component list a plain bullet list; the layout can be a short paragraph
+  before it.
+- **Note — package architecture (added 2026-10-12; superseded by the note above).**
+  Present the components as three layers rather than a flat list:
   - **Specs and offline logic**: `contracts/` (including the submission specs under
     `contracts/submission/`) and `transformations/`. These run without a platform
     connection.

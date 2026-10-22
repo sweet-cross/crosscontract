@@ -1,5 +1,9 @@
 # Release specs live in contracts/, their execution stays in release/
 
+> **Superseded in part 2026-10-22** (#137): `FetchSpecMixin` is now `FetchSpec` and lives,
+> with the aggregation specs, in `contracts/fetching/`; `transformations/fetch/` is gone.
+> The release spec module imports it from there instead of from `transformations`.
+
 The **Release spec** moves out of `release/data_package/` into `contracts/release/`:
 `CrossDataPackageReleaseSpec`, `CrossDataResourceReleaseSpec` and `DataInstructions` now
 live in `contracts/release/release_specification.py`. `FetchSpecMixin` stays in

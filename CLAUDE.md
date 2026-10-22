@@ -78,9 +78,13 @@ The public surface — `contracts/`, `crossclient/`, and `services/` — is re-e
 - `submission_contract.py` — `SubmissionContract`: a contract whose `tableschema` describes the bundle itself, plus `project_name`, an `extraction` block, a `replace_key`, and an optional `excel_processor`. The `tableschema` must declare neither `primaryKey` nor `foreignKeys` — nothing is stored under a bundle's name, so those belong to the contracts its targets name. Field constraints are unaffected. `excel_processor` (an `ExcelProcessor` from `contracts/readers/`) is checked here: each wide sheet's `header_field` and `value_field` must be `tableschema` fields. Without it, an Excel bundle is still accepted and read from its first sheet as one long sheet.
 - `extraction/` — the declarative split instructions: `Target` (which rows go to which target contract, and the transformations applied on the way) and `ExtractionInstructions` (the routing column, the reusable transformation profiles, and the targets).
 
-**`contracts/release/`** — The release specs (see ADR 0012). `release_specification.py` holds the build-recipe models: `CrossDataResourceReleaseSpec` (per-resource descriptive overrides + a `DataInstructions` wrapping the `FetchSpecMixin`; `name` defaults to the fetch contract) and `CrossDataPackageReleaseSpec` (authored package metadata + `resources`, with a unique-resource-name validator). Both specs are re-exported from `contracts/` and the top-level package; `DataInstructions` only from `contracts/release/`.
+**`contracts/release/`** — The release specs (see ADR 0012). `release_specification.py` holds the build-recipe models: `CrossDataResourceReleaseSpec` (per-resource descriptive overrides + a `DataInstructions` wrapping a `FetchSpec` from `contracts/fetching/`; `name` defaults to the fetch contract) and `CrossDataPackageReleaseSpec` (authored package metadata + `resources`, with a unique-resource-name validator). Both specs are re-exported from `contracts/` and the top-level package; `DataInstructions` only from `contracts/release/`.
 
 **`contracts/readers/`** — The reader specs. `specs.py` holds `ExcelProcessor` / `ExcelSheet` / `WideLayout`: the optional declaration of an Excel bundle's sheets and which of them are laid out wide. Reached through `SubmissionContract.excel_processor`; executed by `handlers/readers/excel_reader.py`.
+
+**`contracts/fetching/`** — The fetch specs, exported from `crosscontract.contracts.fetching` only:
+- `fetch_spec.py` — `FetchSpec`: the `contract` to fetch, the release file `format` (`csv` | `parquet`), row `filters` (column → allowed values) and per-column `aggregation`. Its `get_data_kwargs` property turns `filters` and `aggregation` into the keyword arguments of `CrossDataVariable.get_data`, with empty values as `None`. Used as `DataInstructions.fetch` in `contracts/release/`; run by `fetch_data` in `services/package_creator/`.
+- `aggregation_spec.py` — `AggregationSpec` (`dict[str, ColumnAggregation]`). A `ColumnAggregation` is one of four forms: an `int` (roll up to that level), a list of target IDs, a `LevelKeepSpec` (`level` plus IDs to `keep` out of the roll-up), or any other dict as a raw mapping. A dict with `keep` but no `level` is rejected.
 
 ### `_standards/frictionless/` — Faithful, permissive Frictionless models (internal)
 
@@ -90,6 +94,15 @@ A pydantic mirror of the upstream Frictionless standard, distinct from the stric
 - `table_schema.py` — the permissive `TableSchema` (`fields`, `primaryKey`, `foreignKeys`, `missingValues`). Shares its bare name with the strict contract `TableSchema`; disambiguate by module.
 - `metadata.py` — reusable metadata building blocks composed by the descriptors: `BaseMetaData` (fields identical in both descriptors), `ResourceMetaData` / `PackageMetaData` (descriptive parts), `FileMetaData` (the physical data binding), plus the permissive leaf models `Source`, `License`, `Contributor`. Also defines `FRICTIONLESS_NAME_PATTERN` (the resource/package `name` pattern, which permits `/`).
 - `descriptors.py` — thin compositions: `DataResource(ResourceMetaData, FileMetaData)` and `DataPackage(PackageMetaData)` (adds the required `resources` array). The Frictionless `schema` key maps to a `table_schema` field (via `alias`) to avoid shadowing `BaseModel.schema`.
+
+### `transformations/` — Self-running DataFrame operations
+
+Each transformation is a spec that runs itself: a thin pydantic model, discriminated by `type`, whose `apply(df)` delegates to a pure function in the same module and returns a new DataFrame. Transformations know nothing about schemas or contracts. Specs in `contracts/` compose them (`Target.transformations` and the transformation profiles of `ExtractionInstructions`), and `SubmissionHandler` runs them. Everything is exported from `crosscontract.transformations`, not from the top-level package.
+
+- `base.py` — `BaseTransformation`, the abstract base (`extra="forbid"`, abstract `apply`).
+- `column_transformations.py` — `CastColumn`, `MapColumnValues`, `ParseDatetimeColumn` and their pure functions `cast_column`, `map_column_values`, `parse_datetime_column`.
+- `dataframe_transformations.py` — `RenameColumns`, `DropColumns`, `DropRowsByValue` and their pure functions `rename_columns`, `drop_columns`, `drop_rows_by_value`.
+- `union.py` — `TransformationUnion`, the `type`-discriminated union used as a field type.
 
 ### `crossclient/` — HTTP client for the CROSS platform
 
@@ -133,10 +146,10 @@ One subpackage per job a user does on the platform, each standing on a `CrossCli
 
 **`services/package_creator/`** — Contract → Frictionless Data Package adapter. A stateless adapter that turns CROSS contracts into a Frictionless Data Package (a zip on disk). It assembles the permissive `_standards.frictionless` `DataResource` / `DataPackage` models directly — there are no bespoke descriptor classes (see ADR 0003). The spec models come from `contracts/release/`.
 - `create_data_package.py` — `create_data_package(registry, release_spec, fn_out)`: the slim orchestrator. `registry` is a `CrossReader`. Loads the spec from a YAML/JSON path (or accepts an instance), then delegates.
-- `_resolve_resource.py` — `fetch_data` (fetch via the reader's trusted path), `build_data_resource` (overlay contract metadata with the spec field-by-field, embed the contract `schema`, derive `path`/`profile` from `format`), and `resolve_resources` (the per-resource loop: empty data is warned-and-skipped; an all-empty release raises).
+- `_resolve_resource.py` — `fetch_data` (fetches the variable a `FetchSpec` names via the reader's trusted path, passing `get_data_kwargs` to `get_data`), `build_data_resource` (overlay contract metadata with the spec field-by-field, embed the contract `schema`, derive `path`/`profile` from `format`), and `resolve_resources` (the per-resource loop: empty data is warned-and-skipped; an all-empty release raises).
 - `_resolve_package.py` — `save_data_package`: writes each resource's data file plus `datapackage.json` and `datapackage.yaml` into the output zip.
 
-The import graph runs one way — `constants`, `exceptions` ← `transformations` ← `contracts` ← `handlers` ← `crossclient` ← `services`. The specs live in `contracts/`, their execution in `handlers/` (submission) or `services/package_creator/` (release, which fetches through the reader), the transport in `crossclient/`, and `services/` holds the high-level entry points. Inside `services/`, `package_creator/` imports `reader/`. `exceptions/`, like `constants`, is a base: it imports nothing from the rest of the package. Never import `services/` from any other package (only the root `__init__.py` re-exports it), never import `crossclient/` from `handlers/`, and never import any other package from `exceptions/`.
+The import graph runs one way — `constants`, `exceptions` ← `transformations` ← `contracts` ← `handlers` ← `crossclient` ← `services`. The specs live in `contracts/`, their execution in `handlers/` (submission) or `services/package_creator/` (release and fetching, which fetches through the reader), the transport in `crossclient/`, and `services/` holds the high-level entry points. `transformations/` sits below `contracts/`: its specs run themselves, and specs in `contracts/` compose them. Inside `services/`, `package_creator/` imports `reader/`. `exceptions/`, like `constants`, is a base: it imports nothing from the rest of the package. Never import `services/` from any other package (only the root `__init__.py` re-exports it), never import `crossclient/` from `handlers/`, and never import any other package from `exceptions/`.
 
 ### `_helpers/` — Internal, dependency-free helpers
 
