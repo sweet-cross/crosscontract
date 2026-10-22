@@ -10,7 +10,7 @@ from crosscontract.contracts import (
 )
 from crosscontract.contracts.submission import SubmissionContract
 from crosscontract.exceptions import TargetValidationError
-from crosscontract.handlers.submission import SubmissionHandler
+from crosscontract.handlers import SubmissionHandler
 from tests.conftest import (
     bundle,
     resolver_for,

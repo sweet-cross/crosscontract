@@ -60,7 +60,7 @@ have moved.
 - Sources of truth:
   - `contracts/submission/submission_contract.py`
   - `contracts/submission/extraction/`
-  - `handlers/submission/submission_handler.py`
+  - `handlers/submission_handler.py`
   - `contracts/readers/` (Excel specs) and `handlers/readers/` (CSV, parquet and Excel
     readers)
   - `crossclient/services/submission/` (`SubmissionContractResource`, `Submission`)

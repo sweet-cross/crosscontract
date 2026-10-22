@@ -7,7 +7,7 @@ from .readers import (
     read_parquet_file,
     read_parquet_file_bytes,
 )
-from .submission import SubmissionHandler
+from .submission_handler import SubmissionHandler
 
 __all__ = [
     "SubmissionHandler",

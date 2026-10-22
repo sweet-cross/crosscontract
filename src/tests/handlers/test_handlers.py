@@ -1,10 +1,8 @@
 import crosscontract.handlers as handlers
 import crosscontract.handlers.readers as readers
-import crosscontract.handlers.submission as submission
 
 
 def test_exported_from_handlers_package():
-    assert handlers.SubmissionHandler is submission.SubmissionHandler
     assert "SubmissionHandler" in handlers.__all__
 
 

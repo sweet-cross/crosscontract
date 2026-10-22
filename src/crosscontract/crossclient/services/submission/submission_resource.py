@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 from crosscontract.contracts.submission import SubmissionContract
-from crosscontract.handlers.submission import SubmissionHandler
+from crosscontract.handlers import SubmissionHandler
 
 from ..contract import CrossContractResolver
 from .schemas import Submission, SubmissionContractEntryPayload
