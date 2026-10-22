@@ -17,8 +17,6 @@ no such function — `TableSchema.to_pandera_schema()` and
 `PanderaAdapter` is reached through them.
 """
 
-from crosscontract.exceptions import SchemaValidationError
-
 from .adapters import convert_schema_to_pydantic
 from .field_descriptors import FieldDescriptors
 from .fields import (
@@ -36,7 +34,6 @@ from .subschemas import DimensionSchema, FlexibleDimensionSchema, ValueVariableS
 __all__ = [
     "TableSchema",
     "convert_schema_to_pydantic",
-    "SchemaValidationError",
     "PrimaryKey",
     "ForeignKeys",
     "FieldDescriptors",

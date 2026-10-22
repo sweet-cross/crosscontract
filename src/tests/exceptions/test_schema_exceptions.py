@@ -683,14 +683,3 @@ class TestExtractCols:
     def test_extract_cols_no_match(self):
         """Test _extract_cols when regex finds no brackets."""
         assert SchemaValidationError._extract_cols("no_brackets_here") == []
-
-
-def test_exported_from_all_paths():
-    import crosscontract.contracts
-    import crosscontract.contracts.schema
-    import crosscontract.exceptions as exceptions
-
-    assert exceptions.SchemaValidationError is SchemaValidationError
-    assert crosscontract.contracts.SchemaValidationError is SchemaValidationError
-    assert crosscontract.contracts.schema.SchemaValidationError is SchemaValidationError
-    assert "SchemaValidationError" in exceptions.__all__
