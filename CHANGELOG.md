@@ -1,5 +1,43 @@
 # CHANGELOG
 
+## v0.37.0 (2026-10-22)
+
+### Refactoring
+
+
+- **expose only the entry points and the two contracts from the package root** ([`f82ed64`](https://github.com/sweet-cross/crosscontract/commit/f82ed64f1163ef9d69cfb6424a5470207fce6b2d))
+
+  ## Summary The root `crosscontract` package re-exported exceptions, release specs, `TableSchema`, `BaseContract`, a handler and a client response model, so it read like an index of the whole package rather than a deliberate public surface. This branch cuts the root down to the entry points (`CrossClient`, `CrossReader`, `CrossRegistry`, `CrossSubmitter`) and the two contracts handed to them (`CrossContract`, `SubmissionContract`). Everything else is imported from its subpackage, and exceptions only from `crosscontract.exceptions`.
+
+  ## Changes
+  - **Root `__init__.py`.** `__all__` is now exactly `CrossClient`, `CrossContract`, `CrossReader`, `CrossRegistry`, `CrossSubmitter`, `SubmissionContract`. There is no alias or deprecation shim for the removed names.
+  - **`SchemaValidationError` only from `crosscontract.exceptions`.** `crosscontract.contracts` and `crosscontract.contracts.schema` no longer re-export it. The class itself was already defined in `exceptions/`.
+  - **No imports through the root inside the package.** `crossclient/services/contract/contract_service.py` and `contract_resource.py` imported `CrossContract` from the root. Since the root imports `services/`, which imports `crossclient/`, that only worked because of import order. Both now import from `crosscontract.contracts`.
+  - **Tests.**
+    - The imports follow the new paths.
+  - `test_exported_from_all_paths` in `test_schema_exceptions.py` is removed: with a single import path left, it has nothing to check.
+  - `TestExports.test_specs_reexported` in `test_release_specification.py` now checks only `crosscontract.contracts`.
+  - **Docs.** The local-validation example in `docs/client/index.md` imports `SubmissionHandler` from `crosscontract.handlers`. The API reference pages already use full module paths, so they need no change.
+  - **CLAUDE.md.**
+  - The Architecture intro now states what the root exposes and that code inside the package never imports from the root.
+  - The `contracts/release/` entry no longer claims the release specs are re-exported from the root.
+  - The `exceptions/` section says no other package re-exports exceptions.
+
+  ## Where things moved
+
+  | Removed from `crosscontract` | Import from | |---|---| | `TableSchema`, `BaseContract` | `crosscontract.contracts` | | `CrossDataPackageReleaseSpec`, `CrossDataResourceReleaseSpec` | `crosscontract.contracts` | | `SchemaValidationError` | `crosscontract.exceptions` (also no longer from `crosscontract.contracts` or `crosscontract.contracts.schema`) | | `TargetValidationError`, `UnclaimedRowsError` | `crosscontract.exceptions` | | `SubmissionHandler` | `crosscontract.handlers` | | `Submission` | `crosscontract.crossclient` |
+
+  ## Testing None. The test suite, ruff and mypy were not run on this branch.
+
+  ## Notes for reviewer
+  - **This is a breaking change** to the most commonly written imports (`from crosscontract import TableSchema`, `SchemaValidationError`). With `major_on_zero = false`, it bumps the minor version.
+  - **cross_back** (pinned to 0.28.0) imports three of the removed names from the root: `TableSchema`, `SchemaValidationError` and `SubmissionHandler`. It already faces a larger migration across the breaking releases since 0.29, so a deprecation shim was judged not worth it. The table above is the migration guide.
+  - **`SubmissionContract` stays at the root** as the peer of `CrossContract`: it's the contract passed to `client.submissions.create`, as `CrossContract` is to `client.contracts.create`.
+
+  <!-- described-head: d059005a837705ca49e1fd53916565afc1e95d59 -->
+
+
+
 ## v0.36.0 (2026-10-22)
 
 ### Refactoring
