@@ -1,5 +1,49 @@
 # CHANGELOG
 
+## v0.36.0 (2026-10-22)
+
+### Refactoring
+
+
+- **move fetch specs to contracts/fetching and flatten transformations** ([`beb6c63`](https://github.com/sweet-cross/crosscontract/commit/beb6c63bf1f9e9895c28c348cf4429197bc1de67))
+
+  ## Summary `transformations/` held two different things: the fetch specs (`FetchSpecMixin` and the aggregation specs), which are declarative and run nothing, and the transformations, which run themselves through `apply()`. This branch moves the fetch specs to `contracts/fetching/`, where the other specs live, renames `FetchSpecMixin` to `FetchSpec`, and moves the transformation modules up one level. With that, the package layout follows one rule: `contracts/` holds specs, `handlers/` runs them, and `transformations/` holds DataFrame operations that run themselves. Closes #137.
+
+  The branch also moves `CLAUDE.md` to the repo root, turns the contributing guide into the source for the local commands, and deletes the project's `.claude/` settings and skills.
+
+  ## Changes
+  - **Fetch specs → `crosscontract.contracts.fetching`.** `FetchSpec` (formerly `FetchSpecMixin`), `AggregationSpec`, `ColumnAggregation` and `LevelKeepSpec` moved from `transformations/fetch/` with `git mv`. They are exported from `crosscontract.contracts.fetching` only. `FetchSpecMixin` is gone, with no alias. `contracts/release/release_specification.py` and `services/package_creator/_resolve_resource.py` import from the new path. Only the class name and its docstring summary changed.
+  - **Transformations flattened.** `base.py`, `column_transformations.py`, `dataframe_transformations.py` and `union.py` moved from `transformations/transformation/` to `transformations/`, with their contents unchanged. `crosscontract.transformations` still exports the same 14 transformation names; the four fetch names are gone (see Notes). `crosscontract.transformations.transformation` is gone. `Target` and `ExtractionInstructions` import `TransformationUnion` from `crosscontract.transformations`.
+  - **Tests moved alongside.** The fetch tests are now in `src/tests/contracts/fetching/`, and the transformation tests are flattened into `src/tests/transformations/`. The imports, the four `patch()` targets, and the mentions of `FetchSpecMixin` in a comment and two docstrings are updated.
+  - **CLAUDE.md.**
+    - Moved from `.claude/` to the repo root.
+  - Gets new `contracts/fetching/` and `transformations/` sections. The release, package-creator and import-graph text now names `FetchSpec`.
+  - Its command list and its branching section are replaced by an `@CONTRIBUTING.md` import.
+  - **Contributing guide.** `CONTRIBUTING.md` and `docs/contributing.md` now carry the local-development command list themselves instead of pointing to CLAUDE.md.
+  - **Project `.claude/` removed.** `settings.json` and the project-level skills are deleted. Most of the settings keys were not valid Claude Code keys, so they had no effect.
+  - **`.ai-context/`.**
+    - ADR 0012 gets a "Superseded in part" note for #137.
+  - The docs-overhaul PRD and its WP2 task get a dated note presenting the package by role, which supersedes the three-layer notes of 2026-10-12. WP4 and WP6 point to the new wording. WP2's "Local development" acceptance criterion is ticked, since this branch does it.
+  - WP5 now uses `FetchSpec`, renders the fetch models in the contracts reference, and fixes a stale `release/data_package/` path. WP6 now creates `docs/reference/transformations.md`.
+  - The paths in `keep-original-json-schema-warning.md` and the link in the deprecated `TODO.md` follow the moves.
+
+  ## Testing None. The test suite, ruff, mypy and `mkdocs build` were not run on this branch.
+
+  ## Notes for reviewer
+  - **Breaking import paths.** These no longer work:
+  - `crosscontract.transformations.FetchSpecMixin` (now `crosscontract.contracts.fetching.FetchSpec`)
+  - `AggregationSpec`, `ColumnAggregation` and `LevelKeepSpec` from `crosscontract.transformations` (now in `crosscontract.contracts.fetching`)
+    - `crosscontract.transformations.transformation`
+
+  With `major_on_zero = false`, this bumps the minor version. Release YAML files are unaffected, because they never name the class. cross_back imports neither path.
+  - **`FetchSpec.get_data_kwargs` stays on the spec.** It translates the spec into the arguments of `CrossDataVariable.get_data`. It was left where it is because the issue puts a fetch handler out of scope.
+  - **The `.claude/` cleanup is not part of #137.** The deleted skills are no longer in the repository; they're only available to people who have them installed.
+  - **ADR 0012 is still partly out of date.** Its original text describes the release adapter in `release/data_package/`, which has been outdated since #133. That was left alone.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+
+
 ## v0.35.0 (2026-10-22)
 
 ### Refactoring
