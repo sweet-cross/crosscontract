@@ -9,7 +9,7 @@ from pydantic import (
     model_validator,
 )
 
-from crosscontract.transformations.transformation import TransformationUnion
+from crosscontract.transformations import TransformationUnion
 
 from .target import Target
 

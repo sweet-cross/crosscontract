@@ -5,7 +5,7 @@ import pytest
 from pandas.testing import assert_frame_equal
 from pydantic import ValidationError
 
-from crosscontract.transformations.transformation.column_transformations import (
+from crosscontract.transformations.column_transformations import (
     KEEP_ORIGINAL,
     CastColumn,
     MapColumnValues,
@@ -290,7 +290,7 @@ class TestParseDatetimeColumn:
         """Test that the `ParseDatetimeColumn` spec correctly applies the function."""
         spec = ParseDatetimeColumn(column_name="A", dayfirst=True, format="%Y-%m-%d")
         with patch(
-            "crosscontract.transformations.transformation.column_transformations.parse_datetime_column"
+            "crosscontract.transformations.column_transformations.parse_datetime_column"
         ) as mock_function:
             spec.apply("df")
             mock_function.assert_called_once_with(
