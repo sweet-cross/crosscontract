@@ -2,43 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Commands
+## Commands and workflow
 
-The project uses `uv` for package management and Python 3.11+.
+Commands, branching and release flow are in the contributing guide:
 
-```bash
-# Install dependencies (including dev group)
-uv sync --group dev
-
-# Run all tests
-uv run pytest
-
-# Run a single test file
-uv run pytest src/tests/contracts/schema/test_schema.py
-
-# Run a single test by name
-uv run pytest src/tests/contracts/schema/test_schema.py::test_name
-
-# Lint (check only)
-uv run ruff check src/
-
-# Lint with auto-fix
-uv run ruff check --fix src/
-
-# Format
-uv run ruff format src/
-
-# Type-check
-uv run mypy src/crosscontract/
-
-# Run coverage
-uv run coverage run -m pytest && uv run coverage report
-
-# Build docs (requires docs group)
-uv run mkdocs serve
-```
-
-Pre-commit hooks run `ruff check` (F401 + isort) and `ruff-format` on commit.
+@CONTRIBUTING.md
 
 ### Do not run validation automatically
 
@@ -65,20 +33,13 @@ change. The house style is deliberately plain (pure function plus thin pydantic 
 `apply()` a single delegating call); match it. If you think an abstraction is
 warranted, propose it and let the user decide.
 
-## Branching and releases
-
-- `main` is the public release branch. Pushes to main publish to PyPI (gated by the `pypi` GitHub Environment) and deploy the docs.
-- `dev` is the integration branch and the default branch on GitHub. Versioning happens here: every push to dev runs `python-semantic-release`, which bumps the version and creates a `vX.Y.Z` tag based on conventional-commit messages.
-- Feature branches **squash-merge** into `dev`. The PR title must be a valid conventional commit (`feat:`, `fix:`, etc.) — it becomes the squash commit message that PSR analyzes. Hotfixes follow the same path.
-- `dev` **fast-forwards** into `main`. The version commits and tags created on dev carry over to main as-is. No version bumps happen on the dev → main promotion.
-
 ## Deferred work
 
 `.ai-context/TODO.md` is **deprecated** — do not add to it or propose adding to it.
 
 Do not route every out-of-scope observation into a backlog. Mention it in the reply
 and let the user decide. Only when the user wants something done later does it go
-into [`.ai-context/ideas/`](../.ai-context/ideas/) as a draft PRD (one file per idea,
+into [`.ai-context/ideas/`](.ai-context/ideas/) as a draft PRD (one file per idea,
 with enough context to act on it cold).
 
 ## Architecture

@@ -68,7 +68,7 @@ own item later.
   into `main`.
 - Every Python snippet on a page runs as written against the version the WP targets.
 - No page links to a file that does not exist.
-- Prose follows the docstring rules in `.claude/CLAUDE.md`: say what the thing does and
+- Prose follows the docstring rules in `CLAUDE.md`: say what the thing does and
   what the reader must do, not why it was built that way. No ADR or issue references on
   user-facing pages.
 - Where a docstring is rendered by an API reference page, a wrong docstring counts as a
@@ -101,7 +101,7 @@ Done when:
    GitHub, and include a link to `CHANGELOG.md` on GitHub.
 5. `docs/contributing.md` gets a short "Local development" section listing the setup,
    test, lint, format, and docs commands, instead of sending readers to
-   `.claude/CLAUDE.md`. The same change goes into the root `CONTRIBUTING.md`, as that
+   `CLAUDE.md`. The same change goes into the root `CONTRIBUTING.md`, as that
    file's sync comment requires.
 6. Both contributing files note that while the version is below 1.0, a breaking change
    bumps the **minor** version (`major_on_zero = false`).
@@ -385,7 +385,7 @@ None. No pydantic model, field, or runtime behaviour changes. The only code touc
 
 ## 7. Testing Strategy
 
-Per `.claude/CLAUDE.md`, none of the commands below runs without the user's go-ahead in
+Per `CLAUDE.md`, none of the commands below runs without the user's go-ahead in
 the session.
 
 - **Site build, every WP:** `uv run mkdocs build` from `uv sync --group docs`. The WP

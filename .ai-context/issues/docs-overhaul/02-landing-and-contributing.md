@@ -20,9 +20,9 @@ setup. This task brings the entry pages up to date.
 - [ ] "Quick Links" point to the rendered tutorial pages (`notebooks/*.ipynb` within the
       site) instead of the raw notebooks on GitHub, and include a link to `CHANGELOG.md` on
       GitHub.
-- [ ] `docs/contributing.md` has a "Local development" section listing the setup
+- [x] `docs/contributing.md` has a "Local development" section listing the setup
       (`uv sync --group dev`), test, lint, format, and docs (`uv sync --group docs`,
-      `uv run mkdocs serve`) commands. It no longer points to `.claude/CLAUDE.md`.
+      `uv run mkdocs serve`) commands. It no longer points to `CLAUDE.md`.
 - [ ] Both contributing files note that while the version is below 1.0, a breaking change
       (`feat!:` / `BREAKING CHANGE:`) bumps the **minor** version, because of
       `major_on_zero = false`.
@@ -37,7 +37,7 @@ setup. This task brings the entry pages up to date.
   - `docs/index.md`
   - `docs/contributing.md`
   - `CONTRIBUTING.md`
-- Take the command list from the "Commands" section of `.claude/CLAUDE.md`, but keep it
+- Take the command list from the "Commands" section of `CLAUDE.md`, but keep it
   short. Contributors need the commands, not the AI-specific rules.
 - The component list is edited again in WP6 to add Submission. Keep it a plain bullet
   list so that edit is a one-line addition.

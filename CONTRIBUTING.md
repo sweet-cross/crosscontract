@@ -47,4 +47,17 @@ Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `ci`,
 
 ## Local development
 
-See [.claude/CLAUDE.md](.claude/CLAUDE.md) for the full command reference (uv, pytest, ruff, mypy, mkdocs).
+The project uses [`uv`](https://docs.astral.sh/uv/) and Python 3.11+.
+
+```bash
+uv sync --group dev                                    # install dependencies
+uv run pytest                                          # run all tests
+uv run pytest src/tests/path/test_file.py::test_name   # run a single test
+uv run ruff check src/                                 # lint (add --fix to auto-fix)
+uv run ruff format src/                                # format
+uv run mypy src/crosscontract/                         # type-check
+uv run coverage run -m pytest && uv run coverage report
+uv sync --group docs && uv run mkdocs serve            # serve the docs locally
+```
+
+Pre-commit hooks run `ruff check` (F401 + isort) and `ruff-format` on commit.
