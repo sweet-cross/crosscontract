@@ -61,7 +61,8 @@ have moved.
   - `contracts/submission/submission_contract.py`
   - `contracts/submission/extraction/`
   - `handlers/submission/submission_handler.py`
-  - `handlers/submission/excel_processing.py`
+  - `contracts/readers/` (Excel specs) and `handlers/readers/` (CSV, parquet and Excel
+    readers)
   - `crossclient/services/submission/` (`SubmissionContractResource`, `Submission`)
   - `submission/submitter.py`
   - `exceptions/submission_exceptions.py`
@@ -105,6 +106,19 @@ have moved.
     provider meets and to the reference page.
   - Re-read `handlers/` and `services/submitter/` on `dev` when replanning, because
     #119's final shape is decided in its PR.
+- **Note — #134 (added 2026-10-22).** #134 moves the Excel code and changes the NA
+  handling, which supersedes parts of the #119 note:
+  - The Excel specs (`ExcelProcessor`, `ExcelSheet`, `WideLayout`) live in
+    `contracts/readers/`; `read_excel_workbook_bytes` and `read_excel_bundle(_bytes)`
+    live in `handlers/readers/` next to the CSV and parquet readers.
+    `transformations/excel/` and `handlers/submission/excel_processing.py` are gone.
+  - `excel_processor` is optional for Excel: without it, the workbook's first sheet is
+    read as one long sheet, and `submit_file` accepts Excel for every submission
+    contract.
+  - CSV and Excel follow the Frictionless default `missingValues: [""]`: only an empty
+    cell is a missing value; any other text (`"NA"`, `"null"`, `"NaN"`) stays a string.
+    The page should say so, replacing the "explicit NA list" wording above. A former
+    NA token in a `number`, `integer` or `datetime` field is now a validation error.
 - Dependencies:
   - After 05-release.md, which creates `docs/reference/transformations.md`. If WP5 has
     not landed, create that page here.
