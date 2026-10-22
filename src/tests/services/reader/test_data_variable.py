@@ -471,7 +471,7 @@ class TestGetAggregationMapping:
         """An empty `keep` must produce the same mapping as a bare `level`.
 
         The two forms reach different branches (plain level-mapping vs. the
-        id-based combine path), but must agree. `FetchSpecMixin.get_data_kwargs`
+        id-based combine path), but must agree. `FetchSpec.get_data_kwargs`
         relies on this equivalence: it drops an empty `keep` so a bare
         `LevelKeepSpec` round-trips to `{"level": N}` and takes the plain
         branch.

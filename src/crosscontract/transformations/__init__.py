@@ -1,9 +1,3 @@
-from .fetch import (
-    AggregationSpec,
-    ColumnAggregation,
-    FetchSpecMixin,
-    LevelKeepSpec,
-)
 from .transformation import (
     BaseTransformation,
     CastColumn,
@@ -37,9 +31,4 @@ __all__ = [
     "map_column_values",
     "parse_datetime_column",
     "rename_columns",
-    # fetch/
-    "AggregationSpec",
-    "ColumnAggregation",
-    "LevelKeepSpec",
-    "FetchSpecMixin",
 ]

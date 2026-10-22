@@ -9,8 +9,8 @@ from .aggregation_spec import AggregationSpec
 FILE_FORMAT = Literal["csv", "parquet"]
 
 
-class FetchSpecMixin(BaseModel):
-    """Mixin describing how to fetch a variable's data.
+class FetchSpec(BaseModel):
+    """Describes how to fetch a variable's data.
 
     Carries the row `filters` and per-column `aggregation` directives pushed
     down into `CrossDataVariable.get_data`. Both are declarative; the consumer
