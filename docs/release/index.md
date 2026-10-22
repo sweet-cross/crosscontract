@@ -5,7 +5,7 @@ self-contained, portable **[Frictionless Data Package](https://specs.frictionles
 a single `.zip` that bundles the data files together with a machine-readable
 descriptor (`datapackage.json` and `datapackage.yaml`).
 
-Where the [`CrossRegistry`](../registry/index.md) is about *working with* data
+Where the [`CrossReader`](../registry/index.md) is about *working with* data
 interactively, the release layer is about *publishing* a frozen, citable
 snapshot of it: the right resources, fetched and shaped exactly once, packaged
 with the metadata a downstream consumer needs to understand and cite the data
@@ -20,7 +20,7 @@ You describe *what* to release in a release specification and call
 `create_data_package`. The function then:
 
 1. **Fetches** the data for each resource from the platform through the
-   registry, applying any `filters` and `aggregation` you declared.
+   reader, applying any `filters` and `aggregation` you declared.
 2. **Resolves references**: every dimension referenced by a released value
    contract is fetched and added to the package automatically, so the package
    stays self-contained (set `resolve_references=False` to opt out).
@@ -31,13 +31,13 @@ You describe *what* to release in a release specification and call
    `datapackage.yaml` into the output `.zip`.
 
 ```python
-from crosscontract import CrossRegistry
-from crosscontract.release import create_data_package
+from crosscontract import CrossReader
+from crosscontract.services import create_data_package
 
-registry = CrossRegistry(username="me", password="secret")
+reader = CrossReader(username="me", password="secret")
 
 create_data_package(
-    registry=registry,
+    registry=reader,
     release_spec="my_release.yaml",
     fn_out="my_release.zip",
 )
@@ -90,7 +90,7 @@ resources:
         format: csv             # "csv" (default) or "parquet"
         filters:
           year: [2023, 2024, 2025]
-        # aggregation: ...      # optional, see the registry tutorial
+        # aggregation: ...      # optional, see the reader tutorial
 ```
 
 A few things worth knowing:
@@ -99,7 +99,7 @@ A few things worth knowing:
   resource's name defaults to the name of the contract it fetches from.
 - **`data_instructions.fetch`** is the bridge to the platform. Its `contract`,
   `filters`, `aggregation`, and `format` are the same fetch-and-shape
-  directives the registry uses, so the data is pushed-down and shrunk *before*
+  directives the reader uses, so the data is pushed-down and shrunk *before*
   it crosses the wire.
 - **Dimensions are added automatically.** You only list the value contracts you
   want; the dimensions they reference (e.g. country, year) are resolved and

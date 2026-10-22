@@ -83,7 +83,7 @@ Decide at the same time whether `missingValues` should ride through `to_server` 
 
 ### Replace rST double-backtick literals in docstrings with markdown single backticks
 
-The docstring convention in [CLAUDE.md](../.claude/CLAUDE.md) now bans reStructuredText
+The docstring convention in [CLAUDE.md](../CLAUDE.md) now bans reStructuredText
 syntax outright, matching the sibling `cross_back` repository. The existing docstrings
 predate that and use ``double-backtick literals`` throughout — roughly 90 occurrences
 across 9 files:
@@ -202,19 +202,6 @@ and task files that carried the analysis are deleted, so the detail is reproduce
   or decide that the silent merge is acceptable — but decide, rather than leaving it
   undecided. This is a correctness question about the transformation itself; no legacy
   specification depends on the current behaviour.
-
-### Write a docs page for the submission path
-
-Deferred from WP4 of the `CrossSubmitter` work. `docs/` covers `CrossRegistry` but has
-nothing for the provider side, so the whole submission path — authoring a
-`SubmissionContract`, extraction instructions, `SubmissionHandler`, and the one-call
-`CrossSubmitter.validate_submission` — is undocumented outside docstrings.
-
-Mirror the registry's page. It must be explicit that client-side validation is
-**advisory** (the platform re-validates on ingest,
-[ADR 0005](./adrs/0005-one-contract-resolver-supplies-definitions-and-values.md)) and
-that `submit` is not yet available, since the platform exposes no submission endpoint.
-Note `mkdocs.yml` needs the nav entry as well.
 
 ## Related context (not TODO items)
 

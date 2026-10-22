@@ -60,27 +60,25 @@ The central server that stores **Contracts** and their data, enforces the lifecy
 validates submitted data against its contract.
 _Avoid_: server, backend, API (when meaning the platform as a whole)
 
-**Registry**:
+**Reader**:
 The consumer-facing, **read-only** access layer: name a **Contract** and get a
 **Variable** back with its **Dimensions** resolved, labelled, and ready to aggregate.
+`CrossReader` in code.
+_Avoid_: Registry (the former name; `CrossRegistry` remains as a subclass of `CrossReader`)
 
 **Client**:
 The lower-level access layer to the **CROSS platform**, and currently the *only* write
-path — creating contracts, changing status, and submitting data go through it. (The
-**Registry** may gain write paths later; for now both are needed.)
+path — creating contracts, changing status, and submitting data go through it.
 
 **Submitter**:
-The provider-facing access layer, and the mirror of the **Registry** on the write side:
-hand it a **Submission contract** and a delivered bundle and it runs the whole
-**Submission validation** against contracts fetched from the platform, and (later)
-submits the result. It performs no validation of its own — it asks the **Submission
-contract** for the bundle step, wires a **Submission handler** to a **Contract resolver**
-for the target step, and supplies the policy joining them: a bundle that fails its own
-**Schema**, and **Unclaimed rows** that no **Target** takes, each stop the run before the
-next step. Like the **Registry** it stands *on* a **Client** and holds its own
-**Contract resolver**; unlike the **Submission handler** it is connected by definition —
-that is what distinguishes it from every other `Submission*` term, all of which run
-offline.
+The provider-facing access layer, and the mirror of the **Reader** on the write side:
+name a **Submission contract** stored on the platform and hand it a delivered bundle,
+and it runs the whole **Submission validation** or submits the bundle. It does neither
+itself: it fetches the submission contract through the **Client** and passes through,
+and the **Client** in turn runs the **Submission handler** against a **Contract
+resolver** that reads from the platform. Like the **Reader** it stands *on* a
+**Client**; unlike the **Submission handler** it is connected by definition — that is
+what distinguishes it from every other `Submission*` term, all of which run offline.
 _Avoid_: submission client (the word **Client** names the layer beneath it), uploader,
 ingest client
 
@@ -297,7 +295,7 @@ plus its data files, written to disk as a zip.
 
 **Release adapter**:
 The translation from CROSS **Contracts** to a Frictionless **Data Package**, parameterised
-by how each resource's data is obtained. It fetches through the **Registry**, overlays the
+by how each resource's data is obtained. It fetches through the **Reader**, overlays the
 **Release spec**, and emits Frictionless descriptors directly — there is no parallel CROSS
 descriptor hierarchy. Resource descriptive metadata **overrides** the contract's defaults
 field-by-field; package metadata is **authored** wholesale (a package has no contract to
@@ -308,7 +306,8 @@ _Avoid_: export, dump, builder (when meaning the whole adapter)
 The **Build spec** for a release — a **CrossDataPackageReleaseSpec** (authored package metadata) plus a
 list of **CrossDataResourceReleaseSpec** (per-resource metadata overrides, the chosen `format`, and the
 **fetch** instructions). Names the resources to pull and how; the **Release adapter**
-consumes it.
+consumes it. Declarative like the **Submission contract**: it lives with the **Contracts**
+and can be parsed and validated without the platform.
 _Avoid_: release specification, descriptor (the spec is the recipe, not the output)
 
 **Frictionless descriptor** (the permissive mirror):
@@ -387,8 +386,8 @@ unions), variable column
 The rows of a submitted bundle that no **Target**'s filters match, and which extraction
 would therefore silently drop. A property of the **bundle**, not of any one **Target** —
 so it is asked for on its own and is no part of the target step of a **Submission
-validation**. Reported by the **Submission handler** and never acted on
-by it — whether an unclaimed row is an error or a warning is the caller's policy. Filters
+validation**. The **Submission handler** reports them on their own, and its full
+**Submission validation** treats them as an error that stops the run. Filters
 are matched against the column's string form, which can only under-match, so a filter
 that fails to match surfaces here rather than passing unnoticed. Rows claimed by *more*
 than one target are legal and a separate question; they have no term yet.
@@ -396,14 +395,15 @@ _Avoid_: leftover, unpacked, orphan rows, unrouted, uncovered
 
 **Submission handler**:
 The executor that applies a **Submission contract**'s **Extraction instructions** to a
-delivered bundle. Its scope is **Targets and nothing else**: for one target, select the
-rows it claims, apply its **Transformation profile** and then its own
-**Transformations**, and check the result against the **Contract** it names. It answers
-for one target or for every target, and across targets it collects every failure rather
-than stopping at the first — the same posture the row-level checks take within one
-dataset. It reports **Unclaimed rows** and never acts on them. It obtains a target's
-**Contract** from the caller, either handed over directly or through a **Contract
-resolver**, and never reaches for one itself.
+delivered bundle. For one target, it selects the rows the target claims, applies its
+**Transformation profile** and then its own **Transformations**, and checks the result
+against the **Contract** it names. It answers for one target or for every target, and
+across targets it collects every failure rather than stopping at the first — the same
+posture the row-level checks take within one dataset. It reports **Unclaimed rows**. It
+also runs the full **Submission validation** and owns its policy: a bundle that fails its
+own **Schema**, and **Unclaimed rows**, each stop the run before the next step. It
+obtains a target's **Contract** from the caller, either handed over directly or through a
+**Contract resolver**, and never reaches for one itself, so it runs offline.
 _Avoid_: extractor, processor, pipeline
 
 **Submission validation**:
@@ -412,10 +412,11 @@ The two-step check of a delivered bundle: first the bundle as a whole against th
 **Contract** it names. The first step is an ordinary **Data validation** of the
 **Submission contract** against the bundle, so it needs nothing new — the contract
 already answers it, and answers it without reaching the platform, since a bundle schema
-declares no keys to look up; the second is the **Submission handler**'s. The steps are
-sequential
-but not welded, and *whether a failed bundle stops the run* is the caller's policy. The
-**Submitter** is the caller that makes it, and it stops.
+declares no keys to look up; the second is the **Submission handler**'s. Between them,
+the bundle's **Unclaimed rows** are checked. The **Submission handler** runs all three
+and stops at the first that fails. By default it does not compare the targets' primary
+keys with the **Existing values**, because a submission replaces the rows stored under
+its `replace_key`; keys duplicated or missing within the data are caught either way.
 _Avoid_: bundle validation for the whole (it names only the first step — which is the
 right name for that step alone), submission check
 
@@ -438,14 +439,14 @@ right name for that step alone), submission check
   **"other" entry** per level — together these give the **Sum invariant**.
 - The **CROSS platform** stores **Contracts** and data and runs the lifecycle
   (**Draft → Active ⇄ Suspended → Retired**).
-- The **Registry** reads **Variables** from the platform; the **Client** is the write
+- The **Reader** reads **Variables** from the platform; the **Client** is the write
   path. **Data providers** write, **Data consumers** read.
-- The **Registry** and the **Submitter** are the two role-facing layers over one
+- The **Reader** and the **Submitter** are the two role-facing layers over one
   **Client** — **Data consumer** and **Data provider** respectively.
 - A **Data Resource** is a **Contract** + a **Data specification**; a **Data Package**
   bundles many **Data Resources** for distribution.
 - The **Release adapter** consumes a **Release spec** (a **CrossDataPackageReleaseSpec** + many
-  **CrossDataResourceReleaseSpec**) and a **Registry**, fetches each **Variable**'s data and **Contract**
+  **CrossDataResourceReleaseSpec**) and a **Reader**, fetches each **Variable**'s data and **Contract**
   through a **ContractResource**, and emits a Frictionless **Data Package** (zip) — overriding
   contract metadata per resource and authoring package metadata wholesale.
 - A **Build spec** names one or more **Variables** and an ordered list of
@@ -492,7 +493,8 @@ right name for that step alone), submission check
   rather than the contract reports them.
 - A **Submission validation** is two **Data validations** at different grains: the bundle
   against the **Submission contract**, then each **Target**'s extracted rows against the
-  **Contract** that target names. The handler owns the second grain only.
+  **Contract** that target names. The handler runs the second grain itself and asks the
+  **Submission contract** for the first.
 
 ## Example dialogue
 
@@ -507,25 +509,25 @@ right name for that step alone), submission check
 
 ## Flagged ambiguities
 
-- **`use_titles` is a misnomer.** The registry's `use_titles=True` swaps in **labels**
+- **`use_titles` is a misnomer.** The reader's `use_titles=True` swaps in **labels**
   (via `label_map`), not **titles**. In our language a **title** belongs to a
   **Contract**, a **label** to a **Dimension member** — the parameter crosses that line.
   Conceptually it is "use_labels"; renaming is a separate code decision.
 - **"Variable" was overloaded.** Resolved: **Variable** = the dataset concept,
-  **ValueVariable** = the contract type that declares it, and the registry's runtime
+  **ValueVariable** = the contract type that declares it, and the reader's runtime
   object is just the in-memory handle to a Variable — not a third meaning.
 - **"Dimension" — umbrella vs. strict.** Resolved: "Dimension" unqualified means the
   strict hierarchical form; **FlexibleDimension** is the flat sibling. Both share a
   common base, but the default meaning is the hierarchical one.
 - **Dimension schema on release egress — resolved.** The **Release adapter** fetches every
-  **Contract** through the **Registry**, i.e. through the trusted-source path
+  **Contract** through the **Reader**, i.e. through the trusted-source path
   (`from_server`), which strips and regenerates a **Dimension**'s rigid schema from its
   template. The adapter embeds *that* trusted schema directly, so the old `from_contract`
   round-trip — which fed a materialized dimension schema back through the constructor and
   tripped the rigidity guard — never happens on this path. The rigidity guard remains a
   **feature** on ingest; do not loosen it.
 - **`ContractResource` vs `CrossDataResource` — resolved.** One word apart, two layers:
-  **`ContractResource`** is the **Registry**/**Client** per-contract fetch handle (wraps a
+  **`ContractResource`** is the **Reader**/**Client** per-contract fetch handle (wraps a
   **Contract**, exposes `get_data()`) and is untouched by release work; `CrossDataResource`
   was the bespoke release descriptor and is **retired** (the **Release adapter** emits a
   **Frictionless descriptor** instead). When someone says "the release resource", they mean
@@ -545,9 +547,9 @@ right name for that step alone), submission check
   declarative manifest that lists variables and transformations is a **Build spec**
   (data-package spec, plot spec). Unqualified "spec" is banned because it also collides
   with **Data specification** (the file-binding part of a **Data Resource**).
-- **"registry" for transformation dispatch — not a Registry.** When transformations were
-  proposed, "registry" was meant only in the dict/dispatch-pattern sense, not the domain
-  **Registry** (`CrossRegistry`, the read layer). Resolved: there is no transformation
+- **"registry" for transformation dispatch — not the read layer.** When transformations were
+  proposed, "registry" was meant only in the dict/dispatch-pattern sense, not the read
+  layer (then `CrossRegistry`, now the **Reader**, `CrossReader`). Resolved: there is no transformation
   "registry"; each **Build spec** holds a discriminated union of **Transformation** models
   that dispatch on a `type` tag (the same discriminator key as the `fields/` and `schema/`
-  unions). The word **Registry** stays reserved for `CrossRegistry`.
+  unions).

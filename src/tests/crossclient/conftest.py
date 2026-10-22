@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from crosscontract.crossclient import CrossClient
-from crosscontract.crossclient.services.contract_service import ContractService
+from crosscontract.crossclient.services.contract.contract_service import ContractService
 
 # Shared Constants
 BASE_URL = "https://api.example.com"

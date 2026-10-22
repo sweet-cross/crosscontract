@@ -4,6 +4,43 @@ Status: **draft**. Written 2026-09-25 from a page-by-page audit of `docs/`, `mkd
 the tutorial notebooks, and `CONTRIBUTING.md` against the code on `main` (v0.23.0) and
 `dev` (v0.24.0).
 
+> **Note (added 2026-10-19).** #128 moves the high-level layer into
+> `crosscontract.services` and renames the Registry to the **Reader** (ADR 0013). Where
+> this PRD and `issues/docs-overhaul/` say otherwise:
+>
+> - `CrossRegistry` is now `CrossReader`, in `crosscontract.services.reader`;
+>   `CrossRegistry` remains as a subclass. The nav, `docs/index.md` and
+>   `registry/index.md` already say `CrossReader`; the file names still say `registry`.
+> - `crosscontract.submission` is gone. `CrossSubmitter` lives in
+>   `crosscontract.services.submitter`; the names it re-exported (see the WP6 note) come
+>   from the root or their home packages.
+> - `crosscontract.release` is gone. `create_data_package` comes from
+>   `crosscontract.services`, the release specs from `crosscontract.contracts.release`.
+> - `docs/client/index.md` has a section on validating a bundle against a local
+>   `SubmissionContract`.
+
+> **Note (added 2026-10-22).** #137 moves the fetch specs to
+> `crosscontract.contracts.fetching` (`FetchSpecMixin` is now `FetchSpec`) and flattens
+> `transformations/`. Present the package by role:
+>
+> - **`contracts/`: specs.** Declarative, authored as YAML: the contracts and their
+>   schemas, and the specs for submission, release, reading (`readers/`) and fetching
+>   (`fetching/`).
+> - **`handlers/`: execution based on specs.** Runs specs offline: the file readers and
+>   the `SubmissionHandler`.
+> - **`crossclient/`: low-level API access.** `CrossClient` and its per-endpoint services
+>   and resources.
+> - **`services/`: high-level API interaction.** The role entry points `CrossReader`,
+>   `CrossSubmitter` and `create_data_package`, built on a `CrossClient`.
+> - **`transformations/`: self-running DataFrame operations.** Each is a spec that runs
+>   itself (`apply`), schema-agnostic. Specs in `contracts/` compose them, and
+>   `handlers/` runs them.
+>
+> This supersedes the three-layer architecture notes of 2026-10-12 in the WP2, WP4 and
+> WP6 tasks. The fetch and aggregation models now belong in the contracts reference;
+> `docs/reference/transformations.md` holds the transformations only and is created by
+> WP6.
+
 ## 1. Overview
 
 The documentation site at <https://sweet-cross.github.io/crosscontract/> has fallen
@@ -53,7 +90,7 @@ own item later.
   into `main`.
 - Every Python snippet on a page runs as written against the version the WP targets.
 - No page links to a file that does not exist.
-- Prose follows the docstring rules in `.claude/CLAUDE.md`: say what the thing does and
+- Prose follows the docstring rules in `CLAUDE.md`: say what the thing does and
   what the reader must do, not why it was built that way. No ADR or issue references on
   user-facing pages.
 - Where a docstring is rendered by an API reference page, a wrong docstring counts as a
@@ -86,7 +123,7 @@ Done when:
    GitHub, and include a link to `CHANGELOG.md` on GitHub.
 5. `docs/contributing.md` gets a short "Local development" section listing the setup,
    test, lint, format, and docs commands, instead of sending readers to
-   `.claude/CLAUDE.md`. The same change goes into the root `CONTRIBUTING.md`, as that
+   `CLAUDE.md`. The same change goes into the root `CONTRIBUTING.md`, as that
    file's sync comment requires.
 6. Both contributing files note that while the version is below 1.0, a breaking change
    bumps the **minor** version (`major_on_zero = false`).
@@ -162,7 +199,7 @@ Done when:
      target ids, and `{"level": ..., "keep": [...]}`); `use_titles`; `columns`.
    - Inspecting a variable's `dimensions`.
    - The tutorial stays the worked example; the overview links to it.
-3. **`reference/client.md`** adds the `crosscontract.crossclient.exceptions` classes the
+3. **`reference/client.md`** adds the `crosscontract.exceptions` client classes the
    tutorial relies on: `CrossClientError`, `ValidationError`, `ConflictError`,
    `PermissionDeniedError`, `ResourceNotFoundError`, `AuthenticationError`.
 
@@ -173,7 +210,7 @@ Done when:
 1. Release has its own top-level nav entry ("Release": Overview, plus the reference page
    under API Reference) instead of sitting under CrossRegistry.
 2. The fetch and aggregation models that a release spec's `data_instructions.fetch`
-   accepts (`FetchSpecMixin`, `AggregationSpec`, `LevelKeepSpec`, `ColumnAggregation`)
+   accepts (`FetchSpec`, `AggregationSpec`, `LevelKeepSpec`, `ColumnAggregation`)
    are rendered in the API reference. `release/index.md` links to them where it now says
    "see the registry tutorial".
 3. `release/index.md` is re-checked against `create_data_package` on `dev`. Every YAML
@@ -185,6 +222,25 @@ Done when:
 Start only once the submission feature is settled. That means at least:
 `CrossSubmitter.submit` no longer being a stub, and the extraction format no longer
 changing between PRs.
+
+> **Note (added 2026-10-17).** #122 implements `CrossSubmitter.submit`, so the first
+> precondition is met; the submission docs page is still missing. #122 removed the
+> deprecated TODO.md entry for that page, so this WP is now its only record. #122 also
+> changes what this WP documents (ADR 0011):
+>
+> - `SubmissionHandler` and the Excel readers live in `handlers/submission/`, the two
+>   exceptions in `exceptions/`; `crosscontract.submission` holds `CrossSubmitter` plus
+>   re-exports.
+> - Offline, `SubmissionHandler(contract, df).validate_submission(resolver)` runs the
+>   full submission validation. On the platform, `client.submissions.get(name)` returns a
+>   `SubmissionContractResource` with `validate_submission(df)` and `submit(df)`, and
+>   `CrossSubmitter.validate_submission` / `submit` take the submission contract's name.
+> - `check_existing_primary_key` defaults to `False`; client-side validation stays
+>   advisory.
+> - `Submission`, the return value of `submit`, is exported and belongs in the reference.
+>
+> The "Sources of truth" paths in `issues/docs-overhaul/06-submission.md` are stale
+> accordingly.
 
 Done when:
 
@@ -248,8 +304,10 @@ Done when:
   `main` by itself.
 - **Mkdocstrings targets that move.** Reference pages address modules by dotted path. A
   rename in `src/` breaks the build. Prefer the public re-export (e.g.
-  `crosscontract.release.create_data_package`) over the private module path where one
-  exists.
+  `crosscontract.services.reader.CrossReader`) over the private module path where one
+  exists. A function that shares its module's name, like `create_data_package`, is the
+  exception: mkdocstrings resolves the re-export to the module, so address the function
+  by its full path.
 - **Duplicate autodoc.** Rendering a module *and* a class re-exported from it on the same
   page duplicates headings and anchors. Each object is rendered once per page.
 
@@ -302,10 +360,9 @@ Done when:
 - Files to be modified:
   - `mkdocs.yml` (nav)
   - `docs/release/index.md`
-  - `docs/reference/release.md` (adds the fetch and aggregation models, or links to a
-    new page for them)
-- Files possibly created: `docs/reference/transformations.md`. WP5 creates it with the
-  fetch and aggregation models; WP6 adds the column transformations to the same page.
+  - `docs/reference/release.md` (links to the fetch and aggregation models)
+  - `docs/reference/contracts.md` (renders the fetch and aggregation models from
+    `crosscontract.contracts.fetching`)
 
 ### WP6
 
@@ -349,7 +406,7 @@ None. No pydantic model, field, or runtime behaviour changes. The only code touc
 
 ## 7. Testing Strategy
 
-Per `.claude/CLAUDE.md`, none of the commands below runs without the user's go-ahead in
+Per `CLAUDE.md`, none of the commands below runs without the user's go-ahead in
 the session.
 
 - **Site build, every WP:** `uv run mkdocs build` from `uv sync --group docs`. The WP

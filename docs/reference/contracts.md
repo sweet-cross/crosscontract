@@ -33,4 +33,4 @@
 
 ## Exceptions
 
-::: crosscontract.contracts.schema.exceptions.validation_error
+::: crosscontract.exceptions.schema_exceptions

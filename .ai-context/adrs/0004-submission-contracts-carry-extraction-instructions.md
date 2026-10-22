@@ -7,6 +7,10 @@ profiles**, and one **Target** per dataset to extract. It is authored as a singl
 file and loaded as a pydantic model, and it lives in a top-level `submission/` package,
 the ingress peer of `release/`.
 
+> **Superseded in part 2026-10-12** by [ADR 0010](./0010-submission-specs-live-in-contracts-execution-in-submission.md):
+> the contract and its extraction specs now live in `contracts/submission/`, and only their
+> execution stays in `submission/`.
+
 Three decisions below are the ones expensive to reverse. Everything else about the
 format — the model shapes, the validators, the vocabulary — is in the code and in
 [CONTEXT.md](../CONTEXT.md).
@@ -141,6 +145,10 @@ its usual meaning would be a silent correctness bug, not a feature.
   keeps the import graph one-way: `transformations` already imports `CONTRACT_NAME_PATTERN`
   out of `contracts`, so extraction living under `contracts/` and importing
   `transformations` would have closed a cycle.
+
+  > **Superseded 2026-10-12** by [ADR 0010](./0010-submission-specs-live-in-contracts-execution-in-submission.md).
+  > The cycle came only from where `CONTRACT_NAME_PATTERN` lived; with it in `constants.py`,
+  > the specs moved to `contracts/submission/`.
 - **Execution lives in `submission/` as `SubmissionHandler`.** It holds a submission
   contract and a bundle, and answers **one target at a time**: select the rows a target
   claims, apply its transformation profile and then the target's own transformations.

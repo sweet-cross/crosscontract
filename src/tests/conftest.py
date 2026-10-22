@@ -1,7 +1,19 @@
+import inspect
+from collections.abc import Callable
+from typing import Any
+from unittest.mock import Mock
+
+import pandas as pd
 import pytest
 from polyfactory.factories.pydantic_factory import ModelFactory
 
-from crosscontract.contracts import CrossContract, TableSchema
+from crosscontract.contracts import (
+    BaseContract,
+    ContractResolver,
+    CrossContract,
+    SubmissionContract,
+    TableSchema,
+)
 from crosscontract.contracts.contracts.metadata_models import License
 
 
@@ -40,3 +52,201 @@ def contract_factory() -> type[CrossContractFactory]:
     with different overrides.
     """
     return CrossContractFactory
+
+
+@pytest.fixture(scope="class")
+def contract() -> SubmissionContract:
+    """Return a SubmissionContract carrying targets with and without their own
+    transformations."""
+    submission_data = {
+        "name": "submission3",
+        "title": "Test Submission",
+        "description": "A submission contract whose targets get validated.",
+        "project_name": "project1",
+        # `all` rather than a column list: the target contracts these tests
+        # resolve to need not declare a key column.
+        "replace_key": "all",
+        "tableschema": {
+            "fields": [
+                {
+                    "name": "variable",
+                    "type": "string",
+                    "constraints": {"required": True},
+                },
+                {"name": "country", "type": "string"},
+                {"name": "year", "type": "integer"},
+                {"name": "value", "type": "number"},
+            ]
+        },
+        "extraction": {
+            "routing_column": "variable",
+            "transformation_profiles": {
+                "regional": [
+                    {"type": "rename_columns", "mapping": {"country": "region"}},
+                    {"type": "drop_columns", "columns": ["variable"]},
+                ],
+                "annual": [
+                    {"type": "rename_columns", "mapping": {"year": "period"}},
+                    {"type": "drop_columns", "columns": ["variable"]},
+                ],
+            },
+            "targets": [
+                # Profile only.
+                {
+                    "name": "t_a",
+                    "filters": {"variable": "a"},
+                    "contract": "contract_a",
+                    "transformation_profile": "regional",
+                },
+                # Profile plus its own step, which casts `period` to a string.
+                # `contract_c` declares it an integer, so validation has to coerce
+                # it back.
+                {
+                    "name": "t_year",
+                    "filters": {"year": "2030"},
+                    "contract": "contract_c",
+                    "transformation_profile": "annual",
+                    "transformations": [
+                        {
+                            "type": "cast_column",
+                            "column_name": "period",
+                            "to_type": "string",
+                        },
+                    ],
+                },
+            ],
+        },
+    }
+    return SubmissionContract.model_validate(submission_data)
+
+
+def target_contract(name: str, fields: list[dict]) -> BaseContract:
+    """Build the contract a target names.
+
+    Args:
+        name (str): The contract name, matching the target's `contract`.
+        fields (list[dict]): The field descriptions.
+
+    Returns:
+        BaseContract: The contract.
+    """
+    return BaseContract.model_validate(
+        {"name": name, "tableschema": {"fields": fields}}
+    )
+
+
+@pytest.fixture
+def contract_a() -> BaseContract:
+    """Return the contract `t_a` names, matching its transformed columns."""
+    return target_contract(
+        "contract_a",
+        [
+            {"name": "region", "type": "string"},
+            {"name": "year", "type": "integer"},
+            {"name": "value", "type": "number"},
+        ],
+    )
+
+
+@pytest.fixture
+def contract_c() -> BaseContract:
+    """Return the contract `t_year` names, declaring `period` an integer."""
+    return target_contract(
+        "contract_c",
+        [
+            {"name": "country", "type": "string"},
+            {"name": "period", "type": "integer"},
+            {"name": "value", "type": "number"},
+        ],
+    )
+
+
+def resolver_returning(contract: BaseContract | None) -> Mock:
+    """Build a resolver double that resolves to the given contract.
+
+    Args:
+        contract (BaseContract | None): What `resolve` returns.
+
+    Returns:
+        Mock: A `ContractResolver` mock recording its calls.
+    """
+    resolver = Mock(spec=ContractResolver)
+    resolver.resolve.return_value = contract
+    return resolver
+
+
+def resolver_for(**contracts: BaseContract | None) -> Mock:
+    """Build a resolver double resolving each contract name to its contract.
+
+    Args:
+        **contracts (BaseContract | None): One entry per contract name, holding
+            what `resolve` returns for it.
+
+    Returns:
+        Mock: A `ContractResolver` mock recording its calls.
+    """
+    resolver = Mock(spec=ContractResolver)
+    resolver.resolve.side_effect = lambda name: contracts[name]
+    return resolver
+
+
+def bundle(*rows: tuple[str, str, int, float]) -> pd.DataFrame:
+    """Build a submission frame according to the submission contract's schema.
+
+    Args:
+        *rows (tuple[str, str, int, float]): One tuple per row, holding
+            `variable`, `country`, `year` and `value`.
+
+    Returns:
+        pd.DataFrame: The frame, with `year` as a nullable integer column.
+    """
+    return pd.DataFrame(
+        list(rows), columns=["variable", "country", "year", "value"]
+    ).astype({"year": "Int64"})
+
+
+@pytest.fixture
+def bad_contract_a() -> BaseContract:
+    """Return a `contract_a` whose `region` the target's rows cannot satisfy."""
+    return target_contract(
+        "contract_a",
+        [
+            {"name": "region", "type": "integer"},
+            {"name": "year", "type": "integer"},
+            {"name": "value", "type": "number"},
+        ],
+    )
+
+
+@pytest.fixture
+def bad_contract_c() -> BaseContract:
+    """Return a `contract_c` whose `country` the target's rows cannot satisfy."""
+    return target_contract(
+        "contract_c",
+        [
+            {"name": "country", "type": "integer"},
+            {"name": "period", "type": "integer"},
+            {"name": "value", "type": "number"},
+        ],
+    )
+
+
+def bound_arguments(method: Callable, call: Any) -> dict:
+    """Bind a mock's recorded call to a method's parameters, defaults applied.
+
+    Lets an assertion name each argument regardless of whether the caller
+    passed it by position or by keyword.
+
+    Args:
+        method (Callable): The plain function from the class, e.g.
+            `SubmissionContractResource.submit`.
+        call (Any): The recorded `call_args` of a mock, without `self`.
+
+    Returns:
+        dict: The arguments by parameter name, `self` excluded.
+    """
+    bound = inspect.signature(method).bind(None, *call.args, **call.kwargs)
+    bound.apply_defaults()
+    arguments = dict(bound.arguments)
+    del arguments["self"]
+    return arguments

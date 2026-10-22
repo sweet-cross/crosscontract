@@ -1,6 +1,6 @@
 [project]
 name = "crosscontract"
-version = "0.28.0"
+version = "0.36.0"
 description = "Provides data contracts with frictionless schemas and client to interact with CROSS data platform.   "
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,6 +30,7 @@ dev = [
     "notebook>=7.5.1",
     "pandas-stubs>=3.0.5.260914",
     "pre-commit>=4.5.1",
+    "pyarrow-stubs>=20.0.0.20260819",
     "ruff>=0.14.11",
     "types-pyyaml>=6.0.12.20250915",
 ]

@@ -1,5 +1,541 @@
 # CHANGELOG
 
+## v0.36.0 (2026-10-22)
+
+### Refactoring
+
+
+- **move fetch specs to contracts/fetching and flatten transformations** ([`beb6c63`](https://github.com/sweet-cross/crosscontract/commit/beb6c63bf1f9e9895c28c348cf4429197bc1de67))
+
+  ## Summary `transformations/` held two different things: the fetch specs (`FetchSpecMixin` and the aggregation specs), which are declarative and run nothing, and the transformations, which run themselves through `apply()`. This branch moves the fetch specs to `contracts/fetching/`, where the other specs live, renames `FetchSpecMixin` to `FetchSpec`, and moves the transformation modules up one level. With that, the package layout follows one rule: `contracts/` holds specs, `handlers/` runs them, and `transformations/` holds DataFrame operations that run themselves. Closes #137.
+
+  The branch also moves `CLAUDE.md` to the repo root, turns the contributing guide into the source for the local commands, and deletes the project's `.claude/` settings and skills.
+
+  ## Changes
+  - **Fetch specs → `crosscontract.contracts.fetching`.** `FetchSpec` (formerly `FetchSpecMixin`), `AggregationSpec`, `ColumnAggregation` and `LevelKeepSpec` moved from `transformations/fetch/` with `git mv`. They are exported from `crosscontract.contracts.fetching` only. `FetchSpecMixin` is gone, with no alias. `contracts/release/release_specification.py` and `services/package_creator/_resolve_resource.py` import from the new path. Only the class name and its docstring summary changed.
+  - **Transformations flattened.** `base.py`, `column_transformations.py`, `dataframe_transformations.py` and `union.py` moved from `transformations/transformation/` to `transformations/`, with their contents unchanged. `crosscontract.transformations` still exports the same 14 transformation names; the four fetch names are gone (see Notes). `crosscontract.transformations.transformation` is gone. `Target` and `ExtractionInstructions` import `TransformationUnion` from `crosscontract.transformations`.
+  - **Tests moved alongside.** The fetch tests are now in `src/tests/contracts/fetching/`, and the transformation tests are flattened into `src/tests/transformations/`. The imports, the four `patch()` targets, and the mentions of `FetchSpecMixin` in a comment and two docstrings are updated.
+  - **CLAUDE.md.**
+    - Moved from `.claude/` to the repo root.
+  - Gets new `contracts/fetching/` and `transformations/` sections. The release, package-creator and import-graph text now names `FetchSpec`.
+  - Its command list and its branching section are replaced by an `@CONTRIBUTING.md` import.
+  - **Contributing guide.** `CONTRIBUTING.md` and `docs/contributing.md` now carry the local-development command list themselves instead of pointing to CLAUDE.md.
+  - **Project `.claude/` removed.** `settings.json` and the project-level skills are deleted. Most of the settings keys were not valid Claude Code keys, so they had no effect.
+  - **`.ai-context/`.**
+    - ADR 0012 gets a "Superseded in part" note for #137.
+  - The docs-overhaul PRD and its WP2 task get a dated note presenting the package by role, which supersedes the three-layer notes of 2026-10-12. WP4 and WP6 point to the new wording. WP2's "Local development" acceptance criterion is ticked, since this branch does it.
+  - WP5 now uses `FetchSpec`, renders the fetch models in the contracts reference, and fixes a stale `release/data_package/` path. WP6 now creates `docs/reference/transformations.md`.
+  - The paths in `keep-original-json-schema-warning.md` and the link in the deprecated `TODO.md` follow the moves.
+
+  ## Testing None. The test suite, ruff, mypy and `mkdocs build` were not run on this branch.
+
+  ## Notes for reviewer
+  - **Breaking import paths.** These no longer work:
+  - `crosscontract.transformations.FetchSpecMixin` (now `crosscontract.contracts.fetching.FetchSpec`)
+  - `AggregationSpec`, `ColumnAggregation` and `LevelKeepSpec` from `crosscontract.transformations` (now in `crosscontract.contracts.fetching`)
+    - `crosscontract.transformations.transformation`
+
+  With `major_on_zero = false`, this bumps the minor version. Release YAML files are unaffected, because they never name the class. cross_back imports neither path.
+  - **`FetchSpec.get_data_kwargs` stays on the spec.** It translates the spec into the arguments of `CrossDataVariable.get_data`. It was left where it is because the issue puts a fetch handler out of scope.
+  - **The `.claude/` cleanup is not part of #137.** The deleted skills are no longer in the repository; they're only available to people who have them installed.
+  - **ADR 0012 is still partly out of date.** Its original text describes the release adapter in `release/data_package/`, which has been outdated since #133. That was left alone.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+
+
+## v0.35.0 (2026-10-22)
+
+### Refactoring
+
+
+- **read every bundle format from handlers/readers, with Frictionless NA handling and Excel without excel_processor** ([`f094e57`](https://github.com/sweet-cross/crosscontract/commit/f094e5736a4e92fc9c468e7f2a09017226c3c407))
+
+  ## Summary Closes #134. The Excel reader moves next to the CSV and parquet readers in `handlers/readers/`, and its spec moves to `contracts/readers/`. A submission contract without an `excel_processor` now accepts an Excel workbook, read from its first sheet. CSV and Excel both follow the Frictionless default `missingValues: [""]`: only an empty cell is a missing value, so the country code `"NA"` survives in every format. `SubmissionHandler` moves up into `crosscontract.handlers`, since `handlers/submission/` no longer held anything else.
+
+  ## Changes
+  - **NA handling (Frictionless default).** New `handlers/readers/constants.py` holds `NA_VALUES = [""]`, used with `keep_default_na=False` by the CSV and the Excel
+    reader.
+  - CSV: the 17 former tokens (`NULL`, `null`, `None`, `N/A`, `n/a`, `NaN`, `nan`, `<NA>`, `#NA`, `undefined`, …) are now read as strings, and an empty cell is
+      missing when read instead of being kept as `""`.
+  - Excel: no longer uses pandas' default NA list, so `"NA"` and the former tokens stay strings. Blank cells stay missing, so blank rows and empty blank-header
+      columns are still dropped.
+  - The pandera `""` → null parser is unchanged, so parquet and DataFrame input
+      behave as before.
+  - **Excel specs → `contracts/readers/`.** `ExcelProcessor`, `ExcelSheet` and
+    `WideLayout` move from `transformations/excel/specs.py` unchanged;
+    `SubmissionContract` imports them from there.
+  - **Excel reader → `handlers/readers/excel_reader.py`.** `read_excel_workbook_bytes` (from `transformations/excel/processing.py`) and `read_excel_bundle(_bytes)` (from
+    `handlers/submission/excel_processing.py`) are exported from
+    `crosscontract.handlers.readers` and `crosscontract.handlers`.
+    `transformations/excel/` is removed.
+  - **Excel without `excel_processor`.** `read_excel_workbook_bytes` takes `processor: ExcelProcessor | None`; `None` reads the first sheet as one long sheet through the same cleaning. `read_excel_bundle(_bytes)` no longer raises
+    `ValueError` for a contract without a processor, so `CrossSubmitter.submit_file` reads Excel for every submission contract. Docstrings of `SubmissionContract.excel_processor`, the readers and `submit_file` updated.
+  - **`SubmissionHandler` → `crosscontract.handlers`.**
+    `handlers/submission/submission_handler.py` becomes `handlers/submission_handler.py`; `crosscontract.handlers.submission` is removed.
+    `SubmissionContractResource` imports from `crosscontract.handlers`.
+  - **Docs.** CLAUDE.md architecture (new `contracts/readers/` subsection, readers and NA default, two packages named `submission`, no cross_back references), `docs/client/index.md` (Excel works for every submission contract), the WP6 note in `.ai-context/issues/docs-overhaul/06-submission.md`, and a "Superseded in part"
+    note on ADR 0010.
+
+  ## Testing
+  - CSV reader: `test_empty_cell_becomes_missing` (missing and numeric dtype) and `test_na_like_tokens_stay_strings` replace the old empty-string and token tests.
+  - Excel reader: NA tokens read as strings with blank cells missing; blank rows and an empty blank-header column dropped without error (the case that breaks if the shared list lacked `""`); without a processor, the first sheet is read long, a second sheet
+    is ignored, and the cleaning applies.
+  - Bundle reader: a contract without `excel_processor` reads the first sheet long.
+  - `submit_file`: an `.xlsx` on disk for a contract without `excel_processor` is read
+    end to end (`"NA"` stays a string).
+  - Tests moved to mirror the source layout: `src/tests/contracts/readers/`, `src/tests/handlers/readers/`, and the handler tests up to `src/tests/handlers/`.
+  - The test suite was not run as part of writing this description.
+
+  ## Notes for reviewer
+  - The NA change is the user-visible part of this `refactor!`; it is spelled out in
+    the `BREAKING CHANGE:` footer so it reaches the changelog.
+  - Known edge effects of reading `""` as missing at read time, accepted: target routing on a numeric column with gaps compares `"3.0"` instead of `"3"`, and `CastColumn` on a former token raises `ValueError` rather than producing a
+    validation report.
+  - The default path builds an `ExcelSheet` for the first sheet instead of passing `sheet_name=0`, so it runs through the same read, cleaning and concat as the processor path. A workbook with no sheets would raise `IndexError` there.
+  - Deriving the NA list from a contract's `missingValues` stays out of scope; the
+    strict contract `TableSchema` has no `missingValues` field.
+  - cross_back adopts this in sweet-cross/cross_back#532 (Updates 3 and 4: crosscontract
+    readers, `FileReadError`, the new `SubmissionHandler` path).
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  ---------
+
+  Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+
+  > **BREAKING CHANGE:** CSV and Excel files now treat only an empty cell as a missing value. Text such as `NULL`, `n/a`, `None` or `NaN` is read as a string: in a `number`, `integer` or `datetime` field it is now a validation error instead of a null, and in a `string` field it is stored as text. `crosscontract.transformations.excel` and `crosscontract.handlers.submission` are removed: import the Excel specs from `crosscontract.contracts.readers`, and `SubmissionHandler` and the Excel readers from `crosscontract.handlers` (or `crosscontract.handlers.readers`).
+
+
+
+## v0.34.0 (2026-10-22)
+
+### Features
+
+
+- **submit a bundle from a csv, parquet or Excel file** ([`940ed47`](https://github.com/sweet-cross/crosscontract/commit/940ed4778727873c35388617712a58cfe63d0540))
+
+  ## Summary Adds `CrossSubmitter.submit_file(name, path)`, which reads a `.csv`, `.parquet` or Excel file into the bundle and hands it to `submit`. Reading has to match cross_back exactly, so cross_back's CSV and parquet readers move into crosscontract (`handlers/readers/`) for both sides to share. This matters most for CSV: cross_back keeps values such as the country code `"NA"` as strings, while plain `pd.read_csv` would turn them into NaN. The readers also take over the error translation: every reader raises one new exception, `FileReadError`, for a file it cannot read, so cross_back only has to map that one type to its HTTP `ValidationError` (sweet-cross/cross_back#532).
+
+  Closes #119.
+
+  ## Changes
+  - **`FileReadError`** (`exceptions/reader_exceptions.py`, exported from `crosscontract.exceptions`): a plain `Exception` whose message is the user-facing text.
+  - **CSV and parquet readers** (`handlers/readers/`, re-exported from `crosscontract.handlers`): `read_csv_file_bytes` / `read_csv_file` and `read_parquet_file_bytes` / `read_parquet_file`, each a bytes core plus a path wrapper.
+  - CSV uses cross_back's `read_csv` settings unchanged: strict UTF-8, `keep_default_na=False` with the private 17-token NA list, and `on_bad_lines="error"`.
+  - Only errors that mean a bad file become `FileReadError`, with cross_back's current messages:
+      - CSV: `UnicodeDecodeError`, `ParserError`, `EmptyDataError`
+  - parquet: `ArrowException` (which covers `ArrowInvalid` and e.g. `ArrowNotImplementedError` for an unsupported codec) and `OSError`. A corrupted footer or page raises a plain `OSError`, and the bytes core reads from memory, so an `OSError` there can only come from the content.
+  - An empty CSV cell is kept as an empty string, as in cross_back, so a single empty cell turns a numeric column into strings. The docstring says so.
+  - Every other exception, and `FileNotFoundError` from the path wrappers, propagates unchanged.
+  - **Excel readers raise `FileReadError`** (breaking): `read_excel_workbook_bytes` raises it, with the messages unchanged, instead of `ValueError` for its three layout errors (no listed sheet found, a blank-header column holding data, a column named like `value_field`). It also translates `CalamineError` from opening the workbook and from parsing its sheets. The `ValueError` for a contract without `excel_processor` in `read_excel_bundle(_bytes)` stays, and the `Raises:` sections are updated.
+  - **`CrossSubmitter.submit_file(name, path, filename=None, validate=True)`**: picks the reader by extension, case-insensitively.
+    - `.csv` and `.parquet` use the readers above.
+  - `.xls/.xlsx/.xlsm/.ods` go through `read_excel_bundle` with the submission contract fetched by `name`.
+  - Any other extension raises `ValueError` before anything is fetched or read. So does an Excel file for a contract without `excel_processor`, which the `Raises:` section lists.
+  - It delegates to `submit` and doesn't validate or upload anything itself.
+  - **Dev dependency:** `pyarrow-stubs`, because `parquet_reader.py` imports pyarrow and mypy needs its types.
+  - **Docs:**
+  - CLAUDE.md now describes `handlers/readers/`, `reader_exceptions.py`, the Excel readers' errors and `submit_file`.
+  - The user docs are left to the docs overhaul: a note is added to `.ai-context/issues/docs-overhaul/06-submission.md`.
+
+  ## Testing
+  - `src/tests/handlers/readers/test_readers.py` (new) covers:
+  - CSV: a valid file, `"NA"` kept as a string, an empty cell kept as an empty string, each NA token (from a hard-coded copy of the list) becoming missing, invalid UTF-8, a bad line, empty input, the path wrapper, a missing file
+  - parquet: round-trip, invalid and empty input, a corrupted footer, the path wrapper, a missing file
+  - `src/tests/transformations/excel/test_processing.py`: the layout-error tests now expect `FileReadError`. New tests cover bytes that aren't a workbook and a workbook whose sheet XML is broken.
+  - `src/tests/services/submitter/test_submitter.py`, new `TestSubmitFile`:
+  - each extension, including mixed case, reaches its reader, and the frame goes to `submit` with `filename` and `validate` passed through
+    - Excel is read with the fetched contract
+    - an unsupported extension raises before anything is fetched
+    - a read failure uploads nothing
+  - a real CSV on disk reaches `submit` with `"NA"` kept as a string and numbers parsed
+  - Export tests for `FileReadError` and the readers.
+  - Tests and lint weren't run in the authoring session. Running mypy is what showed the need for `pyarrow-stubs`.
+
+  ## Notes for reviewer
+  - **Breaking change:** callers that caught `ValueError` or `python_calamine.CalamineError` from the Excel readers now get `FileReadError`. cross_back is pinned to 0.28.0 and moves in #532, whose comments already describe how.
+  - **Excel messages in cross_back:** after #532 they lose cross_back's "Could not read the Excel bundle: " prefix. A workbook that can't be read now says "Could not read the Excel workbook: …". The encoding, CSV and parquet messages are unchanged.
+  - **One `try` in `read_excel_workbook_bytes`:** a single `try … except CalamineError` wraps opening the workbook, the sheet check and `pd.read_excel`. The "None of the listed sheets" `FileReadError` is raised inside it and passes through, because it isn't a `CalamineError`.
+  - **Two GETs for Excel in `submit_file`:** one to read the workbook, one inside `submit`. This was accepted on purpose because the payload is small.
+  - **`pyarrow-stubs` version:** it resolved to 20.0.0 while the project requires `pyarrow>=22`. That's enough for what this PR uses.
+  - **Deferred to #134, a follow-up `refactor!` that ships in the same release, before cross_back migrates:**
+  - The Excel specs move to `contracts/readers/`, and the Excel reading, `read_excel_bundle(_bytes)` included, moves to `handlers/readers/`.
+  - A contract without `excel_processor` falls back to pandas' default, the first sheet read as a long sheet. That also removes the `ValueError` that `submit_file` currently lets through for such a contract.
+    - Excel NA handling is made to match CSV.
+  - **Out of scope:** deriving the NA list from `missingValues`, and sharing the extension dispatch with cross_back.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+
+
+## v0.33.0 (2026-10-19)
+
+### Refactoring
+
+
+- **move registry, submitter and data package creation into crosscontract.services** ([`505c714`](https://github.com/sweet-cross/crosscontract/commit/505c714f87c19db6514c08a1e91296cac78db2f2))
+
+  ## Summary The high-level layer, meaning the entry points a user calls to work with the CROSS platform, was spread over three top-level packages: `registry/`, `submission/` and `release/`. This branch moves them into one package, `crosscontract/services/`, with one subpackage per job: `reader/`, `submitter/` and `package_creator/`. It also introduces `CrossReader` as the new name of `CrossRegistry`, which stays available as a subclass. Closes #128.
+
+  ## Changes
+  - **New `crosscontract/services/` package**
+  - `registry/` → `services/reader/`. `registry.py` becomes `reader.py`; the `variables/` subfolder moves with it.
+    - `submission/submitter.py` → `services/submitter/`.
+    - `release/data_package/` → `services/package_creator/`.
+  - `services/__init__.py` exports `CrossReader`, `CrossRegistry`, `CrossSubmitter` and `create_data_package`. Each subpackage exports only its own names.
+  - **`CrossReader`**
+  - The implementation class is renamed `CrossRegistry` → `CrossReader`. `class CrossRegistry(CrossReader)` remains as a plain subclass, with no warning yet; that comes in #132.
+  - User-facing docstrings and warning/error messages now say "reader" instead of "registry", e.g. the `filters` deprecation hint now reads `reader['…'].get_data(...)`.
+  - `create_data_package` and the `_resolve_resource` helpers are typed `CrossReader`. The parameter keeps its name `registry`, so keyword callers don't break.
+  - **Imports no longer go through the package root.** `reader.py`, `base_variable.py` and `data_variable.py` imported `CrossClient` via `from crosscontract import CrossClient`; they now import it from `crosscontract.crossclient`.
+  - **Exports**
+  - Removed with no shims: `crosscontract.registry`, `crosscontract.submission` (including its re-exports of `SubmissionContract`, `SubmissionHandler`, the Excel readers and the exceptions) and `crosscontract.release` (including its re-exports of the release specs).
+  - The root keeps every name it exported before, now importing each from its home package, and adds `CrossReader`.
+  - `create_data_package` is deliberately not exported from the root. Import it from `crosscontract.services`.
+  - `main_dev.py` now imports `create_data_package` from `crosscontract.services`.
+  - **Docs**
+  - The API reference and guides use `crosscontract.services.*` and `CrossReader`. The mkdocs navigation says `CrossReader`.
+  - `reference/release.md` addresses `create_data_package` by its full module path. The function shares its module's name, so the shorter path made mkdocstrings render the module instead of the function.
+  - The registry tutorial notebook (`notebooks/registry_tutorial.ipynb`) uses `CrossReader` / `my_reader`. Only cell sources changed; outputs are not re-run.
+  - New section in `docs/client/index.md` on validating a bundle against a local `SubmissionContract`. This guidance was only in the removed `crosscontract.submission` docstring.
+  - **Context**
+  - CLAUDE.md describes `services/`. The import graph now ends `… ← crossclient ← services`, and the naming notes now cover three `submission` packages and two `services` packages; the `release` note is gone.
+  - CONTEXT.md renames the domain term **Registry** → **Reader** and drops the note that the Reader may gain write paths.
+    - New ADR 0013 records the decision and the rejected names.
+  - The docs-overhaul PRD gets a note on the moved paths, and its mkdocstrings guidance no longer points at `crosscontract.release`.
+
+  ## Testing
+  - Tests moved to `src/tests/services/{reader,submitter,package_creator}/`. Only import paths and mock targets changed. The three new test folders got `__init__.py` files, matching the other test folders.
+  - Tests that checked the removed re-exports were deleted or now compare the root export with the home package's.
+  - New tests: `test_registry_is_a_reader`, which checks `CrossRegistry` is a `CrossReader`, and `src/tests/services/test_exports.py`. The latter checks that `CrossReader` is exported from the root and that `create_data_package` is in `services` but not in the root.
+  - Full test suite, ruff, mypy and the docs build pass locally.
+
+  ## Notes for reviewer
+  - **Breaking change for deep imports.** Anyone importing from `crosscontract.registry`, `crosscontract.submission` or `crosscontract.release` must switch to `crosscontract.services` or the root. Nothing changes for root imports.
+  - **Name clash with `crosscontract.crossclient.services`.** That package is the transport layer, which users reach as `client.contracts` / `client.submissions`, not by import path. The clash is documented in CLAUDE.md.
+  - **Tests still use `CrossRegistry`.** Switching them to `CrossReader`, adding the `FutureWarning`, and possibly renaming the `registry` parameter of `create_data_package` happen in #132.
+  - **Older ADRs** (0003, 0007, 0010–0012) keep the old paths as historical records. ADR 0013 notes the move.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  ---------
+
+  Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+
+
+
+## v0.32.0 (2026-10-18)
+
+### Refactoring
+
+
+- **move release specs into contracts/release** ([`1d707f0`](https://github.com/sweet-cross/crosscontract/commit/1d707f0a3db2aa33b7e197738c2aa0b555dab9d3))
+
+  ## Summary This moves the release specs (`CrossDataPackageReleaseSpec`, `CrossDataResourceReleaseSpec`, `DataInstructions`) from `release/data_package/` into the declarative layer at `contracts/release/`. cross_back can then parse, validate and store release specs without importing the client-side release execution, which depends on `CrossRegistry` and therefore on `crossclient`. It follows the pattern #120 set for the submission specs. The release execution stays in `release/data_package/` and keeps running against the registry. Closes #127.
+
+  ## Changes
+  - **Spec moved unchanged.** `release/data_package/release_specification.py` is renamed to `contracts/release/release_specification.py` with no content change (a 100% rename; the relative imports resolve to the same targets). The old module is deleted, with no shim.
+  - **Exports:**
+    - `crosscontract.contracts.release` exports all three classes.
+  - `crosscontract.contracts` and the top-level `crosscontract` now export both specs.
+      `DataInstructions` is not exported there.
+  - `crosscontract.release` and `crosscontract.release.data_package` still re-export both
+      specs and `create_data_package`.
+  - **Execution imports.** `create_data_package.py`, `_resolve_resource.py` and `_resolve_package.py` now import the specs from `...contracts.release`. They don't
+    change otherwise.
+  - **Tests:**
+  - `test_release_specification.py` moves to `src/tests/contracts/release/`.
+  - `conftest.py` and `test_create_data_package.py` in `src/tests/release/data_package/`
+      import from the new location.
+  - A new `TestExports` class in `test_release_specification.py` checks that both specs are the same class at every package that exports them, and that `DataInstructions` is exported from `crosscontract.contracts.release` but not from `crosscontract.contracts`.
+  - **Docs:**
+  - The `DataInstructions` entry in `docs/reference/release.md` points at
+      `crosscontract.contracts.release`.
+  - New ADR 0012 records that `contracts/` is now the declarative layer, and why the
+      execution does not move yet.
+  - The **Release spec** entry in CONTEXT.md notes that the spec is declarative and can be
+      parsed without the platform.
+  - The CLAUDE.md architecture section gets a new `contracts/release/` entry, a renamed `contracts/` heading, and an updated `release/data_package/` section and import-graph sentence. A new "Two packages named `release`" note under Key design patterns tells `crosscontract.contracts.release` (the specs) apart from `crosscontract.release` (the
+      adapter).
+  - The module docstrings of `_standards/frictionless/metadata.py` and `descriptors.py`
+      now point at `crosscontract.contracts.release` instead of
+      `crosscontract.release.data_package`.
+  - The open docs-overhaul WP5 task lists `contracts/release/release_specification.py` as
+      its source of truth.
+
+  ## Testing The existing spec tests moved along with the module, and the release tests import the specs from the new location. The full test suite, the linters and mypy passed locally after the code move. They have not been rerun since. The later commits change documentation and add the `TestExports` class, which has not been run yet; only the pre-commit hooks (ruff import checks and formatting) passed on them. `mkdocs build` has not been run either, so the new `DataInstructions` path in `docs/reference/release.md` is unchecked.
+
+  ## Notes for reviewer
+  - **Breaking change.** The import path `crosscontract.release.data_package.release_specification` is gone, which is why the title is `refactor!:`. Because the version is below 1.0, this bumps the minor version. Every package-level import path still works. `DataInstructions` was importable only from the removed module, so import it from `crosscontract.contracts.release` now.
+  - **No new dependency direction.** Nothing under `contracts/` imports `crossclient`, `registry` or `release`. The moved module imports only `_helpers`, `_standards`, `constants` and `transformations`, which `contracts/` was already allowed to import.
+  - **Deferred.** Moving release execution to `handlers/release/` needs two refactors first: running it against a `ContractResolver` instead of `CrossRegistry`, and moving the data shaping (filters, dimension aggregation, labels) out of `registry/variables/`. ADR 0012
+    records this. It is a separate issue.
+  - **CONTEXT.md.** The new sentence describes the spec in domain terms rather than naming `contracts/release/`, because the glossary contains no module paths anywhere.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  ---------
+
+  Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+
+
+
+## v0.31.0 (2026-10-17)
+
+### Refactoring
+
+
+- **bundle every exception class in crosscontract.exceptions** ([`b7a44fa`](https://github.com/sweet-cross/crosscontract/commit/b7a44fa01ee81abedab0acfaf929f1d28df25ffb))
+
+  ## Summary Every exception class now lives in the top-level `crosscontract.exceptions` package. Before this change, `SchemaValidationError` was in `contracts/schema/exceptions/` and the `CrossClientError` family in `crossclient/exceptions/`, so `exceptions/` had to import from `contracts/` and sat in the middle of the import graph. Now `exceptions/` imports nothing from the rest of the package and is a base layer next to `constants`, so any layer can raise or catch any exception. `raise_from_response` stays in `crossclient/`, since it is transport. The classes are moved unchanged. Closes #126.
+
+  ## Changes
+  - **`SchemaValidationError`** moved unchanged, together with its pandera report parser and `CHECK_COLUMNS_PATTERN`, from `contracts/schema/exceptions/validation_error.py` to `exceptions/schema_exceptions.py`. `contracts/schema/exceptions/` is deleted. `contracts/schema/__init__.py` and `validate_dataframe.py` import the class from `crosscontract.exceptions`.
+  - **The `CrossClientError` family** moved unchanged from `crossclient/exceptions/exceptions.py` to `exceptions/client_exceptions.py`. The family is `CrossClientError`, `ValidationError`, `RequestValidationError`, `UnprocessableEntityError`, `AuthenticationError`, `PermissionDeniedError`, `ResourceNotFoundError`, `ServerError` and `ConflictError`.
+  - **`raise_from_response`** moved from `crossclient/exceptions/exception_factory.py` to `crossclient/exception_factory.py`. With the classes gone, the `crossclient/exceptions/` subpackage held only the factory plus re-exports, so it is deleted.
+  - **`crosscontract.exceptions`** now exports all twelve classes. `submission_exceptions.py` imports `SchemaValidationError` relatively, so the package imports nothing from the rest of `crosscontract`.
+  - **Internal imports** in `crossclient/services/` take the classes from `crosscontract.exceptions` and `raise_from_response` from `crossclient.exception_factory`. `contract_resource.py` and `handlers/submission/submission_handler.py` also take `SchemaValidationError` from `crosscontract.exceptions` now, so each file imports its exceptions from one place.
+  - **Tests** follow the move:
+  - `test_validation_error.py` → `tests/exceptions/test_schema_exceptions.py`.
+    - `test_exceptions.py` → `tests/exceptions/test_client_exceptions.py`.
+    - `test_exception_factory.py` → `tests/crossclient/`.
+  - Deep imports in the remaining tests now use `crosscontract.exceptions`, and so does the `SchemaValidationError` import in `test_submission_exceptions.py` and `test_contract_resource.py`.
+  - **Docs:**
+  - The API reference points at `crosscontract.exceptions.schema_exceptions`.
+  - The client tutorial (`notebooks/client_tutorial.ipynb`) imports `ConflictError`, `PermissionDeniedError` and `ValidationError` from `crosscontract.exceptions`. Only the two import lines changed; the outputs were not re-run.
+  - In CLAUDE.md, the `exceptions/` section lists all three modules, the `crossclient/` section describes `exception_factory.py`, and the import graph is `constants, exceptions ← transformations ← contracts ← handlers ← crossclient ← submission`.
+    - ADR 0011 gets an amendment recording the new layering.
+  - The docs-overhaul plan (`.ai-context/prds/docs-overhaul.md`, issues `03-contracts.md` and `04-client-and-registry.md`) points at the new module paths.
+
+  ## Testing
+  - Existing tests are moved and pointed at the new paths. No behaviour changed, so no new behaviour tests.
+  - Added `test_exported_from_all_paths` in `test_schema_exceptions.py`. It checks that `crosscontract`, `crosscontract.contracts`, `crosscontract.contracts.schema` and `crosscontract.exceptions` all expose the same `SchemaValidationError` object.
+  - Added `test_imports_nothing_from_the_rest_of_the_package` in `tests/exceptions/test_exceptions_package.py`. It parses every module in `exceptions/` and fails on any import of `crosscontract` and on any relative import that reaches outside the package.
+  - The full suite passed after each of the two moves. It has not been re-run since the factory move, so the docs commit (`31ced9f`), the import consolidation and the new layering test are untested. `mkdocs build` has not been run.
+
+  ## Notes for reviewer
+  - **Breaking: removed import paths.** Code that imported from `crosscontract.crossclient.exceptions`, `crosscontract.crossclient.exceptions.exceptions`, `crosscontract.crossclient.exceptions.exception_factory` or `crosscontract.contracts.schema.exceptions` must switch to `crosscontract.exceptions`, or to `crosscontract.crossclient.exception_factory` for `raise_from_response`. These paths keep working: `crosscontract`, `crosscontract.contracts`, `crosscontract.contracts.schema` (for `SchemaValidationError`) and `crosscontract.submission` (for the submission exceptions). Below 1.0 this bumps the minor version.
+  - **Dropping `crosscontract.crossclient.exceptions` departs from #126's acceptance criteria**, which listed that path as kept. No downstream repo uses it. Its only use in this repo, the client tutorial, is switched over here. cross_back only uses the deep `contracts.schema.exceptions` path, which sweet-cross/cross_back#532 switches to `crosscontract.exceptions`. That issue is blocked by this release.
+  - **`exceptions/` is a base layer, but it does depend on pandas and pandera.** `SchemaValidationError` carries the pandera report parser. That parser's `CHECK_COLUMNS_PATTERN` reads the message format that the checks in `contracts/schema/validation/checks/` write (`Columns '<cols>' in check '<label>' …`), so the format is now shared across two layers. CLAUDE.md and ADR 0011 say to change both together.
+  - **Possible name confusion:** `crosscontract.exceptions.ValidationError` (the client's 422 error) now sits next to `SchemaValidationError` and `TargetValidationError`, and shares its name with pydantic's `ValidationError`. It is not renamed here.
+  - **Docs reference:** only the existing `SchemaValidationError` entry was repointed. The client and submission exceptions still have no reference entry.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  ---------
+
+  Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+
+
+
+## v0.30.0 (2026-10-17)
+
+### Features
+
+
+- **add CrossSubmitter.submit and move submission execution to handlers/** ([`2058ca9`](https://github.com/sweet-cross/crosscontract/commit/2058ca906e93a6a383bdf6283d63401cdce72fa7))
+
+  ## Summary Implements #122: a data provider can now submit a delivered bundle to the CROSS platform, validated locally first so errors surface before upload rather than as a rejected submission. On the way, submission execution moves out of `crosscontract.submission` into a new offline `handlers/` package, the low-level `SubmissionContractResource` takes over validating and uploading (as `ContractResource` does for contracts), and `CrossSubmitter` becomes a thin, name-based pass-through. Validation defaults now match cross_back's ingest pipeline.
+
+  ## Changes
+  - **New layering** (ADR 0011): `constants ← transformations ← contracts ← exceptions ←
+    handlers ← crossclient ← submission`.
+  - `handlers/submission/` (new): `SubmissionHandler` and the Excel bundle readers `read_excel_bundle(_bytes)`, moved from `submission/`. Depends only on `contracts`, `transformations` and `exceptions`; reaches the platform only through the
+      `ContractResolver` protocol.
+  - `exceptions/` (new top-level): `TargetValidationError` and `UnclaimedRowsError`, moved from `submission/exceptions.py`. Interim: the remaining exceptions follow in #126.
+  - `crossclient/` keeps transport only. `crosscontract.submission` holds `CrossSubmitter`
+      plus re-exports.
+  - **Full validation on the handler**: `SubmissionHandler.validate_submission(resolver, ...)`
+    runs the bundle against its own `tableschema`, then unclaimed rows (`UnclaimedRowsError`), then every target, stopping at the first failure. Extraction runs
+    on the bundle as delivered, not the coerced frame.
+  - `check_existing_primary_key` now defaults to `False` (other checks stay on), as in cross_back: the stored keys still include the rows a resubmission replaces under its
+      `replace_key`. Duplicates within a target are still caught.
+  - The `validate_references` pre-check is dropped; an unresolvable target contract surfaces in the target step as an uncollected `ValueError`. The platform enforces the
+      `replace_key` declaration when the submission contract is created.
+  - **Resource** (`SubmissionContractResource`):
+  - `validate_submission(df, ...)` runs the handler on the stored contract with a
+      `CrossContractResolver`.
+  - `submit(df, filename=None, validate=True) -> Submission` validates with the defaults, then serializes the bundle as delivered to parquet and uploads it. `filename` is a stem (`.parquet` appended); the default is the contract name plus a UTC timestamp.
+  - **Service**: private `SubmissionContractService._upload_submission(name, file, filename)` posts a file (`bytes | BinaryIO`) unchanged to `POST /submission/contract/{name}/data`; the platform reads the format from the filename extension. Reusable by `submit_file`
+    (#119).
+  - **Submitter** (`CrossSubmitter`): `submit(name, df, filename=None, validate=True)` replaces the `NotImplementedError` stub; `validate_submission(name, df, ...)` now takes a submission contract's **name** (breaking) and passes through. The submitter no longer
+    holds its own resolver.
+  - **Public surface**: `Submission` is now exported from `crosscontract` and `crosscontract.submission`. Package-level imports from `crosscontract` and `crosscontract.submission` still work through re-exports; the old module paths are
+    gone (see Notes for reviewer).
+  - **Docs and decisions**: new ADR 0011; ADRs 0007 and 0010 marked superseded in part; CONTEXT.md entries (Submitter, Submission handler, Submission validation, Unclaimed rows) and the CLAUDE.md architecture section rewritten; the deprecated TODO.md entry for the submission docs page removed. The docs page is still tracked by WP6 of the docs-overhaul PRD, which now carries a note on what this PR changes, and its task
+    `06-submission.md` has updated sources of truth.
+
+  ## Testing
+  - Moved the handler, reader, granularity and target-validation tests to `src/tests/handlers/submission/` and the exception tests to `src/tests/exceptions/`,
+    unchanged apart from imports.
+  - New `test_validate_submission.py`: step order and short-circuiting, per-target collection, uncollected wiring errors, flag forwarding and defaults, extraction on the
+    raw bundle — all against a mocked `ContractResolver`, no HTTP.
+  - Resource tests: `validate_submission` delegation (stored contract, client resolver, flags); `submit` ordering, no upload on any validation failure, `validate=False`, parquet round-trip of the delivered frame (dtypes intact, never the coerced one),
+    filename stem and timestamped default.
+  - Service tests (respx): one file part with filename and bytes unchanged (bytes and `BytesIO`), `Submission` returned, 404/403/409 mapped to client errors.
+  - Submitter tests: fetch by name and pass-through for both methods.
+  - Public-surface tests for `crosscontract.exceptions`, `crosscontract.handlers` and the
+    re-exports from `crosscontract.submission`.
+  - New shared helper `bound_arguments` in `src/tests/conftest.py` binds a mock's recorded call to the real signature, so assertions don't depend on positional vs keyword use.
+
+  ## Notes for reviewer
+  - **Breaking**: `CrossSubmitter.validate_submission` takes a name instead of a
+    `SubmissionContract`. A local contract is now validated with
+    `SubmissionHandler(contract, df).validate_submission(resolver)`. With
+    `major_on_zero = false`, the `!` in the title yields a minor bump.
+  - **Breaking**: the modules `crosscontract.submission.submission_handler`, `crosscontract.submission.excel_processing` and `crosscontract.submission.exceptions` are removed. Import from `crosscontract.submission` (or `crosscontract`) instead, or from the new homes `crosscontract.handlers.submission` and `crosscontract.exceptions`.
+  - **Behaviour change**: `check_existing_primary_key` defaults to `False` on all `validate_submission` methods. Collisions with rows stored by *other* submissions are
+    no longer caught locally.
+  - `submit` has no per-check flags by design; custom checks go through
+    `validate_submission`, then `submit(..., validate=False)`.
+  - `SubmissionHandler` now owns policy (it raises on unclaimed rows in `validate_submission`); `unclaimed_rows()` and `validate_targets()` still only report.
+  - Four packages are now named `submission` (`contracts`, `handlers`,
+    `crossclient.services`, top-level); see CLAUDE.md.
+  - cross_back imports `SubmissionHandler`, the readers and the exceptions through `crosscontract` / `crosscontract.submission`, which still re-export them.
+  - Out of scope: `submit_file` (#119), waiting for processing to finish, moving the remaining exceptions (#126), merging `CrossSubmitter` into `CrossRegistry`.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  ---------
+
+  Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+
+  Co-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>
+
+
+
+## v0.29.0 (2026-10-16)
+
+### Features
+
+
+- **add SubmissionContractService and SubmissionContractResource to CrossClient** ([`16eaa17`](https://github.com/sweet-cross/crosscontract/commit/16eaa17a980774db9309d55e05fe3a03f27f6531))
+
+  ## Summary Adds a client for the backend's `/api/v1/submission` endpoints, so submission contracts can be managed and submissions followed from Python without raw HTTP calls. `client.submissions` is a `SubmissionContractService`, built like `ContractService`. It returns `SubmissionContractResource` handles and `Submission` models. As a preparatory refactor, the contract client moves into `crossclient/services/contract/`, mirroring the new `crossclient/services/submission/`.
+
+  Closes #121.
+
+  ## Changes
+  - **`crossclient/services/submission/`** (new):
+    - `SubmissionContractService` and its endpoints:
+
+  | Method | Endpoint |
+      |---|---|
+      | `create(contract)` | `POST /submission/contract`, then `get` |
+      | `get(name)` | `GET /submission/contract/{name}` | | `overview(project_name)` | `GET /submission/contract?project_name=` → DataFrame |
+      | `delete(name)` | `DELETE /submission/contract/{name}` | | `set_allow_submissions(name, allow)` | `PUT /submission/contract/{name}/allow-submissions` |
+      | `get_submission(uuid)` | `GET /submission/{uuid}` → `Submission` | | `list_submissions(name)` | `GET /submission/contract/{name}/data` → `list[Submission]` |
+
+  All paths are under `/api/v1` and were checked against the deployed OpenAPI spec. The list endpoints send no `limit`, so one request returns every item. Every response goes through `raise_from_response`.
+  - `SubmissionContractResource`: a read-only handle holding `name`, `project_name`, `allow_submissions` and the parsed `SubmissionContract`. `title`, `description` and `tags` are read from the contract. Its methods are `set_allow_submissions`, `delete`, `refresh` and `submissions()`. It has no validate, submit or upload method.
+  - `schemas.py`: `SubmissionContractEntryPayload`, which parses the read response, and `Submission` with a `SubmissionState` literal, mirroring the server's `SubmissionResponse`.
+  - **Wiring:** `CrossClient.submissions`. `SubmissionContractService`, `SubmissionContractResource` and `Submission` are exported from `crossclient.services` and `crossclient`.
+  - **Refactor:** `contract_service.py`, `contract_resource.py` and `resolver.py` move to `crossclient/services/contract/`. The public import paths (`crossclient.services.X`, `crossclient.X`) are unchanged. Only the full module paths change, e.g. `crossclient.services.contract_service`. Their tests move from `tests/crossclient/contracts/` to `tests/crossclient/contract/`.
+  - **Docs:**
+    - `docs/reference/client.md` renders the three new classes.
+  - CLAUDE.md describes `services/contract/` and `services/submission/`, and the name-clash note now covers three packages named `submission` (specification, low-level client, high-level execution).
+  - **Housekeeping:** removes the completed `.ai-context/prds/validation-architecture.md` and repoints ADR 0005's link to it at ADR 0006.
+
+  ## Testing
+  - New `src/tests/crossclient/submission/`:
+  - **`test_schemas.py`**: parsing the payload and the `Submission` model, with every state and an unknown one.
+    - **`test_submission_resource.py`**, against a mocked service:
+      - `from_response` and read-only properties;
+  - each method forwarding to the service, including `refresh` replacing the state and raising on a name mismatch;
+  - `set_allow_submissions` leaving the flag unchanged when the service raises.
+    - **`test_submission_service.py`**, with respx:
+  - `create` sends a POST then a GET, the resource reflects the GET, and a failed POST skips the GET;
+      - `overview` sends `project_name` and no `limit`;
+      - the exact PUT body, and listing with an empty page;
+      - 404/403 mapping on `get` and `get_submission`;
+      - `client.submissions` is wired.
+    - **`conftest.py`** holds the shared server-response builders.
+  - The moved contract tests were repointed to the new module paths, including the two `patch(...)` targets.
+  - Full `uv run pytest`, `ruff check` and `mypy` pass.
+
+  ## Notes for reviewer
+  - **`create` makes two requests.** The POST response (`SubmissionContractMetaDataResponse`) carries no `contract`, so the resource is built from a follow-up `get`. If the POST succeeds and the GET fails, `create` raises although the contract exists.
+  - **No `get_list`.** The list endpoint returns metadata only, so `overview(project_name)` returns a DataFrame instead of resources. An `overview` of a project without submission contracts is an empty DataFrame with no columns.
+  - **`delete` raises on 404**, unlike `ContractService.delete`, which silences it.
+  - **PUT uses `client.request("PUT", ...)`.** `CrossClient` has no `put` helper.
+  - **Out of scope:**
+  - The upload (`POST /submission/contract/{name}/data`) and whether it is public or private move to the follow-up (#122).
+  - Downloading a submission's file needs a backend endpoint first: sweet-cross/cross_back#531, then #124 here.
+  - **New `src/tests/crossclient/__init__.py`.** Without it, pytest couldn't import the new shared `conftest.py` helpers. The test modules under `tests/crossclient/` are now named `tests.crossclient.…`.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  ---------
+
+  Co-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>
+
+
+### Refactoring
+
+
+- **separate submission specs from their execution** ([`176bb29`](https://github.com/sweet-cross/crosscontract/commit/176bb29a125b54936cc3adefabcaa33cb184bb47))
+
+  ## Summary Prepares the client-side submission work (#121, #122) by making the import graph run one way: `constants` ← `transformations` ← `contracts` ← `crossclient` ← `submission`. A `SubmissionService` in `crossclient/` has to parse a `SubmissionContract`. As long as the contract lives in `submission/`, which imports `crossclient` for `CrossSubmitter`, the two packages would import each other. This branch moves the declarative submission specs below the client and leaves only their execution in `submission/`. Closes #120. No behaviour changes. Every crosscontract import path that cross_back uses keeps working; the paths this branch removes are listed under "Public paths".
+
+  ## Changes
+  - **Constant:** `CONTRACT_NAME_PATTERN` moves from `contracts/contracts/base_contract.py` to a new, dependency-free `crosscontract/constants.py`. `base_contract.py`, `release_specification.py`, `fetch_spec.py` and `target.py` import it from there. This
+    removes the only import from `transformations/` into `contracts/`.
+  - **Excel specs and reader → `transformations/excel/`:**
+  - `specs.py` (`ExcelProcessor`, `ExcelSheet`, `WideLayout`) is moved unchanged.
+  - New core `read_excel_workbook_bytes(processor, field_names, data)` holds the former reader body and `_clean_sheet`. It takes a processor and field names instead of the contract.
+    - `submission/excel_processing/` is flattened into the module `submission/excel_processing.py`. It keeps `read_excel_bundle_bytes(contract, data)` and `read_excel_bundle(contract, filename)` with unchanged signatures. They raise on a
+      missing `excel_processor` (same message) and delegate to the core.
+  - **Submission contract and extraction specs → `contracts/submission/`:**
+    - `submission_contract.py` and `extraction/` are moved with history.
+  - The contract imports `CrossContract`/`ContractResolver` relatively (`from ..contracts`)
+      and `ExcelProcessor` from `crosscontract.transformations.excel`.
+    - New `contracts/submission/__init__.py` exports `SubmissionContract`, `ExtractionInstructions` and `Target`. `contracts/__init__.py` also exports
+      `SubmissionContract`.
+  - `submission/__init__.py`, `submitter.py`, `submission_handler.py` and `excel_processing.py` import from `crosscontract.contracts.submission`.
+  - **Public paths:**
+  - `SubmissionContract` is importable from `crosscontract`, `crosscontract.submission`
+      and now `crosscontract.contracts` (all the same class).
+    - Removed: `crosscontract.submission.extraction`, `crosscontract.submission.submission_contract`, the spec models under `crosscontract.submission.excel_processing`, and `CONTRACT_NAME_PATTERN` from `crosscontract.contracts.contracts.base_contract`. Only this repo's own code used them; I checked which crosscontract names cross_back imports, and none of these is among them.
+  - **Docs:**
+    - New ADR 0010 records the spec/execution split.
+  - ADR 0004 gets dated "Superseded" notes on its intro and its "`submission/` is
+      top-level" bullet.
+  - CLAUDE.md has new `contracts/submission/` and `transformations/excel/` entries. The `submission/` section now covers execution only, the import order is stated as a rule, `CONTRACT_NAME_PATTERN` points to `constants.py`, and a new bullet covers the two
+      `submission` packages.
+  - The `crosscontract.submission` package docstring now describes execution only.
+
+  ## Testing
+  - Tests are moved to mirror the new layout:
+  - `transformations/excel/test_specs.py` and `test_processing.py`: the melt and clean
+      behaviour now runs directly against the core reader.
+  - `submission/test_excel_processing.py`: the wrapper tests (exports, a long and a wide sheet through the wrapper, missing `excel_processor`, the file path reader).
+    - `contracts/submission/test_submission_contract.py` and `contracts/submission/extraction/test_extraction_instructions.py`, together with `example_submission.yaml`, which only the contract test loads. Both new folders get an
+      `__init__.py`, like `tests/contracts/schema/`.
+  - The fixtures and helpers both test folders share (`contract`, `contract_a`, `contract_c`,
+    `target_contract`, `resolver_returning`, `resolver_for`) move from `tests/submission/conftest.py` to the root `src/tests/conftest.py`. pytest only provides fixtures from conftests in the test's own folder or above, and this way neither test folder imports from the other. `bundle` and the `bad_contract_*` fixtures stay in
+    `tests/submission/conftest.py`, the only place that uses them.
+  - Full `uv run pytest`, `ruff check` and `mypy` pass.
+  - Import direction was checked by grepping each package's imports. Re-exports were checked by importing `SubmissionContract` from all three paths and comparing identity.
+
+  ## Notes for reviewer
+  - **ADR 0007 is deliberately not superseded,** although #120's text says so. `CrossSubmitter` stays in `submission/` and still imports `crossclient`, so 0007's placement still holds. It becomes partly outdated with #121/#122 (`client.submissions`).
+  - **There are now two packages named `submission`:** `crosscontract.contracts.submission` (specs) and `crosscontract.submission` (execution). This is accepted and documented in
+    ADR 0010 and CLAUDE.md.
+  - **The root `conftest.py` now holds a `contract` fixture** (a `SubmissionContract`). Test
+    modules that define their own `contract` fixture still override it.
+  - **`uv.lock`** only syncs the project's own version entry (0.26.1 → 0.28.0), a side
+    effect of `uv sync`. It is not a dependency change.
+  - **Out of scope:**
+    - Restructuring `release/` along the same lines.
+  - The CSV reader (#119), whose location in `transformations/` this branch prepares.
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+
+
+
+
 ## v0.28.0 (2026-10-11)
 
 ### Refactoring

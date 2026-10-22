@@ -145,5 +145,5 @@ inherit an empty body and return `None`. Only the combination gives both.
   and self-referencing foreign keys go unchecked on the default path. This matches the
   client's previous behaviour, so nothing regressed — but the flag *names* promise more
   than the validator delivers. Closing that gap is a change to the validator and is
-  planned separately; see the handoff notes in
-  [validation-architecture.md](../prds/validation-architecture.md).
+  planned separately; see *Why the key checks are opt-in* in
+  [ADR 0006](0006-validation-is-a-set-of-check-objects.md).

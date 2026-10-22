@@ -32,7 +32,7 @@ platform-access docs up to date.
 **`docs/reference/client.md`**
 - [ ] Renders `CrossClientError`, `ValidationError`, `ConflictError`,
       `PermissionDeniedError`, `ResourceNotFoundError`, and `AuthenticationError` from
-      `crosscontract.crossclient.exceptions`, each once.
+      `crosscontract.exceptions`, each once.
 
 **Checks**
 - [ ] Every Python snippet on `registry/index.md` matches the current signatures in
@@ -56,6 +56,13 @@ platform-access docs up to date.
   - `CrossRegistry.__init__`, `add_variable`, `get_variable`, and `contract_overview` in
     `registry/registry.py`.
   - `CrossDataVariable.get_data` in `registry/variables/data_variable.py`.
-  - `ContractResource.validate_dataframe` in `crossclient/services/contract_resource.py`.
-  - `crossclient/exceptions/exceptions.py`.
+  - `ContractResource.validate_dataframe` in `crossclient/services/contract/contract_resource.py`.
+  - `exceptions/client_exceptions.py`.
+- **Note — package architecture (added 2026-10-12).** Frame the client as the middle
+  layer: services and resources that wrap the endpoints (`client.contracts` →
+  `ContractResource`; later `client.submissions` → `SubmissionContractResource`, #121).
+  Frame `CrossRegistry` as the high-level wrapper for data consumers that is built on a
+  `CrossClient`, with `CrossSubmitter` as its provider-side counterpart (WP6). Use the
+  package-layout wording of the landing page (WP2, note of 2026-10-22, which supersedes
+  the three layers).
 - Dependencies: none. Branch off `dev`; PR title `docs: ...`.

@@ -85,4 +85,27 @@ Use `drop_data` only as part of contract decommissioning, and only if you are an
 administrator: the contract must already have been transitioned to `Retired`, and the
 entire data table — every project's rows, not only yours — is discarded.
 
+## Validating a submission against a local contract
+
+To check a delivered bundle against a `SubmissionContract` you hold locally, for
+example one you are still drafting, bind the contract and the bundle in a
+`SubmissionHandler` and call `validate_submission`. The target contracts the bundle is
+split into are read from the platform through a `CrossContractResolver`:
+
+```python
+from crosscontract import CrossClient, SubmissionContract, SubmissionHandler
+from crosscontract.crossclient import CrossContractResolver
+
+client = CrossClient(username="me", password="secret")
+contract = SubmissionContract.from_file("my_submission_contract.yaml")
+
+handler = SubmissionHandler(contract, df)
+handler.validate_submission(CrossContractResolver(client.contracts))
+```
+
+If the bundle arrives as an Excel workbook, read it into a frame first with
+`read_excel_bundle(contract, filename)` from `crosscontract.handlers`. This works for
+every submission contract: without an `excel_processor`, the first sheet is read as
+one long sheet.
+
 See the [API reference](../reference/client.md) for full signatures.
