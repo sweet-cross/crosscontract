@@ -1,6 +1,11 @@
+from pathlib import Path
+
 import pandas as pd
 
 from crosscontract.crossclient import CrossClient, Submission
+from crosscontract.handlers import read_csv_file, read_excel_bundle, read_parquet_file
+
+_EXCEL_EXTENSIONS = (".xls", ".xlsx", ".xlsm", ".ods")
 
 
 class CrossSubmitter:
@@ -106,6 +111,58 @@ class CrossSubmitter:
         return self._client.submissions.get(name).submit(
             df, filename=filename, validate=validate
         )
+
+    def submit_file(
+        self,
+        name: str,
+        path: str | Path,
+        filename: str | None = None,
+        validate: bool = True,
+    ) -> Submission:
+        """Read a bundle from a file, then submit it to the CROSS platform.
+
+        Reads the file with the reader for its extension, compared
+        case-insensitively: `.csv`, `.parquet`, or `.xls`, `.xlsx`, `.xlsm` and
+        `.ods` for an Excel workbook, which is read as the submission contract
+        stored under `name` describes. The frame is then handed to `submit`, so
+        it is always uploaded as parquet, whatever the format of the file. Also
+        raises what `submit` raises.
+
+        Args:
+            name (str): The name of the stored submission contract.
+            path (str | Path): The path of the file to read.
+            filename (str | None, optional): The stem of the uploaded file, as in
+                `submit`. Defaults to `None`.
+            validate (bool, optional): Whether to validate the bundle before
+                uploading it. Defaults to `True`.
+
+        Returns:
+            Submission: The created submission, in state `received`.
+
+        Raises:
+            ValueError: The extension of `path` is not one of the accepted ones.
+            FileNotFoundError: The file does not exist.
+            FileReadError: The file cannot be read in its format. Nothing is
+                uploaded.
+            CrossClientError: A request to the platform failed, e.g.
+                `ResourceNotFoundError` if no submission contract is stored
+                under `name`.
+        """
+        path = Path(path)
+        extension = path.suffix.lower()
+        if extension == ".csv":
+            df = read_csv_file(path)
+        elif extension == ".parquet":
+            df = read_parquet_file(path)
+        elif extension in _EXCEL_EXTENSIONS:
+            df = read_excel_bundle(self._client.submissions.get(name).contract, path)
+        else:
+            accepted = [".csv", ".parquet", *_EXCEL_EXTENSIONS]
+            raise ValueError(
+                f"Unsupported file extension '{path.suffix}'. "
+                f"Accepted extensions: {', '.join(accepted)}."
+            )
+        return self.submit(name, df, filename=filename, validate=validate)
 
     def validate_submission(
         self,
