@@ -97,7 +97,7 @@ A pydantic mirror of the upstream Frictionless standard, distinct from the stric
 
 ### `transformations/` — Self-running DataFrame operations
 
-Each transformation is a spec that runs itself: a thin pydantic model, discriminated by `type`, whose `apply(df)` delegates to a pure function in the same module and returns a new DataFrame. Transformations know nothing about schemas or contracts. Specs in `contracts/` compose them (`Target.transformations` and the transformation profiles of `ExtractionInstructions`), and `SubmissionHandler` runs them. Everything is exported from `crosscontract.transformations`, not from the top-level package.
+Each transformation is a spec that runs itself: a thin pydantic model, discriminated by `type`, whose `apply(df)` delegates to a pure function in the same module and returns a new DataFrame. Transformations know nothing about schemas or contracts. Specs in `contracts/` compose them (`Target.transformations` and the transformation profiles of `ExtractionInstructions`), and `SubmissionHandler` runs them. Every transformation and its pure function is exported from `crosscontract.transformations`, not from the top-level package.
 
 - `base.py` — `BaseTransformation`, the abstract base (`extra="forbid"`, abstract `apply`).
 - `column_transformations.py` — `CastColumn`, `MapColumnValues`, `ParseDatetimeColumn` and their pure functions `cast_column`, `map_column_values`, `parse_datetime_column`.
