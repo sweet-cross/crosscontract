@@ -49,13 +49,14 @@ def read_excel_workbook_bytes(
     `processor` are read by exact name; listed sheets missing from the workbook are
     skipped and other sheets in the workbook are ignored. The first row of every
     sheet holds the column headers. In every sheet, rows that are entirely blank are
-    dropped, and so are columns with a blank header that hold no data. A long sheet is then taken unchanged. In a wide sheet, the columns named
-    in `field_names` are kept as identifiers and every remaining column is melted
-    into the `header_field` (the column header) and `value_field` (the cell)
-    columns. Blank cells of a wide sheet are kept as rows with a missing value. The
-    processed sheets are concatenated in the order they are listed. Only a blank
-    cell becomes a missing value; any other text, such as `NA` or `null`, is kept as
-    a string. No values are validated.
+    dropped, and so are columns with a blank header that hold no data. A long sheet
+    is then taken unchanged. In a wide sheet, the columns named in `field_names` are
+    kept as identifiers and every remaining column is melted into the
+    `header_field` (the column header) and `value_field` (the cell) columns. Blank
+    cells of a wide sheet are kept as rows with a missing value. The processed
+    sheets are concatenated in the order they are listed. Only a blank cell becomes
+    a missing value; any other text, such as `NA` or `null`, is kept as a string.
+    No values are validated.
 
     Args:
         processor (ExcelProcessor | None): The sheets of the workbook and their
@@ -130,8 +131,8 @@ def read_excel_bundle_bytes(contract: SubmissionContract, data: bytes) -> pd.Dat
     """Read an Excel workbook into the long bundle the contract describes.
 
     Reads the sheets listed in `contract.excel_processor` with
-    `read_excel_workbook_bytes`, which describes the expected workbook layout; a
-    contract without one has its first sheet read as a long sheet. The
+    `read_excel_workbook_bytes`, which describes the expected workbook layout;
+    without one, the workbook's first sheet is read as one long sheet. The
     `tableschema` fields are the columns a wide sheet keeps as identifiers.
 
     Args:

@@ -59,7 +59,7 @@ class TestReadCsv:
             "undefined",
         ],
     )
-    def test_former_na_tokens_stay_strings(self, token: str):
+    def test_na_like_tokens_stay_strings(self, token: str):
         df = read_csv_file_bytes(f"col1,col2\n1,{token}".encode())
 
         assert df.loc[0, "col2"] == token
