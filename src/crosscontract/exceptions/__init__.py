@@ -9,6 +9,7 @@ from .client_exceptions import (
     UnprocessableEntityError,
     ValidationError,
 )
+from .reader_exceptions import FileReadError
 from .schema_exceptions import SchemaValidationError
 from .submission_exceptions import TargetValidationError, UnclaimedRowsError
 
@@ -16,6 +17,7 @@ __all__ = [
     "AuthenticationError",
     "ConflictError",
     "CrossClientError",
+    "FileReadError",
     "PermissionDeniedError",
     "RequestValidationError",
     "ResourceNotFoundError",
