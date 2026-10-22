@@ -203,6 +203,19 @@ class TestSubmitFile:
         assert df.loc[0, "country"] == "NA"
         assert df.loc[0, "value"] == 1.5
 
+    def test_excel_file_on_disk_without_excel_processor_is_submitted(
+        self, client, resource, get, submit, contract, tmp_path
+    ):
+        resource.contract = contract.model_copy(update={"excel_processor": None})
+        path = tmp_path / "bundle.xlsx"
+        bundle(("a", "NA", 2020, 1.5)).to_excel(path, index=False)
+
+        CrossSubmitter(client=client).submit_file("submission3", path)
+
+        df = submit.call_args.args[1]
+        assert df.loc[0, "country"] == "NA"
+        assert df.loc[0, "value"] == 1.5
+
 
 class TestValidateSubmission:
     """The submitter fetches the submission contract by name and passes through."""

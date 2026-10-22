@@ -4,6 +4,10 @@
 > readers and the submission exceptions now live in `handlers/submission/` and
 > `exceptions/`; `submission/` holds only `CrossSubmitter` plus re-exports.
 
+> **Superseded in part 2026-10-22** (#134): the Excel specs live in `contracts/readers/`
+> and every Excel reader in `handlers/readers/`. The bundle readers no longer require an
+> `excel_processor`: without one, the workbook's first sheet is read as one long sheet.
+
 The declarative parts of a **Submission contract** live below the client: the contract and
 its extraction specs (`SubmissionContract`, `ExtractionInstructions`, `Target`) in
 `contracts/submission/`, and the Excel declaration together with the reader that carries

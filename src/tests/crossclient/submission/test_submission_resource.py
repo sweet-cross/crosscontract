@@ -18,7 +18,7 @@ from crosscontract.crossclient.services.submission.submission_service import (
     SubmissionContractService,
 )
 from crosscontract.exceptions import TargetValidationError, UnclaimedRowsError
-from crosscontract.handlers.submission import SubmissionHandler
+from crosscontract.handlers import SubmissionHandler
 from tests.conftest import bound_arguments, bundle
 
 from .conftest import entry_response, submission_response

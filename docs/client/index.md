@@ -104,6 +104,8 @@ handler.validate_submission(CrossContractResolver(client.contracts))
 ```
 
 If the bundle arrives as an Excel workbook, read it into a frame first with
-`read_excel_bundle(contract, filename)` from `crosscontract.handlers`.
+`read_excel_bundle(contract, filename)` from `crosscontract.handlers`. This works for
+every submission contract: without an `excel_processor`, the first sheet is read as
+one long sheet.
 
 See the [API reference](../reference/client.md) for full signatures.

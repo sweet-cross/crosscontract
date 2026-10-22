@@ -4,9 +4,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import crosscontract.handlers.submission as submission
 from crosscontract.contracts.submission import SubmissionContract
-from crosscontract.handlers.submission import (
+from crosscontract.handlers.readers import (
     read_excel_bundle,
     read_excel_bundle_bytes,
 )
@@ -88,14 +87,6 @@ LONG_SHEET = {"name": "long"}
 WIDE_SHEET = {"name": "wide", "wide": {"header_field": "year", "value_field": "value"}}
 
 
-def test_exported():
-    """Test that both readers are exported from the handlers package."""
-    assert submission.read_excel_bundle is read_excel_bundle
-    assert submission.read_excel_bundle_bytes is read_excel_bundle_bytes
-    assert "read_excel_bundle" in submission.__all__
-    assert "read_excel_bundle_bytes" in submission.__all__
-
-
 def test_long_sheet_unchanged():
     """Test that a long sheet is returned unchanged."""
     df = read_excel_bundle_bytes(_contract(LONG_SHEET), _workbook(long=LONG))
@@ -117,10 +108,11 @@ def test_wide_sheet_melted():
     pd.testing.assert_frame_equal(df, expected)
 
 
-def test_no_excel_processor():
-    """Test that a contract without `excel_processor` raises."""
-    with pytest.raises(ValueError, match="has no excel_processor"):
-        read_excel_bundle_bytes(_contract(), _workbook(long=LONG))
+def test_no_excel_processor_reads_first_sheet_long():
+    """Test that a contract without `excel_processor` reads the first sheet as a
+    long sheet and ignores the others."""
+    df = read_excel_bundle_bytes(_contract(), _workbook(first=LONG, second=WIDE))
+    pd.testing.assert_frame_equal(df, LONG)
 
 
 def test_read_excel_bundle_from_file(tmp_path: Path):

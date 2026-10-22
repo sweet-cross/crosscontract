@@ -5,12 +5,10 @@ import openpyxl
 import pandas as pd
 import pytest
 
+from crosscontract.contracts.readers import ExcelProcessor
 from crosscontract.exceptions import FileReadError
-from crosscontract.transformations.excel import (
-    ExcelProcessor,
-    read_excel_workbook_bytes,
-)
-from crosscontract.transformations.excel.processing import _clean_sheet
+from crosscontract.handlers.readers import read_excel_workbook_bytes
+from crosscontract.handlers.readers.excel_reader import _clean_sheet
 
 LONG = pd.DataFrame(
     {"region": ["CH", "DE"], "variable": ["pop", "pop"], "value": [1.5, 2.5]}
@@ -241,3 +239,59 @@ def test_wide_sheet_cleaned_before_melting():
     assert list(df.columns) == ["region", "variable", "year", "value"]
     assert df["region"].tolist() == ["CH", "DE"]
     assert df["year"].tolist() == ["2020", "2020"]
+
+
+def test_na_tokens_read_as_strings_and_blank_as_missing():
+    """Test that NA-like text stays a string while a blank cell is missing."""
+    df = pd.DataFrame(
+        {
+            "region": ["NA", "NULL", "n/a", "None", "CH"],
+            "variable": ["pop"] * 5,
+            "value": [1.0, 2.0, 3.0, 4.0, None],
+        }
+    )
+    out = _read(_workbook(long=df), LONG_SHEET)
+    assert out["region"].tolist() == ["NA", "NULL", "n/a", "None", "CH"]
+    assert pd.isna(out["value"].iloc[4])
+    assert out["value"].iloc[:4].tolist() == [1.0, 2.0, 3.0, 4.0]
+
+
+def test_blank_rows_and_blank_header_column_dropped():
+    """Test that blank rows and an empty blank-header column are dropped without
+    error."""
+    workbook = openpyxl.Workbook()
+    ws = workbook.active
+    ws.title = "long"
+    ws.append(["region", "variable", None, "value"])
+    ws.append(["CH", "pop", None, 1.0])
+    ws.append([None, None, None, None])
+    ws.append(["DE", "pop", None, 2.0])
+    buffer = BytesIO()
+    workbook.save(buffer)
+
+    out = _read(buffer.getvalue(), LONG_SHEET)
+    assert list(out.columns) == ["region", "variable", "value"]
+    assert out["region"].tolist() == ["CH", "DE"]
+
+
+def test_no_processor_reads_first_sheet_long():
+    """Test that without a processor the first sheet is read as a long sheet and
+    the second sheet is ignored."""
+    out = read_excel_workbook_bytes(None, FIELDS, _workbook(first=LONG, second=WIDE))
+    pd.testing.assert_frame_equal(out, LONG)
+
+
+def test_no_processor_cleans_blank_rows_and_header_columns():
+    """Test that the default path drops blank rows and blank-header columns."""
+    workbook = openpyxl.Workbook()
+    ws = workbook.active
+    ws.append(["region", "variable", None, "value"])
+    ws.append(["CH", "pop", None, 1.0])
+    ws.append([None, None, None, None])
+    ws.append(["DE", "NA", None, 2.0])
+    buffer = BytesIO()
+    workbook.save(buffer)
+
+    out = read_excel_workbook_bytes(None, FIELDS, buffer.getvalue())
+    assert list(out.columns) == ["region", "variable", "value"]
+    assert out["variable"].tolist() == ["pop", "NA"]

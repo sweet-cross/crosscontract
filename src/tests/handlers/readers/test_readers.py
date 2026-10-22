@@ -31,10 +31,11 @@ class TestReadCsv:
 
         assert df.loc[0, "code"] == "NA"
 
-    def test_empty_cell_stays_an_empty_string(self):
+    def test_empty_cell_becomes_missing(self):
         df = read_csv_file_bytes(b"col1,col2\n1,\n2,3")
 
-        assert df["col2"].tolist() == ["", "3"]
+        assert pd.isna(df.loc[0, "col2"])
+        assert pd.api.types.is_numeric_dtype(df["col2"])
 
     @pytest.mark.parametrize(
         "token",
@@ -58,10 +59,10 @@ class TestReadCsv:
             "undefined",
         ],
     )
-    def test_na_tokens_become_missing(self, token: str):
+    def test_na_like_tokens_stay_strings(self, token: str):
         df = read_csv_file_bytes(f"col1,col2\n1,{token}".encode())
 
-        assert pd.isna(df.loc[0, "col2"])
+        assert df.loc[0, "col2"] == token
 
     def test_invalid_encoding(self):
         with pytest.raises(FileReadError, match="Invalid file encoding"):

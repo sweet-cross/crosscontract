@@ -140,9 +140,7 @@ class CrossSubmitter:
             Submission: The created submission, in state `received`.
 
         Raises:
-            ValueError: The extension of `path` is not one of the accepted ones,
-                or an Excel file is given for a submission contract without
-                `excel_processor`.
+            ValueError: The extension of `path` is not one of the accepted ones.
             FileNotFoundError: The file does not exist.
             FileReadError: The file cannot be read in its format. Nothing is
                 uploaded.

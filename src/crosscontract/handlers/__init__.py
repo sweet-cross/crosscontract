@@ -1,10 +1,13 @@
 from .readers import (
     read_csv_file,
     read_csv_file_bytes,
+    read_excel_bundle,
+    read_excel_bundle_bytes,
+    read_excel_workbook_bytes,
     read_parquet_file,
     read_parquet_file_bytes,
 )
-from .submission import SubmissionHandler, read_excel_bundle, read_excel_bundle_bytes
+from .submission_handler import SubmissionHandler
 
 __all__ = [
     "SubmissionHandler",
@@ -12,6 +15,7 @@ __all__ = [
     "read_csv_file_bytes",
     "read_excel_bundle",
     "read_excel_bundle_bytes",
+    "read_excel_workbook_bytes",
     "read_parquet_file",
     "read_parquet_file_bytes",
 ]

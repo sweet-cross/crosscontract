@@ -9,7 +9,7 @@ from typing import Literal, Self
 
 from pydantic import Field, field_validator, model_validator
 
-from crosscontract.transformations.excel import ExcelProcessor
+from crosscontract.contracts.readers import ExcelProcessor
 
 from ..contracts import ContractResolver, CrossContract
 from .extraction import ExtractionInstructions
@@ -43,8 +43,8 @@ class SubmissionContract(CrossContract):
             of the target contracts as they land after extraction, not of
             `tableschema`.
         excel_processor (ExcelProcessor | None): The sheets of an Excel bundle
-            and which of them are laid out wide. Required to deliver the bundle
-            as an Excel workbook; if `None`, only non-Excel bundles are accepted.
+            and which of them are laid out wide. If `None`, an Excel workbook is
+            read from its first sheet, as one long sheet.
     """
 
     contract_type: Literal["Submission"] = Field(  # type: ignore[assignment]
@@ -80,8 +80,8 @@ class SubmissionContract(CrossContract):
         default=None,
         description=(
             "The sheets of an Excel bundle and which of them are laid out wide. "
-            "Required to deliver the bundle as an Excel workbook; without it, only "
-            "non-Excel bundles are accepted."
+            "Without it, an Excel workbook is read from its first sheet, as one "
+            "long sheet."
         ),
     )
 

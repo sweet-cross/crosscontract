@@ -6,8 +6,8 @@ import pytest
 import yaml
 
 from crosscontract.contracts import BaseContract
+from crosscontract.contracts.readers import WideLayout
 from crosscontract.contracts.submission import SubmissionContract
-from crosscontract.transformations.excel import WideLayout
 from tests.conftest import resolver_for, resolver_returning, target_contract
 
 valid_data = {
