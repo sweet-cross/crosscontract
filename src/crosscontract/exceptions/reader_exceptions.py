@@ -2,7 +2,7 @@
 
 
 class FileReadError(Exception):
-    """Raised when a file cannot be read.
+    """Raised when a file's content cannot be read.
 
     Met when a file's content cannot be read as the expected format, or when a
     workbook does not match the contract's Excel layout. The message is the
