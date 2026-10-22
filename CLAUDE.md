@@ -126,7 +126,7 @@ Runs what the specs in `contracts/submission/` and `contracts/readers/` declare:
 
 ### `exceptions/` — Package-wide exceptions
 
-Holds every exception class of the package, all exported from `crosscontract.exceptions` and from nowhere else: no other package re-exports them. It imports nothing from the rest of the package (only pandas and pandera), so any layer can raise or catch them.
+Holds every exception class of the package, all exported from `crosscontract.exceptions` and from nowhere else. It imports nothing from the rest of the package (only pandas and pandera), so any layer can raise or catch them.
 
 - `schema_exceptions.py` — `SchemaValidationError`, raised by `validate_dataframe`. It parses pandera's failure report into rows (`errors`, `to_list`, `to_pandas`). Its `CHECK_COLUMNS_PATTERN` reads the message format the checks in `contracts/schema/validation/checks/` write (`Columns '<cols>' in check '<label>' …`); change both together.
 - `submission_exceptions.py` — `TargetValidationError` (the aggregate raised by `validate_targets`, holding one `SchemaValidationError` per failing target keyed by target name) and `UnclaimedRowsError` (raised when a bundle holds rows no target claims, carrying those rows).
