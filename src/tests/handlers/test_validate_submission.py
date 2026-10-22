@@ -3,9 +3,12 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
-from crosscontract.contracts import SchemaValidationError
 from crosscontract.contracts.submission import SubmissionContract
-from crosscontract.exceptions import TargetValidationError, UnclaimedRowsError
+from crosscontract.exceptions import (
+    SchemaValidationError,
+    TargetValidationError,
+    UnclaimedRowsError,
+)
 from crosscontract.handlers import SubmissionHandler
 from tests.conftest import bundle, resolver_for
 

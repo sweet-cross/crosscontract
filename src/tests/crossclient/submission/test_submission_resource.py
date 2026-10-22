@@ -6,7 +6,6 @@ import pandas as pd
 import pytest
 from pydantic import ValidationError as PydanticValidationError
 
-from crosscontract.contracts.schema import SchemaValidationError
 from crosscontract.contracts.submission import SubmissionContract
 from crosscontract.crossclient.services import CrossContractResolver
 from crosscontract.crossclient.services.submission import submission_resource
@@ -17,7 +16,11 @@ from crosscontract.crossclient.services.submission.submission_resource import (
 from crosscontract.crossclient.services.submission.submission_service import (
     SubmissionContractService,
 )
-from crosscontract.exceptions import TargetValidationError, UnclaimedRowsError
+from crosscontract.exceptions import (
+    SchemaValidationError,
+    TargetValidationError,
+    UnclaimedRowsError,
+)
 from crosscontract.handlers import SubmissionHandler
 from tests.conftest import bound_arguments, bundle
 

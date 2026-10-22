@@ -13,7 +13,8 @@ it lives, in test_validate_data.py.
 import pandas as pd
 import pytest
 
-from crosscontract.contracts.schema import SchemaValidationError, TableSchema
+from crosscontract.contracts.schema import TableSchema
+from crosscontract.exceptions import SchemaValidationError
 
 PARENT_MAP = {"ch": None, "other": None, "ch_ag": "ch", "ch_other": "ch"}
 

@@ -44,7 +44,7 @@ with enough context to act on it cold).
 
 ## Architecture
 
-The public surface — `contracts/`, `crossclient/`, and `services/` — is re-exported from `crosscontract/__init__.py`. `_standards/` is an internal module (not re-exported) holding faithful models of the upstream Frictionless standard.
+The root `crosscontract/__init__.py` exposes only the entry points — `CrossClient`, `CrossReader`, `CrossRegistry`, `CrossSubmitter` — and the two contracts handed to them, `CrossContract` and `SubmissionContract`. Everything else is imported from its subpackage (`crosscontract.contracts`, `crosscontract.handlers`, `crosscontract.crossclient`, …), and exceptions only from `crosscontract.exceptions`. Code inside the package never imports from the root. `_standards/` is an internal module (not re-exported) holding faithful models of the upstream Frictionless standard.
 
 ### `contracts/` — The declarative layer: contracts and the specs that name them
 
@@ -78,7 +78,7 @@ The public surface — `contracts/`, `crossclient/`, and `services/` — is re-e
 - `submission_contract.py` — `SubmissionContract`: a contract whose `tableschema` describes the bundle itself, plus `project_name`, an `extraction` block, a `replace_key`, and an optional `excel_processor`. The `tableschema` must declare neither `primaryKey` nor `foreignKeys` — nothing is stored under a bundle's name, so those belong to the contracts its targets name. Field constraints are unaffected. `excel_processor` (an `ExcelProcessor` from `contracts/readers/`) is checked here: each wide sheet's `header_field` and `value_field` must be `tableschema` fields. Without it, an Excel bundle is still accepted and read from its first sheet as one long sheet.
 - `extraction/` — the declarative split instructions: `Target` (which rows go to which target contract, and the transformations applied on the way) and `ExtractionInstructions` (the routing column, the reusable transformation profiles, and the targets).
 
-**`contracts/release/`** — The release specs (see ADR 0012). `release_specification.py` holds the build-recipe models: `CrossDataResourceReleaseSpec` (per-resource descriptive overrides + a `DataInstructions` wrapping a `FetchSpec` from `contracts/fetching/`; `name` defaults to the fetch contract) and `CrossDataPackageReleaseSpec` (authored package metadata + `resources`, with a unique-resource-name validator). Both specs are re-exported from `contracts/` and the top-level package; `DataInstructions` only from `contracts/release/`.
+**`contracts/release/`** — The release specs (see ADR 0012). `release_specification.py` holds the build-recipe models: `CrossDataResourceReleaseSpec` (per-resource descriptive overrides + a `DataInstructions` wrapping a `FetchSpec` from `contracts/fetching/`; `name` defaults to the fetch contract) and `CrossDataPackageReleaseSpec` (authored package metadata + `resources`, with a unique-resource-name validator). Both specs are re-exported from `contracts/`; `DataInstructions` only from `contracts/release/`.
 
 **`contracts/readers/`** — The reader specs. `specs.py` holds `ExcelProcessor` / `ExcelSheet` / `WideLayout`: the optional declaration of an Excel bundle's sheets and which of them are laid out wide. Reached through `SubmissionContract.excel_processor`; executed by `handlers/readers/excel_reader.py`.
 
@@ -126,7 +126,7 @@ Runs what the specs in `contracts/submission/` and `contracts/readers/` declare:
 
 ### `exceptions/` — Package-wide exceptions
 
-Holds every exception class of the package, all exported from `crosscontract.exceptions`. It imports nothing from the rest of the package (only pandas and pandera), so any layer can raise or catch them.
+Holds every exception class of the package, all exported from `crosscontract.exceptions` and from nowhere else. It imports nothing from the rest of the package (only pandas and pandera), so any layer can raise or catch them.
 
 - `schema_exceptions.py` — `SchemaValidationError`, raised by `validate_dataframe`. It parses pandera's failure report into rows (`errors`, `to_list`, `to_pandas`). Its `CHECK_COLUMNS_PATTERN` reads the message format the checks in `contracts/schema/validation/checks/` write (`Columns '<cols>' in check '<label>' …`); change both together.
 - `submission_exceptions.py` — `TargetValidationError` (the aggregate raised by `validate_targets`, holding one `SchemaValidationError` per failing target keyed by target name) and `UnclaimedRowsError` (raised when a bundle holds rows no target claims, carrying those rows).
