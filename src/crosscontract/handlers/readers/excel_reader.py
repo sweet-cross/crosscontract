@@ -79,7 +79,7 @@ def read_excel_workbook_bytes(
 
         if processor is None:
             # Default: the first sheet, as one long sheet
-            sheets = [ExcelSheet(name=excel_file.sheet_names[0])]
+            sheets = [ExcelSheet(name=str(excel_file.sheet_names[0]))]
         else:
             # Ensure at least one listed sheet is in the workbook
             sheets = [
