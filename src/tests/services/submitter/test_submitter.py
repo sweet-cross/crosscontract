@@ -193,6 +193,16 @@ class TestSubmitFile:
 
         submit.assert_not_called()
 
+    def test_csv_file_on_disk_is_submitted(self, client, get, submit, tmp_path):
+        path = tmp_path / "bundle.csv"
+        path.write_bytes(b"country,value\nNA,1.5")
+
+        CrossSubmitter(client=client).submit_file("submission3", path)
+
+        df = submit.call_args.args[1]
+        assert df.loc[0, "country"] == "NA"
+        assert df.loc[0, "value"] == 1.5
+
 
 class TestValidateSubmission:
     """The submitter fetches the submission contract by name and passes through."""

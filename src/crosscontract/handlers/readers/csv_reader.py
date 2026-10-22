@@ -32,7 +32,8 @@ def read_csv_file_bytes(data: bytes) -> pd.DataFrame:
     The content must be UTF-8. Only these tokens become missing values: `#N/A N/A`,
     `#NA`, `-1.#IND`, `-1.#QNAN`, `-NaN`, `-nan`, `1.#IND`, `1.#QNAN`, `<NA>`,
     `N/A`, `NULL`, `NaN`, `None`, `n/a`, `nan`, `null` and `undefined`. Any other
-    text, such as the country code `NA`, is kept as a string.
+    text, such as the country code `NA`, is kept as a string. An empty cell is kept
+    as an empty string, so a single empty cell turns a numeric column into strings.
 
     Args:
         data (bytes): The content of the CSV file.

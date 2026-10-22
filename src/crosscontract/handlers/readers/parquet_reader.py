@@ -22,7 +22,7 @@ def read_parquet_file_bytes(data: bytes) -> pd.DataFrame:
     """
     try:
         return pd.read_parquet(io.BytesIO(data))
-    except (pa.ArrowInvalid, OSError) as e:
+    except (pa.ArrowException, OSError) as e:
         raise FileReadError(f"Invalid Parquet format: {e}") from e
 
 

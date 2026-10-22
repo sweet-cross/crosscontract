@@ -31,6 +31,11 @@ class TestReadCsv:
 
         assert df.loc[0, "code"] == "NA"
 
+    def test_empty_cell_stays_an_empty_string(self):
+        df = read_csv_file_bytes(b"col1,col2\n1,\n2,3")
+
+        assert df["col2"].tolist() == ["", "3"]
+
     @pytest.mark.parametrize(
         "token",
         [
