@@ -83,7 +83,7 @@ Decide at the same time whether `missingValues` should ride through `to_server` 
 
 ### Replace rST double-backtick literals in docstrings with markdown single backticks
 
-The docstring convention in [CLAUDE.md](../.claude/CLAUDE.md) now bans reStructuredText
+The docstring convention in [CLAUDE.md](../CLAUDE.md) now bans reStructuredText
 syntax outright, matching the sibling `cross_back` repository. The existing docstrings
 predate that and use ``double-backtick literals`` throughout — roughly 90 occurrences
 across 9 files:

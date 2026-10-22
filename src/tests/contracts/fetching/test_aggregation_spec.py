@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from crosscontract.transformations.fetch import ColumnAggregation, LevelKeepSpec
+from crosscontract.contracts.fetching import ColumnAggregation, LevelKeepSpec
 
 
 def test_int_form():

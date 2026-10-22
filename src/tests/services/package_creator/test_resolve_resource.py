@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from crosscontract._standards.frictionless import DataResource
+from crosscontract.contracts.fetching import FetchSpec
 from crosscontract.services.package_creator._resolve_resource import (
     _drop_dangling_foreign_keys,
     _filter_pruned_dimensions,
@@ -15,7 +16,6 @@ from crosscontract.services.package_creator._resolve_resource import (
     resolve_resources,
 )
 from crosscontract.services.reader.variables.data_variable import CrossDataVariable
-from crosscontract.transformations import FetchSpecMixin
 
 
 def _fk(resource, fields=("x",), ref_fields=("x",)):
@@ -76,7 +76,7 @@ class TestFetchData:
     def test_contract_not_found_raises_valueerror(self):
         registry = FakeRegistry({})
         with pytest.raises(ValueError, match="not found"):
-            fetch_data(registry, FetchSpecMixin(contract="missing"))
+            fetch_data(registry, FetchSpec(contract="missing"))
 
     def test_data_variable_uses_get_data(self):
         df = pd.DataFrame({"a": [1, 2]})
@@ -84,7 +84,7 @@ class TestFetchData:
         var.get_data.return_value = df
         registry = FakeRegistry({"c": var})
 
-        out_var, out_df = fetch_data(registry, FetchSpecMixin(contract="c"))
+        out_var, out_df = fetch_data(registry, FetchSpec(contract="c"))
 
         assert out_var is var
         pd.testing.assert_frame_equal(out_df, df)
@@ -97,7 +97,7 @@ class TestFetchData:
         var.data = df
         registry = FakeRegistry({"c": var})
 
-        out_var, out_df = fetch_data(registry, FetchSpecMixin(contract="c"))
+        out_var, out_df = fetch_data(registry, FetchSpec(contract="c"))
 
         assert out_var is var
         pd.testing.assert_frame_equal(out_df, df)
@@ -109,7 +109,7 @@ class TestFetchData:
         registry = FakeRegistry({"c": var})
 
         with pytest.raises(RuntimeError, match="Error fetching data"):
-            fetch_data(registry, FetchSpecMixin(contract="c"))
+            fetch_data(registry, FetchSpec(contract="c"))
 
 
 class TestBuildDataResource:
@@ -166,7 +166,7 @@ class TestBuildDataResource:
     def test_unsupported_format_raises(self, make_resource_spec):
         spec = make_resource_spec()
         # Bypass the Literal["csv", "parquet"] guard to reach the defensive
-        # branch (FetchSpecMixin has no validate_assignment).
+        # branch (FetchSpec has no validate_assignment).
         spec.data_instructions.fetch.format = "xml"
 
         with pytest.raises(ValueError, match="Unsupported data format"):

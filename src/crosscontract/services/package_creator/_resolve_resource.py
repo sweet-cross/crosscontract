@@ -8,12 +8,12 @@ from ..._standards.frictionless import (
     FileMetaData,
     TableSchema,
 )
+from ...contracts.fetching import FetchSpec
 from ...contracts.release import (
     CrossDataPackageReleaseSpec,
     CrossDataResourceReleaseSpec,
     DataInstructions,
 )
-from ...transformations import FetchSpecMixin
 from ..reader import CrossReader
 from ..reader.variables import (
     CrossBaseVariable,
@@ -33,14 +33,14 @@ PRUNE_DIMENSIONS: dict[str, list[str]] = {
 
 def fetch_data(
     registry: CrossReader,
-    fetch_spec: FetchSpecMixin,
+    fetch_spec: FetchSpec,
 ) -> tuple[CrossBaseVariable, pd.DataFrame]:
     """Given a resource release specification, fetch the data according to the
     instructions in the spec.
 
     Args:
         registry (CrossReader): The reader to fetch the data from.
-        fetch_spec (FetchSpecMixin): The fetch specification for the data resource,
+        fetch_spec (FetchSpec): The fetch specification for the data resource,
             including the instructions for fetching its data.
 
     Returns:
@@ -243,7 +243,7 @@ def resolve_resources(
             # resource
             ref_spec = CrossDataResourceReleaseSpec(
                 data_instructions=DataInstructions(
-                    fetch=FetchSpecMixin(contract=ref_name, format="csv")
+                    fetch=FetchSpec(contract=ref_name, format="csv")
                 )
             )
             my_resources[ref_name] = {

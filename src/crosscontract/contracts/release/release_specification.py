@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from ..._helpers import OptionalNonEmptyList
 from ..._standards.frictionless import Contributor, PackageMetaData, ResourceMetaData
 from ...constants import CONTRACT_NAME_PATTERN
-from ...transformations import FetchSpecMixin
+from ..fetching import FetchSpec
 
 
 class DataInstructions(BaseModel):
@@ -21,7 +21,7 @@ class DataInstructions(BaseModel):
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    fetch: FetchSpecMixin = Field(
+    fetch: FetchSpec = Field(
         description=(
             "The data fetching specification, which defines how to retrieve the "
             "data for this resource from the server."

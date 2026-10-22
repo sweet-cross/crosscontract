@@ -35,7 +35,7 @@ have moved.
 - [ ] `docs/reference/submission.md` renders `SubmissionContract`, `SubmissionHandler`,
       `CrossSubmitter`, the extraction models (`ExtractionInstructions`, `Target`), and the
       two exceptions, each once.
-- [ ] `docs/reference/transformations.md` also renders `CastColumn`, `DropColumns`,
+- [ ] `docs/reference/transformations.md` exists and renders `CastColumn`, `DropColumns`,
       `DropRowsByValue`, `MapColumnValues`, `ParseDatetimeColumn`, and `RenameColumns`.
 
 **Navigation and landing page**
@@ -66,7 +66,7 @@ have moved.
   - `crossclient/services/submission/` (`SubmissionContractResource`, `Submission`)
   - `submission/submitter.py`
   - `exceptions/submission_exceptions.py`
-  - `transformations/transformation/`
+  - `transformations/`
   - `.ai-context/prds/cross2025_submission.yaml`, as a real-world example to draw from
     (simplify it; don't publish it verbatim).
 - ADR 0004 and ADR 0007: present the contract and its `extraction` block as one authored
@@ -84,7 +84,8 @@ have moved.
   - High-level wrapper: `CrossSubmitter`, built on the client, validates and submits
     (#122).
 
-  Present submission with the same three layers as the landing page (WP2) and the client
+  Present submission with the package-layout wording of the landing page (WP2, note of
+  2026-10-22, which supersedes the three layers) and the client
   pages (WP4).
 - **Note — #122 landed (added 2026-10-17).** `CrossSubmitter.submit` is implemented, so
   the precondition is met. Per ADR 0011: `SubmissionHandler` and the readers moved to
@@ -120,8 +121,8 @@ have moved.
     The page should say so, replacing the "explicit NA list" wording above. A former
     NA token in a `number`, `integer` or `datetime` field is now a validation error.
 - Dependencies:
-  - After 05-release.md, which creates `docs/reference/transformations.md`. If WP5 has
-    not landed, create that page here.
+  - Creates `docs/reference/transformations.md` and adds it to the API Reference nav
+    (since #137, WP5 no longer does).
   - After 02-landing-and-contributing.md, which writes the component list this task
     extends.
   - Branch off `dev`; PR title `docs: ...`.

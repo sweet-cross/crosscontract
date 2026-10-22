@@ -63,5 +63,6 @@ platform-access docs up to date.
   `ContractResource`; later `client.submissions` → `SubmissionContractResource`, #121).
   Frame `CrossRegistry` as the high-level wrapper for data consumers that is built on a
   `CrossClient`, with `CrossSubmitter` as its provider-side counterpart (WP6). Use the
-  same three-layer wording as the landing page (WP2).
+  package-layout wording of the landing page (WP2, note of 2026-10-22, which supersedes
+  the three layers).
 - Dependencies: none. Branch off `dev`; PR title `docs: ...`.

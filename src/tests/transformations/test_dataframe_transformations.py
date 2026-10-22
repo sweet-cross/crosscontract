@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from crosscontract.transformations.transformation.dataframe_transformations import (
+from crosscontract.transformations.dataframe_transformations import (
     DropColumns,
     DropRowsByValue,
     RenameColumns,
@@ -79,7 +79,7 @@ class TestRenameColumns:
         mapping = {"A": "col_A", "B": "col_B"}
         spec = RenameColumns(mapping=mapping)
         with patch(
-            "crosscontract.transformations.transformation.dataframe_transformations.rename_columns"
+            "crosscontract.transformations.dataframe_transformations.rename_columns"
         ) as mock_function:
             spec.apply("a")
             mock_function.assert_called_once_with("a", mapping)
@@ -147,7 +147,7 @@ class TestDropColumns:
         columns_to_drop = ["A", "B"]
         spec = DropColumns(columns=columns_to_drop)
         with patch(
-            "crosscontract.transformations.transformation.dataframe_transformations.drop_columns"
+            "crosscontract.transformations.dataframe_transformations.drop_columns"
         ) as mock_function:
             spec.apply("a")
             mock_function.assert_called_once_with("a", columns_to_drop)
@@ -206,7 +206,7 @@ class TestDropRowsByValue:
         """Test that the `DropRowsByValue` spec correctly applies the function."""
         spec = DropRowsByValue(column_name="A", values=[1, 2])
         with patch(
-            "crosscontract.transformations.transformation.dataframe_transformations.drop_rows_by_value"
+            "crosscontract.transformations.dataframe_transformations.drop_rows_by_value"
         ) as mock_function:
             spec.apply("a")
             mock_function.assert_called_once_with("a", "A", [1, 2])

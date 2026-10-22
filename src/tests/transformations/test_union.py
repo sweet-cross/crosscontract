@@ -1,7 +1,7 @@
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from crosscontract.transformations.transformation import (
+from crosscontract.transformations import (
     CastColumn,
     DropColumns,
     DropRowsByValue,

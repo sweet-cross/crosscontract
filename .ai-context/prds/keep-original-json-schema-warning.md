@@ -9,7 +9,7 @@ while adding a route whose request body is a `SubmissionContract`.
 
 `MapColumnValues.default_value` defaults to the module-level sentinel
 `KEEP_ORIGINAL = object()`
-([`column_transformations.py`](../../src/crosscontract/transformations/transformation/column_transformations.py)).
+([`column_transformations.py`](../../src/crosscontract/transformations/column_transformations.py)).
 Pydantic copies a field's default into the generated JSON schema, and a bare `object()`
 has no JSON form, so every schema generation that reaches this model emits:
 
@@ -90,7 +90,7 @@ reader will "simplify" it back to `default=KEEP_ORIGINAL`.
 
 ## Testing
 
-- Extend `src/tests/transformations/transformation/test_column_transformations.py`:
+- Extend `src/tests/transformations/test_column_transformations.py`:
   - `MapColumnValues.model_json_schema()` produces no `PydanticJsonSchemaWarning`
     (`warnings.catch_warnings(record=True)` plus `simplefilter("always")`), and the same
     for a contract that embeds a transformation, which is the shape consumers hit;
