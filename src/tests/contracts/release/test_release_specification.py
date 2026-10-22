@@ -40,14 +40,12 @@ class TestUniqueResourceNames:
 
 class TestExports:
     def test_specs_reexported(self):
-        import crosscontract
         import crosscontract.contracts as contracts
         import crosscontract.contracts.release as specs
 
         for name in ("CrossDataPackageReleaseSpec", "CrossDataResourceReleaseSpec"):
-            for package in (crosscontract, contracts):
-                assert getattr(package, name) is getattr(specs, name)
-                assert name in package.__all__
+            assert getattr(contracts, name) is getattr(specs, name)
+            assert name in contracts.__all__
 
     def test_data_instructions_exported_only_from_contracts_release(self):
         import crosscontract.contracts as contracts

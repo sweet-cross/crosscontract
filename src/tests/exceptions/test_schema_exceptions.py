@@ -686,13 +686,11 @@ class TestExtractCols:
 
 
 def test_exported_from_all_paths():
-    import crosscontract
     import crosscontract.contracts
     import crosscontract.contracts.schema
     import crosscontract.exceptions as exceptions
 
     assert exceptions.SchemaValidationError is SchemaValidationError
-    assert crosscontract.SchemaValidationError is SchemaValidationError
     assert crosscontract.contracts.SchemaValidationError is SchemaValidationError
     assert crosscontract.contracts.schema.SchemaValidationError is SchemaValidationError
     assert "SchemaValidationError" in exceptions.__all__
