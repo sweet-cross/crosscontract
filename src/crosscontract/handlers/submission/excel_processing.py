@@ -22,9 +22,9 @@ def read_excel_bundle_bytes(contract: SubmissionContract, data: bytes) -> pd.Dat
 
     Raises:
         ValueError: If the contract has no `excel_processor`.
-        ValueError: As raised by `read_excel_workbook_bytes`.
-        python_calamine.CalamineError: If `data` cannot be read as an Excel
-            workbook.
+        FileReadError: If `data` cannot be read as an Excel workbook, none of the
+            listed sheets is in it, a column with a blank header holds data, or a
+            wide sheet has a column named like its `value_field`.
     """
     if contract.excel_processor is None:
         raise ValueError(f"Contract '{contract.name}' has no excel_processor.")
@@ -48,6 +48,9 @@ def read_excel_bundle(
 
     Raises:
         FileNotFoundError: If the file does not exist.
-        ValueError: As raised by `read_excel_bundle_bytes`.
+        ValueError: If the contract has no `excel_processor`.
+        FileReadError: If the file cannot be read as an Excel workbook, none of the
+            listed sheets is in it, a column with a blank header holds data, or a
+            wide sheet has a column named like its `value_field`.
     """
     return read_excel_bundle_bytes(contract, Path(filename).read_bytes())

@@ -1,9 +1,11 @@
 from io import BytesIO
+from zipfile import ZipFile
 
 import openpyxl
 import pandas as pd
 import pytest
 
+from crosscontract.exceptions import FileReadError
 from crosscontract.transformations.excel import (
     ExcelProcessor,
     read_excel_workbook_bytes,
@@ -125,8 +127,28 @@ def test_sheet_name_matched_exactly():
 
 def test_no_listed_sheet_in_workbook():
     """Test that a workbook holding none of the listed sheets raises."""
-    with pytest.raises(ValueError, match="None of the listed sheets"):
+    with pytest.raises(FileReadError, match="None of the listed sheets"):
         _read(_workbook(long=LONG), WIDE_SHEET)
+
+
+def test_corrupt_workbook_raises():
+    """Test that bytes that are not a workbook raise."""
+    with pytest.raises(FileReadError, match="Could not read the Excel workbook"):
+        _read(b"not a workbook", LONG_SHEET)
+
+
+def test_broken_sheet_raises():
+    """Test that a workbook whose sheet data cannot be parsed raises."""
+    source = ZipFile(BytesIO(_workbook(long=LONG)))
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as broken:
+        for item in source.infolist():
+            content = source.read(item.filename)
+            if item.filename.startswith("xl/worksheets/sheet"):
+                content = content[: len(content) // 2]
+            broken.writestr(item, content)
+    with pytest.raises(FileReadError, match="Could not read the Excel workbook"):
+        _read(buffer.getvalue(), LONG_SHEET)
 
 
 def test_header_named_like_header_field_is_melted():
@@ -145,7 +167,7 @@ def test_header_named_like_value_field_raises():
     """Test that a wide header equal to `value_field` raises, naming the
     sheet."""
     df = WIDE.assign(value=1)
-    with pytest.raises(ValueError, match="Sheet 'wide'.*'value'"):
+    with pytest.raises(FileReadError, match="Sheet 'wide'.*'value'"):
         _read(_workbook(wide=df), WIDE_SHEET)
 
 
@@ -193,7 +215,7 @@ class TestCleanSheet:
         """Test that an unnamed column holding data raises, naming the sheet and only
         that column."""
         df = LONG.assign(**{"Unnamed: 3": ["x", None], "Unnamed: 4": None})
-        with pytest.raises(ValueError, match="Sheet 's'.*Unnamed: 3$"):
+        with pytest.raises(FileReadError, match="Sheet 's'.*Unnamed: 3$"):
             _clean_sheet(df, "s")
 
     def test_matcher_requires_blank(self):
