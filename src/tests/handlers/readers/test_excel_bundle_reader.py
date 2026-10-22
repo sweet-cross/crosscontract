@@ -4,9 +4,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import crosscontract.handlers.submission as submission
 from crosscontract.contracts.submission import SubmissionContract
-from crosscontract.handlers.submission import (
+from crosscontract.handlers.readers import (
     read_excel_bundle,
     read_excel_bundle_bytes,
 )
@@ -86,14 +85,6 @@ def _workbook(**sheets: pd.DataFrame) -> bytes:
 
 LONG_SHEET = {"name": "long"}
 WIDE_SHEET = {"name": "wide", "wide": {"header_field": "year", "value_field": "value"}}
-
-
-def test_exported():
-    """Test that both readers are exported from the handlers package."""
-    assert submission.read_excel_bundle is read_excel_bundle
-    assert submission.read_excel_bundle_bytes is read_excel_bundle_bytes
-    assert "read_excel_bundle" in submission.__all__
-    assert "read_excel_bundle_bytes" in submission.__all__
 
 
 def test_long_sheet_unchanged():
