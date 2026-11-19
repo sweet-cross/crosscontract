@@ -4,7 +4,7 @@ A `ValueVariableSchema` must declare a non-empty `primaryKey`, every field outsi
 key must be `integer` or `number`, and there must be at least one such field. The three
 rules together say what a fact table is: a key that identifies the row, plus the numbers
 measured at it. See **ValueVariable**, **Measure** and **Qualifier** in
-[CONTEXT.md](../CONTEXT.md) for the terms.
+[GLOSSARY.md](../GLOSSARY.md) for the terms.
 
 Before this, the class body was a `todo`: a ValueVariable contract was constructible with
 no key at all and with arbitrary non-numeric columns beside its values.
@@ -69,7 +69,7 @@ aggregates must not assume otherwise.
   is by omission made deliberate; add a door only if that case actually arises.
 - **`General` becomes a permanent escape hatch, not a deprecation candidate.** A dataset
   with a non-numeric measured outcome — a binding constraint name, a dominant technology
-  per country/year — can no longer be a ValueVariable. `CONTEXT.md` records General's fate
+  per country/year — can no longer be a ValueVariable. `GLOSSARY.md` records General's fate
   as undecided; this decision settles it in favour of keeping it.
 - **The uniqueness claim is stronger than what runs.** The definition says the key
   identifies a *unique* row, but the primary key check is opt-in and off by default

@@ -93,7 +93,7 @@ one screen)
   - `contracts/schema/fields/*.py`, for the constraints.
   - `SchemaValidationError` in `exceptions/schema_exceptions.py` on `dev`,
     for `max_errors`.
-- Use the terms defined in `.ai-context/CONTEXT.md`: resolver, existing values, opt-in key
+- Use the terms defined in `.ai-context/GLOSSARY.md`: resolver, existing values, opt-in key
   checks. Do not restate ADR rationale on the pages (ADRs 0001, 0005, 0006, 0008, 0009).
 - ADR 0002: fix only the class name. Its DCAT sentence stays, as part of the record.
 - Mkdocstrings: prefer public re-exports over private module paths, and do not render a

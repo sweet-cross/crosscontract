@@ -13,7 +13,7 @@ the ingress peer of `release/`.
 
 Three decisions below are the ones expensive to reverse. Everything else about the
 format — the model shapes, the validators, the vocabulary — is in the code and in
-[CONTEXT.md](../CONTEXT.md).
+[GLOSSARY.md](../GLOSSARY.md).
 
 ## Why
 
@@ -100,7 +100,7 @@ its usual meaning would be a silent correctness bug, not a feature.
   reshape them differently for two different contracts.
 - **`contract_type: Submission` maps to the `General` table type.** A submission bundle
   needs its own contract type but not its own schema; see the **Table type** entry in
-  [CONTEXT.md](../CONTEXT.md) for why no empty schema class was minted.
+  [GLOSSARY.md](../GLOSSARY.md) for why no empty schema class was minted.
 - **`SubmissionContract` inherits `CrossContract`** rather than composing `BaseContract`
   and `CrossMetaData` as a sibling — for `validate_references`'s star-schema default,
   which is correct here since a bundle's foreign keys all point at dimensions, and so the

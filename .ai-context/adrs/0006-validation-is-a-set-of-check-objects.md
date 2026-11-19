@@ -4,7 +4,7 @@ A **Check** is an object: a pydantic model holding what it needs, callable on a
 DataFrame, able to render itself as one or more `pa.Check`s. `PanderaAdapter._derive_checks`
 is the only place that turns a **Schema** into checks, and it takes the **Existing values**
 as optional arguments, so the same derivation serves a bare conversion and a full
-**Data validation**. See the *Validation* section of [CONTEXT.md](../CONTEXT.md) for the
+**Data validation**. See the *Validation* section of [GLOSSARY.md](../GLOSSARY.md) for the
 terms.
 
 This replaces three differently-shaped, differently-gated blocks in the old adapter, each
