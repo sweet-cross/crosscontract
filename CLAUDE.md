@@ -2,49 +2,92 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Repository profile
+
+- `PROJECT_NAME`: `crosscontract`
+- `PACKAGE_DIR`: `src/crosscontract`
+- `TEST_DIR`: `src/tests`
+- `CONTEXT_FOLDER`: `.ai-context` — the folder holding AI working context (plans, work packages, glossary, ADRs). Skills read this entry, so keep it.
+- Dependency groups: `test`, `dev` (includes `test`), `docs`
+
+## Where to look
+
+- **Before naming** a new domain concept, model, or field, read
+  `.ai-context/GLOSSARY.md`, if it exists, and use its terms.
+- **Before proposing or making an architectural change**, check the ADRs in
+  `.ai-context/adrs/`, if any exist. If the change conflicts with an accepted ADR, say so and
+  ask; don't silently deviate.
+- **Python and test conventions** are in `.claude/rules/python.md` and
+  `.claude/rules/tests.md`; they load automatically when you work on matching files.
+
+Glossary and ADRs are durable documents.
+
+## Project overview
+
+`crosscontract` is a Python library for data contracts on the CROSS data platform. Data
+providers use it to validate and submit data bundles; data consumers use it to read
+variables and build Frictionless data packages. It is distributed on PyPI, with its
+documentation on GitHub Pages.
+
 ## Commands and workflow
+
+The project is managed with **uv**. Never suggest `pip`.
 
 Commands, branching and release flow are in the contributing guide:
 
 @CONTRIBUTING.md
 
+**Add a dependency:**
+```bash
+uv add <package>                  # runtime dependency
+uv add --group test <package>     # test-only (the dev group includes test)
+uv add --group dev <package>      # development-only
+uv add --group docs <package>     # documentation
+```
+
+## Working rules
+
 ### Do not run validation automatically
 
-Do **not** run tests, linting, type-checking, coverage, or any other validation
-command (`pytest`, `ruff`, `mypy`, `coverage`, etc.) on your own initiative. After
-making changes, stop and **ask for permission** before running any of them. Only run
-a validation command when the user has explicitly asked for it or granted permission
-in the current exchange.
+Do **not** run tests, linting, formatting, type-checking, coverage, or any other
+validation command (`pytest`, `ruff`, `pre-commit`, `mypy`, `coverage`, ...) on your
+own initiative. After making changes, stop and **ask for permission** before running
+any of them. Only run a validation command when the user has explicitly asked for it
+or granted permission in the current exchange. Permission is per request and does not
+carry over to the next one.
 
 ### Implement only what was asked, as simply as possible
 
 When handed a scoped change, implement **exactly** that change and nothing adjacent.
-Acceptance criteria in a task or PRD file you happened to read, and findings from your
-own earlier review, are **not** authorization — they stay open until handed over
-separately. State the requested change in one line before editing, and let only that
-line justify each edit; everything else you noticed goes in the reply as a note, never
-into the code. If a fix seems to require adjacent work, say so and ask rather than
-bundling it in.
+Acceptance criteria in a task or plan file you happened to read (including anything in
+`.ai-context`), and findings from your own earlier review, are **not** authorization:
+they stay open until handed over separately. State the requested change in one line
+before editing, and let only that line justify each edit; everything else you noticed
+goes in the reply as a note, never into the code. If a fix seems to require adjacent
+work, say so and ask rather than bundling it in.
 
 Prefer the simplest implementation that satisfies the request. Do not add helper
 functions, module constants, curated error messages, or defensive branches unless the
 change cannot be expressed without them — a one-line change should land as a one-line
-change. The house style is deliberately plain (pure function plus thin pydantic model,
-`apply()` a single delegating call); match it. If you think an abstraction is
-warranted, propose it and let the user decide.
+change. The house style is deliberately plain: pure function plus thin pydantic model,
+`apply()` a single delegating call. Match the existing style. If you think an
+abstraction is warranted, propose it and let the user decide.
 
-## Deferred work
+### Durable documents never reference working documents
 
-`.ai-context/TODO.md` is **deprecated** — do not add to it or propose adding to it.
-
-Do not route every out-of-scope observation into a backlog. Mention it in the reply
-and let the user decide. Only when the user wants something done later does it go
-into [`.ai-context/ideas/`](.ai-context/ideas/) as a draft PRD (one file per idea,
-with enough context to act on it cold).
+`.ai-context` holds both working documents (plans, work packages in
+`.ai-context/wps/` — deleted once the work ships or is dropped; git history is the
+archive) and durable ones: the glossary, the ADRs, and `.ai-context/additional_info/`
+(the vendored Frictionless JSON Schemas), which must not be deleted. Code,
+docstrings, comments, committed documentation, and durable documents must never
+reference working documents: no plan or work-package file names, task numbers ("task 07"),
+work-package labels, or phrases like "the Step 3 draft". Once the working document
+is deleted, such references dangle. Describe the superseded design or the rule itself
+instead. If it is unclear whether a document in `.ai-context` is durable, ask.
 
 ## Architecture
 
-The root `crosscontract/__init__.py` exposes only the entry points — `CrossClient`, `CrossReader`, `CrossRegistry`, `CrossSubmitter` — and the two contracts handed to them, `CrossContract` and `SubmissionContract`. Everything else is imported from its subpackage (`crosscontract.contracts`, `crosscontract.handlers`, `crosscontract.crossclient`, …), and exceptions only from `crosscontract.exceptions`. Code inside the package never imports from the root. `_standards/` is an internal module (not re-exported) holding faithful models of the upstream Frictionless standard.
+The root `crosscontract/__init__.py` exposes only the entry points — `CrossClient`, `CrossReader`, `CrossRegistry`, `CrossSubmitter` — and the two contracts handed to them, `CrossContract` and `SubmissionContract`. Everything else is imported from its subpackage (`crosscontract.contracts`, `crosscontract.handlers`, `crosscontract.crossclient`, …). `_standards/` is an internal module (not re-exported) holding faithful models of the upstream Frictionless standard.
 
 ### `contracts/` — The declarative layer: contracts and the specs that name them
 
@@ -88,10 +131,10 @@ The root `crosscontract/__init__.py` exposes only the entry points — `CrossCli
 
 ### `_standards/frictionless/` — Faithful, permissive Frictionless models (internal)
 
-A pydantic mirror of the upstream Frictionless standard, distinct from the stricter `contracts/` layer: every model is `extra="allow"` and carries no CROSS domain logic, so the standard's extensibility rides through losslessly. Internal — not re-exported from the top-level package; sibling modules import from `crosscontract._standards.frictionless`.
+A pydantic mirror of the upstream Frictionless standard, distinct from the stricter `contracts/` layer: every model is `extra="allow"` and carries no CROSS domain logic, so the standard's extensibility rides through losslessly. Internal — not re-exported from the top-level package.
 
 - `fields.py` — permissive field models (`StringField`, `IntegerField`, … discriminated by `type`) with typed `constraints` submodels.
-- `table_schema.py` — the permissive `TableSchema` (`fields`, `primaryKey`, `foreignKeys`, `missingValues`). Shares its bare name with the strict contract `TableSchema`; disambiguate by module.
+- `table_schema.py` — the permissive `TableSchema` (`fields`, `primaryKey`, `foreignKeys`, `missingValues`).
 - `metadata.py` — reusable metadata building blocks composed by the descriptors: `BaseMetaData` (fields identical in both descriptors), `ResourceMetaData` / `PackageMetaData` (descriptive parts), `FileMetaData` (the physical data binding), plus the permissive leaf models `Source`, `License`, `Contributor`. Also defines `FRICTIONLESS_NAME_PATTERN` (the resource/package `name` pattern, which permits `/`).
 - `descriptors.py` — thin compositions: `DataResource(ResourceMetaData, FileMetaData)` and `DataPackage(PackageMetaData)` (adds the required `resources` array). The Frictionless `schema` key maps to a `table_schema` field (via `alias`) to avoid shadowing `BaseModel.schema`.
 
@@ -149,53 +192,33 @@ One subpackage per job a user does on the platform, each standing on a `CrossCli
 - `_resolve_resource.py` — `fetch_data` (fetches the variable a `FetchSpec` names via the reader's trusted path, passing `get_data_kwargs` to `get_data`), `build_data_resource` (overlay contract metadata with the spec field-by-field, embed the contract `schema`, derive `path`/`profile` from `format`), and `resolve_resources` (the per-resource loop: empty data is warned-and-skipped; an all-empty release raises).
 - `_resolve_package.py` — `save_data_package`: writes each resource's data file plus `datapackage.json` and `datapackage.yaml` into the output zip.
 
-The import graph runs one way — `constants`, `exceptions` ← `transformations` ← `contracts` ← `handlers` ← `crossclient` ← `services`. The specs live in `contracts/`, their execution in `handlers/` (submission) or `services/package_creator/` (release and fetching, which fetches through the reader), the transport in `crossclient/`, and `services/` holds the high-level entry points. `transformations/` sits below `contracts/`: its specs run themselves, and specs in `contracts/` compose them. Inside `services/`, `package_creator/` imports `reader/`. `exceptions/`, like `constants`, is a base: it imports nothing from the rest of the package. Never import `services/` from any other package (only the root `__init__.py` re-exports it), never import `crossclient/` from `handlers/`, and never import any other package from `exceptions/`.
-
 ### `_helpers/` — Internal, dependency-free helpers
 
 Not re-exported from the top-level package. `_pydantic.py` holds reusable pydantic types (`OptionalNonEmptyList`, which collapses `[]`→`None` for Frictionless `minItems: 1` optional arrays); `_io.py` holds `read_yaml_or_json_file` and `dump_to_file`.
+
+### Import graph
+
+The import graph runs one way — `constants`, `exceptions` ← `transformations` ← `contracts` ← `handlers` ← `crossclient` ← `services`. The specs live in `contracts/`, their execution in `handlers/` (submission) or `services/package_creator/` (release and fetching, which fetches through the reader), the transport in `crossclient/`, and `services/` holds the high-level entry points. `transformations/` sits below `contracts/`: its specs run themselves, and specs in `contracts/` compose them. Inside `services/`, `package_creator/` imports `reader/`. `exceptions/`, like `constants`, is a base: it imports nothing from the rest of the package.
+
+- Never import `services/` from any other package (only the root `__init__.py` re-exports it), never import `crossclient/` from `handlers/`, and never import any other package from `exceptions/`.
+- Code inside the package never imports from the root `crosscontract/__init__.py`.
+- Exceptions are imported only from `crosscontract.exceptions`.
+- Sibling modules import the Frictionless models from `crosscontract._standards.frictionless`.
 
 ### Key design patterns
 
 - **Discriminated unions**: `contract_type` on `CrossContract` selects the schema's `table_type` via the `CONTRACT_TYPE_TO_TABLE_TYPE` table in `contracts/contracts/cross_contract.py`. The mapping is **not** the identity: `Submission` resolves to the `General` table type, because a submission bundle needs its own contract type but not its own schema. The two vocabularies are deliberately separate so several contract types can share one schema — never assume the two strings are equal, and never add an empty schema class just to give a contract type a discriminator target. The `_inject_table_type` validator bridges them automatically.
 - **Adapters are stateless class methods**: call `Adapter.convert_schema(schema, ...)` directly; the adapter pattern exists for extensibility but doesn't require instantiation in practice.
+
+### Naming pitfalls
+
 - **Two `name` patterns, deliberately distinct**: `CONTRACT_NAME_PATTERN` (in the dependency-free `constants.py`, so every package can import it) is the strict contract/field identifier — no `/`; `FRICTIONLESS_NAME_PATTERN` (in `_standards/frictionless/metadata.py`) is the looser standard resource/package identifier that permits `/`. The contract pattern is a subset, so any contract name is also a valid Frictionless name.
+- **Two classes named `TableSchema`**: the permissive `crosscontract._standards.frictionless.table_schema.TableSchema` shares its bare name with the strict contract `TableSchema` in `contracts/schema/`; disambiguate by module.
 - **Two packages named `submission`**: `crosscontract.contracts.submission` holds the declarative specs (`SubmissionContract`, `ExtractionInstructions`, `Target`), executed offline by `SubmissionHandler` in `crosscontract.handlers`; `crosscontract.crossclient.services.submission` the HTTP transport (`SubmissionContractService`, `SubmissionContractResource`, `Submission`). The high-level `CrossSubmitter` lives in `crosscontract.services.submitter`. Name the full path when referring to any of them.
 - **Two packages named `services`**: `crosscontract.crossclient.services` is the transport (`ContractService`, `SubmissionContractService` and their resources, reached as `client.contracts` / `client.submissions`); `crosscontract.services` is the high-level layer (`CrossReader`, `CrossSubmitter`, `create_data_package`). Name the full path when referring to either.
-- **Tests live in `src/tests/`**, mirroring the `src/crosscontract/` structure. `pythonpath = "src"` in `pyproject.toml` means imports use `from crosscontract import ...` without editable install, though the package should be installed via `uv sync`.
 
-## Docstring convention
+## Workflow reminders
 
-All Python docstrings in this package use **Google style** (rendered by mkdocs via mkdocstrings). **Markdown formatting only** — single-backtick `code`, dashes for bullet lists, and **no reStructuredText syntax of any kind**: no ``double-backtick literals``, no `:param:` / `:returns:` / `:raises:` field markers, no `:attr:` / `:class:` / `:meth:` / `:func:` roles, no rST directives.
-
-**Every docstring** carries `Args:`, `Returns:`, and `Raises:` sections — each when applicable (e.g. no `Returns:` on `__init__`, no `Args:` on a no-argument method) — with parameter types in parentheses, e.g. `value (str | None): ...`.
-
-Standard sections (omit any that don't apply):
-
-```python
-def f(x: int, y: str | None = None) -> bool:
-    """One-line summary in the imperative.
-
-    Optional longer description in plain prose. Reference symbols with
-    backticks, e.g. `PlotSpec`, `value_column`, `pd.DataFrame`.
-
-    Args:
-        x (int): What it is.
-        y (str | None, optional): What it is. Defaults to `None`.
-
-    Returns:
-        bool: What comes back.
-
-    Raises:
-        ValueError: When and why.
-    """
-```
-
-Rules of thumb:
-
-- Docstrings are user-facing. Write what the thing does, and where a caller needs it, how to use it. Do **not** write *why it was built that way* — design rationale, rejected alternatives, comparisons to how a sibling class is built, or a justification for something the class deliberately does not have. A reader calling the code has no use for it and it obscures what they came for. Rationale belongs in commit messages, PRs, ADRs, or `.ai-context/`.
-- For the same reason, do **not** reference internal notes (ADRs, issue numbers, task numbers, migration cycles) from a docstring.
-- A consequence a caller must act on is *not* rationale and belongs in the docstring — e.g. "validation here is advisory; the platform re-validates on ingest" tells them their data can still be rejected. State the consequence, not the decision behind it.
-- For Pydantic field descriptions, use the `Field(description=...)` argument with the same markdown conventions; no Args block on the field itself.
-- For `@model_validator` / `@model_serializer` methods, document the invariant they enforce in the summary, plus `Returns:` (typically `Self`) and `Raises:` where applicable.
-- Properties: document via `Returns:` rather than restating the property name.
+- **Root exports change** (`crosscontract.__all__`) → update `src/tests/test_exports.py`, which pins the exact set of root exports.
+- **A module is moved or renamed** → update its `::: crosscontract.…` line in `docs/reference/*.md`; the API reference pages name module paths directly.
+- **The public API changes** → check the tutorial notebooks in `notebooks/`; `scripts/copy_notebooks_to_docs.py` copies them into the docs site.

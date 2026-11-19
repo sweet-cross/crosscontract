@@ -4,7 +4,7 @@ Validating data against a **Contract** needs things the contract cannot know by 
 what the contracts it references look like, and which values are already stored. Both
 are supplied by a single `ContractResolver` protocol carrying `resolve` and `get_data`,
 and `BaseContract.validate_data` owns the derivation of *what* to ask for. See the
-*Validation* section of [CONTEXT.md](../CONTEXT.md) for the terms.
+*Validation* section of [GLOSSARY.md](../GLOSSARY.md) for the terms.
 
 ## Why one protocol and not two
 

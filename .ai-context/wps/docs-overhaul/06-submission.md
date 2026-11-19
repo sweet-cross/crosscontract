@@ -71,7 +71,7 @@ have moved.
     (simplify it; don't publish it verbatim).
 - ADR 0004 and ADR 0007: present the contract and its `extraction` block as one authored
   YAML, and `CrossSubmitter` as the provider-side counterpart of `CrossRegistry`. Use the
-  *Submission and extraction* terms from `.ai-context/CONTEXT.md` (routing column,
+  *Submission and extraction* terms from `.ai-context/GLOSSARY.md` (routing column,
   target, unclaimed rows, submission validation). Do not restate ADR rationale on the
   page.
 - **Note — package architecture (added 2026-10-12).** #120–#122 change the layout this

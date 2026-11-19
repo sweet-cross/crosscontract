@@ -11,7 +11,7 @@ it builds its own `CrossContractResolver` and turns a **Submission contract** pl
 delivered bundle into a complete **Submission validation** in one call — and, once the
 platform offers the endpoint, into a submission. It lives in `submission/`, not in
 `crossclient/`. See the *platform and its access layers* and *Submission and extraction*
-sections of [CONTEXT.md](../CONTEXT.md) for the terms.
+sections of [GLOSSARY.md](../GLOSSARY.md) for the terms.
 
 ## Why it is not on the Client, and not on the Registry
 
@@ -22,7 +22,7 @@ the two high-level layers have in common is that each serves one role over one C
 **Data consumer** and **Data provider**.
 
 This is also why it is not called `SubmissionClient`, the name it was proposed under:
-CONTEXT.md fixes **Client** as the lower-level access layer, and the `Submission*` prefix
+GLOSSARY.md fixes **Client** as the lower-level access layer, and the `Submission*` prefix
 already names the *offline* concepts — `SubmissionContract`, `SubmissionHandler` — every
 one of which runs with no platform connection. `CrossSubmitter` groups it with
 `CrossClient` and `CrossRegistry`, which is where the connected things live.
